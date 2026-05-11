@@ -22,17 +22,19 @@ interface Props {
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
 }
 
-const COL_WIDTH = 72
+const COL_WIDTH   = 72
+const LEFT_WIDTH  = 260
+const YEAR_H      = 34
+const MONTH_H     = 28
+const TODAY_H     = 18
+const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
+const CAT_ROW_H   = 32
+const PROJ_ROW_H  = 36
+const ADD_ROW_H   = 24
 
 const PASTEL_COLORS = [
-  '#a5b4fc', // indigo
-  '#fdba74', // orange
-  '#86efac', // green
-  '#93c5fd', // blue
-  '#f9a8d4', // pink
-  '#fde047', // yellow
-  '#c4b5fd', // violet
-  '#7dd3fc', // sky
+  '#a5b4fc', '#fdba74', '#86efac', '#93c5fd',
+  '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc',
 ]
 
 const STATUS_META: Record<GanttStatus, { label: string; bg: string; color: string }> = {
@@ -63,43 +65,26 @@ export function GanttChart({
 }: Props) {
   const months    = buildMonthRange(viewStart, viewEnd)
   const totalCols = months.length
-  const scrollRef       = useRef<HTMLDivElement>(null)
+  const leftRef         = useRef<HTMLDivElement>(null)
+  const rightRef        = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
+  const teamFilterRef   = useRef<HTMLDivElement>(null)
 
-  const [editProjId, setEditProjId]   = useState<string | null>(null)
-  const [editProjVal, setEditProjVal] = useState('')
-  const [editCatId, setEditCatId]     = useState<string | null>(null)
-  const [editCatVal, setEditCatVal]   = useState('')
-  const [addingCat, setAddingCat]     = useState(false)
-  const [newCatName, setNewCatName]   = useState('')
-  const [dragProjId, setDragProjId]   = useState<string | null>(null)
-  const [dragOver, setDragOver]       = useState<DragOver>(null)
-  const [sortMode, setSortMode]       = useState<'default' | 'start-asc' | 'end-desc'>('default')
+  const [editProjId, setEditProjId]       = useState<string | null>(null)
+  const [editProjVal, setEditProjVal]     = useState('')
+  const [editCatId, setEditCatId]         = useState<string | null>(null)
+  const [editCatVal, setEditCatVal]       = useState('')
+  const [addingCat, setAddingCat]         = useState(false)
+  const [newCatName, setNewCatName]       = useState('')
+  const [dragProjId, setDragProjId]       = useState<string | null>(null)
+  const [dragOver, setDragOver]           = useState<DragOver>(null)
+  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc'>('default')
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [showTeamFilter, setShowTeamFilter] = useState(false)
-  const teamFilterRef = useRef<HTMLDivElement>(null)
 
-  // All unique teams across all projects ('' = 팀 없음)
-  const allTeams = [...new Set(projects.map(p => p.team || ''))].sort()
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (teamFilterRef.current && !teamFilterRef.current.contains(e.target as Node))
-        setShowTeamFilter(false)
-    }
-    if (showTeamFilter) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showTeamFilter])
-
-  function toggleTeam(team: string) {
-    setExcludedTeams(prev => {
-      const next = new Set(prev)
-      if (next.has(team)) next.delete(team); else next.add(team)
-      return next
-    })
-  }
-
+  const allTeams  = [...new Set(projects.map(p => p.team || ''))].sort()
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
+
   const projectsOf = (catId: string) => {
     let base = projects.filter(p => p.category_id === catId)
     if (excludedTeams.size > 0)
@@ -132,20 +117,37 @@ export function GanttChart({
     else yearGroups[yearGroups.length - 1].count++
   }
 
-  function onContentScroll() {
-    if (stickyScrollRef.current && scrollRef.current)
-      stickyScrollRef.current.scrollLeft = scrollRef.current.scrollLeft
+  // Scroll sync: right → left (vertical) + sticky scrollbar (horizontal)
+  function onRightScroll() {
+    if (leftRef.current && rightRef.current)
+      leftRef.current.scrollTop = rightRef.current.scrollTop
+    if (stickyScrollRef.current && rightRef.current)
+      stickyScrollRef.current.scrollLeft = rightRef.current.scrollLeft
   }
   function onStickyScroll() {
-    if (scrollRef.current && stickyScrollRef.current)
-      scrollRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
+    if (rightRef.current && stickyScrollRef.current)
+      rightRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
+  }
+  // Forward wheel on left panel to right panel
+  function onLeftWheel(e: React.WheelEvent) {
+    if (rightRef.current) rightRef.current.scrollTop += e.deltaY
   }
 
   useEffect(() => {
-    if (scrollRef.current && todayCol > 0)
-      scrollRef.current.scrollLeft = Math.max(0, todayCol * COL_WIDTH - 200)
+    if (rightRef.current && todayCol > 0)
+      rightRef.current.scrollLeft = Math.max(0, todayCol * COL_WIDTH - 200)
   }, [])
 
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (teamFilterRef.current && !teamFilterRef.current.contains(e.target as Node))
+        setShowTeamFilter(false)
+    }
+    if (showTeamFilter) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showTeamFilter])
+
+  // Project name editing
   function startEditProj(p: GanttProject, e: React.MouseEvent) {
     e.stopPropagation(); setEditProjId(p.id); setEditProjVal(p.name)
   }
@@ -154,6 +156,7 @@ export function GanttChart({
     setEditProjId(null)
   }
 
+  // Category name editing
   function startEditCat(c: GanttCategory, e: React.MouseEvent) {
     e.stopPropagation(); setEditCatId(c.id); setEditCatVal(c.name)
   }
@@ -173,7 +176,15 @@ export function GanttChart({
     onUpdateProjectStatus(p.id, next)
   }
 
-  // ── Project drag-and-drop ─────────────────────────────────
+  function toggleTeam(team: string) {
+    setExcludedTeams(prev => {
+      const next = new Set(prev)
+      if (next.has(team)) next.delete(team); else next.add(team)
+      return next
+    })
+  }
+
+  // ── Row drag-and-drop (left panel) ───────────────────────
   function handleProjDragStart(e: React.DragEvent, id: string) {
     setDragProjId(id)
     e.dataTransfer.effectAllowed = 'move'
@@ -187,8 +198,7 @@ export function GanttChart({
   function handleDragOverProject(e: React.DragEvent, id: string) {
     e.preventDefault()
     const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    const pos = e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom'
-    setDragOver({ type: 'project', id, pos })
+    setDragOver({ type: 'project', id, pos: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom' })
   }
 
   function handleDragOverCategory(e: React.DragEvent, id: string) {
@@ -227,14 +237,13 @@ export function GanttChart({
         updates.push(...oldProjs.map((p, i) => ({ id: p.id, category_id: dragged.category_id, sort_order: i })))
       }
     }
-
     resetDrag()
     await onMoveProject(updates)
   }
 
   function resetDrag() { setDragProjId(null); setDragOver(null) }
 
-  // ── Bar drag handlers ─────────────────────────────────────
+  // ── Bar drag handlers (right panel) ──────────────────────
   const makeDragHandlers = useCallback((p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => {
     return (e: React.MouseEvent) => {
       e.preventDefault(); e.stopPropagation()
@@ -284,6 +293,180 @@ export function GanttChart({
 
   const totalWidth = COL_WIDTH * totalCols
 
+  // Shared row renderer helper
+  const renderCategoryRows = (cat: GanttCategory, catIdx: number, forPanel: 'left' | 'right') => {
+    const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
+    const catProjs  = projectsOf(cat.id)
+    const isCatOver = dragOver?.type === 'category' && dragOver.id === cat.id
+
+    if (forPanel === 'left') {
+      return (
+        <div key={cat.id}>
+          {/* Category header — left */}
+          <div
+            className="flex items-center group border-b"
+            style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
+            onDragOver={e => handleDragOverCategory(e, cat.id)}
+          >
+            <div className="flex items-center gap-2 pl-3 pr-2 w-full">
+              {editCatId === cat.id ? (
+                <input
+                  autoFocus
+                  className="text-xs font-bold text-gray-800 border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
+                  value={editCatVal}
+                  onChange={e => setEditCatVal(e.target.value)}
+                  onBlur={() => commitEditCat(cat.id)}
+                  onKeyDown={e => { if (e.key === 'Enter') commitEditCat(cat.id); if (e.key === 'Escape') setEditCatId(null) }}
+                />
+              ) : (
+                <span className="text-xs font-bold text-gray-700 cursor-text hover:text-indigo-600 truncate" onClick={e => startEditCat(cat, e)}>
+                  {cat.name}
+                </span>
+              )}
+              <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{catProjs.length}</span>
+              <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
+                <button onClick={() => onAddProject(cat.id)} className="p-0.5 text-gray-400 hover:text-indigo-500"><Plus size={12} /></button>
+                <button onClick={() => onDeleteCategory(cat.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+              </div>
+            </div>
+          </div>
+
+          {/* Project rows — left */}
+          {catProjs.map(project => {
+            const isBacklog  = project.status === 'backlog'
+            const isDragging = dragProjId === project.id
+            const isProjOver = dragOver?.type === 'project' && dragOver.id === project.id
+            const sm         = STATUS_META[project.status]
+
+            return (
+              <div
+                key={project.id}
+                draggable
+                onDragStart={e => handleProjDragStart(e, project.id)}
+                onDragOver={e => handleDragOverProject(e, project.id)}
+                onDragEnd={resetDrag}
+                onDrop={handleDrop}
+                className="relative"
+                style={{ opacity: isDragging ? 0.4 : 1 }}
+              >
+                {isProjOver && dragOver?.pos === 'top' && (
+                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
+                )}
+                <div
+                  className="flex items-center gap-1.5 group border-b px-2"
+                  style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+                >
+                  <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
+                  {editProjId === project.id ? (
+                    <input
+                      autoFocus
+                      className="text-xs font-medium text-gray-800 border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
+                      value={editProjVal}
+                      onChange={e => setEditProjVal(e.target.value)}
+                      onBlur={() => commitEditProj(project.id)}
+                      onKeyDown={e => { if (e.key === 'Enter') commitEditProj(project.id); if (e.key === 'Escape') setEditProjId(null) }}
+                    />
+                  ) : (
+                    <span
+                      className="text-xs font-medium text-gray-800 truncate cursor-text hover:text-indigo-600"
+                      style={{ maxWidth: 160 }}
+                      onClick={e => startEditProj(project, e)}
+                      title={project.name}
+                    >
+                      {project.name}
+                    </span>
+                  )}
+                  <button
+                    onClick={() => cycleStatus(project)}
+                    className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                    style={{ backgroundColor: sm.bg, color: sm.color }}
+                    title="클릭하여 상태 변경"
+                  >
+                    {sm.label}
+                  </button>
+                  <div className="flex items-center ml-auto shrink-0 opacity-0 group-hover:opacity-100">
+                    <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={11} /></button>
+                    <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+                  </div>
+                </div>
+                {isProjOver && dragOver?.pos === 'bottom' && (
+                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
+                )}
+              </div>
+            )
+          })}
+
+          {/* Add project row — left */}
+          <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} onDragOver={e => handleDragOverCategory(e, cat.id)}>
+            <button
+              onClick={() => onAddProject(cat.id)}
+              className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
+            >
+              <Plus size={10} /> 프로젝트
+            </button>
+          </div>
+        </div>
+      )
+    }
+
+    // right panel
+    return (
+      <div key={cat.id}>
+        {/* Category header — right (empty bar area) */}
+        <div
+          className="border-b"
+          style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa' }}
+          onDragOver={e => handleDragOverCategory(e, cat.id)}
+        />
+
+        {/* Project bar rows — right */}
+        {catProjs.map(project => {
+          const cols      = barCols(project)
+          const isBacklog = project.status === 'backlog'
+
+          return (
+            <div
+              key={project.id}
+              className="relative border-b"
+              style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+            >
+              {cols && (
+                <>
+                  <div
+                    data-bar-id={project.id}
+                    className="absolute top-1/2 -translate-y-1/2 rounded-full group/bar"
+                    style={{ left: cols.start * COL_WIDTH + 4, width: (cols.end - cols.start) * COL_WIDTH - 8, height: 8, backgroundColor: barColor, cursor: 'grab' }}
+                    onMouseDown={makeDragHandlers(project, 'move')}
+                  >
+                    <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />
+                    <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />
+                  </div>
+                  {(project.team || project.pm) && (
+                    <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}>
+                      {project.team && (
+                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: barColor + '60', color: '#374151' }}>
+                          {project.team}
+                        </span>
+                      )}
+                      {project.pm && (
+                        <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: barColor, color: '#374151' }}>
+                          👤 {project.pm}
+                        </span>
+                      )}
+                    </div>
+                  )}
+                </>
+              )}
+            </div>
+          )
+        })}
+
+        {/* Add project row — right */}
+        <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} />
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Toolbar */}
@@ -305,28 +488,17 @@ export function GanttChart({
                 )}
                 <ChevronDown size={11} />
               </button>
-
               {showTeamFilter && (
                 <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[160px] py-1">
                   <div className="px-3 py-1.5 border-b flex items-center justify-between">
                     <span className="text-[11px] font-semibold text-gray-600">팀별 보기</span>
                     {excludedTeams.size > 0 && (
-                      <button
-                        onClick={() => setExcludedTeams(new Set())}
-                        className="text-[10px] text-indigo-500 hover:text-indigo-700"
-                      >
-                        전체 표시
-                      </button>
+                      <button onClick={() => setExcludedTeams(new Set())} className="text-[10px] text-indigo-500 hover:text-indigo-700">전체 표시</button>
                     )}
                   </div>
                   {allTeams.map(team => (
                     <label key={team} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                      <input
-                        type="checkbox"
-                        checked={!excludedTeams.has(team)}
-                        onChange={() => toggleTeam(team)}
-                        className="w-3 h-3 rounded accent-indigo-500"
-                      />
+                      <input type="checkbox" checked={!excludedTeams.has(team)} onChange={() => toggleTeam(team)} className="w-3 h-3 rounded accent-indigo-500" />
                       <span className="text-xs text-gray-700">{team || '팀 없음'}</span>
                     </label>
                   ))}
@@ -335,7 +507,7 @@ export function GanttChart({
             </div>
           )}
 
-          {/* Sort controls */}
+          {/* Sort */}
           <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
             {(['default', 'start-asc', 'end-desc'] as const).map(mode => (
               <button
@@ -348,263 +520,46 @@ export function GanttChart({
             ))}
           </div>
 
-          <button
-            onClick={() => setAddingCat(true)}
-            className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 font-medium"
-          >
+          <button onClick={() => setAddingCat(true)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 font-medium">
             <Plus size={15} /> 카테고리
           </button>
           {sortedCats.length > 0 && (
-            <button
-              onClick={() => onAddProject(sortedCats[0].id)}
-              className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
-            >
+            <button onClick={() => onAddProject(sortedCats[0].id)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
               <Plus size={15} /> 프로젝트
             </button>
           )}
         </div>
       </div>
 
-      {/* Chart */}
-      <div
-        className="flex-1 overflow-auto"
-        ref={scrollRef}
-        onScroll={onContentScroll}
-        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-      >
-        <div style={{ width: totalWidth, position: 'relative' }}>
+      {/* Main area: left panel + right panel */}
+      <div className="flex flex-1 overflow-hidden">
 
-          {/* Year header */}
-          <div className="flex sticky top-0 z-20 bg-white border-b">
-            {yearGroups.map(({ year, count }) => (
-              <div key={year} className="text-sm font-bold text-gray-700 px-3 py-1.5 border-r" style={{ width: COL_WIDTH * count }}>
-                {year}
-              </div>
-            ))}
+        {/* ── Left panel (fixed, labels) ─────────────────── */}
+        <div
+          ref={leftRef}
+          onWheel={onLeftWheel}
+          className="shrink-0 flex flex-col border-r shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
+          style={{ width: LEFT_WIDTH, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
+        >
+          {/* Header placeholder */}
+          <div className="shrink-0 border-b bg-white flex items-end" style={{ height: HEADER_H }}>
+            <span className="text-[11px] font-semibold text-gray-400 px-3 pb-2">프로젝트</span>
           </div>
 
-          {/* Month header */}
-          <div className="flex sticky top-[34px] z-20 bg-white border-b">
-            {months.map(ym => (
-              <div
-                key={ym}
-                className={`text-center text-xs py-1 border-r shrink-0 font-medium ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
-                style={{ width: COL_WIDTH }}
-              >
-                {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
-              </div>
-            ))}
-          </div>
-
-          {/* TODAY label */}
-          <div className="sticky z-20 bg-white border-b" style={{ top: 62, height: 18 }}>
-            {todayX !== null && (
-              <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)' }}>
-                TODAY
-              </div>
-            )}
-          </div>
-
-          {/* Rows */}
-          <div
-            className="relative"
-            onDragOver={e => e.preventDefault()}
-            onDrop={handleDrop}
-          >
-            {todayX !== null && (
-              <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
-            )}
-            {months.map((ym, i) => (
-              <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * COL_WIDTH, width: COL_WIDTH }} />
-            ))}
-
+          {/* Category + project rows */}
+          <div className="flex-1 overflow-y-hidden" onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
             {categories.length === 0 && !addingCat && (
-              <div className="flex items-center justify-center h-40 text-gray-400 text-sm">
-                카테고리를 추가해 보세요
-              </div>
+              <div className="flex items-center justify-center h-20 text-gray-400 text-xs">카테고리를 추가해 보세요</div>
             )}
-
-            {sortedCats.map((cat, catIdx) => {
-              const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
-              const catProjs  = projectsOf(cat.id)
-              const isCatOver = dragOver?.type === 'category' && dragOver.id === cat.id
-
-              return (
-                <div key={cat.id}>
-                  {/* Category header */}
-                  <div
-                    className="relative flex items-center group border-b"
-                    style={{
-                      height: 32,
-                      backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa',
-                      borderLeft: `3px solid ${cat.color}`,
-                    }}
-                    onDragOver={e => handleDragOverCategory(e, cat.id)}
-                  >
-                    <div
-                      className="sticky left-0 z-10 flex items-center gap-2 pl-3 pr-2"
-                      style={{ backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa' }}
-                    >
-                      {editCatId === cat.id ? (
-                        <input
-                          autoFocus
-                          className="text-xs font-bold text-gray-800 border-b border-indigo-400 outline-none bg-transparent w-36"
-                          value={editCatVal}
-                          onChange={e => setEditCatVal(e.target.value)}
-                          onBlur={() => commitEditCat(cat.id)}
-                          onKeyDown={e => { if (e.key === 'Enter') commitEditCat(cat.id); if (e.key === 'Escape') setEditCatId(null) }}
-                        />
-                      ) : (
-                        <span
-                          className="text-xs font-bold text-gray-700 cursor-text hover:text-indigo-600"
-                          onClick={e => startEditCat(cat, e)}
-                        >
-                          {cat.name}
-                        </span>
-                      )}
-                      <span className="text-[10px] text-gray-400 tabular-nums">{catProjs.length}</span>
-                      <div className="flex items-center opacity-0 group-hover:opacity-100">
-                        <button onClick={() => onAddProject(cat.id)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="프로젝트 추가"><Plus size={12} /></button>
-                        <button onClick={() => onDeleteCategory(cat.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
-                      </div>
-                    </div>
-                  </div>
-
-                  {/* Project rows */}
-                  {catProjs.map(project => {
-                    const cols       = barCols(project)
-                    const isBacklog  = project.status === 'backlog'
-                    const isDragging = dragProjId === project.id
-                    const isProjOver = dragOver?.type === 'project' && dragOver.id === project.id
-                    const sm         = STATUS_META[project.status]
-
-                    return (
-                      <div
-                        key={project.id}
-                        draggable
-                        onDragStart={e => handleProjDragStart(e, project.id)}
-                        onDragOver={e => handleDragOverProject(e, project.id)}
-                        onDragEnd={resetDrag}
-                        className="relative"
-                        style={{ opacity: isDragging ? 0.4 : 1 }}
-                      >
-                        {isProjOver && dragOver?.pos === 'top' && (
-                          <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
-                        )}
-
-                        <div
-                          className="relative flex items-center group border-b"
-                          style={{ height: 36, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
-                        >
-                          {/* Gantt bar */}
-                          {cols && (
-                            <>
-                              <div
-                                data-bar-id={project.id}
-                                className="absolute top-1/2 -translate-y-1/2 rounded-full group/bar"
-                                style={{
-                                  left: cols.start * COL_WIDTH + 4,
-                                  width: (cols.end - cols.start) * COL_WIDTH - 8,
-                                  height: 8,
-                                  backgroundColor: barColor,
-                                  cursor: 'grab',
-                                }}
-                                onMouseDown={makeDragHandlers(project, 'move')}
-                              >
-                                <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />
-                                <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />
-                              </div>
-                              {(project.team || project.pm) && (
-                                <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}>
-                                  {project.team && (
-                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: barColor + '60', color: '#374151' }}>
-                                      {project.team}
-                                    </span>
-                                  )}
-                                  {project.pm && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: barColor, color: '#374151' }}>
-                                      👤 {project.pm}
-                                    </span>
-                                  )}
-                                </div>
-                              )}
-                            </>
-                          )}
-
-                          {/* Sticky label */}
-                          <div
-                            className="sticky left-0 z-10 flex items-center gap-1.5 pl-5"
-                            style={{ backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
-                          >
-                            <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
-
-                            {editProjId === project.id ? (
-                              <input
-                                autoFocus
-                                className="text-xs font-medium text-gray-800 border-b border-indigo-400 outline-none bg-transparent w-28"
-                                value={editProjVal}
-                                onChange={e => setEditProjVal(e.target.value)}
-                                onBlur={() => commitEditProj(project.id)}
-                                onKeyDown={e => { if (e.key === 'Enter') commitEditProj(project.id); if (e.key === 'Escape') setEditProjId(null) }}
-                              />
-                            ) : (
-                              <span
-                                className="text-xs font-medium text-gray-800 truncate max-w-[110px] cursor-text hover:text-indigo-600"
-                                onClick={e => startEditProj(project, e)}
-                                title={project.name}
-                              >
-                                {project.name}
-                              </span>
-                            )}
-
-                            {/* Status badge */}
-                            <button
-                              onClick={() => cycleStatus(project)}
-                              className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                              style={{ backgroundColor: sm.bg, color: sm.color }}
-                              title="클릭하여 상태 변경"
-                            >
-                              {sm.label}
-                            </button>
-
-                            <div className="flex items-center opacity-0 group-hover:opacity-100">
-                              <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="수정"><CalendarDays size={11} /></button>
-                              <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
-                            </div>
-                          </div>
-                        </div>
-
-                        {isProjOver && dragOver?.pos === 'bottom' && (
-                          <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {/* Add project row */}
-                  <div
-                    className="border-b border-gray-50"
-                    style={{ height: 24 }}
-                    onDragOver={e => handleDragOverCategory(e, cat.id)}
-                  >
-                    <button
-                      onClick={() => onAddProject(cat.id)}
-                      className="sticky left-5 h-full flex items-center gap-0.5 text-xs text-gray-300 hover:text-gray-500"
-                    >
-                      <Plus size={10} /> 프로젝트
-                    </button>
-                  </div>
-                </div>
-              )
-            })}
+            {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
 
             {/* Add category inline */}
             {addingCat && (
               <div className="border-b" style={{ height: 34 }}>
-                <div className="sticky left-0 z-10 h-full flex items-center gap-2 px-4 bg-white">
+                <div className="h-full flex items-center gap-2 px-3 bg-white">
                   <input
                     autoFocus
-                    className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent w-40"
+                    className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
                     placeholder="카테고리명"
                     value={newCatName}
                     onChange={e => setNewCatName(e.target.value)}
@@ -617,13 +572,66 @@ export function GanttChart({
             )}
           </div>
         </div>
+
+        {/* ── Right panel (timeline) ─────────────────────── */}
+        <div
+          ref={rightRef}
+          onScroll={onRightScroll}
+          className="flex-1 overflow-auto"
+          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+        >
+          <div style={{ width: totalWidth, position: 'relative' }}>
+
+            {/* Year header */}
+            <div className="flex sticky top-0 z-20 bg-white border-b" style={{ height: YEAR_H }}>
+              {yearGroups.map(({ year, count }) => (
+                <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: COL_WIDTH * count }}>
+                  {year}
+                </div>
+              ))}
+            </div>
+
+            {/* Month header */}
+            <div className="flex sticky z-20 bg-white border-b" style={{ top: YEAR_H, height: MONTH_H }}>
+              {months.map(ym => (
+                <div
+                  key={ym}
+                  className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
+                  style={{ width: COL_WIDTH }}
+                >
+                  {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
+                </div>
+              ))}
+            </div>
+
+            {/* TODAY label */}
+            <div className="sticky z-20 bg-white border-b" style={{ top: YEAR_H + MONTH_H, height: TODAY_H }}>
+              {todayX !== null && (
+                <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
+                  TODAY
+                </div>
+              )}
+            </div>
+
+            {/* Bar rows */}
+            <div className="relative">
+              {todayX !== null && (
+                <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
+              )}
+              {months.map((ym, i) => (
+                <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * COL_WIDTH, width: COL_WIDTH }} />
+              ))}
+              {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'right'))}
+            </div>
+          </div>
+        </div>
       </div>
 
       {/* Sticky scrollbar */}
       <div
         ref={stickyScrollRef}
         className="shrink-0 overflow-x-auto overflow-y-hidden border-t bg-white"
-        style={{ height: 14 }}
+        style={{ height: 14, marginLeft: LEFT_WIDTH }}
         onScroll={onStickyScroll}
       >
         <div style={{ width: totalWidth, height: 1 }} />
