@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, CalendarDays, GripVertical, Check, X } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown } from 'lucide-react'
 import { buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 
@@ -75,10 +75,35 @@ export function GanttChart({
   const [dragProjId, setDragProjId]   = useState<string | null>(null)
   const [dragOver, setDragOver]       = useState<DragOver>(null)
   const [sortMode, setSortMode]       = useState<'default' | 'start-asc' | 'end-desc'>('default')
+  const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
+  const [showTeamFilter, setShowTeamFilter] = useState(false)
+  const teamFilterRef = useRef<HTMLDivElement>(null)
+
+  // All unique teams across all projects ('' = 팀 없음)
+  const allTeams = [...new Set(projects.map(p => p.team || ''))].sort()
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (teamFilterRef.current && !teamFilterRef.current.contains(e.target as Node))
+        setShowTeamFilter(false)
+    }
+    if (showTeamFilter) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showTeamFilter])
+
+  function toggleTeam(team: string) {
+    setExcludedTeams(prev => {
+      const next = new Set(prev)
+      if (next.has(team)) next.delete(team); else next.add(team)
+      return next
+    })
+  }
 
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
   const projectsOf = (catId: string) => {
-    const base = projects.filter(p => p.category_id === catId)
+    let base = projects.filter(p => p.category_id === catId)
+    if (excludedTeams.size > 0)
+      base = base.filter(p => !excludedTeams.has(p.team || ''))
     if (sortMode === 'start-asc')
       return [...base].sort((a, b) => (a.start_month ?? 'zzzz') < (b.start_month ?? 'zzzz') ? -1 : 1)
     if (sortMode === 'end-desc')
@@ -265,6 +290,51 @@ export function GanttChart({
       <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
         <h1 className="text-base font-semibold text-gray-800">간트 차트</h1>
         <div className="flex items-center gap-3">
+          {/* Team filter */}
+          {allTeams.length > 0 && (
+            <div className="relative" ref={teamFilterRef}>
+              <button
+                onClick={() => setShowTeamFilter(v => !v)}
+                className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${excludedTeams.size > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                팀 필터
+                {excludedTeams.size > 0 && (
+                  <span className="bg-indigo-500 text-white rounded-full text-[9px] w-3.5 h-3.5 flex items-center justify-center">
+                    {excludedTeams.size}
+                  </span>
+                )}
+                <ChevronDown size={11} />
+              </button>
+
+              {showTeamFilter && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[160px] py-1">
+                  <div className="px-3 py-1.5 border-b flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-gray-600">팀별 보기</span>
+                    {excludedTeams.size > 0 && (
+                      <button
+                        onClick={() => setExcludedTeams(new Set())}
+                        className="text-[10px] text-indigo-500 hover:text-indigo-700"
+                      >
+                        전체 표시
+                      </button>
+                    )}
+                  </div>
+                  {allTeams.map(team => (
+                    <label key={team} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                      <input
+                        type="checkbox"
+                        checked={!excludedTeams.has(team)}
+                        onChange={() => toggleTeam(team)}
+                        className="w-3 h-3 rounded accent-indigo-500"
+                      />
+                      <span className="text-xs text-gray-700">{team || '팀 없음'}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
           {/* Sort controls */}
           <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
             {(['default', 'start-asc', 'end-desc'] as const).map(mode => (
