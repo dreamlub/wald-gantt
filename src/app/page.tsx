@@ -112,6 +112,11 @@ export default function HomePage() {
     setProjects(prev => prev.filter(p => p.id !== id && p.parent_id !== id))
   }
 
+  async function handleUpdateProjectDates(id: string, startMonth: string, endMonth: string) {
+    const updated = await updateProject(id, { start_month: startMonth, end_month: endMonth })
+    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -175,6 +180,7 @@ export default function HomePage() {
             }
             onEditProject={project => setDialog({ type: 'editProject', project })}
             onDeleteProject={handleDeleteProject}
+            onUpdateProjectDates={handleUpdateProjectDates}
           />
         </div>
       </main>
