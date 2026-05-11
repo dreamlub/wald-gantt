@@ -24,7 +24,7 @@ const CUR_YEAR = now.getFullYear()
 const VIEW_START = `${CUR_YEAR - 1}-01`
 const VIEW_END   = `${CUR_YEAR + 2}-12`
 
-const CAT_COLORS = ['#6366f1', '#f97316', '#22c55e', '#3b82f6', '#ec4899', '#eab308', '#8b5cf6', '#0ea5e9']
+const CAT_COLORS = ['#a5b4fc', '#fdba74', '#86efac', '#93c5fd', '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc']
 
 export default function HomePage() {
   const [workspace, setWorkspace]   = useState<Workspace | null>(null)

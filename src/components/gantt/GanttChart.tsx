@@ -24,6 +24,17 @@ interface Props {
 
 const COL_WIDTH = 72
 
+const PASTEL_COLORS = [
+  '#a5b4fc', // indigo
+  '#fdba74', // orange
+  '#86efac', // green
+  '#93c5fd', // blue
+  '#f9a8d4', // pink
+  '#fde047', // yellow
+  '#c4b5fd', // violet
+  '#7dd3fc', // sky
+]
+
 const STATUS_META: Record<GanttStatus, { label: string; bg: string; color: string }> = {
   'in-progress': { label: 'In Progress', bg: '#dbeafe', color: '#1d4ed8' },
   'pending':     { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
@@ -63,10 +74,17 @@ export function GanttChart({
   const [newCatName, setNewCatName]   = useState('')
   const [dragProjId, setDragProjId]   = useState<string | null>(null)
   const [dragOver, setDragOver]       = useState<DragOver>(null)
+  const [sortMode, setSortMode]       = useState<'default' | 'start-asc' | 'end-desc'>('default')
 
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
-  const projectsOf = (catId: string) =>
-    projects.filter(p => p.category_id === catId).sort((a, b) => a.sort_order - b.sort_order)
+  const projectsOf = (catId: string) => {
+    const base = projects.filter(p => p.category_id === catId)
+    if (sortMode === 'start-asc')
+      return [...base].sort((a, b) => (a.start_month ?? 'zzzz') < (b.start_month ?? 'zzzz') ? -1 : 1)
+    if (sortMode === 'end-desc')
+      return [...base].sort((a, b) => (a.end_month ?? '') > (b.end_month ?? '') ? -1 : 1)
+    return [...base].sort((a, b) => a.sort_order - b.sort_order)
+  }
 
   function barCols(p: GanttProject) {
     if (!p.start_month || !p.end_month) return null
@@ -247,6 +265,19 @@ export function GanttChart({
       <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
         <h1 className="text-base font-semibold text-gray-800">간트 차트</h1>
         <div className="flex items-center gap-3">
+          {/* Sort controls */}
+          <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
+            {(['default', 'start-asc', 'end-desc'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setSortMode(mode)}
+                className={`px-2 py-1 transition-colors ${sortMode === mode ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                {mode === 'default' ? '기본' : mode === 'start-asc' ? '시작일↑' : '종료일↓'}
+              </button>
+            ))}
+          </div>
+
           <button
             onClick={() => setAddingCat(true)}
             className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 font-medium"
@@ -323,8 +354,9 @@ export function GanttChart({
               </div>
             )}
 
-            {sortedCats.map(cat => {
-              const catProjs = projectsOf(cat.id)
+            {sortedCats.map((cat, catIdx) => {
+              const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
+              const catProjs  = projectsOf(cat.id)
               const isCatOver = dragOver?.type === 'category' && dragOver.id === cat.id
 
               return (
@@ -404,7 +436,7 @@ export function GanttChart({
                                   left: cols.start * COL_WIDTH + 4,
                                   width: (cols.end - cols.start) * COL_WIDTH - 8,
                                   height: 8,
-                                  backgroundColor: cat.color,
+                                  backgroundColor: barColor,
                                   cursor: 'grab',
                                 }}
                                 onMouseDown={makeDragHandlers(project, 'move')}
@@ -415,12 +447,12 @@ export function GanttChart({
                               {(project.team || project.pm) && (
                                 <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}>
                                   {project.team && (
-                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: cat.color + '25', color: cat.color }}>
+                                    <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: barColor + '60', color: '#374151' }}>
                                       {project.team}
                                     </span>
                                   )}
                                   {project.pm && (
-                                    <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: cat.color, color: cat.color }}>
+                                    <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: barColor, color: '#374151' }}>
                                       👤 {project.pm}
                                     </span>
                                   )}
