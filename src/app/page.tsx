@@ -118,6 +118,16 @@ export default function HomePage() {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
   }
 
+  async function handleReorderProjects(orderedIds: string[]) {
+    const updated = await Promise.all(
+      orderedIds.map((id, index) => updateProject(id, { sort_order: index }))
+    )
+    setProjects(prev => prev.map(p => {
+      const u = updated.find(u => u.id === p.id)
+      return u ?? p
+    }))
+  }
+
   if (loading) {
     return (
       <div className="min-h-screen flex items-center justify-center bg-gray-50">
@@ -161,6 +171,7 @@ export default function HomePage() {
             onUpdateProjectDates={handleUpdateProjectDates}
             onUpdateProjectName={handleUpdateProjectName}
             onUpdateProjectStatus={handleUpdateProjectStatus}
+            onReorderProjects={handleReorderProjects}
           />
         </div>
       </main>

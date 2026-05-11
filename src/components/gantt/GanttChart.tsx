@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, CalendarDays } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, GripVertical } from 'lucide-react'
 import { buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS } from '@/lib/gantt-utils'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
 import type { GanttProject, GanttStatus } from '@/types'
@@ -16,20 +16,20 @@ interface Props {
   onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
+  onReorderProjects: (orderedIds: string[]) => Promise<void>
 }
 
 const COL_WIDTH = 72
 
-// Pastel group color sets
 const PALETTES = [
-  { light: '#fee2e2', mid: '#fca5a5', strong: '#ef4444', text: '#7f1d1d' },
-  { light: '#ede9fe', mid: '#c4b5fd', strong: '#8b5cf6', text: '#3b0764' },
-  { light: '#dbeafe', mid: '#93c5fd', strong: '#3b82f6', text: '#1e3a5f' },
-  { light: '#dcfce7', mid: '#86efac', strong: '#22c55e', text: '#14532d' },
-  { light: '#ffedd5', mid: '#fdba74', strong: '#f97316', text: '#7c2d12' },
-  { light: '#fef9c3', mid: '#fde047', strong: '#eab308', text: '#713f12' },
-  { light: '#fce7f3', mid: '#f9a8d4', strong: '#ec4899', text: '#831843' },
-  { light: '#e0f2fe', mid: '#7dd3fc', strong: '#0ea5e9', text: '#0c4a6e' },
+  { mid: '#fca5a5', strong: '#ef4444', text: '#7f1d1d' },
+  { mid: '#c4b5fd', strong: '#8b5cf6', text: '#3b0764' },
+  { mid: '#93c5fd', strong: '#3b82f6', text: '#1e3a5f' },
+  { mid: '#86efac', strong: '#22c55e', text: '#14532d' },
+  { mid: '#fdba74', strong: '#f97316', text: '#7c2d12' },
+  { mid: '#fde047', strong: '#eab308', text: '#713f12' },
+  { mid: '#f9a8d4', strong: '#ec4899', text: '#831843' },
+  { mid: '#7dd3fc', strong: '#0ea5e9', text: '#0c4a6e' },
 ]
 
 function paletteFor(id: string) {
@@ -54,14 +54,18 @@ export function GanttChart({
   projects, viewStart, viewEnd,
   onAddProject, onEditProject, onDeleteProject,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
+  onReorderProjects,
 }: Props) {
   const months    = buildMonthRange(viewStart, viewEnd)
   const totalCols = months.length
   const scrollRef       = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
 
-  const [editingId, setEditingId]   = useState<string | null>(null)
-  const [editingVal, setEditingVal] = useState('')
+  const [editingId, setEditingId]     = useState<string | null>(null)
+  const [editingVal, setEditingVal]   = useState('')
+  const [dragId, setDragId]           = useState<string | null>(null)
+  const [dragOverId, setDragOverId]   = useState<string | null>(null)
+  const [dragOverPos, setDragOverPos] = useState<'top' | 'bottom'>('bottom')
 
   const topLevel   = projects.filter(p => !p.parent_id).sort((a, b) => a.sort_order - b.sort_order)
   const subtasksOf = (pid: string) =>
@@ -75,15 +79,11 @@ export function GanttChart({
     return { start: Math.max(0, s), end: Math.min(totalCols, e) }
   }
 
-  // Today marker
   const today   = new Date()
   const todayYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
   const todayCol = monthOffset(viewStart, todayYM)
-  const todayX   = todayCol >= 0 && todayCol < totalCols
-    ? todayCol * COL_WIDTH + COL_WIDTH / 2
-    : null
+  const todayX   = todayCol >= 0 && todayCol < totalCols ? todayCol * COL_WIDTH + COL_WIDTH / 2 : null
 
-  // Year groups for header
   const yearGroups: { year: number; count: number }[] = []
   for (const ym of months) {
     const y = parseInt(ym.split('-')[0])
@@ -92,7 +92,6 @@ export function GanttChart({
     else yearGroups[yearGroups.length - 1].count++
   }
 
-  // Sync scrollbars
   function onContentScroll() {
     if (stickyScrollRef.current && scrollRef.current)
       stickyScrollRef.current.scrollLeft = scrollRef.current.scrollLeft
@@ -102,13 +101,11 @@ export function GanttChart({
       scrollRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
   }
 
-  // Scroll to today on mount
   useEffect(() => {
     if (scrollRef.current && todayCol > 0)
       scrollRef.current.scrollLeft = Math.max(0, todayCol * COL_WIDTH - 200)
   }, [])
 
-  // Inline edit
   function startEdit(p: GanttProject, e: React.MouseEvent) {
     e.stopPropagation()
     setEditingId(p.id)
@@ -119,7 +116,49 @@ export function GanttChart({
     setEditingId(null)
   }
 
-  // Drag to resize/move bars
+  // ── Row drag-to-reorder ───────────────────────────────────
+  function handleRowDragStart(e: React.DragEvent, id: string) {
+    setDragId(id)
+    e.dataTransfer.effectAllowed = 'move'
+    // transparent drag image
+    const ghost = document.createElement('div')
+    ghost.style.cssText = 'position:fixed;top:-9999px'
+    document.body.appendChild(ghost)
+    e.dataTransfer.setDragImage(ghost, 0, 0)
+    setTimeout(() => ghost.remove(), 0)
+  }
+
+  function handleRowDragOver(e: React.DragEvent, id: string) {
+    e.preventDefault()
+    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
+    const pos = e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom'
+    setDragOverId(id)
+    setDragOverPos(pos)
+  }
+
+  async function handleRowDrop(e: React.DragEvent, targetId: string) {
+    e.preventDefault()
+    if (!dragId || dragId === targetId) { resetDrag(); return }
+
+    const ids = topLevel.map(p => p.id)
+    const fromIdx = ids.indexOf(dragId)
+    let toIdx = ids.indexOf(targetId)
+    if (dragOverPos === 'bottom') toIdx += 1
+    if (fromIdx < toIdx) toIdx -= 1
+
+    ids.splice(fromIdx, 1)
+    ids.splice(toIdx, 0, dragId)
+
+    resetDrag()
+    await onReorderProjects(ids)
+  }
+
+  function resetDrag() {
+    setDragId(null)
+    setDragOverId(null)
+  }
+
+  // ── Bar drag handlers ─────────────────────────────────────
   const makeDragHandlers = useCallback((p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => {
     return (e: React.MouseEvent) => {
       e.preventDefault(); e.stopPropagation()
@@ -153,8 +192,8 @@ export function GanttChart({
           previewEnd = Math.max(origStart, Math.min(origEnd + delta, totalCols - 1))
         }
         if (barEl) {
-          barEl.style.left  = `${previewStart * COL_WIDTH}px`
-          barEl.style.width = `${(previewEnd - previewStart + 1) * COL_WIDTH}px`
+          barEl.style.left  = `${previewStart * COL_WIDTH + 2}px`
+          barEl.style.width = `${(previewEnd - previewStart + 1) * COL_WIDTH - 4}px`
         }
       }
 
@@ -176,7 +215,7 @@ export function GanttChart({
   return (
     <div className="flex flex-col h-full bg-white">
       {/* Toolbar */}
-      <div className="flex items-center justify-between px-5 py-2.5 border-b shrink-0">
+      <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
         <h1 className="text-base font-semibold text-gray-800">간트 차트</h1>
         <button
           onClick={() => onAddProject()}
@@ -187,7 +226,7 @@ export function GanttChart({
         </button>
       </div>
 
-      {/* Scrollable chart area — hide native scrollbar, use custom one below */}
+      {/* Chart */}
       <div
         className="flex-1 overflow-auto"
         ref={scrollRef}
@@ -199,82 +238,80 @@ export function GanttChart({
           {/* Year header */}
           <div className="flex sticky top-0 z-20 bg-white border-b">
             {yearGroups.map(({ year, count }) => (
-              <div
-                key={year}
-                className="text-sm font-bold text-gray-700 px-3 py-2 border-r"
-                style={{ width: COL_WIDTH * count }}
-              >
+              <div key={year} className="text-sm font-bold text-gray-700 px-3 py-1.5 border-r" style={{ width: COL_WIDTH * count }}>
                 {year}
               </div>
             ))}
           </div>
 
           {/* Month header */}
-          <div className="flex sticky top-[37px] z-20 bg-white border-b">
-            {months.map(ym => {
-              const isNow = ym === todayYM
-              return (
-                <div
-                  key={ym}
-                  className={`text-center text-xs py-1.5 border-r shrink-0 font-medium ${isNow ? 'text-red-500' : 'text-gray-400'}`}
-                  style={{ width: COL_WIDTH }}
-                >
-                  {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
-                </div>
-              )
-            })}
+          <div className="flex sticky top-[34px] z-20 bg-white border-b">
+            {months.map(ym => (
+              <div
+                key={ym}
+                className={`text-center text-xs py-1 border-r shrink-0 font-medium ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
+                style={{ width: COL_WIDTH }}
+              >
+                {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
+              </div>
+            ))}
           </div>
 
-          {/* TODAY label row */}
-          <div className="flex sticky top-[69px] z-20 bg-white border-b" style={{ height: 20 }}>
+          {/* TODAY label */}
+          <div className="sticky z-20 bg-white border-b" style={{ top: 62, height: 18 }}>
             {todayX !== null && (
-              <div
-                className="absolute text-[10px] font-bold text-red-400 tracking-widest"
-                style={{ left: todayX, transform: 'translateX(-50%)' }}
-              >
+              <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)' }}>
                 TODAY
               </div>
             )}
           </div>
 
-          {/* Content rows */}
+          {/* Rows */}
           <div className="relative">
-            {/* TODAY vertical line */}
             {todayX !== null && (
-              <div
-                className="absolute top-0 bottom-0 w-px bg-red-300 z-10 pointer-events-none"
-                style={{ left: todayX }}
-              />
+              <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
             )}
-
-            {/* Month grid lines */}
             {months.map((ym, i) => (
-              <div
-                key={ym}
-                className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none"
-                style={{ left: i * COL_WIDTH, width: COL_WIDTH }}
-              />
+              <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * COL_WIDTH, width: COL_WIDTH }} />
             ))}
 
             {topLevel.length === 0 && (
-              <div className="flex items-center justify-center h-48 text-gray-400 text-sm">
-                프로젝트를 추가해 보세요
-              </div>
+              <div className="flex items-center justify-center h-40 text-gray-400 text-sm">프로젝트를 추가해 보세요</div>
             )}
 
-            {topLevel.map(project => {
+            {topLevel.map((project, idx) => {
               const palette  = paletteFor(project.id)
               const subtasks = subtasksOf(project.id)
               const cols     = barCols(project)
+              const isBacklog = project.status === 'backlog'
+              const isDragging = dragId === project.id
+              const isDragOver = dragOverId === project.id
 
               return (
-                <div key={project.id}>
+                <div
+                  key={project.id}
+                  draggable
+                  onDragStart={e => handleRowDragStart(e, project.id)}
+                  onDragOver={e => handleRowDragOver(e, project.id)}
+                  onDrop={e => handleRowDrop(e, project.id)}
+                  onDragEnd={resetDrag}
+                  className="relative"
+                  style={{ opacity: isDragging ? 0.4 : 1 }}
+                >
+                  {/* Drop indicator */}
+                  {isDragOver && dragOverPos === 'top' && (
+                    <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
+                  )}
+
                   {/* Group header row */}
                   <div
-                    className="relative flex items-center group"
-                    style={{ height: 44, backgroundColor: palette.light }}
+                    className="relative flex items-center group border-b"
+                    style={{
+                      height: 36,
+                      backgroundColor: isBacklog ? '#f3f4f6' : 'white',
+                    }}
                   >
-                    {/* Full-width span bar */}
+                    {/* Bar */}
                     {cols && (
                       <>
                         <div
@@ -289,17 +326,13 @@ export function GanttChart({
                           }}
                           onMouseDown={makeDragHandlers(project, 'move')}
                         >
-                          <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={makeDragHandlers(project, 'resize-left')} />
-                          <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={makeDragHandlers(project, 'resize-right')} />
+                          <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />
+                          <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />
                         </div>
-                        {/* Team / PM floating tags after bar */}
                         {(project.team || project.pm) && (
-                          <div
-                            className="absolute flex items-center gap-1 pointer-events-none"
-                            style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}
-                          >
+                          <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}>
                             {project.team && (
-                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: palette.mid, color: palette.text }}>
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: palette.mid + '40', color: palette.text }}>
                                 {project.team}
                               </span>
                             )}
@@ -313,16 +346,16 @@ export function GanttChart({
                       </>
                     )}
 
-                    {/* Project name pill (sticky left) */}
-                    <div
-                      className="sticky left-0 z-10 flex items-center gap-1.5 pl-3"
-                      style={{ backgroundColor: palette.light }}
-                    >
+                    {/* Sticky label area */}
+                    <div className="sticky left-0 z-10 flex items-center gap-1 pl-2" style={{ backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}>
+                      {/* Drag handle */}
+                      <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
+
+                      {/* Name */}
                       {editingId === project.id ? (
                         <input
                           autoFocus
-                          className="text-xs font-bold px-2 py-0.5 rounded-full border outline-none"
-                          style={{ borderColor: palette.strong, color: palette.text, backgroundColor: 'white', minWidth: 80 }}
+                          className="text-xs font-semibold text-gray-800 border-b border-indigo-400 outline-none bg-transparent w-28"
                           value={editingVal}
                           onChange={e => setEditingVal(e.target.value)}
                           onBlur={() => commitEdit(project.id)}
@@ -330,8 +363,7 @@ export function GanttChart({
                         />
                       ) : (
                         <span
-                          className="text-xs font-bold px-2.5 py-0.5 rounded-full cursor-text whitespace-nowrap"
-                          style={{ backgroundColor: palette.mid, color: palette.text }}
+                          className="text-xs font-semibold text-gray-800 truncate max-w-[140px] cursor-text hover:text-indigo-600"
                           onClick={e => startEdit(project, e)}
                           title="클릭하여 편집"
                         >
@@ -341,7 +373,7 @@ export function GanttChart({
 
                       {/* Status */}
                       <Select value={project.status} onValueChange={v => onUpdateProjectStatus(project.id, v as GanttStatus)}>
-                        <SelectTrigger className="h-5 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0 bg-transparent" style={{ color: palette.text }}>
+                        <SelectTrigger className="h-4 text-[10px] border-0 px-0.5 w-auto gap-0 shadow-none focus:ring-0 text-gray-400">
                           <SelectValue />
                         </SelectTrigger>
                         <SelectContent>
@@ -350,16 +382,10 @@ export function GanttChart({
                       </Select>
 
                       {/* Actions */}
-                      <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-                        <button onClick={() => onAddProject(project.id)} className="p-1 rounded hover:bg-black/10" title="서브태스크 추가">
-                          <Plus size={12} style={{ color: palette.text }} />
-                        </button>
-                        <button onClick={() => onEditProject(project)} className="p-1 rounded hover:bg-black/10" title="날짜 수정">
-                          <CalendarDays size={12} style={{ color: palette.text }} />
-                        </button>
-                        <button onClick={() => onDeleteProject(project.id)} className="p-1 rounded hover:bg-black/10">
-                          <Trash2 size={12} style={{ color: palette.text }} />
-                        </button>
+                      <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100">
+                        <button onClick={() => onAddProject(project.id)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="서브태스크 추가"><Plus size={12} /></button>
+                        <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="날짜/정보 수정"><CalendarDays size={11} /></button>
+                        <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
                       </div>
                     </div>
                   </div>
@@ -367,11 +393,12 @@ export function GanttChart({
                   {/* Subtask rows */}
                   {subtasks.map(sub => {
                     const subCols = barCols(sub)
+                    const subBacklog = sub.status === 'backlog'
                     return (
                       <div
                         key={sub.id}
                         className="relative flex items-center group border-b border-gray-50"
-                        style={{ height: 38 }}
+                        style={{ height: 32, backgroundColor: subBacklog ? '#f9fafb' : 'white' }}
                       >
                         {subCols && (
                           <TaskBar
@@ -399,29 +426,29 @@ export function GanttChart({
                             status={sub.status}
                           />
                         )}
-                        {/* Empty row action */}
                         {!subCols && (
-                          <button
-                            onClick={() => onEditProject(sub)}
-                            className="sticky left-3 text-xs text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 whitespace-nowrap"
-                          >
-                            {sub.name} — 날짜 설정 필요
+                          <button onClick={() => onEditProject(sub)} className="sticky left-3 text-xs text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 whitespace-nowrap">
+                            {sub.name} — 날짜 설정
                           </button>
                         )}
                       </div>
                     )
                   })}
 
-                  {/* Add subtask row */}
-                  <div className="border-b border-gray-100" style={{ height: 28 }}>
+                  {/* Add subtask */}
+                  <div className="border-b border-gray-50" style={{ height: 22 }}>
                     <button
                       onClick={() => onAddProject(project.id)}
-                      className="sticky left-3 h-full flex items-center gap-1 text-xs text-gray-400 hover:text-gray-600 opacity-0 hover:opacity-100 focus:opacity-100"
-                      style={{ position: 'sticky' }}
+                      className="sticky left-3 h-full flex items-center gap-0.5 text-xs text-gray-300 hover:text-gray-500"
                     >
-                      <Plus size={11} /> 서브태스크 추가
+                      <Plus size={10} /> 서브태스크
                     </button>
                   </div>
+
+                  {/* Drop indicator bottom */}
+                  {isDragOver && dragOverPos === 'bottom' && (
+                    <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
+                  )}
                 </div>
               )
             })}
@@ -442,7 +469,7 @@ export function GanttChart({
   )
 }
 
-// ── TaskBar ──────────────────────────────────────────────────
+// ── TaskBar ────────────────────────────────────────────────────────────────────
 
 interface TaskBarProps {
   id: string
@@ -469,12 +496,7 @@ interface TaskBarProps {
   onStatusChange: (v: GanttStatus) => void
 }
 
-const STATUSES2: { value: GanttStatus; label: string }[] = [
-  { value: 'in-progress', label: 'In-Progress' },
-  { value: 'pending',     label: 'Pending' },
-  { value: 'backlog',     label: 'Backlog' },
-  { value: 'to-do',       label: 'To-Do' },
-]
+const STATUSES2 = STATUSES
 
 function TaskBar({
   id, left, width, barEnd, color, label, team, pm, palette,
@@ -488,19 +510,19 @@ function TaskBar({
       <div
         data-bar-id={id}
         className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center group/bar select-none"
-        style={{ left, width, height: 28, backgroundColor: color, cursor: 'grab', minWidth: 8 }}
+        style={{ left, width, height: 24, backgroundColor: color, cursor: 'grab', minWidth: 8 }}
         onMouseDown={onDragMove}
       >
-        {/* Resize left — visible stripe */}
+        {/* Resize left */}
         <div
-          className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+          className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100"
           onMouseDown={e => { e.stopPropagation(); onDragLeft(e) }}
         >
           <div className="w-0.5 h-3 bg-white/60 rounded-full" />
         </div>
 
         {/* Label */}
-        <div className="flex-1 px-4 overflow-hidden flex items-center">
+        <div className="flex-1 px-4 overflow-hidden">
           {isEditing ? (
             <input
               autoFocus
@@ -513,60 +535,51 @@ function TaskBar({
             />
           ) : (
             <span
-              className="text-xs font-medium text-white truncate cursor-text"
+              className="text-xs font-medium text-white truncate cursor-text block"
               onMouseDown={e => e.stopPropagation()}
               onClick={onEditStart}
             >
-              {width > 60 ? label : ''}
+              {width > 50 ? label : ''}
             </span>
           )}
         </div>
 
-        {/* Hover action popup */}
+        {/* Hover popup */}
         <div
-          className="absolute -top-7 right-0 flex items-center gap-0.5 bg-white border shadow-sm rounded px-1 py-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity z-20"
+          className="absolute -top-6 right-0 flex items-center gap-0.5 bg-white border shadow-sm rounded px-1 py-0.5 opacity-0 group-hover/bar:opacity-100 z-20 whitespace-nowrap"
           onMouseDown={e => e.stopPropagation()}
         >
           <Select value={status} onValueChange={v => onStatusChange(v as GanttStatus)}>
-            <SelectTrigger className="h-5 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0">
+            <SelectTrigger className="h-4 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0">
               <SelectValue />
             </SelectTrigger>
             <SelectContent>
               {STATUSES2.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
             </SelectContent>
           </Select>
-          <button onClick={onEdit} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={11} /></button>
-          <button onClick={onDelete} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+          <button onClick={onEdit} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={10} /></button>
+          <button onClick={onDelete} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={10} /></button>
         </div>
 
-        {/* Resize right — visible stripe */}
+        {/* Resize right */}
         <div
-          className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+          className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100"
           onMouseDown={e => { e.stopPropagation(); onDragRight(e) }}
         >
           <div className="w-0.5 h-3 bg-white/60 rounded-full" />
         </div>
       </div>
 
-      {/* Team / PM floating tags — positioned after bar end */}
+      {/* Floating team/PM tags */}
       {(team || pm) && (
-        <div
-          className="absolute flex items-center gap-1 pointer-events-none"
-          style={{ left: barEnd + 8, top: '50%', transform: 'translateY(-50%)' }}
-        >
+        <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: barEnd + 8, top: '50%', transform: 'translateY(-50%)' }}>
           {team && (
-            <span
-              className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
-              style={{ backgroundColor: palette.light, color: palette.text }}
-            >
+            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: palette.mid + '30', color: palette.text }}>
               {team}
             </span>
           )}
           {pm && (
-            <span
-              className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border"
-              style={{ borderColor: palette.mid, color: palette.text }}
-            >
+            <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: palette.mid, color: palette.text }}>
               👤 {pm}
             </span>
           )}
