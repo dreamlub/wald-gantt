@@ -32,6 +32,8 @@ export interface GanttProject {
   start_month: string | null  // 'YYYY-MM'
   end_month: string | null    // 'YYYY-MM'
   sort_order: number
+  team: string | null
+  pm: string | null
   created_at: string
   updated_at: string
 }

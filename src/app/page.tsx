@@ -70,6 +70,8 @@ export default function HomePage() {
     status: GanttStatus
     start_month: string | null
     end_month: string | null
+    team: string | null
+    pm: string | null
   }) {
     if (!workspace || !defaultCategory) return
     if (dialog?.type === 'editProject') {
@@ -78,6 +80,8 @@ export default function HomePage() {
         status: fields.status,
         start_month: fields.start_month,
         end_month: fields.end_month,
+        team: fields.team,
+        pm: fields.pm,
       })
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
     } else {
@@ -86,6 +90,8 @@ export default function HomePage() {
         status: fields.status,
         start_month: fields.start_month,
         end_month: fields.end_month,
+        team: fields.team,
+        pm: fields.pm,
       })
       setProjects(prev => [...prev, created])
     }

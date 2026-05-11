@@ -28,6 +28,8 @@ interface Props {
     status: GanttStatus
     start_month: string | null
     end_month: string | null
+    team: string | null
+    pm: string | null
   }) => Promise<void>
   defaultParentId?: string | null
   isSubtask?: boolean
@@ -47,6 +49,8 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
   const [startMonth, setStartMonth] = useState('')
   const [endYear, setEndYear]     = useState('')
   const [endMonth, setEndMonth]   = useState('')
+  const [team, setTeam]           = useState('')
+  const [pm, setPm]               = useState('')
   const [loading, setLoading]     = useState(false)
 
   useEffect(() => {
@@ -57,11 +61,13 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
       const e = splitYM(editProject.end_month)
       setStartYear(s.year); setStartMonth(s.month)
       setEndYear(e.year);   setEndMonth(e.month)
+      setTeam(editProject.team ?? '')
+      setPm(editProject.pm ?? '')
     } else {
-      setName('')
-      setStatus('to-do')
+      setName(''); setStatus('to-do')
       setStartYear(''); setStartMonth('')
       setEndYear('');   setEndMonth('')
+      setTeam(''); setPm('')
     }
   }, [editProject, open])
 
@@ -75,12 +81,14 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
     setLoading(true)
     try {
       await onSave({
-        categoryId: '',   // filled by parent
+        categoryId: '',
         parentId: editProject?.parent_id ?? defaultParentId ?? null,
         name: name.trim(),
         status,
         start_month: buildYM(startYear, startMonth),
         end_month: buildYM(endYear, endMonth),
+        team: team.trim() || null,
+        pm: pm.trim() || null,
       })
       onClose()
     } finally {
@@ -155,6 +163,17 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
                   </SelectContent>
                 </Select>
               </div>
+            </div>
+          </div>
+
+          <div className="grid grid-cols-2 gap-4">
+            <div className="space-y-1.5">
+              <Label>담당팀</Label>
+              <Input value={team} onChange={e => setTeam(e.target.value)} placeholder="예: 개발팀" />
+            </div>
+            <div className="space-y-1.5">
+              <Label>PM</Label>
+              <Input value={pm} onChange={e => setPm(e.target.value)} placeholder="예: 홍길동" />
             </div>
           </div>
         </div>

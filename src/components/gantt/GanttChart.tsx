@@ -187,8 +187,13 @@ export function GanttChart({
         </button>
       </div>
 
-      {/* Scrollable chart area */}
-      <div className="flex-1 overflow-auto" ref={scrollRef} onScroll={onContentScroll}>
+      {/* Scrollable chart area — hide native scrollbar, use custom one below */}
+      <div
+        className="flex-1 overflow-auto"
+        ref={scrollRef}
+        onScroll={onContentScroll}
+        style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+      >
         <div style={{ width: totalWidth, position: 'relative' }}>
 
           {/* Year header */}
@@ -269,18 +274,43 @@ export function GanttChart({
                     className="relative flex items-center group"
                     style={{ height: 44, backgroundColor: palette.light }}
                   >
-                    {/* Full-width span indicator (dashed border) */}
+                    {/* Full-width span bar */}
                     {cols && (
-                      <div
-                        className="absolute top-1/2 -translate-y-1/2 rounded-full"
-                        style={{
-                          left: cols.start * COL_WIDTH + 4,
-                          width: (cols.end - cols.start) * COL_WIDTH - 8,
-                          height: 6,
-                          backgroundColor: palette.mid,
-                          opacity: 0.6,
-                        }}
-                      />
+                      <>
+                        <div
+                          data-bar-id={project.id}
+                          className="absolute top-1/2 -translate-y-1/2 rounded-full group/bar"
+                          style={{
+                            left: cols.start * COL_WIDTH + 4,
+                            width: (cols.end - cols.start) * COL_WIDTH - 8,
+                            height: 8,
+                            backgroundColor: palette.mid,
+                            cursor: 'grab',
+                          }}
+                          onMouseDown={makeDragHandlers(project, 'move')}
+                        >
+                          <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={makeDragHandlers(project, 'resize-left')} />
+                          <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={makeDragHandlers(project, 'resize-right')} />
+                        </div>
+                        {/* Team / PM floating tags after bar */}
+                        {(project.team || project.pm) && (
+                          <div
+                            className="absolute flex items-center gap-1 pointer-events-none"
+                            style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}
+                          >
+                            {project.team && (
+                              <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: palette.mid, color: palette.text }}>
+                                {project.team}
+                              </span>
+                            )}
+                            {project.pm && (
+                              <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: palette.mid, color: palette.text }}>
+                                👤 {project.pm}
+                              </span>
+                            )}
+                          </div>
+                        )}
+                      </>
                     )}
 
                     {/* Project name pill (sticky left) */}
@@ -348,9 +378,12 @@ export function GanttChart({
                             id={sub.id}
                             left={subCols.start * COL_WIDTH + 2}
                             width={(subCols.end - subCols.start) * COL_WIDTH - 4}
+                            barEnd={subCols.end * COL_WIDTH}
                             color={palette.strong}
-                            lightColor={palette.light}
                             label={sub.name}
+                            team={sub.team}
+                            pm={sub.pm}
+                            palette={palette}
                             isEditing={editingId === sub.id}
                             editingVal={editingVal}
                             onEditStart={e => startEdit(sub, e)}
@@ -415,9 +448,12 @@ interface TaskBarProps {
   id: string
   left: number
   width: number
+  barEnd: number
   color: string
-  lightColor: string
   label: string
+  team?: string | null
+  pm?: string | null
+  palette: typeof PALETTES[0]
   isEditing: boolean
   editingVal: string
   status: GanttStatus
@@ -441,70 +477,101 @@ const STATUSES2: { value: GanttStatus; label: string }[] = [
 ]
 
 function TaskBar({
-  id, left, width, color, lightColor, label,
+  id, left, width, barEnd, color, label, team, pm, palette,
   isEditing, editingVal, status,
   onEditStart, onEditChange, onEditCommit, onEditCancel,
   onDragMove, onDragLeft, onDragRight,
   onEdit, onDelete, onStatusChange,
 }: TaskBarProps) {
   return (
-    <div
-      data-bar-id={id}
-      className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center group/bar select-none"
-      style={{ left, width, height: 28, backgroundColor: color, cursor: 'grab', minWidth: 8 }}
-      onMouseDown={onDragMove}
-    >
-      {/* Resize left */}
+    <>
       <div
-        className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize z-10"
-        onMouseDown={onDragLeft}
-      />
-
-      {/* Label or edit input */}
-      <div className="flex-1 px-3 overflow-hidden flex items-center gap-1">
-        {isEditing ? (
-          <input
-            autoFocus
-            className="text-xs font-medium w-full bg-white/30 text-white outline-none placeholder-white/70 rounded px-1"
-            value={editingVal}
-            onChange={e => onEditChange(e.target.value)}
-            onMouseDown={e => e.stopPropagation()}
-            onBlur={onEditCommit}
-            onKeyDown={e => { if (e.key === 'Enter') onEditCommit(); if (e.key === 'Escape') onEditCancel() }}
-          />
-        ) : (
-          <span
-            className="text-xs font-medium text-white truncate cursor-text"
-            onMouseDown={e => e.stopPropagation()}
-            onClick={onEditStart}
-          >
-            {width > 60 ? label : ''}
-          </span>
-        )}
-      </div>
-
-      {/* Hover actions */}
-      <div
-        className="absolute -top-7 right-0 flex items-center gap-0.5 bg-white border shadow-sm rounded px-1 py-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity z-20"
-        onMouseDown={e => e.stopPropagation()}
+        data-bar-id={id}
+        className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center group/bar select-none"
+        style={{ left, width, height: 28, backgroundColor: color, cursor: 'grab', minWidth: 8 }}
+        onMouseDown={onDragMove}
       >
-        <Select value={status} onValueChange={v => onStatusChange(v as GanttStatus)}>
-          <SelectTrigger className="h-5 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {STATUSES2.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
-          </SelectContent>
-        </Select>
-        <button onClick={onEdit} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={11} /></button>
-        <button onClick={onDelete} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+        {/* Resize left — visible stripe */}
+        <div
+          className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+          onMouseDown={e => { e.stopPropagation(); onDragLeft(e) }}
+        >
+          <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+        </div>
+
+        {/* Label */}
+        <div className="flex-1 px-4 overflow-hidden flex items-center">
+          {isEditing ? (
+            <input
+              autoFocus
+              className="text-xs font-medium w-full bg-white/30 text-white outline-none rounded px-1"
+              value={editingVal}
+              onChange={e => onEditChange(e.target.value)}
+              onMouseDown={e => e.stopPropagation()}
+              onBlur={onEditCommit}
+              onKeyDown={e => { if (e.key === 'Enter') onEditCommit(); if (e.key === 'Escape') onEditCancel() }}
+            />
+          ) : (
+            <span
+              className="text-xs font-medium text-white truncate cursor-text"
+              onMouseDown={e => e.stopPropagation()}
+              onClick={onEditStart}
+            >
+              {width > 60 ? label : ''}
+            </span>
+          )}
+        </div>
+
+        {/* Hover action popup */}
+        <div
+          className="absolute -top-7 right-0 flex items-center gap-0.5 bg-white border shadow-sm rounded px-1 py-0.5 opacity-0 group-hover/bar:opacity-100 transition-opacity z-20"
+          onMouseDown={e => e.stopPropagation()}
+        >
+          <Select value={status} onValueChange={v => onStatusChange(v as GanttStatus)}>
+            <SelectTrigger className="h-5 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {STATUSES2.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
+            </SelectContent>
+          </Select>
+          <button onClick={onEdit} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={11} /></button>
+          <button onClick={onDelete} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+        </div>
+
+        {/* Resize right — visible stripe */}
+        <div
+          className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100 transition-opacity"
+          onMouseDown={e => { e.stopPropagation(); onDragRight(e) }}
+        >
+          <div className="w-0.5 h-3 bg-white/60 rounded-full" />
+        </div>
       </div>
 
-      {/* Resize right */}
-      <div
-        className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize z-10"
-        onMouseDown={onDragRight}
-      />
-    </div>
+      {/* Team / PM floating tags — positioned after bar end */}
+      {(team || pm) && (
+        <div
+          className="absolute flex items-center gap-1 pointer-events-none"
+          style={{ left: barEnd + 8, top: '50%', transform: 'translateY(-50%)' }}
+        >
+          {team && (
+            <span
+              className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap"
+              style={{ backgroundColor: palette.light, color: palette.text }}
+            >
+              {team}
+            </span>
+          )}
+          {pm && (
+            <span
+              className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border"
+              style={{ borderColor: palette.mid, color: palette.text }}
+            >
+              👤 {pm}
+            </span>
+          )}
+        </div>
+      )}
+    </>
   )
 }

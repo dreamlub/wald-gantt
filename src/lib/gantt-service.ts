@@ -119,7 +119,7 @@ export async function addProject(
   workspaceId: string,
   categoryId: string,
   parentId: string | null,
-  fields: { name: string; status: string; start_month: string | null; end_month: string | null }
+  fields: { name: string; status: string; start_month: string | null; end_month: string | null; team?: string | null; pm?: string | null }
 ): Promise<GanttProject> {
   const { data: existing } = await supabase
     .from('gantt_projects')
