@@ -8,12 +8,13 @@ import { InviteDialog } from '@/components/gantt/InviteDialog'
 import { createClient } from '@/lib/supabase/client'
 import {
   getOrCreateWorkspace, getCategories, getProjects,
-  addCategory, addProject, updateProject, deleteProject,
+  addCategory, updateCategory, deleteCategory,
+  addProject, updateProject, deleteProject,
 } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Workspace } from '@/types'
 
 type DialogState =
-  | { type: 'addProject'; parentId?: string }
+  | { type: 'addProject'; categoryId: string }
   | { type: 'editProject'; project: GanttProject }
   | { type: 'invite' }
   | null
@@ -23,12 +24,14 @@ const CUR_YEAR = now.getFullYear()
 const VIEW_START = `${CUR_YEAR - 1}-01`
 const VIEW_END   = `${CUR_YEAR + 2}-12`
 
+const CAT_COLORS = ['#6366f1', '#f97316', '#22c55e', '#3b82f6', '#ec4899', '#eab308', '#8b5cf6', '#0ea5e9']
+
 export default function HomePage() {
-  const [workspace, setWorkspace]         = useState<Workspace | null>(null)
-  const [defaultCategory, setDefaultCategory] = useState<GanttCategory | null>(null)
-  const [projects, setProjects]           = useState<GanttProject[]>([])
-  const [dialog, setDialog]               = useState<DialogState>(null)
-  const [loading, setLoading]             = useState(true)
+  const [workspace, setWorkspace]   = useState<Workspace | null>(null)
+  const [categories, setCategories] = useState<GanttCategory[]>([])
+  const [projects, setProjects]     = useState<GanttProject[]>([])
+  const [dialog, setDialog]         = useState<DialogState>(null)
+  const [loading, setLoading]       = useState(true)
 
   const supabase = createClient()
 
@@ -36,18 +39,8 @@ export default function HomePage() {
     try {
       const ws = await getOrCreateWorkspace()
       setWorkspace(ws)
-
-      const [cats, projs] = await Promise.all([
-        getCategories(ws.id),
-        getProjects(ws.id),
-      ])
-
-      // ensure default category exists (hidden from UI)
-      let cat = cats[0]
-      if (!cat) {
-        cat = await addCategory(ws.id, 'default', '#6366f1')
-      }
-      setDefaultCategory(cat)
+      const [cats, projs] = await Promise.all([getCategories(ws.id), getProjects(ws.id)])
+      setCategories(cats)
       setProjects(projs)
     } catch (e) {
       console.error(e)
@@ -63,6 +56,25 @@ export default function HomePage() {
     window.location.href = '/login'
   }
 
+  async function handleAddCategory(name: string) {
+    if (!workspace) return
+    const color = CAT_COLORS[categories.length % CAT_COLORS.length]
+    const cat = await addCategory(workspace.id, name, color)
+    setCategories(prev => [...prev, cat])
+  }
+
+  async function handleUpdateCategory(id: string, name: string) {
+    const updated = await updateCategory(id, { name })
+    setCategories(prev => prev.map(c => c.id === id ? updated : c))
+  }
+
+  async function handleDeleteCategory(id: string) {
+    if (!confirm('카테고리와 포함된 프로젝트를 모두 삭제할까요?')) return
+    await deleteCategory(id)
+    setCategories(prev => prev.filter(c => c.id !== id))
+    setProjects(prev => prev.filter(p => p.category_id !== id))
+  }
+
   async function handleSaveProject(fields: {
     categoryId: string
     parentId: string | null
@@ -73,9 +85,10 @@ export default function HomePage() {
     team: string | null
     pm: string | null
   }) {
-    if (!workspace || !defaultCategory) return
+    if (!workspace) return
     if (dialog?.type === 'editProject') {
       const updated = await updateProject(dialog.project.id, {
+        category_id: fields.categoryId,
         name: fields.name,
         status: fields.status,
         start_month: fields.start_month,
@@ -85,7 +98,7 @@ export default function HomePage() {
       })
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
     } else {
-      const created = await addProject(workspace.id, defaultCategory.id, fields.parentId, {
+      const created = await addProject(workspace.id, fields.categoryId, null, {
         name: fields.name,
         status: fields.status,
         start_month: fields.start_month,
@@ -100,7 +113,7 @@ export default function HomePage() {
   async function handleDeleteProject(id: string) {
     if (!confirm('삭제할까요?')) return
     await deleteProject(id)
-    setProjects(prev => prev.filter(p => p.id !== id && p.parent_id !== id))
+    setProjects(prev => prev.filter(p => p.id !== id))
   }
 
   async function handleUpdateProjectDates(id: string, startMonth: string, endMonth: string) {
@@ -118,14 +131,11 @@ export default function HomePage() {
     setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
   }
 
-  async function handleReorderProjects(orderedIds: string[]) {
+  async function handleMoveProject(updates: { id: string; category_id: string; sort_order: number }[]) {
     const updated = await Promise.all(
-      orderedIds.map((id, index) => updateProject(id, { sort_order: index }))
+      updates.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
     )
-    setProjects(prev => prev.map(p => {
-      const u = updated.find(u => u.id === p.id)
-      return u ?? p
-    }))
+    setProjects(prev => prev.map(p => updated.find(u => u.id === p.id) ?? p))
   }
 
   if (loading) {
@@ -162,16 +172,20 @@ export default function HomePage() {
       <main className="flex-1 overflow-hidden">
         <div className="h-[calc(100vh-3rem)] bg-white">
           <GanttChart
+            categories={categories}
             projects={projects}
             viewStart={VIEW_START}
             viewEnd={VIEW_END}
-            onAddProject={() => setDialog({ type: 'addProject' })}
+            onAddCategory={handleAddCategory}
+            onUpdateCategory={handleUpdateCategory}
+            onDeleteCategory={handleDeleteCategory}
+            onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
             onEditProject={project => setDialog({ type: 'editProject', project })}
             onDeleteProject={handleDeleteProject}
             onUpdateProjectDates={handleUpdateProjectDates}
             onUpdateProjectName={handleUpdateProjectName}
             onUpdateProjectStatus={handleUpdateProjectStatus}
-            onReorderProjects={handleReorderProjects}
+            onMoveProject={handleMoveProject}
           />
         </div>
       </main>
@@ -180,6 +194,8 @@ export default function HomePage() {
         open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
         onClose={() => setDialog(null)}
         onSave={handleSaveProject}
+        categories={categories}
+        defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
       />
 
