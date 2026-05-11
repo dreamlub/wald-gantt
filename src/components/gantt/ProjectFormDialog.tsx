@@ -109,12 +109,24 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <div className="space-y-1.5">
             <Label>카테고리</Label>
             <Select value={categoryId} onValueChange={v => setCategoryId(v ?? '')}>
-              <SelectTrigger><SelectValue placeholder="카테고리 선택" /></SelectTrigger>
+              <SelectTrigger>
+                <SelectValue placeholder="카테고리 선택">
+                  {categoryId && (() => {
+                    const cat = categories.find(c => c.id === categoryId)
+                    return cat ? (
+                      <span className="flex items-center gap-2">
+                        <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: cat.color }} />
+                        {cat.name}
+                      </span>
+                    ) : null
+                  })()}
+                </SelectValue>
+              </SelectTrigger>
               <SelectContent>
                 {categories.map(c => (
                   <SelectItem key={c.id} value={c.id}>
                     <span className="flex items-center gap-2">
-                      <span className="w-2 h-2 rounded-full inline-block" style={{ backgroundColor: c.color }} />
+                      <span className="w-2 h-2 rounded-full shrink-0 inline-block" style={{ backgroundColor: c.color }} />
                       {c.name}
                     </span>
                   </SelectItem>
