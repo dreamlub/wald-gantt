@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, ChevronDown, ChevronRight } from 'lucide-react'
+import { Plus, Trash2, ChevronDown, ChevronRight, CalendarDays } from 'lucide-react'
 import { buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS } from '@/lib/gantt-utils'
 import { StatusBadge } from './StatusBadge'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
@@ -44,7 +44,7 @@ function colorFor(id: string) {
 
 export function GanttChart({
   projects, viewStart, viewEnd,
-  onAddProject, onDeleteProject,
+  onAddProject, onEditProject, onDeleteProject,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
 }: Props) {
   const months    = buildMonthRange(viewStart, viewEnd)
@@ -269,6 +269,9 @@ export function GanttChart({
                       <button onClick={() => onAddProject(project.id)} className="p-1 text-gray-400 hover:text-indigo-500" title="서브태스크 추가">
                         <Plus size={13} />
                       </button>
+                      <button onClick={() => onEditProject(project)} className="p-1 text-gray-400 hover:text-blue-500" title="날짜 수정">
+                        <CalendarDays size={12} />
+                      </button>
                       <button onClick={() => onDeleteProject(project.id)} className="p-1 text-gray-400 hover:text-red-500">
                         <Trash2 size={12} />
                       </button>
@@ -336,6 +339,9 @@ export function GanttChart({
                         </Select>
 
                         <div className="flex items-center gap-0.5 opacity-0 group-hover:opacity-100 shrink-0">
+                          <button onClick={() => onEditProject(sub)} className="p-1 text-gray-400 hover:text-blue-500" title="날짜 수정">
+                            <CalendarDays size={12} />
+                          </button>
                           <button onClick={() => onDeleteProject(sub.id)} className="p-1 text-gray-400 hover:text-red-500">
                             <Trash2 size={12} />
                           </button>
