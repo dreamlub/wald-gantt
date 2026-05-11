@@ -21,22 +21,13 @@ export async function getOrCreateWorkspace(): Promise<Workspace> {
     return (member as any).workspaces as Workspace
   }
 
-  // create new workspace
-  const { data: ws, error } = await supabase
-    .from('workspaces')
-    .insert({ name: user.email?.split('@')[0] + "'s workspace" })
-    .select()
-    .single()
-
-  if (error) throw error
-
-  await supabase.from('workspace_members').insert({
-    workspace_id: ws.id,
-    user_id: user.id,
-    role: 'admin',
+  // create new workspace atomically via RPC (bypasses RLS ordering issue)
+  const { data: ws, error } = await supabase.rpc('create_workspace_for_user', {
+    workspace_name: (user.email?.split('@')[0] ?? 'My') + "'s workspace",
   })
 
-  return ws
+  if (error) throw error
+  return ws as Workspace
 }
 
 export async function getWorkspaceMembers(workspaceId: string) {
