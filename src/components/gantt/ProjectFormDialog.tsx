@@ -6,7 +6,7 @@ import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
-import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import type { GanttProject, GanttStatus } from '@/types'
 
 const STATUSES: { value: GanttStatus; label: string }[] = [
   { value: 'in-progress', label: 'In-Progress' },
@@ -15,7 +15,7 @@ const STATUSES: { value: GanttStatus; label: string }[] = [
   { value: 'to-do', label: 'To-Do' },
 ]
 
-const YEARS = [2025, 2026, 2027, 2028]
+const YEARS = [2024, 2025, 2026, 2027, 2028]
 const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 interface Props {
@@ -29,8 +29,6 @@ interface Props {
     start_month: string | null
     end_month: string | null
   }) => Promise<void>
-  categories: GanttCategory[]
-  defaultCategoryId?: string
   defaultParentId?: string | null
   isSubtask?: boolean
   editProject?: GanttProject | null
@@ -42,36 +40,30 @@ function splitYM(ym: string | null | undefined) {
   return { year: y, month: String(parseInt(m)) }
 }
 
-export function ProjectFormDialog({
-  open, onClose, onSave, categories,
-  defaultCategoryId, defaultParentId, isSubtask, editProject
-}: Props) {
-  const [name, setName] = useState('')
-  const [categoryId, setCategoryId] = useState(defaultCategoryId ?? '')
-  const [status, setStatus] = useState<GanttStatus>('to-do')
+export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSubtask, editProject }: Props) {
+  const [name, setName]           = useState('')
+  const [status, setStatus]       = useState<GanttStatus>('to-do')
   const [startYear, setStartYear] = useState('')
   const [startMonth, setStartMonth] = useState('')
-  const [endYear, setEndYear] = useState('')
-  const [endMonth, setEndMonth] = useState('')
-  const [loading, setLoading] = useState(false)
+  const [endYear, setEndYear]     = useState('')
+  const [endMonth, setEndMonth]   = useState('')
+  const [loading, setLoading]     = useState(false)
 
   useEffect(() => {
     if (editProject) {
       setName(editProject.name)
-      setCategoryId(editProject.category_id)
       setStatus(editProject.status)
       const s = splitYM(editProject.start_month)
       const e = splitYM(editProject.end_month)
       setStartYear(s.year); setStartMonth(s.month)
-      setEndYear(e.year); setEndMonth(e.month)
+      setEndYear(e.year);   setEndMonth(e.month)
     } else {
       setName('')
-      setCategoryId(defaultCategoryId ?? '')
       setStatus('to-do')
       setStartYear(''); setStartMonth('')
-      setEndYear(''); setEndMonth('')
+      setEndYear('');   setEndMonth('')
     }
-  }, [editProject, defaultCategoryId, open])
+  }, [editProject, open])
 
   function buildYM(year: string, month: string): string | null {
     if (!year || !month) return null
@@ -79,11 +71,11 @@ export function ProjectFormDialog({
   }
 
   async function handleSave() {
-    if (!name.trim() || !categoryId) return
+    if (!name.trim()) return
     setLoading(true)
     try {
       await onSave({
-        categoryId,
+        categoryId: '',   // filled by parent
         parentId: editProject?.parent_id ?? defaultParentId ?? null,
         name: name.trim(),
         status,
@@ -106,23 +98,15 @@ export function ProjectFormDialog({
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          {!isSubtask && (
-            <div className="space-y-1.5">
-              <Label>카테고리</Label>
-              <Select value={categoryId} onValueChange={v => setCategoryId(v ?? '')}>
-                <SelectTrigger><SelectValue placeholder="카테고리 선택" /></SelectTrigger>
-                <SelectContent>
-                  {categories.map(c => (
-                    <SelectItem key={c.id} value={c.id}>{c.name}</SelectItem>
-                  ))}
-                </SelectContent>
-              </Select>
-            </div>
-          )}
-
           <div className="space-y-1.5">
             <Label>이름</Label>
-            <Input value={name} onChange={e => setName(e.target.value)} placeholder="프로젝트명" />
+            <Input
+              value={name}
+              onChange={e => setName(e.target.value)}
+              placeholder={isSubtask ? '서브태스크명' : '프로젝트명'}
+              autoFocus
+              onKeyDown={e => e.key === 'Enter' && handleSave()}
+            />
           </div>
 
           <div className="space-y-1.5">
@@ -177,7 +161,7 @@ export function ProjectFormDialog({
 
         <DialogFooter>
           <Button variant="outline" onClick={onClose}>취소</Button>
-          <Button onClick={handleSave} disabled={loading || !name.trim() || !categoryId}>
+          <Button onClick={handleSave} disabled={loading || !name.trim()}>
             {loading ? '저장 중...' : '저장'}
           </Button>
         </DialogFooter>
