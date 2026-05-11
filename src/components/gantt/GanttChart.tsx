@@ -49,7 +49,17 @@ export function GanttChart({
 }: Props) {
   const months    = buildMonthRange(viewStart, viewEnd)
   const totalCols = months.length
-  const scrollRef = useRef<HTMLDivElement>(null)
+  const scrollRef       = useRef<HTMLDivElement>(null)
+  const stickyScrollRef = useRef<HTMLDivElement>(null)
+
+  function onContentScroll() {
+    if (stickyScrollRef.current && scrollRef.current)
+      stickyScrollRef.current.scrollLeft = scrollRef.current.scrollLeft
+  }
+  function onStickyScroll() {
+    if (scrollRef.current && stickyScrollRef.current)
+      scrollRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
+  }
 
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
   const [editingId, setEditingId] = useState<string | null>(null)
@@ -171,7 +181,7 @@ export function GanttChart({
       </div>
 
       {/* Chart */}
-      <div className="flex-1 overflow-auto" ref={scrollRef}>
+      <div className="flex-1 overflow-auto" ref={scrollRef} onScroll={onContentScroll}>
         <div style={{ minWidth: LABEL_WIDTH + COL_WIDTH * totalCols }}>
 
           {/* Year header */}
@@ -365,6 +375,16 @@ export function GanttChart({
             </div>
           )}
         </div>
+      </div>
+
+      {/* Sticky horizontal scrollbar always visible at bottom */}
+      <div
+        ref={stickyScrollRef}
+        className="shrink-0 overflow-x-auto overflow-y-hidden border-t bg-white"
+        style={{ height: 14 }}
+        onScroll={onStickyScroll}
+      >
+        <div style={{ width: LABEL_WIDTH + COL_WIDTH * totalCols, height: 1 }} />
       </div>
     </div>
   )
