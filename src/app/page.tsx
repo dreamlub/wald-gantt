@@ -165,7 +165,7 @@ export default function HomePage() {
             projects={projects}
             viewStart={VIEW_START}
             viewEnd={VIEW_END}
-            onAddProject={parentId => setDialog({ type: 'addProject', parentId })}
+            onAddProject={() => setDialog({ type: 'addProject' })}
             onEditProject={project => setDialog({ type: 'editProject', project })}
             onDeleteProject={handleDeleteProject}
             onUpdateProjectDates={handleUpdateProjectDates}
@@ -180,8 +180,6 @@ export default function HomePage() {
         open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
         onClose={() => setDialog(null)}
         onSave={handleSaveProject}
-        defaultParentId={dialog?.type === 'addProject' ? dialog.parentId : undefined}
-        isSubtask={dialog?.type === 'addProject' && !!dialog.parentId}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
       />
 

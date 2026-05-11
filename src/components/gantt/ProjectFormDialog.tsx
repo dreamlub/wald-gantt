@@ -31,8 +31,6 @@ interface Props {
     team: string | null
     pm: string | null
   }) => Promise<void>
-  defaultParentId?: string | null
-  isSubtask?: boolean
   editProject?: GanttProject | null
 }
 
@@ -42,7 +40,7 @@ function splitYM(ym: string | null | undefined) {
   return { year: y, month: String(parseInt(m)) }
 }
 
-export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSubtask, editProject }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, editProject }: Props) {
   const [name, setName]           = useState('')
   const [status, setStatus]       = useState<GanttStatus>('to-do')
   const [startYear, setStartYear] = useState('')
@@ -82,7 +80,7 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
     try {
       await onSave({
         categoryId: '',
-        parentId: editProject?.parent_id ?? defaultParentId ?? null,
+        parentId: editProject?.parent_id ?? null,
         name: name.trim(),
         status,
         start_month: buildYM(startYear, startMonth),
@@ -100,9 +98,7 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
-          <DialogTitle>
-            {editProject ? '수정' : isSubtask ? '서브태스크 추가' : '프로젝트 추가'}
-          </DialogTitle>
+          <DialogTitle>{editProject ? '수정' : '프로젝트 추가'}</DialogTitle>
         </DialogHeader>
 
         <div className="space-y-4 py-2">
@@ -111,7 +107,7 @@ export function ProjectFormDialog({ open, onClose, onSave, defaultParentId, isSu
             <Input
               value={name}
               onChange={e => setName(e.target.value)}
-              placeholder={isSubtask ? '서브태스크명' : '프로젝트명'}
+              placeholder="프로젝트명"
               autoFocus
               onKeyDown={e => e.key === 'Enter' && handleSave()}
             />

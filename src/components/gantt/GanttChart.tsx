@@ -10,7 +10,7 @@ interface Props {
   projects: GanttProject[]
   viewStart: string
   viewEnd: string
-  onAddProject: (parentId?: string) => void
+  onAddProject: () => void
   onEditProject: (project: GanttProject) => void
   onDeleteProject: (id: string) => void
   onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
@@ -67,9 +67,7 @@ export function GanttChart({
   const [dragOverId, setDragOverId]   = useState<string | null>(null)
   const [dragOverPos, setDragOverPos] = useState<'top' | 'bottom'>('bottom')
 
-  const topLevel   = projects.filter(p => !p.parent_id).sort((a, b) => a.sort_order - b.sort_order)
-  const subtasksOf = (pid: string) =>
-    projects.filter(p => p.parent_id === pid).sort((a, b) => a.sort_order - b.sort_order)
+  const topLevel = projects.filter(p => !p.parent_id).sort((a, b) => a.sort_order - b.sort_order)
 
   function barCols(p: GanttProject) {
     if (!p.start_month || !p.end_month) return null
@@ -120,7 +118,6 @@ export function GanttChart({
   function handleRowDragStart(e: React.DragEvent, id: string) {
     setDragId(id)
     e.dataTransfer.effectAllowed = 'move'
-    // transparent drag image
     const ghost = document.createElement('div')
     ghost.style.cssText = 'position:fixed;top:-9999px'
     document.body.appendChild(ghost)
@@ -218,7 +215,7 @@ export function GanttChart({
       <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
         <h1 className="text-base font-semibold text-gray-800">간트 차트</h1>
         <button
-          onClick={() => onAddProject()}
+          onClick={onAddProject}
           className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium"
         >
           <Plus size={15} />
@@ -279,10 +276,9 @@ export function GanttChart({
               <div className="flex items-center justify-center h-40 text-gray-400 text-sm">프로젝트를 추가해 보세요</div>
             )}
 
-            {topLevel.map((project, idx) => {
-              const palette  = paletteFor(project.id)
-              const subtasks = subtasksOf(project.id)
-              const cols     = barCols(project)
+            {topLevel.map(project => {
+              const palette   = paletteFor(project.id)
+              const cols      = barCols(project)
               const isBacklog = project.status === 'backlog'
               const isDragging = dragId === project.id
               const isDragOver = dragOverId === project.id
@@ -298,12 +294,12 @@ export function GanttChart({
                   className="relative"
                   style={{ opacity: isDragging ? 0.4 : 1 }}
                 >
-                  {/* Drop indicator */}
+                  {/* Drop indicator top */}
                   {isDragOver && dragOverPos === 'top' && (
                     <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
                   )}
 
-                  {/* Group header row */}
+                  {/* Row */}
                   <div
                     className="relative flex items-center group border-b"
                     style={{
@@ -348,10 +344,8 @@ export function GanttChart({
 
                     {/* Sticky label area */}
                     <div className="sticky left-0 z-10 flex items-center gap-1 pl-2" style={{ backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}>
-                      {/* Drag handle */}
                       <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
 
-                      {/* Name */}
                       {editingId === project.id ? (
                         <input
                           autoFocus
@@ -371,7 +365,6 @@ export function GanttChart({
                         </span>
                       )}
 
-                      {/* Status */}
                       <Select value={project.status} onValueChange={v => onUpdateProjectStatus(project.id, v as GanttStatus)}>
                         <SelectTrigger className="h-4 text-[10px] border-0 px-0.5 w-auto gap-0 shadow-none focus:ring-0 text-gray-400">
                           <SelectValue />
@@ -381,68 +374,11 @@ export function GanttChart({
                         </SelectContent>
                       </Select>
 
-                      {/* Actions */}
                       <div className="flex items-center gap-0 opacity-0 group-hover:opacity-100">
-                        <button onClick={() => onAddProject(project.id)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="서브태스크 추가"><Plus size={12} /></button>
-                        <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="날짜/정보 수정"><CalendarDays size={11} /></button>
+                        <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="수정"><CalendarDays size={11} /></button>
                         <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
                       </div>
                     </div>
-                  </div>
-
-                  {/* Subtask rows */}
-                  {subtasks.map(sub => {
-                    const subCols = barCols(sub)
-                    const subBacklog = sub.status === 'backlog'
-                    return (
-                      <div
-                        key={sub.id}
-                        className="relative flex items-center group border-b border-gray-50"
-                        style={{ height: 32, backgroundColor: subBacklog ? '#f9fafb' : 'white' }}
-                      >
-                        {subCols && (
-                          <TaskBar
-                            id={sub.id}
-                            left={subCols.start * COL_WIDTH + 2}
-                            width={(subCols.end - subCols.start) * COL_WIDTH - 4}
-                            barEnd={subCols.end * COL_WIDTH}
-                            color={palette.strong}
-                            label={sub.name}
-                            team={sub.team}
-                            pm={sub.pm}
-                            palette={palette}
-                            isEditing={editingId === sub.id}
-                            editingVal={editingVal}
-                            onEditStart={e => startEdit(sub, e)}
-                            onEditChange={setEditingVal}
-                            onEditCommit={() => commitEdit(sub.id)}
-                            onEditCancel={() => setEditingId(null)}
-                            onDragMove={makeDragHandlers(sub, 'move')}
-                            onDragLeft={makeDragHandlers(sub, 'resize-left')}
-                            onDragRight={makeDragHandlers(sub, 'resize-right')}
-                            onEdit={() => onEditProject(sub)}
-                            onDelete={() => onDeleteProject(sub.id)}
-                            onStatusChange={v => onUpdateProjectStatus(sub.id, v)}
-                            status={sub.status}
-                          />
-                        )}
-                        {!subCols && (
-                          <button onClick={() => onEditProject(sub)} className="sticky left-3 text-xs text-gray-400 hover:text-gray-600 opacity-0 group-hover:opacity-100 whitespace-nowrap">
-                            {sub.name} — 날짜 설정
-                          </button>
-                        )}
-                      </div>
-                    )
-                  })}
-
-                  {/* Add subtask */}
-                  <div className="border-b border-gray-50" style={{ height: 22 }}>
-                    <button
-                      onClick={() => onAddProject(project.id)}
-                      className="sticky left-3 h-full flex items-center gap-0.5 text-xs text-gray-300 hover:text-gray-500"
-                    >
-                      <Plus size={10} /> 서브태스크
-                    </button>
                   </div>
 
                   {/* Drop indicator bottom */}
@@ -466,125 +402,5 @@ export function GanttChart({
         <div style={{ width: totalWidth, height: 1 }} />
       </div>
     </div>
-  )
-}
-
-// ── TaskBar ────────────────────────────────────────────────────────────────────
-
-interface TaskBarProps {
-  id: string
-  left: number
-  width: number
-  barEnd: number
-  color: string
-  label: string
-  team?: string | null
-  pm?: string | null
-  palette: typeof PALETTES[0]
-  isEditing: boolean
-  editingVal: string
-  status: GanttStatus
-  onEditStart: (e: React.MouseEvent) => void
-  onEditChange: (v: string) => void
-  onEditCommit: () => void
-  onEditCancel: () => void
-  onDragMove: (e: React.MouseEvent) => void
-  onDragLeft: (e: React.MouseEvent) => void
-  onDragRight: (e: React.MouseEvent) => void
-  onEdit: () => void
-  onDelete: () => void
-  onStatusChange: (v: GanttStatus) => void
-}
-
-const STATUSES2 = STATUSES
-
-function TaskBar({
-  id, left, width, barEnd, color, label, team, pm, palette,
-  isEditing, editingVal, status,
-  onEditStart, onEditChange, onEditCommit, onEditCancel,
-  onDragMove, onDragLeft, onDragRight,
-  onEdit, onDelete, onStatusChange,
-}: TaskBarProps) {
-  return (
-    <>
-      <div
-        data-bar-id={id}
-        className="absolute top-1/2 -translate-y-1/2 rounded-full flex items-center group/bar select-none"
-        style={{ left, width, height: 24, backgroundColor: color, cursor: 'grab', minWidth: 8 }}
-        onMouseDown={onDragMove}
-      >
-        {/* Resize left */}
-        <div
-          className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100"
-          onMouseDown={e => { e.stopPropagation(); onDragLeft(e) }}
-        >
-          <div className="w-0.5 h-3 bg-white/60 rounded-full" />
-        </div>
-
-        {/* Label */}
-        <div className="flex-1 px-4 overflow-hidden">
-          {isEditing ? (
-            <input
-              autoFocus
-              className="text-xs font-medium w-full bg-white/30 text-white outline-none rounded px-1"
-              value={editingVal}
-              onChange={e => onEditChange(e.target.value)}
-              onMouseDown={e => e.stopPropagation()}
-              onBlur={onEditCommit}
-              onKeyDown={e => { if (e.key === 'Enter') onEditCommit(); if (e.key === 'Escape') onEditCancel() }}
-            />
-          ) : (
-            <span
-              className="text-xs font-medium text-white truncate cursor-text block"
-              onMouseDown={e => e.stopPropagation()}
-              onClick={onEditStart}
-            >
-              {width > 50 ? label : ''}
-            </span>
-          )}
-        </div>
-
-        {/* Hover popup */}
-        <div
-          className="absolute -top-6 right-0 flex items-center gap-0.5 bg-white border shadow-sm rounded px-1 py-0.5 opacity-0 group-hover/bar:opacity-100 z-20 whitespace-nowrap"
-          onMouseDown={e => e.stopPropagation()}
-        >
-          <Select value={status} onValueChange={v => onStatusChange(v as GanttStatus)}>
-            <SelectTrigger className="h-4 text-[10px] border-0 px-1 w-auto gap-0 shadow-none focus:ring-0">
-              <SelectValue />
-            </SelectTrigger>
-            <SelectContent>
-              {STATUSES2.map(s => <SelectItem key={s.value} value={s.value} className="text-xs">{s.label}</SelectItem>)}
-            </SelectContent>
-          </Select>
-          <button onClick={onEdit} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={10} /></button>
-          <button onClick={onDelete} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={10} /></button>
-        </div>
-
-        {/* Resize right */}
-        <div
-          className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize z-10 flex items-center justify-center opacity-0 group-hover/bar:opacity-100"
-          onMouseDown={e => { e.stopPropagation(); onDragRight(e) }}
-        >
-          <div className="w-0.5 h-3 bg-white/60 rounded-full" />
-        </div>
-      </div>
-
-      {/* Floating team/PM tags */}
-      {(team || pm) && (
-        <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: barEnd + 8, top: '50%', transform: 'translateY(-50%)' }}>
-          {team && (
-            <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: palette.mid + '30', color: palette.text }}>
-              {team}
-            </span>
-          )}
-          {pm && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: palette.mid, color: palette.text }}>
-              👤 {pm}
-            </span>
-          )}
-        </div>
-      )}
-    </>
   )
 }
