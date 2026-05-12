@@ -1,22 +1,25 @@
 'use client'
 
 import { useState, useEffect } from 'react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
+import { CalendarIcon } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { Input } from '@/components/ui/input'
 import { Label } from '@/components/ui/label'
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from '@/components/ui/select'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Calendar } from '@/components/ui/calendar'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 
 const STATUSES: { value: GanttStatus; label: string }[] = [
+  { value: 'to-do', label: 'To-Do' },
   { value: 'in-progress', label: 'In-Progress' },
   { value: 'pending', label: 'Pending' },
   { value: 'backlog', label: 'Backlog' },
-  { value: 'to-do', label: 'To-Do' },
+  { value: 'done', label: 'Done' },
 ]
-
-const YEARS = [2024, 2025, 2026, 2027, 2028]
-const MONTHS = Array.from({ length: 12 }, (_, i) => i + 1)
 
 interface Props {
   open: boolean
@@ -26,8 +29,8 @@ interface Props {
     parentId: string | null
     name: string
     status: GanttStatus
-    start_month: string | null
-    end_month: string | null
+    start_date: string | null
+    end_date: string | null
     team: string | null
     pm: string | null
   }) => Promise<void>
@@ -36,20 +39,52 @@ interface Props {
   editProject?: GanttProject | null
 }
 
-function splitYM(ym: string | null | undefined) {
-  if (!ym) return { year: '', month: '' }
-  const [y, m] = ym.split('-')
-  return { year: y, month: String(parseInt(m)) }
+function toDate(dateStr: string | null | undefined): Date | undefined {
+  if (!dateStr) return undefined
+  const d = new Date(dateStr)
+  return isNaN(d.getTime()) ? undefined : d
+}
+
+function toDateStr(d: Date | undefined): string | null {
+  if (!d) return null
+  return format(d, 'yyyy-MM-dd')
+}
+
+function DatePickerButton({ value, onChange, placeholder }: {
+  value: Date | undefined
+  onChange: (d: Date | undefined) => void
+  placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger
+        className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-background px-2 text-xs h-8 font-normal transition-colors hover:bg-muted"
+      >
+        <CalendarIcon size={13} className="text-gray-400 shrink-0" />
+        {value ? format(value, 'yyyy.MM.dd', { locale: ko }) : (
+          <span className="text-gray-400">{placeholder}</span>
+        )}
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start">
+        <Calendar
+          mode="single"
+          selected={value}
+          defaultMonth={value}
+          onSelect={d => { onChange(d); setOpen(false) }}
+          locale={ko}
+        />
+      </PopoverContent>
+    </Popover>
+  )
 }
 
 export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
-  const [startYear, setStartYear]   = useState('')
-  const [startMonth, setStartMonth] = useState('')
-  const [endYear, setEndYear]       = useState('')
-  const [endMonth, setEndMonth]     = useState('')
+  const [startDate, setStartDate]   = useState<Date | undefined>(undefined)
+  const [endDate, setEndDate]       = useState<Date | undefined>(undefined)
   const [team, setTeam]             = useState('')
   const [pm, setPm]                 = useState('')
   const [loading, setLoading]       = useState(false)
@@ -59,24 +94,17 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setCategoryId(editProject.category_id)
       setName(editProject.name)
       setStatus(editProject.status)
-      const s = splitYM(editProject.start_month)
-      const e = splitYM(editProject.end_month)
-      setStartYear(s.year); setStartMonth(s.month)
-      setEndYear(e.year);   setEndMonth(e.month)
-      setTeam(editProject.team ?? ''); setPm(editProject.pm ?? '')
+      setStartDate(toDate(editProject.start_date))
+      setEndDate(toDate(editProject.end_date))
+      setTeam(editProject.team ?? '')
+      setPm(editProject.pm ?? '')
     } else {
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
       setName(''); setStatus('to-do')
-      setStartYear(''); setStartMonth('')
-      setEndYear('');   setEndMonth('')
+      setStartDate(undefined); setEndDate(undefined)
       setTeam(''); setPm('')
     }
   }, [editProject, open, defaultCategoryId, categories])
-
-  function buildYM(year: string, month: string): string | null {
-    if (!year || !month) return null
-    return `${year}-${String(month).padStart(2, '0')}`
-  }
 
   async function handleSave() {
     if (!name.trim() || !categoryId) return
@@ -87,8 +115,8 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         parentId: editProject?.parent_id ?? null,
         name: name.trim(),
         status,
-        start_month: buildYM(startYear, startMonth),
-        end_month: buildYM(endYear, endMonth),
+        start_date: toDateStr(startDate),
+        end_date: toDateStr(endDate),
         team: team.trim() || null,
         pm: pm.trim() || null,
       })
@@ -160,38 +188,20 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
 
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>시작</Label>
-              <div className="flex gap-1">
-                <Select value={startYear} onValueChange={v => setStartYear(v ?? '')}>
-                  <SelectTrigger className="w-20"><SelectValue placeholder="년" /></SelectTrigger>
-                  <SelectContent>
-                    {YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={startMonth} onValueChange={v => setStartMonth(v ?? '')}>
-                  <SelectTrigger className="w-16"><SelectValue placeholder="월" /></SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map(m => <SelectItem key={m} value={String(m)}>{m}월</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label>시작일</Label>
+              <DatePickerButton
+                value={startDate}
+                onChange={setStartDate}
+                placeholder="날짜 선택"
+              />
             </div>
             <div className="space-y-1.5">
-              <Label>종료</Label>
-              <div className="flex gap-1">
-                <Select value={endYear} onValueChange={v => setEndYear(v ?? '')}>
-                  <SelectTrigger className="w-20"><SelectValue placeholder="년" /></SelectTrigger>
-                  <SelectContent>
-                    {YEARS.map(y => <SelectItem key={y} value={String(y)}>{y}</SelectItem>)}
-                  </SelectContent>
-                </Select>
-                <Select value={endMonth} onValueChange={v => setEndMonth(v ?? '')}>
-                  <SelectTrigger className="w-16"><SelectValue placeholder="월" /></SelectTrigger>
-                  <SelectContent>
-                    {MONTHS.map(m => <SelectItem key={m} value={String(m)}>{m}월</SelectItem>)}
-                  </SelectContent>
-                </Select>
-              </div>
+              <Label>종료일</Label>
+              <DatePickerButton
+                value={endDate}
+                onChange={setEndDate}
+                placeholder="날짜 선택"
+              />
             </div>
           </div>
 

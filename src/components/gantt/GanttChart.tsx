@@ -1,35 +1,49 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown } from 'lucide-react'
-import { buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS } from '@/lib/gantt-utils'
+import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown, Clock, GitCompare, Undo2, StickyNote } from 'lucide-react'
+import {
+  buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS,
+  buildWeekRange, weekIndexOfMonth, dayOffset, dayOffsetInWeeks, colFracToDate,
+} from '@/lib/gantt-utils'
+import type { WeekInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import type { GhostDates } from '@/lib/gantt-service'
 
 interface Props {
   categories: GanttCategory[]
   projects: GanttProject[]
   viewStart: string
   viewEnd: string
+  boardName?: string
+  ghostDates?: GhostDates | null
+  onToggleGhost?: (enabled: boolean) => Promise<void>
+  undoCount?: number
+  onUndo?: () => void
   onAddCategory: (name: string) => Promise<void>
   onUpdateCategory: (id: string, name: string) => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
   onAddProject: (categoryId: string) => void
   onEditProject: (project: GanttProject) => void
   onDeleteProject: (id: string) => void
+  onShowHistory: (project: GanttProject) => void
+  onOpenMemo: (project: GanttProject) => void
   onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
 }
 
-const COL_WIDTH   = 72
+const COL_WIDTH      = 72
+const WEEK_COL_WIDTH = 44
 const LEFT_WIDTH  = 260
 const YEAR_H      = 34
 const MONTH_H     = 28
 const TODAY_H     = 18
 const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
-const CAT_ROW_H   = 32
-const PROJ_ROW_H  = 36
+const CAT_ROW_H       = 32
+const PROJ_ROW_H      = 36
+const PROJ_ROW_H_CMP  = 56  // 비교 모드 행 높이
 const ADD_ROW_H   = 24
 
 const PASTEL_COLORS = [
@@ -42,47 +56,116 @@ const STATUS_META: Record<GanttStatus, { label: string; bg: string; color: strin
   'pending':     { label: 'Pending',     bg: '#fef3c7', color: '#b45309' },
   'backlog':     { label: 'Backlog',     bg: '#f3f4f6', color: '#6b7280' },
   'to-do':       { label: 'To-Do',       bg: '#ede9fe', color: '#6d28d9' },
+  'done':        { label: 'Done',        bg: '#dcfce7', color: '#15803d' },
 }
-const STATUS_ORDER: GanttStatus[] = ['to-do', 'in-progress', 'pending', 'backlog']
+const STATUS_ORDER: GanttStatus[] = ['to-do', 'in-progress', 'pending', 'backlog', 'done']
+
+type ViewMode = 'month' | 'week'
 
 type DragOver =
   | { type: 'category'; id: string }
   | { type: 'project'; id: string; pos: 'top' | 'bottom' }
   | null
 
-function indexToYM(viewStart: string, index: number): string {
+function formatBarDate(start: string, end: string): string {
+  const [sy, sm, sd] = start.split('-')
+  const [ey, em, ed] = end.split('-')
+  const sLabel = `${parseInt(sm)}/${parseInt(sd)}`
+  const eLabel = `${parseInt(em)}/${parseInt(ed)}`
+  if (sy === ey) return `${sLabel} ~ ${eLabel}`
+  return `${sy.slice(2)}.${sLabel} ~ ${ey.slice(2)}.${eLabel}`
+}
+
+function daysInMonthLocal(year: number, month: number): number {
+  return new Date(year, month, 0).getDate()
+}
+
+function indexToFirstDay(viewStart: string, index: number): string {
   const { year, month } = parseYearMonth(viewStart)
   const total = year * 12 + (month - 1) + index
-  return formatYearMonth(Math.floor(total / 12), (total % 12) + 1)
+  const y = Math.floor(total / 12)
+  const m = (total % 12) + 1
+  return `${y}-${String(m).padStart(2, '0')}-01`
+}
+
+function indexToLastDay(viewStart: string, index: number): string {
+  const { year, month } = parseYearMonth(viewStart)
+  const total = year * 12 + (month - 1) + index
+  const y = Math.floor(total / 12)
+  const m = (total % 12) + 1
+  const d = daysInMonthLocal(y, m)
+  return `${y}-${String(m).padStart(2, '0')}-${String(d).padStart(2, '0')}`
+}
+
+function weekIndexToDate(weeks: WeekInfo[], idx: number, edge: 'start' | 'end'): string {
+  const w = weeks[Math.max(0, Math.min(idx, weeks.length - 1))]
+  const d = new Date(w.weekStart)
+  if (edge === 'end') d.setDate(d.getDate() + 6)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
 export function GanttChart({
-  categories, projects, viewStart, viewEnd,
+  categories, projects, viewStart, viewEnd, boardName,
+  ghostDates, onToggleGhost, undoCount = 0, onUndo,
   onAddCategory, onUpdateCategory, onDeleteCategory,
-  onAddProject, onEditProject, onDeleteProject,
+  onAddProject, onEditProject, onDeleteProject, onShowHistory, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
   onMoveProject,
 }: Props) {
-  const months    = buildMonthRange(viewStart, viewEnd)
-  const totalCols = months.length
+  const months = buildMonthRange(viewStart, viewEnd)
   const leftRef         = useRef<HTMLDivElement>(null)
   const rightRef        = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
   const teamFilterRef   = useRef<HTMLDivElement>(null)
 
-  const [editProjId, setEditProjId]       = useState<string | null>(null)
-  const [editProjVal, setEditProjVal]     = useState('')
-  const [editCatId, setEditCatId]         = useState<string | null>(null)
-  const [editCatVal, setEditCatVal]       = useState('')
-  const [addingCat, setAddingCat]         = useState(false)
-  const [newCatName, setNewCatName]       = useState('')
-  const [dragProjId, setDragProjId]       = useState<string | null>(null)
-  const [dragOver, setDragOver]           = useState<DragOver>(null)
-  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc'>('default')
-  const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
+  const [viewMode, setViewMode]             = useState<ViewMode>('month')
+  const [editProjId, setEditProjId]         = useState<string | null>(null)
+  const [editProjVal, setEditProjVal]       = useState('')
+  const [editCatId, setEditCatId]           = useState<string | null>(null)
+  const [editCatVal, setEditCatVal]         = useState('')
+  const [addingCat, setAddingCat]           = useState(false)
+  const [newCatName, setNewCatName]         = useState('')
+  const [dragProjId, setDragProjId]         = useState<string | null>(null)
+  const [dragOver, setDragOver]             = useState<DragOver>(null)
+  const [sortMode, setSortMode]             = useState<'default' | 'start-asc' | 'end-desc'>('default')
+  const [excludedTeams, setExcludedTeams]   = useState<Set<string>>(new Set())
   const [showTeamFilter, setShowTeamFilter] = useState(false)
+  const [ghostEnabled, setGhostEnabled]     = useState(false)
 
-  const allTeams  = [...new Set(projects.map(p => p.team || ''))].sort()
+  // 뷰 모드별 파생 값
+  const colW       = viewMode === 'week' ? WEEK_COL_WIDTH : COL_WIDTH
+  const weeks      = viewMode === 'week' ? buildWeekRange(viewStart, viewEnd) : ([] as WeekInfo[])
+  const totalCols  = viewMode === 'week' ? weeks.length : months.length
+  const totalWidth = colW * totalCols
+
+  // 주 뷰 헤더용 그룹
+  const yearGroups: { year: number; count: number }[] = []
+  if (viewMode === 'month') {
+    for (const ym of months) {
+      const y = parseInt(ym.split('-')[0])
+      if (!yearGroups.length || yearGroups[yearGroups.length - 1].year !== y)
+        yearGroups.push({ year: y, count: 1 })
+      else yearGroups[yearGroups.length - 1].count++
+    }
+  } else {
+    for (const w of weeks) {
+      if (!yearGroups.length || yearGroups[yearGroups.length - 1].year !== w.year)
+        yearGroups.push({ year: w.year, count: 1 })
+      else yearGroups[yearGroups.length - 1].count++
+    }
+  }
+
+  const monthGroups: { ym: string; label: string; count: number }[] = []
+  if (viewMode === 'week') {
+    for (const w of weeks) {
+      const ym = formatYearMonth(w.year, w.month)
+      if (!monthGroups.length || monthGroups[monthGroups.length - 1].ym !== ym)
+        monthGroups.push({ ym, label: MONTH_LABELS[w.month - 1], count: 1 })
+      else monthGroups[monthGroups.length - 1].count++
+    }
+  }
+
+  const allTeams   = [...new Set(projects.map(p => p.team || ''))].sort()
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
 
   const projectsOf = (catId: string) => {
@@ -90,34 +173,43 @@ export function GanttChart({
     if (excludedTeams.size > 0)
       base = base.filter(p => !excludedTeams.has(p.team || ''))
     if (sortMode === 'start-asc')
-      return [...base].sort((a, b) => (a.start_month ?? 'zzzz') < (b.start_month ?? 'zzzz') ? -1 : 1)
+      return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
     if (sortMode === 'end-desc')
-      return [...base].sort((a, b) => (a.end_month ?? '') > (b.end_month ?? '') ? -1 : 1)
+      return [...base].sort((a, b) => (a.end_date ?? '') > (b.end_date ?? '') ? -1 : 1)
     return [...base].sort((a, b) => a.sort_order - b.sort_order)
   }
 
-  function barCols(p: GanttProject) {
-    if (!p.start_month || !p.end_month) return null
-    const s = monthOffset(viewStart, p.start_month)
-    const e = monthOffset(viewStart, p.end_month) + 1
-    if (s >= totalCols || e <= 0) return null
-    return { start: Math.max(0, s), end: Math.min(totalCols, e) }
+  function barCols(p: GanttProject): { start: number; end: number } | null {
+    if (!p.start_date || !p.end_date) return null
+    if (viewMode === 'month') {
+      const s = dayOffset(viewStart, p.start_date, 'start')
+      const e = dayOffset(viewStart, p.end_date, 'end')
+      if (s >= totalCols || e <= 0) return null
+      return { start: Math.max(0, s), end: Math.min(totalCols, e) }
+    } else {
+      const s = dayOffsetInWeeks(weeks, p.start_date, 'start')
+      const e = dayOffsetInWeeks(weeks, p.end_date, 'end')
+      if (s >= totalCols || e <= 0) return null
+      return { start: Math.max(0, s), end: Math.min(totalCols, e) }
+    }
   }
 
-  const today    = new Date()
-  const todayYM  = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  const todayCol = monthOffset(viewStart, todayYM)
-  const todayX   = todayCol >= 0 && todayCol < totalCols ? todayCol * COL_WIDTH + COL_WIDTH / 2 : null
+  const today   = new Date()
+  const todayYM = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
 
-  const yearGroups: { year: number; count: number }[] = []
-  for (const ym of months) {
-    const y = parseInt(ym.split('-')[0])
-    if (!yearGroups.length || yearGroups[yearGroups.length - 1].year !== y)
-      yearGroups.push({ year: y, count: 1 })
-    else yearGroups[yearGroups.length - 1].count++
+  let todayX: number | null = null
+  if (viewMode === 'month') {
+    const todayCol = monthOffset(viewStart, todayYM)
+    todayX = todayCol >= 0 && todayCol < totalCols ? todayCol * colW + colW / 2 : null
+  } else {
+    const idx = weeks.findIndex(w => {
+      const end = new Date(w.weekStart); end.setDate(end.getDate() + 6)
+      return today >= w.weekStart && today <= end
+    })
+    todayX = idx >= 0 ? idx * colW + colW / 2 : null
   }
 
-  // Scroll sync: right → left (vertical) + sticky scrollbar (horizontal)
+  // 스크롤 동기화
   function onRightScroll() {
     if (leftRef.current && rightRef.current)
       leftRef.current.scrollTop = rightRef.current.scrollTop
@@ -128,15 +220,30 @@ export function GanttChart({
     if (rightRef.current && stickyScrollRef.current)
       rightRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
   }
-  // Forward wheel on left panel to right panel
   function onLeftWheel(e: React.WheelEvent) {
     if (rightRef.current) rightRef.current.scrollTop += e.deltaY
   }
 
+  // 뷰 모드 변경 시 today로 스크롤
   useEffect(() => {
-    if (rightRef.current && todayCol > 0)
-      rightRef.current.scrollLeft = Math.max(0, todayCol * COL_WIDTH - 200)
-  }, [])
+    if (!rightRef.current) return
+    const cw = viewMode === 'week' ? WEEK_COL_WIDTH : COL_WIDTH
+    let scrollX = 0
+    if (viewMode === 'month') {
+      const now = new Date()
+      const ym = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`
+      scrollX = Math.max(0, monthOffset(viewStart, ym) * cw - 200)
+    } else {
+      const now = new Date()
+      const ws = buildWeekRange(viewStart, viewEnd)
+      const idx = ws.findIndex(w => {
+        const end = new Date(w.weekStart); end.setDate(end.getDate() + 6)
+        return now >= w.weekStart && now <= end
+      })
+      scrollX = idx >= 0 ? Math.max(0, idx * cw - 200) : 0
+    }
+    rightRef.current.scrollLeft = scrollX
+  }, [viewMode, viewStart, viewEnd])
 
   useEffect(() => {
     function handleClickOutside(e: MouseEvent) {
@@ -147,7 +254,7 @@ export function GanttChart({
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showTeamFilter])
 
-  // Project name editing
+  // 프로젝트 이름 인라인 편집
   function startEditProj(p: GanttProject, e: React.MouseEvent) {
     e.stopPropagation(); setEditProjId(p.id); setEditProjVal(p.name)
   }
@@ -156,7 +263,7 @@ export function GanttChart({
     setEditProjId(null)
   }
 
-  // Category name editing
+  // 카테고리 이름 인라인 편집
   function startEditCat(c: GanttCategory, e: React.MouseEvent) {
     e.stopPropagation(); setEditCatId(c.id); setEditCatVal(c.name)
   }
@@ -184,7 +291,7 @@ export function GanttChart({
     })
   }
 
-  // ── Row drag-and-drop (left panel) ───────────────────────
+  // ── 행 드래그앤드롭 (왼쪽 패널) ──────────────────────────
   function handleProjDragStart(e: React.DragEvent, id: string) {
     setDragProjId(id)
     e.dataTransfer.effectAllowed = 'move'
@@ -243,15 +350,25 @@ export function GanttChart({
 
   function resetDrag() { setDragProjId(null); setDragOver(null) }
 
-  // ── Bar drag handlers (right panel) ──────────────────────
+  // ── 바 드래그 핸들러 (월/주 뷰 공통) ────────────────────
   const makeDragHandlers = useCallback((p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => {
     return (e: React.MouseEvent) => {
       e.preventDefault(); e.stopPropagation()
-      if (!p.start_month || !p.end_month) return
+      if (!p.start_date || !p.end_date) return
 
-      const origStart = monthOffset(viewStart, p.start_month)
-      const origEnd   = monthOffset(viewStart, p.end_month)
-      const startX    = e.clientX
+      const cw = viewMode === 'week' ? WEEK_COL_WIDTH : COL_WIDTH
+      const ws = viewMode === 'week' ? buildWeekRange(viewStart, viewEnd) : []
+
+      let origStart: number, origEnd: number
+      if (viewMode === 'month') {
+        origStart = Math.floor(dayOffset(viewStart, p.start_date, 'start'))
+        origEnd   = Math.floor(dayOffset(viewStart, p.end_date, 'end'))
+      } else {
+        origStart = Math.floor(dayOffsetInWeeks(ws, p.start_date, 'start'))
+        origEnd   = Math.floor(dayOffsetInWeeks(ws, p.end_date, 'end'))
+      }
+
+      const startX = e.clientX
       let previewStart = origStart, previewEnd = origEnd
 
       const overlay = document.createElement('div')
@@ -261,7 +378,7 @@ export function GanttChart({
       const barEl = (e.currentTarget as HTMLElement).closest('[data-bar-id]') as HTMLElement | null
 
       function onMouseMove(me: MouseEvent) {
-        const delta = Math.round((me.clientX - startX) / COL_WIDTH)
+        const delta = Math.round((me.clientX - startX) / cw)
         if (dragType === 'move') {
           previewStart = Math.max(0, Math.min(origStart + delta, totalCols - 1))
           const span = origEnd - origStart
@@ -273,8 +390,8 @@ export function GanttChart({
           previewStart = origStart; previewEnd = Math.max(origStart, Math.min(origEnd + delta, totalCols - 1))
         }
         if (barEl) {
-          barEl.style.left  = `${previewStart * COL_WIDTH + 2}px`
-          barEl.style.width = `${(previewEnd - previewStart + 1) * COL_WIDTH - 4}px`
+          barEl.style.left  = `${previewStart * cw + 4}px`
+          barEl.style.width = `${(previewEnd - previewStart + 1) * cw - 8}px`
         }
       }
 
@@ -282,18 +399,25 @@ export function GanttChart({
         document.removeEventListener('mousemove', onMouseMove)
         document.removeEventListener('mouseup', onMouseUp)
         overlay.remove()
-        if (previewStart !== origStart || previewEnd !== origEnd)
-          await onUpdateProjectDates(p.id, indexToYM(viewStart, previewStart), indexToYM(viewStart, previewEnd))
+        if (previewStart !== origStart || previewEnd !== origEnd) {
+          let newStart: string, newEnd: string
+          if (viewMode === 'month') {
+            newStart = indexToFirstDay(viewStart, previewStart)
+            newEnd   = indexToLastDay(viewStart, previewEnd)
+          } else {
+            newStart = weekIndexToDate(ws, previewStart, 'start')
+            newEnd   = weekIndexToDate(ws, previewEnd, 'end')
+          }
+          await onUpdateProjectDates(p.id, newStart, newEnd)
+        }
       }
 
       document.addEventListener('mousemove', onMouseMove)
       document.addEventListener('mouseup', onMouseUp)
     }
-  }, [viewStart, totalCols, onUpdateProjectDates])
+  }, [viewStart, viewEnd, viewMode, totalCols, onUpdateProjectDates])
 
-  const totalWidth = COL_WIDTH * totalCols
-
-  // Shared row renderer helper
+  // ── 행 렌더 헬퍼 ─────────────────────────────────────────
   const renderCategoryRows = (cat: GanttCategory, catIdx: number, forPanel: 'left' | 'right') => {
     const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
     const catProjs  = projectsOf(cat.id)
@@ -301,8 +425,8 @@ export function GanttChart({
 
     if (forPanel === 'left') {
       return (
-        <div key={cat.id}>
-          {/* Category header — left */}
+        <div key={cat.id} data-row>
+          {/* 카테고리 헤더 — 왼쪽 */}
           <div
             className="flex items-center group border-b"
             style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
@@ -331,7 +455,7 @@ export function GanttChart({
             </div>
           </div>
 
-          {/* Project rows — left */}
+          {/* 프로젝트 행 — 왼쪽 */}
           {catProjs.map(project => {
             const isBacklog  = project.status === 'backlog'
             const isDragging = dragProjId === project.id
@@ -354,7 +478,7 @@ export function GanttChart({
                 )}
                 <div
                   className="flex items-center gap-1.5 group border-b px-2"
-                  style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+                  style={{ height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
                 >
                   <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
                   {editProjId === project.id ? (
@@ -384,9 +508,24 @@ export function GanttChart({
                   >
                     {sm.label}
                   </button>
-                  <div className="flex items-center ml-auto shrink-0 opacity-0 group-hover:opacity-100">
-                    <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500"><CalendarDays size={11} /></button>
-                    <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+                  <div className="flex items-center ml-auto shrink-0">
+                    {project.memo ? (
+                      <button
+                        onClick={() => onOpenMemo(project)}
+                        className="p-0.5 text-indigo-400 hover:text-indigo-600"
+                        title="메모 보기"
+                      >
+                        <StickyNote size={11} />
+                      </button>
+                    ) : null}
+                    <div className="flex items-center opacity-0 group-hover:opacity-100">
+                      {!project.memo && (
+                        <button onClick={() => onOpenMemo(project)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="메모"><StickyNote size={11} /></button>
+                      )}
+                      <button onClick={() => onShowHistory(project)} className="p-0.5 text-gray-400 hover:text-purple-500" title="수정 이력"><Clock size={11} /></button>
+                      <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="기간 편집"><CalendarDays size={11} /></button>
+                      <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500" title="삭제"><Trash2 size={11} /></button>
+                    </div>
                   </div>
                 </div>
                 {isProjOver && dragOver?.pos === 'bottom' && (
@@ -396,7 +535,7 @@ export function GanttChart({
             )
           })}
 
-          {/* Add project row — left */}
+          {/* 프로젝트 추가 행 — 왼쪽 */}
           <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} onDragOver={e => handleDragOverCategory(e, cat.id)}>
             <button
               onClick={() => onAddProject(cat.id)}
@@ -409,40 +548,104 @@ export function GanttChart({
       )
     }
 
-    // right panel
+    // 오른쪽 패널
     return (
       <div key={cat.id}>
-        {/* Category header — right (empty bar area) */}
+        {/* 카테고리 헤더 — 오른쪽 */}
         <div
           className="border-b"
           style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa' }}
           onDragOver={e => handleDragOverCategory(e, cat.id)}
         />
 
-        {/* Project bar rows — right */}
+        {/* 프로젝트 바 행 — 오른쪽 */}
         {catProjs.map(project => {
           const cols      = barCols(project)
           const isBacklog = project.status === 'backlog'
+
+          // ghost: 이전 날짜 (없는 쪽은 현재 날짜로 대체)
+          const ghost = ghostEnabled && ghostDates?.[project.id]
+          const ghostProject = ghost ? {
+            ...project,
+            start_date: ghost.start_date ?? project.start_date,
+            end_date:   ghost.end_date   ?? project.end_date,
+          } : null
+          const ghostCols = ghostProject ? barCols(ghostProject) : null
+          const hasGhostDiff = ghostCols && cols && (
+            Math.abs(ghostCols.start - cols.start) > 0.01 ||
+            Math.abs(ghostCols.end - cols.end) > 0.01
+          )
+
+          const showCompare = !!(ghostEnabled && hasGhostDiff)
+          const rowH   = ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H
+          const BAR_H  = 14
+          const GHOST_H = 14
+          // 현재 바는 항상 기본 행 기준 중앙 고정 → ghost 바는 그 아래에 배치
+          const curTop   = (PROJ_ROW_H - BAR_H) / 2          // = 11, 모드 무관 고정
+          const ghostTop = curTop + BAR_H + 8                 // = 33
 
           return (
             <div
               key={project.id}
               className="relative border-b"
-              style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+              style={{ height: rowH, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
             >
+              {/* ghost 바 — 이전 일정 (위쪽): 점선 테두리 스타일 */}
+              {showCompare && ghostCols && (
+                <div
+                  className="absolute rounded-full overflow-hidden flex items-center pointer-events-none select-none"
+                  style={{
+                    top: ghostTop,
+                    left: ghostCols.start * colW + 4,
+                    width: Math.max(2, (ghostCols.end - ghostCols.start) * colW - 8),
+                    height: GHOST_H,
+                    backgroundColor: barColor + '28',
+                    border: `1.5px dashed ${barColor}`,
+                  }}
+                >
+                  {ghostProject?.start_date && ghostProject?.end_date && (
+                    <span className="px-2 text-[9px] font-medium tabular-nums truncate" style={{ color: barColor }}>
+                      {formatBarDate(ghostProject.start_date, ghostProject.end_date)}
+                    </span>
+                  )}
+                </div>
+              )}
+
               {cols && (
                 <>
+                  {/* 현재 바 */}
                   <div
                     data-bar-id={project.id}
-                    className="absolute top-1/2 -translate-y-1/2 rounded-full group/bar"
-                    style={{ left: cols.start * COL_WIDTH + 4, width: (cols.end - cols.start) * COL_WIDTH - 8, height: 8, backgroundColor: barColor, cursor: 'grab' }}
+                    className="absolute rounded-full overflow-hidden flex items-center"
+                    style={{
+                      top: curTop,
+                      left: cols.start * colW + 4,
+                      width: (cols.end - cols.start) * colW - 8,
+                      height: BAR_H,
+                      backgroundColor: barColor,
+                      cursor: 'grab',
+                    }}
                     onMouseDown={makeDragHandlers(project, 'move')}
                   >
                     <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />
+                    {project.start_date && project.end_date && (
+                      <span className="px-2 text-[9px] font-medium tabular-nums truncate pointer-events-none select-none" style={{ color: '#1f2937' }}>
+                        {formatBarDate(project.start_date, project.end_date)}
+                      </span>
+                    )}
                     <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />
                   </div>
+
+                  {/* 바 오른쪽: 팀/PM 뱃지 — 두 바 중 더 오른쪽 끝, 현재 바 세로 중앙 */}
                   {(project.team || project.pm) && (
-                    <div className="absolute flex items-center gap-1 pointer-events-none" style={{ left: cols.end * COL_WIDTH + 8, top: '50%', transform: 'translateY(-50%)' }}>
+                    <div
+                      className="absolute flex items-center gap-1 pointer-events-none"
+                      style={{
+                        left: (showCompare && ghostCols ? Math.max(cols.end, ghostCols.end) : cols.end) * colW + 8,
+                        top: curTop + BAR_H / 2,
+                        transform: 'translateY(-50%)',
+                      }}
+                    >
                       {project.team && (
                         <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: barColor + '60', color: '#374151' }}>
                           {project.team}
@@ -461,7 +664,7 @@ export function GanttChart({
           )
         })}
 
-        {/* Add project row — right */}
+        {/* 프로젝트 추가 행 — 오른쪽 */}
         <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} />
       </div>
     )
@@ -469,11 +672,24 @@ export function GanttChart({
 
   return (
     <div className="flex flex-col h-full bg-white">
-      {/* Toolbar */}
+      {/* 툴바 */}
       <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
-        <h1 className="text-base font-semibold text-gray-800">간트 차트</h1>
+        <div className="flex items-center gap-2">
+          <h1 className="text-base font-semibold text-gray-800">{boardName ?? '간트 차트'}</h1>
+          {onUndo && (
+            <button
+              onClick={onUndo}
+              disabled={undoCount === 0}
+              title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
+              className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+            >
+              <Undo2 size={13} />
+              {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
+            </button>
+          )}
+        </div>
         <div className="flex items-center gap-3">
-          {/* Team filter */}
+          {/* 팀 필터 */}
           {allTeams.length > 0 && (
             <div className="relative" ref={teamFilterRef}>
               <button
@@ -507,7 +723,20 @@ export function GanttChart({
             </div>
           )}
 
-          {/* Sort */}
+          {/* 뷰 모드 토글 */}
+          <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
+            {(['month', 'week'] as const).map(mode => (
+              <button
+                key={mode}
+                onClick={() => setViewMode(mode)}
+                className={`px-2 py-1 transition-colors ${viewMode === mode ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+              >
+                {mode === 'month' ? '월' : '주'}
+              </button>
+            ))}
+          </div>
+
+          {/* 정렬 */}
           <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
             {(['default', 'start-asc', 'end-desc'] as const).map(mode => (
               <button
@@ -520,9 +749,20 @@ export function GanttChart({
             ))}
           </div>
 
-          <button onClick={() => setAddingCat(true)} className="flex items-center gap-1 text-sm text-gray-500 hover:text-gray-700 font-medium">
-            <Plus size={15} /> 카테고리
-          </button>
+          {onToggleGhost && (
+            <button
+              onClick={async () => {
+                const next = !ghostEnabled
+                setGhostEnabled(next)
+                await onToggleGhost(next)
+              }}
+              title="이전 일정과 비교"
+              className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${ghostEnabled ? 'border-purple-300 bg-purple-50 text-purple-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
+            >
+              <GitCompare size={12} /> 비교
+            </button>
+          )}
+
           {sortedCats.length > 0 && (
             <button onClick={() => onAddProject(sortedCats[0].id)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
               <Plus size={15} /> 프로젝트
@@ -531,32 +771,47 @@ export function GanttChart({
         </div>
       </div>
 
-      {/* Main area: left panel + right panel */}
+      {/* 메인 영역 */}
       <div className="flex flex-1 overflow-hidden">
 
-        {/* ── Left panel (fixed, labels) ─────────────────── */}
+        {/* ── 왼쪽 패널 (고정, 레이블) ─────────────────────── */}
         <div
-          ref={leftRef}
           onWheel={onLeftWheel}
           className="shrink-0 flex flex-col border-r shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
           style={{ width: LEFT_WIDTH, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
         >
-          {/* Header placeholder */}
           <div className="shrink-0 border-b bg-white flex items-end" style={{ height: HEADER_H }}>
             <span className="text-[11px] font-semibold text-gray-400 px-3 pb-2">프로젝트</span>
           </div>
+          <div
+            ref={leftRef}
+            className="flex-1 overflow-y-hidden flex flex-col"
+            onDragOver={e => e.preventDefault()}
+            onDrop={handleDrop}
+            onDoubleClick={e => {
+              // 행 위 더블클릭은 제외, 빈 영역만
+              if ((e.target as HTMLElement).closest('[data-row]')) return
+              setAddingCat(true)
+            }}
+          >
+            {/* 카테고리 목록 */}
+            <div className="flex-1">
+              {categories.length === 0 && !addingCat && (
+                <div
+                  className="flex flex-col items-center justify-center h-28 text-gray-400 text-xs gap-1 cursor-pointer select-none"
+                  onDoubleClick={() => setAddingCat(true)}
+                >
+                  <span>카테고리를 추가해 보세요</span>
+                  <span className="text-[10px] text-gray-300">더블클릭 또는 하단 버튼</span>
+                </div>
+              )}
+              {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
+            </div>
 
-          {/* Category + project rows */}
-          <div className="flex-1 overflow-y-hidden" onDragOver={e => e.preventDefault()} onDrop={handleDrop}>
-            {categories.length === 0 && !addingCat && (
-              <div className="flex items-center justify-center h-20 text-gray-400 text-xs">카테고리를 추가해 보세요</div>
-            )}
-            {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
-
-            {/* Add category inline */}
-            {addingCat && (
-              <div className="border-b" style={{ height: 34 }}>
-                <div className="h-full flex items-center gap-2 px-3 bg-white">
+            {/* 하단 고정: 카테고리 추가 버튼 or 인라인 입력 */}
+            <div className="shrink-0 border-t bg-white">
+              {addingCat ? (
+                <div className="flex items-center gap-2 px-3 h-9">
                   <input
                     autoFocus
                     className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
@@ -568,12 +823,19 @@ export function GanttChart({
                   <button onClick={submitAddCat} className="p-0.5 text-indigo-500 hover:text-indigo-700"><Check size={13} /></button>
                   <button onClick={() => { setAddingCat(false); setNewCatName('') }} className="p-0.5 text-gray-400 hover:text-gray-600"><X size={13} /></button>
                 </div>
-              </div>
-            )}
+              ) : (
+                <button
+                  onClick={() => setAddingCat(true)}
+                  className="w-full h-9 flex items-center gap-1.5 px-3 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
+                >
+                  <Plus size={13} /> 카테고리 추가
+                </button>
+              )}
+            </div>
           </div>
         </div>
 
-        {/* ── Right panel (timeline) ─────────────────────── */}
+        {/* ── 오른쪽 패널 (타임라인) ───────────────────────── */}
         <div
           ref={rightRef}
           onScroll={onRightScroll}
@@ -582,52 +844,92 @@ export function GanttChart({
         >
           <div style={{ width: totalWidth, position: 'relative' }}>
 
-            {/* Year header */}
+            {/* 연도 헤더 */}
             <div className="flex sticky top-0 z-20 bg-white border-b" style={{ height: YEAR_H }}>
               {yearGroups.map(({ year, count }) => (
-                <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: COL_WIDTH * count }}>
+                <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: colW * count }}>
                   {year}
                 </div>
               ))}
             </div>
 
-            {/* Month header */}
+            {/* 월 헤더 */}
             <div className="flex sticky z-20 bg-white border-b" style={{ top: YEAR_H, height: MONTH_H }}>
-              {months.map(ym => (
-                <div
-                  key={ym}
-                  className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
-                  style={{ width: COL_WIDTH }}
-                >
-                  {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
-                </div>
-              ))}
-            </div>
-
-            {/* TODAY label */}
-            <div className="sticky z-20 bg-white border-b" style={{ top: YEAR_H + MONTH_H, height: TODAY_H }}>
-              {todayX !== null && (
-                <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
-                  TODAY
-                </div>
+              {viewMode === 'month' ? (
+                months.map(ym => (
+                  <div
+                    key={ym}
+                    className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
+                    style={{ width: colW }}
+                  >
+                    {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
+                  </div>
+                ))
+              ) : (
+                monthGroups.map(({ ym, label, count }) => (
+                  <div
+                    key={ym}
+                    className="text-xs border-r shrink-0 font-semibold flex items-center px-2 text-gray-500 bg-gray-50"
+                    style={{ width: colW * count }}
+                  >
+                    {label}
+                  </div>
+                ))
               )}
             </div>
 
-            {/* Bar rows */}
+            {/* TODAY 라벨(월 뷰) / 주 레이블(주 뷰) */}
+            <div className="sticky z-20 bg-white border-b flex" style={{ top: YEAR_H + MONTH_H, height: TODAY_H }}>
+              {viewMode === 'month' ? (
+                <div className="relative w-full">
+                  {todayX !== null && (
+                    <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
+                      TODAY
+                    </div>
+                  )}
+                </div>
+              ) : (
+                weeks.map((w, i) => {
+                  const isToday = todayX !== null && Math.round(i * colW + colW / 2) === Math.round(todayX)
+                  return (
+                    <div
+                      key={w.key}
+                      className={`text-center border-r shrink-0 flex items-center justify-center text-[9px] font-medium ${isToday ? 'text-red-400 font-bold' : 'text-gray-300'}`}
+                      style={{ width: colW }}
+                    >
+                      {w.label}
+                    </div>
+                  )
+                })
+              )}
+            </div>
+
+            {/* 바 행 영역 */}
             <div className="relative">
               {todayX !== null && (
                 <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
               )}
-              {months.map((ym, i) => (
-                <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * COL_WIDTH, width: COL_WIDTH }} />
-              ))}
+              {/* 컬럼 그리드 라인 */}
+              {viewMode === 'month' ? (
+                months.map((ym, i) => (
+                  <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * colW, width: colW }} />
+                ))
+              ) : (
+                weeks.map((w, i) => (
+                  <div
+                    key={w.key}
+                    className={`absolute top-0 bottom-0 pointer-events-none border-r ${w.weekInMonth === 1 ? 'border-gray-200' : 'border-gray-100'}`}
+                    style={{ left: i * colW, width: colW }}
+                  />
+                ))
+              )}
               {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'right'))}
             </div>
           </div>
         </div>
       </div>
 
-      {/* Sticky scrollbar */}
+      {/* 고정 스크롤바 */}
       <div
         ref={stickyScrollRef}
         className="shrink-0 overflow-x-auto overflow-y-hidden border-t bg-white"
