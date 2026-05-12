@@ -1,10 +1,20 @@
 'use client'
 
 import { useState, useRef, useCallback, useEffect } from 'react'
-import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown, Clock, GitCompare, Undo2, StickyNote } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, DragOverlay,
+  type DragStartEvent, type DragOverEvent, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable,
+  sortableKeyboardCoordinates, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown, Clock, GitCompare, Undo2, StickyNote, Search } from 'lucide-react'
 import {
   buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS,
-  buildWeekRange, weekIndexOfMonth, dayOffset, dayOffsetInWeeks, colFracToDate,
+  buildWeekRange, dayOffset, dayOffsetInWeeks,
 } from '@/lib/gantt-utils'
 import type { WeekInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
@@ -44,7 +54,7 @@ const TODAY_H     = 18
 const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
 const CAT_ROW_H       = 32
 const PROJ_ROW_H      = 36
-const PROJ_ROW_H_CMP  = 56  // 비교 모드 행 높이
+const PROJ_ROW_H_CMP  = 56
 const ADD_ROW_H   = 24
 
 const PASTEL_COLORS = [
@@ -62,11 +72,6 @@ const STATUS_META: Record<GanttStatus, { label: string; bg: string; color: strin
 const STATUS_ORDER: GanttStatus[] = ['to-do', 'in-progress', 'pending', 'backlog', 'done']
 
 type ViewMode = 'month' | 'week'
-
-type DragOver =
-  | { type: 'category'; id: string }
-  | { type: 'project'; id: string; pos: 'top' | 'bottom' }
-  | null
 
 function formatBarDate(start: string, end: string): string {
   const [sy, sm, sd] = start.split('-')
@@ -105,6 +110,26 @@ function weekIndexToDate(weeks: WeekInfo[], idx: number, edge: 'start' | 'end'):
   return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
 }
 
+// ── Sortable project row shell ────────────────────────────────
+function SortableProjRow({ id, disabled, children }: {
+  id: string
+  disabled?: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode
+}) {
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition }}
+      {...attributes}
+    >
+      {children({ listeners, isDragging })}
+    </div>
+  )
+}
+
+// ── GanttChart ────────────────────────────────────────────────
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
   ghostDates, onToggleGhost, undoCount = 0, onUndo,
@@ -128,14 +153,20 @@ export function GanttChart({
   const [editCatVal, setEditCatVal]         = useState('')
   const [addingCat, setAddingCat]           = useState(false)
   const [newCatName, setNewCatName]         = useState('')
-  const [dragProjId, setDragProjId]         = useState<string | null>(null)
-  const [dragOver, setDragOver]             = useState<DragOver>(null)
   const [sortMode, setSortMode]             = useState<'default' | 'start-asc' | 'end-desc'>('default')
   const [excludedTeams, setExcludedTeams]   = useState<Set<string>>(new Set())
   const [showTeamFilter, setShowTeamFilter] = useState(false)
   const [excludedPMs, setExcludedPMs]       = useState<Set<string>>(new Set())
   const [showPMFilter, setShowPMFilter]     = useState(false)
   const [ghostEnabled, setGhostEnabled]     = useState(false)
+  const [searchQuery, setSearchQuery]       = useState('')
+  const [activeId, setActiveId]             = useState<string | null>(null)
+  const [liveItems, setLiveItems]           = useState<Record<string, string[]> | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   // 뷰 모드별 파생 값
   const colW       = viewMode === 'week' ? WEEK_COL_WIDTH : COL_WIDTH
@@ -174,17 +205,34 @@ export function GanttChart({
   const allPMs     = [...new Set(projects.map(p => p.pm || ''))].sort()
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
 
-  const projectsOf = (catId: string) => {
-    let base = projects.filter(p => p.category_id === catId)
+  const projectsOf = (catId: string): GanttProject[] => {
+    let base: GanttProject[]
+
+    if (sortMode === 'default' && liveItems) {
+      // During drag: use live order from dnd-kit state
+      const ids = liveItems[catId] ?? []
+      const projMap = new Map(projects.map(p => [p.id, p]))
+      base = ids.map(id => projMap.get(id)).filter((p): p is GanttProject => !!p)
+    } else {
+      base = projects.filter(p => p.category_id === catId)
+    }
+
+    if (searchQuery.trim())
+      base = base.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
     if (excludedTeams.size > 0)
       base = base.filter(p => !excludedTeams.has(p.team || ''))
     if (excludedPMs.size > 0)
       base = base.filter(p => !excludedPMs.has(p.pm || ''))
-    if (sortMode === 'start-asc')
-      return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
-    if (sortMode === 'end-desc')
-      return [...base].sort((a, b) => (a.end_date ?? '') > (b.end_date ?? '') ? -1 : 1)
-    return [...base].sort((a, b) => a.sort_order - b.sort_order)
+
+    if (!liveItems) {
+      if (sortMode === 'start-asc')
+        return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
+      if (sortMode === 'end-desc')
+        return [...base].sort((a, b) => (a.end_date ?? '') > (b.end_date ?? '') ? -1 : 1)
+      return [...base].sort((a, b) => a.sort_order - b.sort_order)
+    }
+
+    return base
   }
 
   function barCols(p: GanttProject): { start: number; end: number } | null {
@@ -321,64 +369,78 @@ export function GanttChart({
     })
   }
 
-  // ── 행 드래그앤드롭 (왼쪽 패널) ──────────────────────────
-  function handleProjDragStart(e: React.DragEvent, id: string) {
-    setDragProjId(id)
-    e.dataTransfer.effectAllowed = 'move'
-    const ghost = document.createElement('div')
-    ghost.style.cssText = 'position:fixed;top:-9999px'
-    document.body.appendChild(ghost)
-    e.dataTransfer.setDragImage(ghost, 0, 0)
-    setTimeout(() => ghost.remove(), 0)
-  }
-
-  function handleDragOverProject(e: React.DragEvent, id: string) {
-    e.preventDefault()
-    const rect = (e.currentTarget as HTMLElement).getBoundingClientRect()
-    setDragOver({ type: 'project', id, pos: e.clientY < rect.top + rect.height / 2 ? 'top' : 'bottom' })
-  }
-
-  function handleDragOverCategory(e: React.DragEvent, id: string) {
-    e.preventDefault()
-    setDragOver({ type: 'category', id })
-  }
-
-  async function handleDrop(e: React.DragEvent) {
-    e.preventDefault()
-    if (!dragProjId || !dragOver) { resetDrag(); return }
-
-    const dragged = projects.find(p => p.id === dragProjId)
-    if (!dragged) { resetDrag(); return }
-
-    let updates: { id: string; category_id: string; sort_order: number }[] = []
-
-    if (dragOver.type === 'category') {
-      const catId    = dragOver.id
-      const catProjs = projectsOf(catId).filter(p => p.id !== dragProjId)
-      const oldProjs = projectsOf(dragged.category_id).filter(p => p.id !== dragProjId)
-      updates = [
-        ...oldProjs.map((p, i) => ({ id: p.id, category_id: dragged.category_id, sort_order: i })),
-        ...catProjs.map((p, i) => ({ id: p.id, category_id: catId, sort_order: i })),
-        { id: dragProjId, category_id: catId, sort_order: catProjs.length },
-      ]
-    } else {
-      const target   = projects.find(p => p.id === dragOver.id)
-      if (!target) { resetDrag(); return }
-      const newCatId = target.category_id
-      const catProjs = projectsOf(newCatId).filter(p => p.id !== dragProjId)
-      const tIdx     = catProjs.findIndex(p => p.id === dragOver.id)
-      catProjs.splice(dragOver.pos === 'bottom' ? tIdx + 1 : tIdx, 0, { ...dragged, category_id: newCatId })
-      updates = catProjs.map((p, i) => ({ id: p.id, category_id: newCatId, sort_order: i }))
-      if (dragged.category_id !== newCatId) {
-        const oldProjs = projectsOf(dragged.category_id).filter(p => p.id !== dragProjId)
-        updates.push(...oldProjs.map((p, i) => ({ id: p.id, category_id: dragged.category_id, sort_order: i })))
-      }
+  // ── 프로젝트 행 DnD (dnd-kit) ────────────────────────────
+  function findContainer(items: Record<string, string[]>, id: string): string | undefined {
+    if (id in items) return id
+    for (const [catId, ids] of Object.entries(items)) {
+      if (ids.includes(id)) return catId
     }
-    resetDrag()
-    await onMoveProject(updates)
+    return undefined
   }
 
-  function resetDrag() { setDragProjId(null); setDragOver(null) }
+  function handleProjDragStart({ active }: DragStartEvent) {
+    const id = active.id as string
+    setActiveId(id)
+    const initial: Record<string, string[]> = {}
+    for (const cat of sortedCats) {
+      initial[cat.id] = projects
+        .filter(p => p.category_id === cat.id)
+        .sort((a, b) => a.sort_order - b.sort_order)
+        .map(p => p.id)
+    }
+    setLiveItems(initial)
+  }
+
+  function handleProjDragOver({ active, over }: DragOverEvent) {
+    if (!over) return
+    const aid = active.id as string
+    const oid = over.id as string
+
+    setLiveItems(prev => {
+      if (!prev) return prev
+      const activeContainer = findContainer(prev, aid)
+      const overContainer   = findContainer(prev, oid) ??
+        (sortedCats.some(c => c.id === oid) ? oid : undefined)
+      if (!activeContainer || !overContainer) return prev
+
+      if (activeContainer === overContainer) {
+        const list    = prev[activeContainer]
+        const oldIdx  = list.indexOf(aid)
+        const newIdx  = list.indexOf(oid)
+        if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return prev
+        return { ...prev, [activeContainer]: arrayMove(list, oldIdx, newIdx) }
+      } else {
+        const fromList  = prev[activeContainer].filter(id => id !== aid)
+        const toList    = [...prev[overContainer]]
+        const overIdx   = toList.indexOf(oid)
+        const insertAt  = overIdx >= 0 ? overIdx : toList.length
+        toList.splice(insertAt, 0, aid)
+        return { ...prev, [activeContainer]: fromList, [overContainer]: toList }
+      }
+    })
+  }
+
+  async function handleProjDragEnd({ active }: DragEndEvent) {
+    setActiveId(null)
+    if (!liveItems) return
+
+    const updates: { id: string; category_id: string; sort_order: number }[] = []
+    for (const [catId, ids] of Object.entries(liveItems)) {
+      ids.forEach((id, i) => {
+        const proj = projects.find(p => p.id === id)
+        if (proj && (proj.category_id !== catId || proj.sort_order !== i))
+          updates.push({ id, category_id: catId, sort_order: i })
+      })
+    }
+
+    setLiveItems(null)
+    if (updates.length > 0) await onMoveProject(updates)
+  }
+
+  function handleProjDragCancel() {
+    setActiveId(null)
+    setLiveItems(null)
+  }
 
   // ── 바 드래그 핸들러 (월/주 뷰 공통) ────────────────────
   const makeDragHandlers = useCallback((p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => {
@@ -451,7 +513,6 @@ export function GanttChart({
   const renderCategoryRows = (cat: GanttCategory, catIdx: number, forPanel: 'left' | 'right') => {
     const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
     const catProjs  = projectsOf(cat.id)
-    const isCatOver = dragOver?.type === 'category' && dragOver.id === cat.id
 
     if (forPanel === 'left') {
       return (
@@ -459,8 +520,7 @@ export function GanttChart({
           {/* 카테고리 헤더 — 왼쪽 */}
           <div
             className="flex items-center group border-b"
-            style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
-            onDragOver={e => handleDragOverCategory(e, cat.id)}
+            style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
           >
             <div className="flex items-center gap-2 pl-3 pr-2 w-full">
               {editCatId === cat.id ? (
@@ -487,95 +547,92 @@ export function GanttChart({
             </div>
           </div>
 
-          {/* 프로젝트 행 — 왼쪽 */}
-          {catProjs.map(project => {
-            const isBacklog  = project.status === 'backlog'
-            const isDragging = dragProjId === project.id
-            const isProjOver = dragOver?.type === 'project' && dragOver.id === project.id
-            const sm         = STATUS_META[project.status]
+          {/* 프로젝트 행 — 왼쪽 (dnd-kit) */}
+          <SortableContext items={catProjs.map(p => p.id)} strategy={verticalListSortingStrategy}>
+            {catProjs.map(project => {
+              const isBacklog = project.status === 'backlog'
+              const sm        = STATUS_META[project.status]
 
-            return (
-              <div
-                key={project.id}
-                draggable={!readOnly}
-                onDragStart={readOnly ? undefined : e => handleProjDragStart(e, project.id)}
-                onDragOver={readOnly ? undefined : e => handleDragOverProject(e, project.id)}
-                onDragEnd={readOnly ? undefined : resetDrag}
-                onDrop={readOnly ? undefined : handleDrop}
-                className="relative"
-                style={{ opacity: isDragging ? 0.4 : 1 }}
-              >
-                {isProjOver && dragOver?.pos === 'top' && (
-                  <div className="absolute top-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
-                )}
-                <div
-                  className="flex items-center gap-1.5 group border-b px-2"
-                  style={{
-                    height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H,
-                    backgroundColor: isBacklog ? '#f3f4f6' : 'white',
-                    ...(readOnly && { borderLeft: `3px solid ${barColor}55`, paddingLeft: 14 }),
-                  }}
-                >
-                  {!readOnly && <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />}
-                  {editProjId === project.id ? (
-                    <input
-                      autoFocus
-                      className="text-xs font-medium text-gray-800 border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
-                      value={editProjVal}
-                      onChange={e => setEditProjVal(e.target.value)}
-                      onBlur={() => commitEditProj(project.id)}
-                      onKeyDown={e => { if (e.key === 'Enter') commitEditProj(project.id); if (e.key === 'Escape') setEditProjId(null) }}
-                    />
-                  ) : (
-                    <span
-                      className="text-xs font-medium text-gray-800 truncate cursor-text hover:text-indigo-600"
-                      style={{ maxWidth: 160 }}
-                      onClick={readOnly ? undefined : e => startEditProj(project, e)}
-                      title={project.name}
+              return (
+                <SortableProjRow key={project.id} id={project.id} disabled={readOnly}>
+                  {({ listeners, isDragging }) => (
+                    <div
+                      className="relative"
+                      style={{ opacity: isDragging ? 0 : 1 }}
                     >
-                      {project.name}
-                    </span>
-                  )}
-                  <button
-                    onClick={readOnly ? undefined : () => cycleStatus(project)}
-                    className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ backgroundColor: sm.bg, color: sm.color, cursor: readOnly ? 'default' : 'pointer' }}
-                    title={readOnly ? undefined : "클릭하여 상태 변경"}
-                  >
-                    {sm.label}
-                  </button>
-                  {!readOnly && (
-                    <div className="flex items-center ml-auto shrink-0">
-                      {project.memo ? (
-                        <button
-                          onClick={() => onOpenMemo(project)}
-                          className="p-0.5 text-indigo-400 hover:text-indigo-600"
-                          title="메모 보기"
-                        >
-                          <StickyNote size={11} />
-                        </button>
-                      ) : null}
-                      <div className="flex items-center opacity-0 group-hover:opacity-100">
-                        {!project.memo && (
-                          <button onClick={() => onOpenMemo(project)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="메모"><StickyNote size={11} /></button>
+                      <div
+                        className="flex items-center gap-1.5 group border-b px-2"
+                        style={{
+                          height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H,
+                          backgroundColor: isBacklog ? '#f3f4f6' : 'white',
+                          ...(readOnly && { borderLeft: `3px solid ${barColor}55`, paddingLeft: 14 }),
+                        }}
+                      >
+                        {!readOnly && (
+                          <button
+                            {...listeners}
+                            className="shrink-0 cursor-grab touch-none p-0"
+                            onClick={e => e.stopPropagation()}
+                            tabIndex={-1}
+                          >
+                            <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400" />
+                          </button>
                         )}
-                        <button onClick={() => onShowHistory(project)} className="p-0.5 text-gray-400 hover:text-purple-500" title="수정 이력"><Clock size={11} /></button>
-                        <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="기간 편집"><CalendarDays size={11} /></button>
-                        <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500" title="삭제"><Trash2 size={11} /></button>
+                        {editProjId === project.id ? (
+                          <input
+                            autoFocus
+                            className="text-xs font-medium text-gray-800 border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
+                            value={editProjVal}
+                            onChange={e => setEditProjVal(e.target.value)}
+                            onBlur={() => commitEditProj(project.id)}
+                            onKeyDown={e => { if (e.key === 'Enter') commitEditProj(project.id); if (e.key === 'Escape') setEditProjId(null) }}
+                          />
+                        ) : (
+                          <span
+                            className="text-xs font-medium text-gray-800 truncate cursor-text hover:text-indigo-600"
+                            style={{ maxWidth: 160 }}
+                            onClick={readOnly ? undefined : e => startEditProj(project, e)}
+                            title={project.name}
+                          >
+                            {project.name}
+                          </span>
+                        )}
+                        <button
+                          onClick={readOnly ? undefined : () => cycleStatus(project)}
+                          className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                          style={{ backgroundColor: sm.bg, color: sm.color, cursor: readOnly ? 'default' : 'pointer' }}
+                          title={readOnly ? undefined : '클릭하여 상태 변경'}
+                        >
+                          {sm.label}
+                        </button>
+                        {!readOnly && (
+                          <div className="flex items-center ml-auto shrink-0">
+                            {project.memo ? (
+                              <button onClick={() => onOpenMemo(project)} className="p-0.5 text-indigo-400 hover:text-indigo-600" title="메모 보기">
+                                <StickyNote size={11} />
+                              </button>
+                            ) : null}
+                            <div className="flex items-center opacity-0 group-hover:opacity-100">
+                              {!project.memo && (
+                                <button onClick={() => onOpenMemo(project)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="메모"><StickyNote size={11} /></button>
+                              )}
+                              <button onClick={() => onShowHistory(project)} className="p-0.5 text-gray-400 hover:text-purple-500" title="수정 이력"><Clock size={11} /></button>
+                              <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="기간 편집"><CalendarDays size={11} /></button>
+                              <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500" title="삭제"><Trash2 size={11} /></button>
+                            </div>
+                          </div>
+                        )}
                       </div>
                     </div>
                   )}
-                </div>
-                {isProjOver && dragOver?.pos === 'bottom' && (
-                  <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
-                )}
-              </div>
-            )
-          })}
+                </SortableProjRow>
+              )
+            })}
+          </SortableContext>
 
           {/* 프로젝트 추가 행 — 왼쪽 */}
           {!readOnly && (
-            <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} onDragOver={e => handleDragOverCategory(e, cat.id)}>
+            <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }}>
               <button
                 onClick={() => onAddProject(cat.id)}
                 className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
@@ -594,8 +651,7 @@ export function GanttChart({
         {/* 카테고리 헤더 — 오른쪽 */}
         <div
           className="border-b"
-          style={{ height: CAT_ROW_H, backgroundColor: isCatOver ? '#eef2ff' : '#f8f9fa' }}
-          onDragOver={e => handleDragOverCategory(e, cat.id)}
+          style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa' }}
         />
 
         {/* 프로젝트 바 행 — 오른쪽 */}
@@ -603,7 +659,6 @@ export function GanttChart({
           const cols      = barCols(project)
           const isBacklog = project.status === 'backlog'
 
-          // ghost: 이전 날짜 (없는 쪽은 현재 날짜로 대체)
           const ghost = ghostEnabled && ghostDates?.[project.id]
           const ghostProject = ghost ? {
             ...project,
@@ -618,11 +673,11 @@ export function GanttChart({
 
           const showCompare = !!(ghostEnabled && hasGhostDiff)
           const rowH   = ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H
-          const BAR_H  = 14
+
+          const BAR_H   = 14
           const GHOST_H = 14
-          // 현재 바는 항상 기본 행 기준 중앙 고정 → ghost 바는 그 아래에 배치
-          const curTop   = (PROJ_ROW_H - BAR_H) / 2          // = 11, 모드 무관 고정
-          const ghostTop = curTop + BAR_H + 8                 // = 33
+          const curTop   = (PROJ_ROW_H - BAR_H) / 2
+          const ghostTop = curTop + BAR_H + 8
 
           return (
             <div
@@ -630,7 +685,7 @@ export function GanttChart({
               className="relative border-b"
               style={{ height: rowH, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
             >
-              {/* ghost 바 — 이전 일정 (위쪽): 점선 테두리 스타일 */}
+              {/* ghost 바 */}
               {showCompare && ghostCols && (
                 <div
                   className="absolute rounded-full overflow-hidden flex items-center pointer-events-none select-none"
@@ -676,7 +731,7 @@ export function GanttChart({
                     {!readOnly && <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />}
                   </div>
 
-                  {/* 바 오른쪽: 팀/PM 뱃지 — 두 바 중 더 오른쪽 끝, 현재 바 세로 중앙 */}
+                  {/* 바 오른쪽: 팀/PM 뱃지 */}
                   {(project.team || project.pm) && (
                     <div
                       className="absolute flex items-center gap-1 pointer-events-none"
@@ -710,6 +765,9 @@ export function GanttChart({
     )
   }
 
+  // DragOverlay 내용: 드래그 중인 프로젝트 행 미리보기
+  const activeProjForOverlay = activeId ? projects.find(p => p.id === activeId) : null
+
   return (
     <div className="flex flex-col h-full bg-white">
       {/* 툴바 */}
@@ -729,6 +787,18 @@ export function GanttChart({
           )}
         </div>
         <div className="flex items-center gap-3">
+          {/* 검색 */}
+          <div className="relative flex items-center">
+            <Search size={12} className="absolute left-2 text-gray-300 pointer-events-none" />
+            <input
+              type="text"
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              placeholder="프로젝트 검색"
+              className="text-[11px] pl-6 pr-2 py-1 border rounded w-36 outline-none focus:ring-1 focus:ring-indigo-300 text-gray-600 placeholder:text-gray-300"
+            />
+          </div>
+
           {/* 팀 필터 */}
           {allTeams.length > 0 && (
             <div className="relative" ref={teamFilterRef}>
@@ -860,27 +930,56 @@ export function GanttChart({
           <div
             ref={leftRef}
             className="flex-1 overflow-y-hidden flex flex-col"
-            onDragOver={e => e.preventDefault()}
-            onDrop={handleDrop}
-            onDoubleClick={e => {
-              // 행 위 더블클릭은 제외, 빈 영역만
-              if ((e.target as HTMLElement).closest('[data-row]')) return
-              setAddingCat(true)
-            }}
           >
-            {/* 카테고리 목록 */}
-            <div className="flex-1">
-              {categories.length === 0 && !addingCat && (
-                <div
-                  className="flex flex-col items-center justify-center h-28 text-gray-400 text-xs gap-1 cursor-pointer select-none"
-                  onDoubleClick={() => setAddingCat(true)}
-                >
-                  <span>카테고리를 추가해 보세요</span>
-                  <span className="text-[10px] text-gray-300">더블클릭 또는 하단 버튼</span>
-                </div>
-              )}
-              {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
-            </div>
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleProjDragStart}
+              onDragOver={handleProjDragOver}
+              onDragEnd={handleProjDragEnd}
+              onDragCancel={handleProjDragCancel}
+            >
+              {/* 카테고리 목록 */}
+              <div className="flex-1" onDoubleClick={e => {
+                if ((e.target as HTMLElement).closest('[data-row]')) return
+                setAddingCat(true)
+              }}>
+                {categories.length === 0 && !addingCat && (
+                  <div
+                    className="flex flex-col items-center justify-center h-28 text-gray-400 text-xs gap-1 cursor-pointer select-none"
+                    onDoubleClick={() => setAddingCat(true)}
+                  >
+                    <span>카테고리를 추가해 보세요</span>
+                    <span className="text-[10px] text-gray-300">더블클릭 또는 하단 버튼</span>
+                  </div>
+                )}
+                {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
+              </div>
+
+              {/* DragOverlay: 드래그 중인 행의 커서 따라가는 미리보기 */}
+              <DragOverlay dropAnimation={null}>
+                {activeProjForOverlay ? (() => {
+                  const sm = STATUS_META[activeProjForOverlay.status]
+                  return (
+                    <div
+                      className="flex items-center gap-1.5 border border-indigo-300 bg-white shadow-xl rounded px-2 cursor-grabbing"
+                      style={{ height: PROJ_ROW_H, width: LEFT_WIDTH - 4, opacity: 0.95 }}
+                    >
+                      <GripVertical size={13} className="text-gray-400 shrink-0" />
+                      <span className="text-xs font-medium text-gray-800 truncate flex-1" style={{ maxWidth: 160 }}>
+                        {activeProjForOverlay.name}
+                      </span>
+                      <span
+                        className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
+                        style={{ backgroundColor: sm.bg, color: sm.color }}
+                      >
+                        {sm.label}
+                      </span>
+                    </div>
+                  )
+                })() : null}
+              </DragOverlay>
+            </DndContext>
 
             {/* 하단 고정: 카테고리 추가 버튼 or 인라인 입력 */}
             {!readOnly && <div className="shrink-0 border-t bg-white">

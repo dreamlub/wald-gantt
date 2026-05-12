@@ -1,7 +1,17 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Plus, Trash2, Check, X } from 'lucide-react'
+import {
+  DndContext, closestCenter, PointerSensor, KeyboardSensor,
+  useSensor, useSensors, DragOverlay,
+  type DragStartEvent, type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy, useSortable,
+  sortableKeyboardCoordinates, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
+import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical } from 'lucide-react'
 import type { GanttBoard } from '@/types'
 
 interface Props {
@@ -12,15 +22,100 @@ interface Props {
   onAdd: (name: string) => Promise<void>
   onRename: (id: string, name: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
+  onReorder: (reordered: GanttBoard[]) => Promise<void>
   trashCount?: number
   onOpenTrash?: () => void
 }
 
-export function BoardSidebar({ open, boards, selectedId, onSelect, onAdd, onRename, onDelete, trashCount = 0, onOpenTrash }: Props) {
-  const [editId, setEditId]   = useState<string | null>(null)
-  const [editVal, setEditVal] = useState('')
-  const [adding, setAdding]   = useState(false)
-  const [newName, setNewName] = useState('')
+interface ItemProps {
+  board: GanttBoard
+  selectedId: string | null
+  onSelect: (id: string) => void
+  onDelete: (id: string) => void
+  editId: string | null
+  editVal: string
+  setEditVal: (v: string) => void
+  onStartEdit: (board: GanttBoard, e: React.MouseEvent) => void
+  onCommitEdit: (id: string) => void
+  onCancelEdit: () => void
+}
+
+function SortableBoardItem(props: ItemProps) {
+  const { board, selectedId, onSelect, onDelete, editId, editVal, setEditVal, onStartEdit, onCommitEdit, onCancelEdit } = props
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: board.id })
+
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+    >
+      <div
+        onClick={() => onSelect(board.id)}
+        className={`group flex items-center gap-1.5 px-1.5 py-2 cursor-pointer rounded-md mb-0.5 transition-colors ${
+          selectedId === board.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
+        }`}
+      >
+        <button
+          {...attributes}
+          {...listeners}
+          className="shrink-0 cursor-grab touch-none p-0"
+          onClick={e => e.stopPropagation()}
+          tabIndex={-1}
+          aria-label="드래그 핸들"
+        >
+          <GripVertical size={12} className="text-gray-300 group-hover:text-gray-400" />
+        </button>
+        <LayoutDashboard size={13} className="shrink-0 opacity-50" />
+
+        {editId === board.id ? (
+          <input
+            autoFocus
+            className="flex-1 text-xs bg-transparent border-b border-indigo-400 outline-none min-w-0"
+            value={editVal}
+            onChange={e => setEditVal(e.target.value)}
+            onBlur={() => onCommitEdit(board.id)}
+            onKeyDown={e => {
+              if (e.key === 'Enter') onCommitEdit(board.id)
+              if (e.key === 'Escape') onCancelEdit()
+            }}
+            onClick={e => e.stopPropagation()}
+          />
+        ) : (
+          <span
+            className="flex-1 text-xs truncate"
+            onDoubleClick={e => onStartEdit(board, e)}
+            title={`더블클릭하여 이름 변경: ${board.name}`}
+          >
+            {board.name}
+          </span>
+        )}
+
+        {editId !== board.id && (
+          <button
+            onClick={e => { e.stopPropagation(); onDelete(board.id) }}
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-300 hover:text-red-400 shrink-0 transition-opacity"
+          >
+            <Trash2 size={11} />
+          </button>
+        )}
+      </div>
+    </div>
+  )
+}
+
+export function BoardSidebar({
+  open, boards, selectedId, onSelect, onAdd, onRename, onDelete, onReorder, trashCount = 0, onOpenTrash
+}: Props) {
+  const [editId, setEditId]     = useState<string | null>(null)
+  const [editVal, setEditVal]   = useState('')
+  const [adding, setAdding]     = useState(false)
+  const [newName, setNewName]   = useState('')
+  const [activeId, setActiveId] = useState<string | null>(null)
+
+  const sensors = useSensors(
+    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
+    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
+  )
 
   function startEdit(board: GanttBoard, e: React.MouseEvent) {
     e.stopPropagation()
@@ -40,6 +135,21 @@ export function BoardSidebar({ open, boards, selectedId, onSelect, onAdd, onRena
     setAdding(false)
   }
 
+  function handleDragStart({ active }: DragStartEvent) {
+    setActiveId(active.id as string)
+  }
+
+  async function handleDragEnd({ active, over }: DragEndEvent) {
+    setActiveId(null)
+    if (!over || active.id === over.id) return
+    const oldIndex = boards.findIndex(b => b.id === active.id)
+    const newIndex = boards.findIndex(b => b.id === over.id)
+    if (oldIndex < 0 || newIndex < 0) return
+    await onReorder(arrayMove(boards, oldIndex, newIndex))
+  }
+
+  const activeBoard = activeId ? boards.find(b => b.id === activeId) : null
+
   return (
     <div
       className="shrink-0 flex flex-col border-r bg-gray-50 overflow-hidden transition-all duration-200"
@@ -47,65 +157,54 @@ export function BoardSidebar({ open, boards, selectedId, onSelect, onAdd, onRena
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-white shrink-0">
-        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">파일</span>
+        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
       </div>
 
       {/* 보드 목록 */}
       <div className="flex-1 overflow-y-auto py-1.5 px-1.5 min-h-0">
-        {boards.map(board => (
-          <div
-            key={board.id}
-            onClick={() => onSelect(board.id)}
-            className={`group flex items-center gap-2 px-2.5 py-2 cursor-pointer rounded-md mb-0.5 ${
-              selectedId === board.id
-                ? 'bg-indigo-50 text-indigo-700'
-                : 'text-gray-600 hover:bg-gray-100'
-            }`}
-          >
-            <FileText size={13} className="shrink-0 opacity-50" />
-
-            {editId === board.id ? (
-              <input
-                autoFocus
-                className="flex-1 text-xs bg-transparent border-b border-indigo-400 outline-none min-w-0"
-                value={editVal}
-                onChange={e => setEditVal(e.target.value)}
-                onBlur={() => commitEdit(board.id)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter') commitEdit(board.id)
-                  if (e.key === 'Escape') setEditId(null)
-                }}
-                onClick={e => e.stopPropagation()}
+        <DndContext
+          sensors={sensors}
+          collisionDetection={closestCenter}
+          onDragStart={handleDragStart}
+          onDragEnd={handleDragEnd}
+        >
+          <SortableContext items={boards.map(b => b.id)} strategy={verticalListSortingStrategy}>
+            {boards.map(board => (
+              <SortableBoardItem
+                key={board.id}
+                board={board}
+                selectedId={selectedId}
+                onSelect={onSelect}
+                onDelete={onDelete}
+                editId={editId}
+                editVal={editVal}
+                setEditVal={setEditVal}
+                onStartEdit={startEdit}
+                onCommitEdit={commitEdit}
+                onCancelEdit={() => setEditId(null)}
               />
-            ) : (
-              <span
-                className="flex-1 text-xs truncate"
-                onDoubleClick={e => startEdit(board, e)}
-                title={`더블클릭하여 이름 변경: ${board.name}`}
-              >
-                {board.name}
-              </span>
-            )}
+            ))}
+          </SortableContext>
 
-            {editId !== board.id && (
-              <button
-                onClick={e => { e.stopPropagation(); onDelete(board.id) }}
-                className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-300 hover:text-red-400 shrink-0 transition-opacity"
-              >
-                <Trash2 size={11} />
-              </button>
-            )}
-          </div>
-        ))}
+          <DragOverlay dropAnimation={null}>
+            {activeBoard ? (
+              <div className="flex items-center gap-1.5 px-1.5 py-2 rounded-md shadow-xl bg-white ring-1 ring-indigo-300 cursor-grabbing">
+                <GripVertical size={12} className="text-gray-400 shrink-0" />
+                <LayoutDashboard size={13} className="shrink-0 opacity-50" />
+                <span className="flex-1 text-xs truncate text-gray-700">{activeBoard.name}</span>
+              </div>
+            ) : null}
+          </DragOverlay>
+        </DndContext>
 
-        {/* 새 파일 추가 */}
+        {/* 새 보드 추가 */}
         {adding ? (
           <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md">
-            <FileText size={13} className="shrink-0 text-gray-400" />
+            <LayoutDashboard size={13} className="shrink-0 text-gray-400" />
             <input
               autoFocus
               className="flex-1 text-xs border-b border-indigo-400 outline-none bg-transparent min-w-0"
-              placeholder="파일명"
+              placeholder="보드명"
               value={newName}
               onChange={e => setNewName(e.target.value)}
               onKeyDown={e => {
@@ -126,7 +225,7 @@ export function BoardSidebar({ open, boards, selectedId, onSelect, onAdd, onRena
             className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md mt-0.5"
           >
             <Plus size={13} />
-            새 파일
+            새 보드
           </button>
         )}
       </div>

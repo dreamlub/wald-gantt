@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react'
 import { LogOut, Link2, PanelLeft } from 'lucide-react'
+import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -143,28 +144,43 @@ export default function HomePage() {
     window.location.href = '/login'
   }
 
+  const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
+
   // ── 보드 핸들러 ──────────────────────────────────────────
 
   async function handleAddBoard(name: string) {
     if (!workspace) return
-    const board = await addBoard(workspace.id, name)
-    setBoards(prev => [...prev, board])
-    setSelectedBoardId(board.id)
+    try {
+      const board = await addBoard(workspace.id, name)
+      setBoards(prev => [...prev, board])
+      setSelectedBoardId(board.id)
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleRenameBoard(id: string, name: string) {
-    const updated = await updateBoard(id, { name })
-    setBoards(prev => prev.map(b => b.id === id ? updated : b))
+    try {
+      const updated = await updateBoard(id, { name })
+      setBoards(prev => prev.map(b => b.id === id ? updated : b))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleDeleteBoard(id: string) {
     if (!confirm('보드를 삭제하면 모든 카테고리와 프로젝트가 삭제됩니다. 계속할까요?')) return
-    await deleteBoard(id)
-    setBoards(prev => {
-      const next = prev.filter(b => b.id !== id)
-      if (selectedBoardId === id) setSelectedBoardId(next[0]?.id ?? null)
-      return next
-    })
+    try {
+      await deleteBoard(id)
+      setBoards(prev => {
+        const next = prev.filter(b => b.id !== id)
+        if (selectedBoardId === id) setSelectedBoardId(next[0]?.id ?? null)
+        return next
+      })
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  async function handleReorderBoards(reordered: GanttBoard[]) {
+    setBoards(reordered)
+    try {
+      await Promise.all(reordered.map((b, i) => updateBoard(b.id, { sort_order: i })))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleSelectBoard(id: string) {
@@ -176,21 +192,27 @@ export default function HomePage() {
 
   async function handleAddCategory(name: string) {
     if (!workspace || !selectedBoardId) return
-    const color = CAT_COLORS[categories.length % CAT_COLORS.length]
-    const cat = await addCategory(selectedBoardId, workspace.id, name, color)
-    setCategories(prev => [...prev, cat])
+    try {
+      const color = CAT_COLORS[categories.length % CAT_COLORS.length]
+      const cat = await addCategory(selectedBoardId, workspace.id, name, color)
+      setCategories(prev => [...prev, cat])
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleUpdateCategory(id: string, name: string) {
-    const updated = await updateCategory(id, { name })
-    setCategories(prev => prev.map(c => c.id === id ? updated : c))
+    try {
+      const updated = await updateCategory(id, { name })
+      setCategories(prev => prev.map(c => c.id === id ? updated : c))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleDeleteCategory(id: string) {
     if (!confirm('카테고리와 포함된 프로젝트를 모두 삭제할까요?')) return
-    await deleteCategory(id)
-    setCategories(prev => prev.filter(c => c.id !== id))
-    setProjects(prev => prev.filter(p => p.category_id !== id))
+    try {
+      await deleteCategory(id)
+      setCategories(prev => prev.filter(c => c.id !== id))
+      setProjects(prev => prev.filter(p => p.category_id !== id))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   // ── 프로젝트 핸들러 ───────────────────────────────────────
@@ -206,41 +228,47 @@ export default function HomePage() {
     pm: string | null
   }) {
     if (!workspace || !selectedBoardId) return
-    if (dialog?.type === 'editProject') {
-      pushUndo({ type: 'project', prev: dialog.project })
-      const updated = await updateProject(dialog.project.id, {
-        category_id: fields.categoryId,
-        name: fields.name,
-        status: fields.status,
-        start_date: fields.start_date,
-        end_date: fields.end_date,
-        team: fields.team,
-        pm: fields.pm,
-      })
-      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    } else {
-      const created = await addProject(selectedBoardId, workspace.id, fields.categoryId, null, {
-        name: fields.name,
-        status: fields.status,
-        start_date: fields.start_date,
-        end_date: fields.end_date,
-        team: fields.team,
-        pm: fields.pm,
-      })
-      setProjects(prev => [...prev, created])
-    }
+    try {
+      if (dialog?.type === 'editProject') {
+        pushUndo({ type: 'project', prev: dialog.project })
+        const updated = await updateProject(dialog.project.id, {
+          category_id: fields.categoryId,
+          name: fields.name,
+          status: fields.status,
+          start_date: fields.start_date,
+          end_date: fields.end_date,
+          team: fields.team,
+          pm: fields.pm,
+        })
+        setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+      } else {
+        const created = await addProject(selectedBoardId, workspace.id, fields.categoryId, null, {
+          name: fields.name,
+          status: fields.status,
+          start_date: fields.start_date,
+          end_date: fields.end_date,
+          team: fields.team,
+          pm: fields.pm,
+        })
+        setProjects(prev => [...prev, created])
+      }
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleDeleteProject(id: string) {
-    await softDeleteProject(id)
-    setProjects(prev => prev.filter(p => p.id !== id))
-    setTrashCount(c => c + 1)
+    try {
+      await softDeleteProject(id)
+      setProjects(prev => prev.filter(p => p.id !== id))
+      setTrashCount(c => c + 1)
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleSaveMemo(projectId: string, memo: string) {
-    const updated = await updateProject(projectId, { memo: memo || null })
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-    setMemoProject(updated)
+    try {
+      const updated = await updateProject(projectId, { memo: memo || null })
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+      setMemoProject(updated)
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   function handleRestoreProject(project: GanttProject) {
@@ -251,31 +279,39 @@ export default function HomePage() {
   async function handleUpdateProjectDates(id: string, startDate: string, endDate: string) {
     const prev = projectsRef.current.find(p => p.id === id)
     if (prev) pushUndo({ type: 'project', prev })
-    const updated = await updateProject(id, { start_date: startDate, end_date: endDate })
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    try {
+      const updated = await updateProject(id, { start_date: startDate, end_date: endDate })
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleUpdateProjectName(id: string, name: string) {
     const prev = projectsRef.current.find(p => p.id === id)
     if (prev) pushUndo({ type: 'project', prev })
-    const updated = await updateProject(id, { name })
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    try {
+      const updated = await updateProject(id, { name })
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleUpdateProjectStatus(id: string, status: GanttStatus) {
     const prev = projectsRef.current.find(p => p.id === id)
     if (prev) pushUndo({ type: 'project', prev })
-    const updated = await updateProject(id, { status })
-    setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    try {
+      const updated = await updateProject(id, { status })
+      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   async function handleMoveProject(updates: { id: string; category_id: string; sort_order: number }[]) {
     const affected = projectsRef.current.filter(p => updates.some(u => u.id === p.id))
     if (affected.length > 0) pushUndo({ type: 'projects', prevList: affected })
-    const updated = await Promise.all(
-      updates.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
-    )
-    setProjects(prev => prev.map(p => updated.find(u => u.id === p.id) ?? p))
+    try {
+      const updated = await Promise.all(
+        updates.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
+      )
+      setProjects(prev => prev.map(p => updated.find(u => u.id === p.id) ?? p))
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   const selectedBoard = boards.find(b => b.id === selectedBoardId)
@@ -329,6 +365,7 @@ export default function HomePage() {
           onAdd={handleAddBoard}
           onRename={handleRenameBoard}
           onDelete={handleDeleteBoard}
+          onReorder={handleReorderBoards}
           trashCount={trashCount}
           onOpenTrash={() => setTrashOpen(v => !v)}
         />
