@@ -32,6 +32,7 @@ interface Props {
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
+  readOnly?: boolean
 }
 
 const COL_WIDTH      = 72
@@ -110,13 +111,15 @@ export function GanttChart({
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onShowHistory, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
-  onMoveProject,
+  onMoveProject, readOnly = false,
 }: Props) {
   const months = buildMonthRange(viewStart, viewEnd)
   const leftRef         = useRef<HTMLDivElement>(null)
   const rightRef        = useRef<HTMLDivElement>(null)
+  const headerRef       = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
   const teamFilterRef   = useRef<HTMLDivElement>(null)
+  const pmFilterRef     = useRef<HTMLDivElement>(null)
 
   const [viewMode, setViewMode]             = useState<ViewMode>('month')
   const [editProjId, setEditProjId]         = useState<string | null>(null)
@@ -130,6 +133,8 @@ export function GanttChart({
   const [sortMode, setSortMode]             = useState<'default' | 'start-asc' | 'end-desc'>('default')
   const [excludedTeams, setExcludedTeams]   = useState<Set<string>>(new Set())
   const [showTeamFilter, setShowTeamFilter] = useState(false)
+  const [excludedPMs, setExcludedPMs]       = useState<Set<string>>(new Set())
+  const [showPMFilter, setShowPMFilter]     = useState(false)
   const [ghostEnabled, setGhostEnabled]     = useState(false)
 
   // 뷰 모드별 파생 값
@@ -166,12 +171,15 @@ export function GanttChart({
   }
 
   const allTeams   = [...new Set(projects.map(p => p.team || ''))].sort()
+  const allPMs     = [...new Set(projects.map(p => p.pm || ''))].sort()
   const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
 
   const projectsOf = (catId: string) => {
     let base = projects.filter(p => p.category_id === catId)
     if (excludedTeams.size > 0)
       base = base.filter(p => !excludedTeams.has(p.team || ''))
+    if (excludedPMs.size > 0)
+      base = base.filter(p => !excludedPMs.has(p.pm || ''))
     if (sortMode === 'start-asc')
       return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
     if (sortMode === 'end-desc')
@@ -213,12 +221,16 @@ export function GanttChart({
   function onRightScroll() {
     if (leftRef.current && rightRef.current)
       leftRef.current.scrollTop = rightRef.current.scrollTop
+    if (headerRef.current && rightRef.current)
+      headerRef.current.scrollLeft = rightRef.current.scrollLeft
     if (stickyScrollRef.current && rightRef.current)
       stickyScrollRef.current.scrollLeft = rightRef.current.scrollLeft
   }
   function onStickyScroll() {
     if (rightRef.current && stickyScrollRef.current)
       rightRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
+    if (headerRef.current && stickyScrollRef.current)
+      headerRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
   }
   function onLeftWheel(e: React.WheelEvent) {
     if (rightRef.current) rightRef.current.scrollTop += e.deltaY
@@ -243,6 +255,7 @@ export function GanttChart({
       scrollX = idx >= 0 ? Math.max(0, idx * cw - 200) : 0
     }
     rightRef.current.scrollLeft = scrollX
+    if (headerRef.current) headerRef.current.scrollLeft = scrollX
   }, [viewMode, viewStart, viewEnd])
 
   useEffect(() => {
@@ -253,6 +266,15 @@ export function GanttChart({
     if (showTeamFilter) document.addEventListener('mousedown', handleClickOutside)
     return () => document.removeEventListener('mousedown', handleClickOutside)
   }, [showTeamFilter])
+
+  useEffect(() => {
+    function handleClickOutside(e: MouseEvent) {
+      if (pmFilterRef.current && !pmFilterRef.current.contains(e.target as Node))
+        setShowPMFilter(false)
+    }
+    if (showPMFilter) document.addEventListener('mousedown', handleClickOutside)
+    return () => document.removeEventListener('mousedown', handleClickOutside)
+  }, [showPMFilter])
 
   // 프로젝트 이름 인라인 편집
   function startEditProj(p: GanttProject, e: React.MouseEvent) {
@@ -287,6 +309,14 @@ export function GanttChart({
     setExcludedTeams(prev => {
       const next = new Set(prev)
       if (next.has(team)) next.delete(team); else next.add(team)
+      return next
+    })
+  }
+
+  function togglePM(pm: string) {
+    setExcludedPMs(prev => {
+      const next = new Set(prev)
+      if (next.has(pm)) next.delete(pm); else next.add(pm)
       return next
     })
   }
@@ -443,15 +473,17 @@ export function GanttChart({
                   onKeyDown={e => { if (e.key === 'Enter') commitEditCat(cat.id); if (e.key === 'Escape') setEditCatId(null) }}
                 />
               ) : (
-                <span className="text-xs font-bold text-gray-700 cursor-text hover:text-indigo-600 truncate" onClick={e => startEditCat(cat, e)}>
+                <span className="text-xs font-bold text-gray-700 cursor-text hover:text-indigo-600 truncate" onClick={readOnly ? undefined : e => startEditCat(cat, e)}>
                   {cat.name}
                 </span>
               )}
               <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{catProjs.length}</span>
-              <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
-                <button onClick={() => onAddProject(cat.id)} className="p-0.5 text-gray-400 hover:text-indigo-500"><Plus size={12} /></button>
-                <button onClick={() => onDeleteCategory(cat.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
-              </div>
+              {!readOnly && (
+                <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
+                  <button onClick={() => onAddProject(cat.id)} className="p-0.5 text-gray-400 hover:text-indigo-500"><Plus size={12} /></button>
+                  <button onClick={() => onDeleteCategory(cat.id)} className="p-0.5 text-gray-400 hover:text-red-500"><Trash2 size={11} /></button>
+                </div>
+              )}
             </div>
           </div>
 
@@ -465,11 +497,11 @@ export function GanttChart({
             return (
               <div
                 key={project.id}
-                draggable
-                onDragStart={e => handleProjDragStart(e, project.id)}
-                onDragOver={e => handleDragOverProject(e, project.id)}
-                onDragEnd={resetDrag}
-                onDrop={handleDrop}
+                draggable={!readOnly}
+                onDragStart={readOnly ? undefined : e => handleProjDragStart(e, project.id)}
+                onDragOver={readOnly ? undefined : e => handleDragOverProject(e, project.id)}
+                onDragEnd={readOnly ? undefined : resetDrag}
+                onDrop={readOnly ? undefined : handleDrop}
                 className="relative"
                 style={{ opacity: isDragging ? 0.4 : 1 }}
               >
@@ -478,9 +510,13 @@ export function GanttChart({
                 )}
                 <div
                   className="flex items-center gap-1.5 group border-b px-2"
-                  style={{ height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+                  style={{
+                    height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H,
+                    backgroundColor: isBacklog ? '#f3f4f6' : 'white',
+                    ...(readOnly && { borderLeft: `3px solid ${barColor}55`, paddingLeft: 14 }),
+                  }}
                 >
-                  <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />
+                  {!readOnly && <GripVertical size={13} className="text-gray-300 group-hover:text-gray-400 shrink-0 cursor-grab" />}
                   {editProjId === project.id ? (
                     <input
                       autoFocus
@@ -494,39 +530,41 @@ export function GanttChart({
                     <span
                       className="text-xs font-medium text-gray-800 truncate cursor-text hover:text-indigo-600"
                       style={{ maxWidth: 160 }}
-                      onClick={e => startEditProj(project, e)}
+                      onClick={readOnly ? undefined : e => startEditProj(project, e)}
                       title={project.name}
                     >
                       {project.name}
                     </span>
                   )}
                   <button
-                    onClick={() => cycleStatus(project)}
+                    onClick={readOnly ? undefined : () => cycleStatus(project)}
                     className="shrink-0 text-[9px] font-semibold px-1.5 py-0.5 rounded-full"
-                    style={{ backgroundColor: sm.bg, color: sm.color }}
-                    title="클릭하여 상태 변경"
+                    style={{ backgroundColor: sm.bg, color: sm.color, cursor: readOnly ? 'default' : 'pointer' }}
+                    title={readOnly ? undefined : "클릭하여 상태 변경"}
                   >
                     {sm.label}
                   </button>
-                  <div className="flex items-center ml-auto shrink-0">
-                    {project.memo ? (
-                      <button
-                        onClick={() => onOpenMemo(project)}
-                        className="p-0.5 text-indigo-400 hover:text-indigo-600"
-                        title="메모 보기"
-                      >
-                        <StickyNote size={11} />
-                      </button>
-                    ) : null}
-                    <div className="flex items-center opacity-0 group-hover:opacity-100">
-                      {!project.memo && (
-                        <button onClick={() => onOpenMemo(project)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="메모"><StickyNote size={11} /></button>
-                      )}
-                      <button onClick={() => onShowHistory(project)} className="p-0.5 text-gray-400 hover:text-purple-500" title="수정 이력"><Clock size={11} /></button>
-                      <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="기간 편집"><CalendarDays size={11} /></button>
-                      <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500" title="삭제"><Trash2 size={11} /></button>
+                  {!readOnly && (
+                    <div className="flex items-center ml-auto shrink-0">
+                      {project.memo ? (
+                        <button
+                          onClick={() => onOpenMemo(project)}
+                          className="p-0.5 text-indigo-400 hover:text-indigo-600"
+                          title="메모 보기"
+                        >
+                          <StickyNote size={11} />
+                        </button>
+                      ) : null}
+                      <div className="flex items-center opacity-0 group-hover:opacity-100">
+                        {!project.memo && (
+                          <button onClick={() => onOpenMemo(project)} className="p-0.5 text-gray-400 hover:text-indigo-500" title="메모"><StickyNote size={11} /></button>
+                        )}
+                        <button onClick={() => onShowHistory(project)} className="p-0.5 text-gray-400 hover:text-purple-500" title="수정 이력"><Clock size={11} /></button>
+                        <button onClick={() => onEditProject(project)} className="p-0.5 text-gray-400 hover:text-blue-500" title="기간 편집"><CalendarDays size={11} /></button>
+                        <button onClick={() => onDeleteProject(project.id)} className="p-0.5 text-gray-400 hover:text-red-500" title="삭제"><Trash2 size={11} /></button>
+                      </div>
                     </div>
-                  </div>
+                  )}
                 </div>
                 {isProjOver && dragOver?.pos === 'bottom' && (
                   <div className="absolute bottom-0 left-0 right-0 h-0.5 bg-indigo-400 z-30 pointer-events-none" />
@@ -536,14 +574,16 @@ export function GanttChart({
           })}
 
           {/* 프로젝트 추가 행 — 왼쪽 */}
-          <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} onDragOver={e => handleDragOverCategory(e, cat.id)}>
-            <button
-              onClick={() => onAddProject(cat.id)}
-              className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
-            >
-              <Plus size={10} /> 프로젝트
-            </button>
-          </div>
+          {!readOnly && (
+            <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} onDragOver={e => handleDragOverCategory(e, cat.id)}>
+              <button
+                onClick={() => onAddProject(cat.id)}
+                className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
+              >
+                <Plus size={10} /> 프로젝트
+              </button>
+            </div>
+          )}
         </div>
       )
     }
@@ -623,17 +663,17 @@ export function GanttChart({
                       width: (cols.end - cols.start) * colW - 8,
                       height: BAR_H,
                       backgroundColor: barColor,
-                      cursor: 'grab',
+                      cursor: readOnly ? 'default' : 'grab',
                     }}
-                    onMouseDown={makeDragHandlers(project, 'move')}
+                    onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
                   >
-                    <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />
+                    {!readOnly && <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />}
                     {project.start_date && project.end_date && (
                       <span className="px-2 text-[9px] font-medium tabular-nums truncate pointer-events-none select-none" style={{ color: '#1f2937' }}>
                         {formatBarDate(project.start_date, project.end_date)}
                       </span>
                     )}
-                    <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />
+                    {!readOnly && <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />}
                   </div>
 
                   {/* 바 오른쪽: 팀/PM 뱃지 — 두 바 중 더 오른쪽 끝, 현재 바 세로 중앙 */}
@@ -676,7 +716,7 @@ export function GanttChart({
       <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
         <div className="flex items-center gap-2">
           <h1 className="text-base font-semibold text-gray-800">{boardName ?? '간트 차트'}</h1>
-          {onUndo && (
+          {!readOnly && onUndo && (
             <button
               onClick={onUndo}
               disabled={undoCount === 0}
@@ -716,6 +756,40 @@ export function GanttChart({
                     <label key={team} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
                       <input type="checkbox" checked={!excludedTeams.has(team)} onChange={() => toggleTeam(team)} className="w-3 h-3 rounded accent-indigo-500" />
                       <span className="text-xs text-gray-700">{team || '팀 없음'}</span>
+                    </label>
+                  ))}
+                </div>
+              )}
+            </div>
+          )}
+
+          {/* PM 필터 */}
+          {allPMs.length > 0 && (
+            <div className="relative" ref={pmFilterRef}>
+              <button
+                onClick={() => setShowPMFilter(v => !v)}
+                className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${excludedPMs.size > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
+              >
+                PM 필터
+                {excludedPMs.size > 0 && (
+                  <span className="bg-indigo-500 text-white rounded-full text-[9px] w-3.5 h-3.5 flex items-center justify-center">
+                    {excludedPMs.size}
+                  </span>
+                )}
+                <ChevronDown size={11} />
+              </button>
+              {showPMFilter && (
+                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[160px] py-1">
+                  <div className="px-3 py-1.5 border-b flex items-center justify-between">
+                    <span className="text-[11px] font-semibold text-gray-600">PM별 보기</span>
+                    {excludedPMs.size > 0 && (
+                      <button onClick={() => setExcludedPMs(new Set())} className="text-[10px] text-indigo-500 hover:text-indigo-700">전체 표시</button>
+                    )}
+                  </div>
+                  {allPMs.map(pm => (
+                    <label key={pm} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
+                      <input type="checkbox" checked={!excludedPMs.has(pm)} onChange={() => togglePM(pm)} className="w-3 h-3 rounded accent-indigo-500" />
+                      <span className="text-xs text-gray-700">{pm || 'PM 없음'}</span>
                     </label>
                   ))}
                 </div>
@@ -763,7 +837,7 @@ export function GanttChart({
             </button>
           )}
 
-          {sortedCats.length > 0 && (
+          {!readOnly && sortedCats.length > 0 && (
             <button onClick={() => onAddProject(sortedCats[0].id)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
               <Plus size={15} /> 프로젝트
             </button>
@@ -809,7 +883,7 @@ export function GanttChart({
             </div>
 
             {/* 하단 고정: 카테고리 추가 버튼 or 인라인 입력 */}
-            <div className="shrink-0 border-t bg-white">
+            {!readOnly && <div className="shrink-0 border-t bg-white">
               {addingCat ? (
                 <div className="flex items-center gap-2 px-3 h-9">
                   <input
@@ -831,81 +905,90 @@ export function GanttChart({
                   <Plus size={13} /> 카테고리 추가
                 </button>
               )}
-            </div>
+            </div>}
           </div>
         </div>
 
         {/* ── 오른쪽 패널 (타임라인) ───────────────────────── */}
-        <div
-          ref={rightRef}
-          onScroll={onRightScroll}
-          className="flex-1 overflow-auto"
-          style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
-        >
-          <div style={{ width: totalWidth, position: 'relative' }}>
+        <div className="flex-1 flex flex-col overflow-hidden">
 
-            {/* 연도 헤더 */}
-            <div className="flex sticky top-0 z-20 bg-white border-b" style={{ height: YEAR_H }}>
-              {yearGroups.map(({ year, count }) => (
-                <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: colW * count }}>
-                  {year}
-                </div>
-              ))}
-            </div>
-
-            {/* 월 헤더 */}
-            <div className="flex sticky z-20 bg-white border-b" style={{ top: YEAR_H, height: MONTH_H }}>
-              {viewMode === 'month' ? (
-                months.map(ym => (
-                  <div
-                    key={ym}
-                    className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
-                    style={{ width: colW }}
-                  >
-                    {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
+          {/* 달력 헤더 — 수평 스크롤만, 항상 고정 표시 */}
+          <div
+            ref={headerRef}
+            className="shrink-0 overflow-hidden bg-white border-b"
+            style={{ height: HEADER_H }}
+          >
+            <div style={{ width: totalWidth }}>
+              {/* 연도 행 */}
+              <div className="flex border-b" style={{ height: YEAR_H }}>
+                {yearGroups.map(({ year, count }) => (
+                  <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: colW * count }}>
+                    {year}
                   </div>
-                ))
-              ) : (
-                monthGroups.map(({ ym, label, count }) => (
-                  <div
-                    key={ym}
-                    className="text-xs border-r shrink-0 font-semibold flex items-center px-2 text-gray-500 bg-gray-50"
-                    style={{ width: colW * count }}
-                  >
-                    {label}
-                  </div>
-                ))
-              )}
-            </div>
+                ))}
+              </div>
 
-            {/* TODAY 라벨(월 뷰) / 주 레이블(주 뷰) */}
-            <div className="sticky z-20 bg-white border-b flex" style={{ top: YEAR_H + MONTH_H, height: TODAY_H }}>
-              {viewMode === 'month' ? (
-                <div className="relative w-full">
-                  {todayX !== null && (
-                    <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
-                      TODAY
-                    </div>
-                  )}
-                </div>
-              ) : (
-                weeks.map((w, i) => {
-                  const isToday = todayX !== null && Math.round(i * colW + colW / 2) === Math.round(todayX)
-                  return (
+              {/* 월 행 */}
+              <div className="flex border-b" style={{ height: MONTH_H }}>
+                {viewMode === 'month' ? (
+                  months.map(ym => (
                     <div
-                      key={w.key}
-                      className={`text-center border-r shrink-0 flex items-center justify-center text-[9px] font-medium ${isToday ? 'text-red-400 font-bold' : 'text-gray-300'}`}
+                      key={ym}
+                      className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
                       style={{ width: colW }}
                     >
-                      {w.label}
+                      {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
                     </div>
-                  )
-                })
-              )}
-            </div>
+                  ))
+                ) : (
+                  monthGroups.map(({ ym, label, count }) => (
+                    <div
+                      key={ym}
+                      className="text-xs border-r shrink-0 font-semibold flex items-center px-2 text-gray-500 bg-gray-50"
+                      style={{ width: colW * count }}
+                    >
+                      {label}
+                    </div>
+                  ))
+                )}
+              </div>
 
-            {/* 바 행 영역 */}
-            <div className="relative">
+              {/* TODAY / 주 레이블 행 */}
+              <div className="flex" style={{ height: TODAY_H }}>
+                {viewMode === 'month' ? (
+                  <div className="relative w-full">
+                    {todayX !== null && (
+                      <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
+                        TODAY
+                      </div>
+                    )}
+                  </div>
+                ) : (
+                  weeks.map((w, i) => {
+                    const isToday = todayX !== null && Math.round(i * colW + colW / 2) === Math.round(todayX)
+                    return (
+                      <div
+                        key={w.key}
+                        className={`text-center border-r shrink-0 flex items-center justify-center text-[9px] font-medium ${isToday ? 'text-red-400 font-bold' : 'text-gray-300'}`}
+                        style={{ width: colW }}
+                      >
+                        {w.label}
+                      </div>
+                    )
+                  })
+                )}
+              </div>
+            </div>
+          </div>
+
+          {/* 바 행 스크롤 영역 */}
+          <div
+            ref={rightRef}
+            onScroll={onRightScroll}
+            className="flex-1 overflow-auto"
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+          >
+            <div style={{ width: totalWidth }} className="relative">
               {todayX !== null && (
                 <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
               )}

@@ -1,15 +1,15 @@
 import { createClient } from '@/lib/supabase/client'
 import type { GanttBoard, GanttCategory, GanttProject, ProjectHistoryEntry, Workspace } from '@/types'
 
-const supabase = createClient()
+const db = () => createClient()
 
 // ── Workspace ──────────────────────────────────────────────
 
 export async function getOrCreateWorkspace(): Promise<Workspace> {
-  const { data: { user } } = await supabase.auth.getUser()
+  const { data: { user } } = await db().auth.getUser()
   if (!user) throw new Error('Not authenticated')
 
-  const { data: member } = await supabase
+  const { data: member } = await db()
     .from('workspace_members')
     .select('workspace_id, workspaces(*)')
     .eq('user_id', user.id)
@@ -20,35 +20,46 @@ export async function getOrCreateWorkspace(): Promise<Workspace> {
     return (member as any).workspaces as Workspace
   }
 
-  const { data: ws, error } = await supabase.rpc('create_workspace_for_user', {
+  const { data: ws, error } = await db().rpc('create_workspace_for_user', {
     workspace_name: (user.email?.split('@')[0] ?? 'My') + "'s workspace",
   })
   if (error) throw error
   return ws as Workspace
 }
 
-export async function getWorkspaceMembers(workspaceId: string) {
-  const { data, error } = await supabase
-    .from('workspace_members')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-  if (error) throw error
-  return data
+// ── Share Tokens ───────────────────────────────────────────
+
+export async function getShareToken(boardId: string): Promise<string | null> {
+  const { data } = await db()
+    .from('board_share_tokens')
+    .select('token')
+    .eq('board_id', boardId)
+    .single()
+  return data?.token ?? null
 }
 
-export async function inviteMember(workspaceId: string, email: string) {
-  const { data, error } = await supabase.rpc('invite_member_by_email', {
-    p_workspace_id: workspaceId,
-    p_email: email,
-  })
+export async function createShareToken(boardId: string): Promise<string> {
+  const { data, error } = await db()
+    .from('board_share_tokens')
+    .insert({ board_id: boardId })
+    .select('token')
+    .single()
   if (error) throw error
-  return data
+  return data.token
+}
+
+export async function deleteShareToken(boardId: string): Promise<void> {
+  const { error } = await db()
+    .from('board_share_tokens')
+    .delete()
+    .eq('board_id', boardId)
+  if (error) throw error
 }
 
 // ── Boards ─────────────────────────────────────────────────
 
 export async function getBoards(workspaceId: string): Promise<GanttBoard[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_boards')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -58,7 +69,7 @@ export async function getBoards(workspaceId: string): Promise<GanttBoard[]> {
 }
 
 export async function getOrCreateDefaultBoard(workspaceId: string): Promise<GanttBoard> {
-  const { data } = await supabase
+  const { data } = await db()
     .from('gantt_boards')
     .select('*')
     .eq('workspace_id', workspaceId)
@@ -68,7 +79,7 @@ export async function getOrCreateDefaultBoard(workspaceId: string): Promise<Gant
 
   if (data) return data
 
-  const { data: board, error } = await supabase
+  const { data: board, error } = await db()
     .from('gantt_boards')
     .insert({ workspace_id: workspaceId, name: '기본 보드', sort_order: 0 })
     .select()
@@ -78,7 +89,7 @@ export async function getOrCreateDefaultBoard(workspaceId: string): Promise<Gant
 }
 
 export async function addBoard(workspaceId: string, name: string): Promise<GanttBoard> {
-  const { data: existing } = await supabase
+  const { data: existing } = await db()
     .from('gantt_boards')
     .select('sort_order')
     .eq('workspace_id', workspaceId)
@@ -88,7 +99,7 @@ export async function addBoard(workspaceId: string, name: string): Promise<Gantt
 
   const sort_order = existing ? existing.sort_order + 1 : 0
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_boards')
     .insert({ workspace_id: workspaceId, name, sort_order })
     .select()
@@ -98,7 +109,7 @@ export async function addBoard(workspaceId: string, name: string): Promise<Gantt
 }
 
 export async function updateBoard(id: string, updates: Partial<Pick<GanttBoard, 'name' | 'sort_order'>>): Promise<GanttBoard> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_boards')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -109,14 +120,14 @@ export async function updateBoard(id: string, updates: Partial<Pick<GanttBoard, 
 }
 
 export async function deleteBoard(id: string): Promise<void> {
-  const { error } = await supabase.from('gantt_boards').delete().eq('id', id)
+  const { error } = await db().from('gantt_boards').delete().eq('id', id)
   if (error) throw error
 }
 
 // ── Categories ─────────────────────────────────────────────
 
 export async function getCategories(boardId: string): Promise<GanttCategory[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_categories')
     .select('*')
     .eq('board_id', boardId)
@@ -126,7 +137,7 @@ export async function getCategories(boardId: string): Promise<GanttCategory[]> {
 }
 
 export async function addCategory(boardId: string, workspaceId: string, name: string, color: string): Promise<GanttCategory> {
-  const { data: existing } = await supabase
+  const { data: existing } = await db()
     .from('gantt_categories')
     .select('sort_order')
     .eq('board_id', boardId)
@@ -136,7 +147,7 @@ export async function addCategory(boardId: string, workspaceId: string, name: st
 
   const sort_order = existing ? existing.sort_order + 1 : 0
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_categories')
     .insert({ board_id: boardId, workspace_id: workspaceId, name, color, sort_order })
     .select()
@@ -146,7 +157,7 @@ export async function addCategory(boardId: string, workspaceId: string, name: st
 }
 
 export async function updateCategory(id: string, updates: Partial<Pick<GanttCategory, 'name' | 'color' | 'sort_order'>>): Promise<GanttCategory> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_categories')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -157,14 +168,14 @@ export async function updateCategory(id: string, updates: Partial<Pick<GanttCate
 }
 
 export async function deleteCategory(id: string): Promise<void> {
-  const { error } = await supabase.from('gantt_categories').delete().eq('id', id)
+  const { error } = await db().from('gantt_categories').delete().eq('id', id)
   if (error) throw error
 }
 
 // ── Projects ───────────────────────────────────────────────
 
 export async function getProjects(boardId: string): Promise<GanttProject[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_projects')
     .select('*')
     .eq('board_id', boardId)
@@ -174,8 +185,18 @@ export async function getProjects(boardId: string): Promise<GanttProject[]> {
   return data
 }
 
+export async function getDeletedProjectsCount(boardId: string): Promise<number> {
+  const { count, error } = await db()
+    .from('gantt_projects')
+    .select('*', { count: 'exact', head: true })
+    .eq('board_id', boardId)
+    .not('deleted_at', 'is', null)
+  if (error) throw error
+  return count ?? 0
+}
+
 export async function getDeletedProjects(boardId: string): Promise<GanttProject[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_projects')
     .select('*')
     .eq('board_id', boardId)
@@ -192,7 +213,7 @@ export async function addProject(
   parentId: string | null,
   fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null }
 ): Promise<GanttProject> {
-  const { data: existing } = await supabase
+  const { data: existing } = await db()
     .from('gantt_projects')
     .select('sort_order')
     .eq('board_id', boardId)
@@ -203,7 +224,7 @@ export async function addProject(
 
   const sort_order = existing ? existing.sort_order + 1 : 0
 
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_projects')
     .insert({ board_id: boardId, workspace_id: workspaceId, category_id: categoryId, parent_id: parentId, sort_order, ...fields })
     .select()
@@ -213,7 +234,7 @@ export async function addProject(
 }
 
 export async function updateProject(id: string, updates: Partial<GanttProject>): Promise<GanttProject> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_projects')
     .update({ ...updates, updated_at: new Date().toISOString() })
     .eq('id', id)
@@ -224,7 +245,7 @@ export async function updateProject(id: string, updates: Partial<GanttProject>):
 }
 
 export async function softDeleteProject(id: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await db()
     .from('gantt_projects')
     .update({ deleted_at: new Date().toISOString() })
     .eq('id', id)
@@ -232,7 +253,7 @@ export async function softDeleteProject(id: string): Promise<void> {
 }
 
 export async function restoreProject(id: string): Promise<GanttProject> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_projects')
     .update({ deleted_at: null })
     .eq('id', id)
@@ -243,12 +264,12 @@ export async function restoreProject(id: string): Promise<GanttProject> {
 }
 
 export async function permanentDeleteProject(id: string): Promise<void> {
-  const { error } = await supabase.from('gantt_projects').delete().eq('id', id)
+  const { error } = await db().from('gantt_projects').delete().eq('id', id)
   if (error) throw error
 }
 
 export async function emptyTrash(boardId: string): Promise<void> {
-  const { error } = await supabase
+  const { error } = await db()
     .from('gantt_projects')
     .delete()
     .eq('board_id', boardId)
@@ -259,7 +280,7 @@ export async function emptyTrash(boardId: string): Promise<void> {
 // ── Project History ────────────────────────────────────────
 
 export async function getProjectHistory(projectId: string): Promise<ProjectHistoryEntry[]> {
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_project_history')
     .select('*')
     .eq('project_id', projectId)
@@ -274,7 +295,7 @@ export type GhostDates = Record<string, { start_date: string | null; end_date: s
 /** 보드 내 프로젝트들의 가장 최근 이전 날짜(old_value)를 가져옴 */
 export async function getProjectsGhostDates(projectIds: string[]): Promise<GhostDates> {
   if (projectIds.length === 0) return {}
-  const { data, error } = await supabase
+  const { data, error } = await db()
     .from('gantt_project_history')
     .select('project_id, field_name, old_value, changed_at')
     .in('project_id', projectIds)

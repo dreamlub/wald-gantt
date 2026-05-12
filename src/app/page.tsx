@@ -1,19 +1,19 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { LogOut, Users, PanelLeft } from 'lucide-react'
+import { LogOut, Link2, PanelLeft } from 'lucide-react'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import { ProjectHistoryPanel } from '@/components/gantt/ProjectHistoryPanel'
 import { TrashPanel } from '@/components/gantt/TrashPanel'
 import { MemoPanel } from '@/components/gantt/MemoPanel'
-import { InviteDialog } from '@/components/gantt/InviteDialog'
+import { ShareDialog } from '@/components/gantt/ShareDialog'
 import { createClient } from '@/lib/supabase/client'
 import {
   getOrCreateWorkspace,
   getBoards, addBoard, updateBoard, deleteBoard,
-  getCategories, getProjects,
+  getCategories, getProjects, getDeletedProjectsCount,
   addCategory, updateCategory, deleteCategory,
   addProject, updateProject, softDeleteProject,
   getProjectsGhostDates,
@@ -24,7 +24,7 @@ import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Workspace } 
 type DialogState =
   | { type: 'addProject'; categoryId: string }
   | { type: 'editProject'; project: GanttProject }
-  | { type: 'invite' }
+  | { type: 'share' }
   | null
 
 type UndoEntry =
@@ -125,8 +125,8 @@ export default function HomePage() {
     setGhostDates(null)
     setUndoStack([])
     setTrashOpen(false)
-    Promise.all([getCategories(selectedBoardId), getProjects(selectedBoardId)])
-      .then(([cats, projs]) => { setCategories(cats); setProjects(projs) })
+    Promise.all([getCategories(selectedBoardId), getProjects(selectedBoardId), getDeletedProjectsCount(selectedBoardId)])
+      .then(([cats, projs, count]) => { setCategories(cats); setProjects(projs); setTrashCount(count) })
       .catch(console.error)
       .finally(() => setLoading(false))
   }, [selectedBoardId])
@@ -289,7 +289,7 @@ export default function HomePage() {
   }
 
   return (
-    <div className="min-h-screen flex flex-col">
+    <div className="h-screen flex flex-col overflow-hidden">
       {/* 헤더 */}
       <header className="h-12 bg-white border-b flex items-center px-4 gap-3 shrink-0 z-20">
         <button
@@ -299,14 +299,15 @@ export default function HomePage() {
         >
           <PanelLeft size={16} />
         </button>
-        <span className="font-semibold text-gray-900 text-sm">Wald Gantt</span>
+        <span className="text-base font-bold text-gray-900">Waldlust Gantt Manager</span>
         <div className="ml-auto flex items-center gap-2">
           <button
-            onClick={() => setDialog({ type: 'invite' })}
+            onClick={() => setDialog({ type: 'share' })}
             className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
+            disabled={!selectedBoardId}
           >
-            <Users size={14} />
-            멤버 초대
+            <Link2 size={14} />
+            공유
           </button>
           <button
             onClick={handleSignOut}
@@ -378,10 +379,11 @@ export default function HomePage() {
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
       />
 
-      <InviteDialog
-        open={dialog?.type === 'invite'}
+      <ShareDialog
+        open={dialog?.type === 'share'}
         onClose={() => setDialog(null)}
-        workspaceId={workspace?.id ?? ''}
+        boardId={selectedBoardId ?? ''}
+        boardName={selectedBoard?.name ?? ''}
       />
 
       <ProjectHistoryPanel
