@@ -11,7 +11,8 @@ import {
   sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Trash2, CalendarDays, GripVertical, Check, X, ChevronDown, Clock, GitCompare, Undo2, StickyNote, Search } from 'lucide-react'
+import { Plus, Trash2, CalendarDays, GripVertical, Check, X, Clock, StickyNote } from 'lucide-react'
+import { GanttToolbar } from './GanttToolbar'
 import {
   buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS,
   buildWeekRange, dayOffset, dayOffsetInWeeks,
@@ -143,8 +144,6 @@ export function GanttChart({
   const rightRef        = useRef<HTMLDivElement>(null)
   const headerRef       = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
-  const teamFilterRef   = useRef<HTMLDivElement>(null)
-  const pmFilterRef     = useRef<HTMLDivElement>(null)
 
   const [viewMode, setViewMode]             = useState<ViewMode>('month')
   const [editProjId, setEditProjId]         = useState<string | null>(null)
@@ -153,12 +152,10 @@ export function GanttChart({
   const [editCatVal, setEditCatVal]         = useState('')
   const [addingCat, setAddingCat]           = useState(false)
   const [newCatName, setNewCatName]         = useState('')
-  const [sortMode, setSortMode]             = useState<'default' | 'start-asc' | 'end-desc'>('default')
-  const [excludedTeams, setExcludedTeams]   = useState<Set<string>>(new Set())
-  const [showTeamFilter, setShowTeamFilter] = useState(false)
-  const [excludedPMs, setExcludedPMs]       = useState<Set<string>>(new Set())
-  const [showPMFilter, setShowPMFilter]     = useState(false)
-  const [ghostEnabled, setGhostEnabled]     = useState(false)
+  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc'>('default')
+  const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
+  const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
+  const [ghostEnabled, setGhostEnabled]   = useState(false)
   const [searchQuery, setSearchQuery]       = useState('')
   const [activeId, setActiveId]             = useState<string | null>(null)
   const [liveItems, setLiveItems]           = useState<Record<string, string[]> | null>(null)
@@ -305,24 +302,6 @@ export function GanttChart({
     rightRef.current.scrollLeft = scrollX
     if (headerRef.current) headerRef.current.scrollLeft = scrollX
   }, [viewMode, viewStart, viewEnd])
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (teamFilterRef.current && !teamFilterRef.current.contains(e.target as Node))
-        setShowTeamFilter(false)
-    }
-    if (showTeamFilter) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showTeamFilter])
-
-  useEffect(() => {
-    function handleClickOutside(e: MouseEvent) {
-      if (pmFilterRef.current && !pmFilterRef.current.contains(e.target as Node))
-        setShowPMFilter(false)
-    }
-    if (showPMFilter) document.addEventListener('mousedown', handleClickOutside)
-    return () => document.removeEventListener('mousedown', handleClickOutside)
-  }, [showPMFilter])
 
   // 프로젝트 이름 인라인 편집
   function startEditProj(p: GanttProject, e: React.MouseEvent) {
@@ -771,149 +750,28 @@ export function GanttChart({
   return (
     <div className="flex flex-col h-full bg-white">
       {/* 툴바 */}
-      <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
-        <div className="flex items-center gap-2">
-          <h1 className="text-base font-semibold text-gray-800">{boardName ?? '간트 차트'}</h1>
-          {!readOnly && onUndo && (
-            <button
-              onClick={onUndo}
-              disabled={undoCount === 0}
-              title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
-              className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-600 hover:bg-gray-100"
-            >
-              <Undo2 size={13} />
-              {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
-            </button>
-          )}
-        </div>
-        <div className="flex items-center gap-3">
-          {/* 검색 */}
-          <div className="relative flex items-center">
-            <Search size={12} className="absolute left-2 text-gray-300 pointer-events-none" />
-            <input
-              type="text"
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              placeholder="프로젝트 검색"
-              className="text-[11px] pl-6 pr-2 py-1 border rounded w-36 outline-none focus:ring-1 focus:ring-indigo-300 text-gray-600 placeholder:text-gray-300"
-            />
-          </div>
-
-          {/* 팀 필터 */}
-          {allTeams.length > 0 && (
-            <div className="relative" ref={teamFilterRef}>
-              <button
-                onClick={() => setShowTeamFilter(v => !v)}
-                className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${excludedTeams.size > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                팀 필터
-                {excludedTeams.size > 0 && (
-                  <span className="bg-indigo-500 text-white rounded-full text-[9px] w-3.5 h-3.5 flex items-center justify-center">
-                    {excludedTeams.size}
-                  </span>
-                )}
-                <ChevronDown size={11} />
-              </button>
-              {showTeamFilter && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[160px] py-1">
-                  <div className="px-3 py-1.5 border-b flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-gray-600">팀별 보기</span>
-                    {excludedTeams.size > 0 && (
-                      <button onClick={() => setExcludedTeams(new Set())} className="text-[10px] text-indigo-500 hover:text-indigo-700">전체 표시</button>
-                    )}
-                  </div>
-                  {allTeams.map(team => (
-                    <label key={team} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={!excludedTeams.has(team)} onChange={() => toggleTeam(team)} className="w-3 h-3 rounded accent-indigo-500" />
-                      <span className="text-xs text-gray-700">{team || '팀 없음'}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* PM 필터 */}
-          {allPMs.length > 0 && (
-            <div className="relative" ref={pmFilterRef}>
-              <button
-                onClick={() => setShowPMFilter(v => !v)}
-                className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${excludedPMs.size > 0 ? 'border-indigo-300 bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-500 hover:text-gray-700'}`}
-              >
-                PM 필터
-                {excludedPMs.size > 0 && (
-                  <span className="bg-indigo-500 text-white rounded-full text-[9px] w-3.5 h-3.5 flex items-center justify-center">
-                    {excludedPMs.size}
-                  </span>
-                )}
-                <ChevronDown size={11} />
-              </button>
-              {showPMFilter && (
-                <div className="absolute right-0 top-full mt-1 bg-white border rounded-lg shadow-lg z-50 min-w-[160px] py-1">
-                  <div className="px-3 py-1.5 border-b flex items-center justify-between">
-                    <span className="text-[11px] font-semibold text-gray-600">PM별 보기</span>
-                    {excludedPMs.size > 0 && (
-                      <button onClick={() => setExcludedPMs(new Set())} className="text-[10px] text-indigo-500 hover:text-indigo-700">전체 표시</button>
-                    )}
-                  </div>
-                  {allPMs.map(pm => (
-                    <label key={pm} className="flex items-center gap-2 px-3 py-1.5 hover:bg-gray-50 cursor-pointer">
-                      <input type="checkbox" checked={!excludedPMs.has(pm)} onChange={() => togglePM(pm)} className="w-3 h-3 rounded accent-indigo-500" />
-                      <span className="text-xs text-gray-700">{pm || 'PM 없음'}</span>
-                    </label>
-                  ))}
-                </div>
-              )}
-            </div>
-          )}
-
-          {/* 뷰 모드 토글 */}
-          <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
-            {(['month', 'week'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setViewMode(mode)}
-                className={`px-2 py-1 transition-colors ${viewMode === mode ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                {mode === 'month' ? '월' : '주'}
-              </button>
-            ))}
-          </div>
-
-          {/* 정렬 */}
-          <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
-            {(['default', 'start-asc', 'end-desc'] as const).map(mode => (
-              <button
-                key={mode}
-                onClick={() => setSortMode(mode)}
-                className={`px-2 py-1 transition-colors ${sortMode === mode ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
-              >
-                {mode === 'default' ? '기본' : mode === 'start-asc' ? '시작일↑' : '종료일↓'}
-              </button>
-            ))}
-          </div>
-
-          {onToggleGhost && (
-            <button
-              onClick={async () => {
-                const next = !ghostEnabled
-                setGhostEnabled(next)
-                await onToggleGhost(next)
-              }}
-              title="이전 일정과 비교"
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${ghostEnabled ? 'border-purple-300 bg-purple-50 text-purple-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
-            >
-              <GitCompare size={12} /> 비교
-            </button>
-          )}
-
-          {!readOnly && sortedCats.length > 0 && (
-            <button onClick={() => onAddProject(sortedCats[0].id)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-              <Plus size={15} /> 프로젝트
-            </button>
-          )}
-        </div>
-      </div>
+      <GanttToolbar
+        boardName={boardName}
+        readOnly={readOnly}
+        undoCount={undoCount}
+        onUndo={onUndo}
+        searchQuery={searchQuery}
+        onSearchChange={setSearchQuery}
+        allTeams={allTeams}
+        excludedTeams={excludedTeams}
+        onToggleTeam={toggleTeam}
+        allPMs={allPMs}
+        excludedPMs={excludedPMs}
+        onTogglePM={togglePM}
+        viewMode={viewMode}
+        onViewModeChange={setViewMode}
+        sortMode={sortMode}
+        onSortModeChange={setSortMode}
+        ghostEnabled={ghostEnabled}
+        onToggleGhost={onToggleGhost ? async (enabled) => { setGhostEnabled(enabled); await onToggleGhost(enabled) } : undefined}
+        sortedCats={sortedCats}
+        onAddProject={onAddProject}
+      />
 
       {/* 메인 영역 */}
       <div className="flex flex-1 overflow-hidden">

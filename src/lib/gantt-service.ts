@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { GanttBoard, GanttCategory, GanttProject, ProjectHistoryEntry, Workspace } from '@/types'
+import type { GanttBoard, GanttCategory, GanttProject, GanttTask, ProjectHistoryEntry, TaskStatus, TaskType, Workspace } from '@/types'
 
 const db = () => createClient()
 
@@ -319,4 +319,107 @@ export async function getProjectsGhostDates(projectIds: string[]): Promise<Ghost
     }
   }
   return result
+}
+
+// ── Tasks ──────────────────────────────────────────────────
+
+/** 워크스페이스의 모든 태스크 (연결된 프로젝트 포함) */
+export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .select(`
+      *,
+      gantt_task_projects (
+        project_id,
+        gantt_projects ( id, name, gantt_boards ( name ) )
+      )
+    `)
+    .eq('workspace_id', workspaceId)
+    .order('sort_order')
+  if (error) throw error
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+      id: tp.gantt_projects.id,
+      name: tp.gantt_projects.name,
+      board_name: tp.gantt_projects.gantt_boards?.name ?? '',
+    })),
+  }))
+}
+
+export async function addTask(
+  workspaceId: string,
+  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; due_date: string | null; memo: string | null },
+  projectIds: string[] = []
+): Promise<GanttTask> {
+  const { data: existing } = await db()
+    .from('gantt_tasks')
+    .select('sort_order')
+    .eq('workspace_id', workspaceId)
+    .order('sort_order', { ascending: false })
+    .limit(1)
+    .single()
+
+  const sort_order = existing ? existing.sort_order + 1 : 0
+
+  const { data: task, error } = await db()
+    .from('gantt_tasks')
+    .insert({ workspace_id: workspaceId, sort_order, ...fields })
+    .select()
+    .single()
+  if (error) throw error
+
+  if (projectIds.length > 0) {
+    await db()
+      .from('gantt_task_projects')
+      .insert(projectIds.map(project_id => ({ task_id: task.id, project_id })))
+  }
+
+  return { ...task, projects: [] }
+}
+
+export async function updateTask(
+  id: string,
+  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'due_date' | 'memo' | 'sort_order'>>,
+  projectIds?: string[]
+): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ ...fields, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+
+  if (projectIds !== undefined) {
+    await db().from('gantt_task_projects').delete().eq('task_id', id)
+    if (projectIds.length > 0) {
+      await db()
+        .from('gantt_task_projects')
+        .insert(projectIds.map(project_id => ({ task_id: id, project_id })))
+    }
+  }
+}
+
+export async function deleteTask(id: string): Promise<void> {
+  const { error } = await db().from('gantt_tasks').delete().eq('id', id)
+  if (error) throw error
+}
+
+/** 전체 보드 통합 프로젝트 검색 */
+export async function searchProjects(workspaceId: string, query: string): Promise<{ id: string; name: string; board_name: string }[]> {
+  const { data, error } = await db()
+    .from('gantt_projects')
+    .select('id, name, gantt_boards(name)')
+    .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
+    .ilike('name', `%${query}%`)
+    .limit(20)
+  if (error) throw error
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((p: any) => ({
+    id: p.id,
+    name: p.name,
+    board_name: p.gantt_boards?.name ?? '',
+  }))
 }

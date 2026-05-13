@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback, useRef } from 'react'
-import { LogOut, Link2, PanelLeft } from 'lucide-react'
+import { Link2, PanelLeftOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
@@ -33,14 +33,14 @@ type UndoEntry =
   | { type: 'projects'; prevList: GanttProject[] }
 
 const now = new Date()
-const CUR_YEAR  = now.getFullYear()
+const CUR_YEAR   = now.getFullYear()
 const VIEW_START = `${CUR_YEAR - 1}-01`
 const VIEW_END   = `${CUR_YEAR + 2}-12`
 
 const CAT_COLORS = ['#a5b4fc', '#fdba74', '#86efac', '#93c5fd', '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc']
 const MAX_UNDO = 20
 
-export default function HomePage() {
+export default function GanttPage() {
   const [workspace, setWorkspace]             = useState<Workspace | null>(null)
   const [boards, setBoards]                   = useState<GanttBoard[]>([])
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null)
@@ -56,14 +56,11 @@ export default function HomePage() {
   const [trashOpen, setTrashOpen]             = useState(false)
   const [trashCount, setTrashCount]           = useState(0)
 
-  // undoStack을 ref로도 유지 (keydown 클로저에서 최신값 참조)
   const undoStackRef = useRef<UndoEntry[]>([])
   undoStackRef.current = undoStack
 
   const projectsRef = useRef<GanttProject[]>([])
   projectsRef.current = projects
-
-  const supabase = createClient()
 
   function pushUndo(entry: UndoEntry) {
     setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), entry])
@@ -92,7 +89,6 @@ export default function HomePage() {
     }
   }, [])
 
-  // Ctrl+Z / ⌘Z 단축키
   useEffect(() => {
     function onKeyDown(e: KeyboardEvent) {
       if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
@@ -137,11 +133,6 @@ export default function HomePage() {
     const ids = projects.map(p => p.id)
     const dates = await getProjectsGhostDates(ids)
     setGhostDates(dates)
-  }
-
-  async function handleSignOut() {
-    await supabase.auth.signOut()
-    window.location.href = '/login'
   }
 
   const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
@@ -318,57 +309,50 @@ export default function HomePage() {
 
   if (loading && boards.length === 0) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gray-50">
-        <div className="text-gray-500 text-sm">로딩 중...</div>
+      <div className="flex-1 flex items-center justify-center bg-gray-50">
+        <div className="text-gray-400 text-sm">로딩 중...</div>
       </div>
     )
   }
 
   return (
-    <div className="h-screen flex flex-col overflow-hidden">
-      {/* 헤더 */}
-      <header className="h-12 bg-white border-b flex items-center px-4 gap-3 shrink-0 z-20">
-        <button
-          onClick={() => setSidebarOpen(v => !v)}
-          className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
-          title={sidebarOpen ? '사이드바 닫기' : '사이드바 열기'}
-        >
-          <PanelLeft size={16} />
-        </button>
-        <span className="text-base font-bold text-gray-900">Waldlust Gantt Manager</span>
-        <div className="ml-auto flex items-center gap-2">
+    <div className="flex flex-1 overflow-hidden">
+      <BoardSidebar
+        open={sidebarOpen}
+        boards={boards}
+        selectedId={selectedBoardId}
+        onSelect={handleSelectBoard}
+        onAdd={handleAddBoard}
+        onRename={handleRenameBoard}
+        onDelete={handleDeleteBoard}
+        onReorder={handleReorderBoards}
+        onToggle={() => setSidebarOpen(v => !v)}
+        trashCount={trashCount}
+        onOpenTrash={() => setTrashOpen(v => !v)}
+      />
+
+      <div className="flex flex-1 flex-col overflow-hidden">
+        {/* 간트 전용 thin toolbar */}
+        <div className="h-10 border-b bg-white flex items-center px-3 gap-2 shrink-0">
+          {!sidebarOpen && (
+            <button
+              onClick={() => setSidebarOpen(true)}
+              className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              title="사이드바 열기"
+            >
+              <PanelLeftOpen size={15} />
+            </button>
+          )}
+          <div className="flex-1" />
           <button
             onClick={() => setDialog({ type: 'share' })}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
             disabled={!selectedBoardId}
+            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
           >
-            <Link2 size={14} />
+            <Link2 size={13} />
             공유
           </button>
-          <button
-            onClick={handleSignOut}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100"
-          >
-            <LogOut size={14} />
-            로그아웃
-          </button>
         </div>
-      </header>
-
-      {/* 바디: 사이드바 + 간트 */}
-      <div className="flex flex-1 overflow-hidden">
-        <BoardSidebar
-          open={sidebarOpen}
-          boards={boards}
-          selectedId={selectedBoardId}
-          onSelect={handleSelectBoard}
-          onAdd={handleAddBoard}
-          onRename={handleRenameBoard}
-          onDelete={handleDeleteBoard}
-          onReorder={handleReorderBoards}
-          trashCount={trashCount}
-          onOpenTrash={() => setTrashOpen(v => !v)}
-        />
 
         <main className="flex-1 overflow-hidden bg-white">
           {loading ? (
@@ -401,7 +385,7 @@ export default function HomePage() {
             />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-400 text-sm">
-              사이드바에서 파일을 선택하거나 새로 만들어 보세요
+              사이드바에서 보드를 선택하거나 새로 만들어 보세요
             </div>
           )}
         </main>

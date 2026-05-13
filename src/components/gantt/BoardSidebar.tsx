@@ -11,7 +11,7 @@ import {
   sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical } from 'lucide-react'
+import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical, PanelLeftClose } from 'lucide-react'
 import type { GanttBoard } from '@/types'
 
 interface Props {
@@ -23,6 +23,7 @@ interface Props {
   onRename: (id: string, name: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onReorder: (reordered: GanttBoard[]) => Promise<void>
+  onToggle: () => void
   trashCount?: number
   onOpenTrash?: () => void
 }
@@ -104,7 +105,7 @@ function SortableBoardItem(props: ItemProps) {
 }
 
 export function BoardSidebar({
-  open, boards, selectedId, onSelect, onAdd, onRename, onDelete, onReorder, trashCount = 0, onOpenTrash
+  open, boards, selectedId, onSelect, onAdd, onRename, onDelete, onReorder, onToggle, trashCount = 0, onOpenTrash
 }: Props) {
   const [editId, setEditId]     = useState<string | null>(null)
   const [editVal, setEditVal]   = useState('')
@@ -156,8 +157,15 @@ export function BoardSidebar({
       style={{ width: open ? 200 : 0 }}
     >
       {/* 헤더 */}
-      <div className="h-12 flex items-center px-4 border-b bg-white shrink-0">
-        <span className="text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
+      <div className="h-12 flex items-center px-4 border-b bg-white shrink-0 gap-2">
+        <span className="flex-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
+        <button
+          onClick={onToggle}
+          className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+          title="사이드바 닫기"
+        >
+          <PanelLeftClose size={14} />
+        </button>
       </div>
 
       {/* 보드 목록 */}
