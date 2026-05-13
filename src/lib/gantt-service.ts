@@ -351,7 +351,7 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
 
 export async function addTask(
   workspaceId: string,
-  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; due_date: string | null; memo: string | null },
+  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null },
   projectIds: string[] = []
 ): Promise<GanttTask> {
   const { data: existing } = await db()
@@ -382,7 +382,7 @@ export async function addTask(
 
 export async function updateTask(
   id: string,
-  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'due_date' | 'memo' | 'sort_order'>>,
+  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'sort_order'>>,
   projectIds?: string[]
 ): Promise<void> {
   const { error } = await db()

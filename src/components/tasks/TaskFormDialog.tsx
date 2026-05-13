@@ -14,10 +14,11 @@ interface Props {
   open: boolean
   onClose: () => void
   onSave: (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; due_date: string | null; memo: string | null },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null },
     projectIds: string[]
   ) => Promise<void>
   editTask?: GanttTask | null
+  defaultStatus?: TaskStatus
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
 }
 
@@ -28,11 +29,12 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'done',       label: 'Done' },
 ]
 
-export function TaskFormDialog({ open, onClose, onSave, editTask, onSearchProjects }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', onSearchProjects }: Props) {
   const [title, setTitle]           = useState('')
   const [status, setStatus]         = useState<TaskStatus>('to-do')
   const [type, setType]             = useState<TaskType>('mine')
   const [assignee, setAssignee]     = useState('')
+  const [startDate, setStartDate]   = useState('')
   const [dueDate, setDueDate]       = useState('')
   const [memo, setMemo]             = useState('')
   const [saving, setSaving]         = useState(false)
@@ -51,12 +53,13 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, onSearchProjec
       setStatus(editTask.status)
       setType(editTask.type)
       setAssignee(editTask.assignee ?? '')
+      setStartDate(editTask.start_date ?? '')
       setDueDate(editTask.due_date ?? '')
       setMemo(editTask.memo ?? '')
       setLinkedProjects(editTask.projects ?? [])
     } else {
-      setTitle(''); setStatus('to-do'); setType('mine')
-      setAssignee(''); setDueDate(''); setMemo('')
+      setTitle(''); setStatus(defaultStatus); setType('mine')
+      setAssignee(''); setStartDate(''); setDueDate(''); setMemo('')
       setLinkedProjects([])
     }
     setProjSearch(''); setProjResults([]); setShowProjDrop(false)
@@ -92,6 +95,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, onSearchProjec
           status,
           type,
           assignee: type === 'delegated' && assignee.trim() ? assignee.trim() : null,
+          start_date: startDate || null,
           due_date: dueDate || null,
           memo: memo.trim() || null,
         },
@@ -195,15 +199,26 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, onSearchProjec
             </div>
           )}
 
-          {/* 마감일 */}
-          <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">마감일</label>
-            <input
-              type="date"
-              className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 text-gray-700"
-              value={dueDate}
-              onChange={e => setDueDate(e.target.value)}
-            />
+          {/* 시작일 / 마감일 */}
+          <div className="flex gap-3">
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">시작일</label>
+              <input
+                type="date"
+                className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 text-gray-700"
+                value={startDate}
+                onChange={e => setStartDate(e.target.value)}
+              />
+            </div>
+            <div className="flex-1">
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">마감일</label>
+              <input
+                type="date"
+                className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 text-gray-700"
+                value={dueDate}
+                onChange={e => setDueDate(e.target.value)}
+              />
+            </div>
           </div>
 
           {/* 프로젝트 연결 */}

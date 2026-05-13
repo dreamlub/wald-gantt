@@ -51,6 +51,7 @@ export interface GanttTask {
   status: TaskStatus
   type: TaskType
   assignee: string | null
+  start_date: string | null // 'YYYY-MM-DD'
   due_date: string | null   // 'YYYY-MM-DD'
   memo: string | null
   sort_order: number
