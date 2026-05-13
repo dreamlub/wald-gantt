@@ -43,11 +43,11 @@ gantt_projects
 gantt_project_history  ← DB 트리거 자동 기록
   id, project_id, field_name, old_value, new_value, changed_at
 
-gantt_tasks            ← 추가됨
+gantt_tasks
   id, workspace_id, title
   status: 'backlog' | 'to-do' | 'in-progress' | 'done'
   type: 'mine' | 'delegated'
-  assignee TEXT, due_date DATE, memo TEXT
+  assignee TEXT, start_date DATE, due_date DATE, memo TEXT
   sort_order, created_at, updated_at
 
 gantt_task_projects    ← M:N 연결 테이블
@@ -65,12 +65,33 @@ gantt_task_projects    ← M:N 연결 테이블
 - `usePathname`으로 현재 페이지 활성 표시
 
 ### 태스크 관리 (`/tasks`)
-- 상태별 그룹 리스트: To-Do / In Progress / Backlog / Done (Done은 기본 접힘)
-- 구분 필터: 전체 / 내 할일 / 업무지시
-- `TaskRow`: 상태 아이콘 클릭 → 사이클 변경, 마감일 초과 시 빨간 표시, 등록일 표시
-- `TaskFormDialog`: 제목, 상태, 구분, 담당자(업무지시 시), 마감일, 프로젝트 연결, 메모
-  - 연결 프로젝트: 전체 보드 통합 검색 (200ms debounce, M:N)
-  - 담당자: 자유 텍스트
+
+**레이아웃**: 왼쪽 사이드바(240px) + 오른쪽 메인 영역
+
+**왼쪽 사이드바**
+- 전체 태스크 수 (클릭 시 필터 초기화)
+- 프로젝트별 목록 — 컬러 도트 + 태스크 수, 클릭 시 해당 프로젝트 필터
+- 담당자별 목록 — `나` 뱃지(내 할일) / 2자 약어 뱃지(업무지시), 클릭 시 필터
+- 미니 캘린더 — 오늘 인디고 원형 강조, 마감일 있는 날짜에 빨간 점
+
+**오른쪽 메인**
+- 탭 바: 전체 / 내 할일 / 업무지시 (하단 인디고 언더라인 활성 표시)
+- 우측: `+ 태스크 추가` 버튼
+- 테이블 헤더: 제목·프로젝트 | 담당자 | 시작일 | 마감일 | 등록일
+- 상태 그룹(To-Do / In Progress / Backlog / Done) — Done은 기본 접힘
+- 각 그룹 하단 인라인 `+ 태스크 추가` 버튼 → 해당 상태로 폼 오픈
+
+**TaskRow**
+- 체크박스 클릭 → 상태 사이클 변경 (Done이면 초록 체크 아이콘)
+- 제목 아래 연결 프로젝트 배지 (Paperclip 아이콘 + 프로젝트명)
+- 담당자: `나 내 할일` / `유장 유장성` 형식 (2자 약어 + 이름)
+- 마감일 초과 시 빨간 강조
+
+**TaskFormDialog**
+- 제목, 상태, 구분(내 할일/업무지시), 담당자(업무지시 시만 표시)
+- 시작일 / 마감일 나란히
+- 연결 프로젝트: 전체 보드 통합 검색 (200ms debounce, M:N)
+- 메모
 
 ### 보드(파일) 관리
 - 워크스페이스 내 여러 보드 생성 가능
@@ -168,7 +189,21 @@ PROJ_ROW_H_CMP  = 56   // 비교 모드 행 높이
 - **소스 파일 1,000줄 제한** 준수 중. (GanttChart: 983줄, GanttToolbar 추출 후)
 - **빌드 검증**: 코드 변경 후 `npx tsc --noEmit` 으로 타입 체크.
 
+## Supabase 프로젝트
+
+- Project ID: `eytonzxeogdfeuvxtuwh`
+- Region: ap-northeast-2 (서울)
+- Auth: 이메일/비밀번호, Google OAuth
+
+## Vercel 배포
+
+- Project ID: `prj_YumDJtKv90Kdbsd4DRclJvWUOoQP`
+- Team ID: `team_Bz6jHioMJrz5bNuaCk1yBfaK`
+- GitHub 푸시 → Vercel 자동 배포 (git integration 연동됨)
+- Vercel CLI 미설치 — 배포는 git push로만 진행
+
 ## 미구현 / 예정
 
 - **주간보고** (`/weekly`): 플레이스홀더만 있음, 구현 예정
 - **태스크 드래그 정렬**: 현재 상태 그룹 고정, 순서 변경 미구현
+- **태스크 우선순위**: 현재 없음
