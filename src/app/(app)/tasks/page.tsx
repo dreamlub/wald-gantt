@@ -28,6 +28,7 @@ import { ListView } from './_components/ListView'
 import { CalendarView } from './_components/CalendarView'
 import { GanttView } from './_components/GanttView'
 import { KanbanView } from './_components/KanbanView'
+import { TaskDetailDrawer } from './_components/TaskDetailDrawer'
 
 export default function TasksPage() {
   const [workspace,      setWorkspace]      = useState<Workspace | null>(null)
@@ -47,6 +48,11 @@ export default function TasksPage() {
   const [trashOpen,      setTrashOpen]      = useState(false)
   const [trashCount,     setTrashCount]     = useState(0)
   const [draggingTask,   setDraggingTask]   = useState<GanttTask | null>(null)
+  const [pendingParentId, setPendingParentId] = useState<string | null>(null)
+  const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
+  const [drawerTask,      setDrawerTask]      = useState<GanttTask | null>(null)
+  const [drawerOpen,      setDrawerOpen]      = useState(false)
+  const [pendingDefaultProjects, setPendingDefaultProjects] = useState<{ id: string; name: string; board_name: string }[]>([])
 
   const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
 
@@ -61,6 +67,9 @@ export default function TasksPage() {
       setCollapsed(new Set(
         statuses.filter(s => s === 'done' || s === 'pending' || list.filter(t => t.status === s).length === 0)
       ))
+      // 하위 태스크가 있는 부모는 기본 펼침
+      const parentIds = new Set(list.filter(t => t.parent_id).map(t => t.parent_id as string))
+      setExpandedParents(parentIds)
     } catch (e) { toast.error(errMsg(e)) }
     finally { setLoading(false) }
   }, [])
@@ -73,8 +82,20 @@ export default function TasksPage() {
   ) {
     if (!workspace) return
     try {
-      if (editTask) await updateTask(editTask.id, fields, projectIds)
-      else await addTask(workspace.id, fields, projectIds)
+      await addTask(workspace.id, { ...fields, parent_id: pendingParentId }, projectIds)
+      setPendingParentId(null)
+      setPendingDefaultProjects([])
+      await load()
+    } catch (e) { toast.error(errMsg(e)); throw e }
+  }
+
+  async function handleDrawerSave(
+    task: GanttTask,
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[] },
+    projectIds: string[]
+  ) {
+    try {
+      await updateTask(task.id, fields, projectIds)
       await load()
     } catch (e) { toast.error(errMsg(e)); throw e }
   }
@@ -98,8 +119,23 @@ export default function TasksPage() {
   }
 
   async function handleStatusChange(id: string, status: TaskStatus) {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
-    try { await updateTask(id, { status }) }
+    const updatedTasks = tasks.map(t => t.id === id ? { ...t, status } : t)
+    setTasks(updatedTasks)
+    try {
+      await updateTask(id, { status })
+      // 자동 완료: 하위 태스크가 모두 done이면 부모도 done으로
+      if (status === 'done') {
+        const changedTask = updatedTasks.find(t => t.id === id)
+        if (changedTask?.parent_id) {
+          const siblings = updatedTasks.filter(t => t.parent_id === changedTask.parent_id)
+          if (siblings.length > 0 && siblings.every(t => t.status === 'done')) {
+            await updateTask(changedTask.parent_id, { status: 'done' })
+            setTasks(prev => prev.map(t => t.id === changedTask.parent_id ? { ...t, status: 'done' } : t))
+            toast('하위 태스크가 모두 완료되어 상위 태스크도 완료했어요')
+          }
+        }
+      }
+    }
     catch (e) { toast.error(errMsg(e)); await load() }
   }
 
@@ -129,7 +165,25 @@ export default function TasksPage() {
   }
 
   function openAdd(status: TaskStatus) {
-    setDefaultStatus(status); setEditTask(null); setFormOpen(true)
+    setDefaultStatus(status); setEditTask(null); setPendingParentId(null); setFormOpen(true)
+  }
+
+  function openAddSubTask(parentId: string, status: TaskStatus) {
+    const parent = tasks.find(t => t.id === parentId)
+    setDefaultStatus(status)
+    setEditTask(null)
+    setPendingParentId(parentId)
+    setPendingDefaultProjects(parent?.projects ?? [])
+    setExpandedParents(prev => new Set([...prev, parentId]))
+    setFormOpen(true)
+  }
+
+  function toggleExpanded(parentId: string) {
+    setExpandedParents(prev => {
+      const next = new Set(prev)
+      if (next.has(parentId)) next.delete(parentId); else next.add(parentId)
+      return next
+    })
   }
 
   const handleSearch = useCallback(
@@ -192,14 +246,19 @@ export default function TasksPage() {
   if (quickFilter === 'due-this-week') filtered = filtered.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done')
   if (quickFilter === 'due-today')     filtered = filtered.filter(t => t.due_date === todayStr && t.status !== 'done')
 
-  const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status))
+  const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status) && !t.parent_id)
   const overdueIds   = new Set(overdueGroup.map(t => t.id))
   const avgOverdueDays = overdueGroup.length
     ? Math.round(overdueGroup.reduce((s, t) => s + overdueDays(t.due_date), 0) / overdueGroup.length * 10) / 10
     : 0
 
+  // 최상위 태스크만 (parent_id 없는 것)
   function getGroup(status: TaskStatus) {
-    return filtered.filter(t => t.status === status && !overdueIds.has(t.id))
+    return filtered.filter(t => t.status === status && !overdueIds.has(t.id) && !t.parent_id)
+  }
+  // 특정 부모의 하위 태스크 (filtered 내에서)
+  function getSubTasks(parentId: string) {
+    return filtered.filter(t => t.parent_id === parentId)
   }
   const ipGroup = getGroup('in-progress')
   const avgIPDays = ipGroup.length
@@ -217,7 +276,7 @@ export default function TasksPage() {
     <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">로딩 중...</div>
   )
 
-  const editHandler = (t: GanttTask) => { setEditTask(t); setFormOpen(true) }
+  const editHandler = (t: GanttTask) => { setDrawerTask(t); setDrawerOpen(true) }
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -446,6 +505,7 @@ export default function TasksPage() {
             <div className="flex items-center px-4 py-2 border-b bg-gray-50 shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
               <div className="w-5 shrink-0 mr-3" />
               <div className="flex-1 mr-4">태스크</div>
+              <div className="w-16 shrink-0">메모</div>
               <div className="w-28 shrink-0">담당자</div>
               <div className="w-20 shrink-0">최근 업데이트</div>
               <div className="w-14 shrink-0">시작일</div>
@@ -477,15 +537,28 @@ export default function TasksPage() {
                         <span className="ml-auto text-[10px] text-gray-400">평균 지연 {avgOverdueDays}일</span>
                       )}
                     </button>
-                    {!collapsed.has('__overdue__') && overdueGroup.map(task => (
-                      <DraggableTaskRow key={task.id} task={task}
-                        onEdit={editHandler}
-                        onDelete={handleDelete}
-                        onStatusChange={handleStatusChange}
-                        isDraggingId={draggingTask?.id}
-                        assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
-                      />
-                    ))}
+                    {!collapsed.has('__overdue__') && overdueGroup.map(task => {
+                      const subs = getSubTasks(task.id)
+                      const isExp = expandedParents.has(task.id)
+                      return (
+                        <div key={task.id}>
+                          <DraggableTaskRow task={task}
+                            onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                            isDraggingId={draggingTask?.id}
+                            assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
+                            subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
+                            onAddSubTask={() => openAddSubTask(task.id, task.status)}
+                            onToggleExpand={() => toggleExpanded(task.id)}
+                          />
+                          {isExp && subs.map(sub => (
+                            <TaskRow key={sub.id} task={sub} isSubTask
+                              onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                              assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
+                            />
+                          ))}
+                        </div>
+                      )
+                    })}
                   </div>
                 )}
 
@@ -510,15 +583,36 @@ export default function TasksPage() {
                       </button>
                       {!isCollapsed && (
                         <>
-                          {group.map(task => (
-                            <DraggableTaskRow key={task.id} task={task}
-                              onEdit={editHandler}
-                              onDelete={handleDelete}
-                              onStatusChange={handleStatusChange}
-                              isDraggingId={draggingTask?.id}
-                              assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
-                            />
-                          ))}
+                          {group.map(task => {
+                            const subs = getSubTasks(task.id)
+                            const isExp = expandedParents.has(task.id)
+                            return (
+                              <div key={task.id}>
+                                <DraggableTaskRow task={task}
+                                  onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                                  isDraggingId={draggingTask?.id}
+                                  assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
+                                  subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
+                                  onAddSubTask={() => openAddSubTask(task.id, task.status)}
+                                  onToggleExpand={() => toggleExpanded(task.id)}
+                                />
+                                {isExp && subs.map(sub => (
+                                  <TaskRow key={sub.id} task={sub} isSubTask
+                                    onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                                    assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
+                                  />
+                                ))}
+                                {isExp && (
+                                  <button
+                                    onClick={() => openAddSubTask(task.id, task.status)}
+                                    className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-colors border-b border-gray-50"
+                                  >
+                                    <Plus size={10} /> 하위 태스크 추가
+                                  </button>
+                                )}
+                              </div>
+                            )
+                          })}
                           <button
                             onClick={() => openAdd(status)}
                             className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-gray-400 hover:text-indigo-500 hover:bg-gray-50 transition-colors border-b border-gray-50"
@@ -546,10 +640,23 @@ export default function TasksPage() {
 
       <TaskFormDialog
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditTask(null) }}
+        onClose={() => { setFormOpen(false); setEditTask(null); setPendingDefaultProjects([]) }}
         onSave={handleSave}
         editTask={editTask}
         defaultStatus={defaultStatus}
+        defaultProjects={pendingDefaultProjects}
+        onSearchProjects={handleSearch}
+      />
+
+      <TaskDetailDrawer
+        open={drawerOpen}
+        task={drawerTask}
+        subTasks={drawerTask ? tasks.filter(t => t.parent_id === drawerTask.id) : []}
+        onClose={() => setDrawerOpen(false)}
+        onSave={handleDrawerSave}
+        onDelete={handleDelete}
+        onAddSubTask={openAddSubTask}
+        onStatusChange={handleStatusChange}
         onSearchProjects={handleSearch}
       />
 

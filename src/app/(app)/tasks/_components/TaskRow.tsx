@@ -1,13 +1,14 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Pencil, Trash2, Paperclip, MessageSquare,
+  Circle, CheckCircle2, GripVertical, Pencil, Trash2, Paperclip, StickyNote,
 } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtDate, relativeTime, isOverdue, overdueDays, daysDiff } from '../_utils'
+import { labelColor } from './TaskDetailDrawer'
 
 interface TaskRowProps {
   task: GanttTask
@@ -17,10 +18,15 @@ interface TaskRowProps {
   dragHandleProps?: Record<string, unknown>
   isDragging?: boolean
   assigneeColor?: string
+  isSubTask?: boolean
+  subTaskStats?: { total: number; done: number }
+  onAddSubTask?: () => void
+  onToggleExpand?: () => void
 }
 
-export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor }: TaskRowProps) {
-  const [showMemo, setShowMemo] = useState(false)
+export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand }: TaskRowProps) {
+  const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
+  const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const overdue  = isOverdue(task.due_date, task.status)
   const isDone   = task.status === 'done'
@@ -28,12 +34,17 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
   const odDays   = overdueDays(task.due_date)
   const color    = assigneeColor ?? '#9ca3af'
   const assigneeName = task.type === 'mine' ? '내 할일' : (task.assignee ?? '')
+  const labels = task.labels ?? []
 
   return (
-    <div className={`group flex items-center px-4 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-40' : ''}`}>
-      <div className="shrink-0 mr-1 cursor-grab text-gray-200 hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
-        <GripVertical size={13} />
-      </div>
+    <div className={`group flex items-center px-4 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-40' : ''} ${isSubTask ? 'bg-gray-50/40' : ''}`}>
+      {/* 들여쓰기 (하위 태스크) */}
+      {isSubTask && <div className="shrink-0 w-6 flex items-center justify-center mr-1"><div className="w-px h-4 bg-gray-200 ml-3" /></div>}
+      {!isSubTask && (
+        <div className="shrink-0 mr-1 cursor-grab text-gray-200 hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
+          <GripVertical size={13} />
+        </div>
+      )}
       <button
         onClick={() => onStatusChange(task.id, task.status === 'done' ? 'to-do' : 'done')}
         className="shrink-0 mr-2"
@@ -43,10 +54,17 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
           ? <CheckCircle2 size={16} className="text-green-400" />
           : <Circle size={16} className="text-gray-300 hover:text-indigo-400 transition-colors" />}
       </button>
+
+      {/* 제목 + 뱃지 영역 */}
       <div className="flex items-center gap-1.5 flex-1 min-w-0 mr-4 overflow-hidden">
-        <span className={`text-xs shrink-0 truncate max-w-[45%] ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}>
+        {/* 제목 — 클릭 시 드로어 */}
+        <button
+          onClick={() => onEdit(task)}
+          className={`text-xs font-medium shrink-0 truncate max-w-[40%] text-left hover:text-indigo-600 transition-colors ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}
+        >
           {task.title}
-        </span>
+        </button>
+
         {overdue && (
           <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium border border-red-100 whitespace-nowrap">
             지연 {odDays}일
@@ -57,6 +75,8 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             {daysDiff(task.updated_at)}일 무응답
           </span>
         )}
+
+        {/* 연결 프로젝트 */}
         {task.projects && task.projects.length > 0 && (
           <>
             <span className="text-gray-200 text-[10px] shrink-0">·</span>
@@ -68,40 +88,109 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             {task.projects.length > 2 && <span className="text-[10px] text-gray-400 shrink-0">+{task.projects.length - 2}</span>}
           </>
         )}
-        {task.memo && (
-          <div className="relative shrink-0">
-            <button
-              onMouseEnter={() => setShowMemo(true)}
-              onMouseLeave={() => setShowMemo(false)}
-              className="text-gray-300 hover:text-indigo-400 transition-colors"
-            >
-              <MessageSquare size={11} />
-            </button>
-            {showMemo && (
-              <div className="absolute left-0 top-5 z-50 w-56 bg-white border border-gray-200 rounded-lg shadow-lg p-2.5 text-[11px] text-gray-600 whitespace-pre-wrap pointer-events-none">
-                {task.memo}
-              </div>
-            )}
+
+        {/* 라벨 */}
+        {labels.slice(0, 2).map(l => (
+          <span
+            key={l}
+            className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
+            style={{ backgroundColor: labelColor(l) }}
+          >
+            {l}
+          </span>
+        ))}
+        {labels.length > 2 && <span className="text-[10px] text-gray-400 shrink-0">+{labels.length - 2}</span>}
+
+        {/* 하위 태스크 진행 뱃지 */}
+        {subTaskStats && subTaskStats.total > 0 && (
+          <button
+            onClick={e => { e.stopPropagation(); onToggleExpand?.() }}
+            className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
+              ${subTaskStats.done === subTaskStats.total
+                ? 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
+                : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'}`}
+            title="하위 태스크 펼치기/접기"
+          >
+            {subTaskStats.done}/{subTaskStats.total}
+          </button>
+        )}
+
+        {/* sub + 버튼 */}
+        {onAddSubTask && !isSubTask && (
+          <button
+            onClick={e => { e.stopPropagation(); onAddSubTask() }}
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-all whitespace-nowrap"
+          >
+            sub +
+          </button>
+        )}
+
+        {/* 인라인 삭제 버튼 */}
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(task.id) }}
+          className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-400 rounded transition-all"
+          title="삭제"
+        >
+          <Trash2 size={11} />
+        </button>
+
+      </div>
+
+      {/* 메모 컬럼 — 간트 차트와 동일 */}
+      <div className="w-16 shrink-0 flex items-center justify-start relative">
+        <button
+          onClick={() => onEdit(task)}
+          onMouseEnter={task.memo ? e => {
+            if (memoTimerRef.current) clearTimeout(memoTimerRef.current)
+            setMemoPos({ x: e.clientX, y: e.clientY })
+          } : undefined}
+          onMouseLeave={task.memo ? () => {
+            memoTimerRef.current = setTimeout(() => setMemoPos(null), 100)
+          } : undefined}
+          className={task.memo
+            ? 'text-indigo-400 hover:text-indigo-600 transition-colors'
+            : 'text-gray-200 opacity-0 group-hover:opacity-100 hover:text-indigo-400 transition-colors'}
+        >
+          <StickyNote size={12} />
+        </button>
+        {memoPos && task.memo && (
+          <div
+            className="fixed z-[9999] pointer-events-none max-w-xs"
+            style={{ left: memoPos.x + 14, top: memoPos.y - 8 }}
+          >
+            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words">
+              {task.memo}
+            </div>
+            <div className="absolute -left-1.5 top-3 w-3 h-3 bg-gray-900 rotate-45" />
           </div>
         )}
       </div>
-      <div className="w-28 shrink-0 flex items-center gap-1.5">
+
+      <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-indigo-500 transition-colors">
         {assigneeName && (
           <>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
             <span className="text-[11px] text-gray-500 truncate">{assigneeName}</span>
           </>
         )}
-      </div>
-      <div className="w-20 shrink-0 text-[11px] text-gray-400 tabular-nums">{relativeTime(task.updated_at)}</div>
-      <div className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums">{fmtDate(task.start_date ?? null)}</div>
-      <div className={`w-14 shrink-0 text-[11px] tabular-nums font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
+      </button>
+      <button onClick={() => onEdit(task)} className="w-20 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
+        {relativeTime(task.updated_at)}
+      </button>
+      <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
+        {fmtDate(task.start_date ?? null)}
+      </button>
+      <button onClick={() => onEdit(task)} className={`w-14 shrink-0 text-[11px] tabular-nums text-left hover:text-indigo-500 transition-colors ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
         {fmtDate(task.due_date)}
-      </div>
-      <div className="w-14 shrink-0 text-[10px] text-gray-300 tabular-nums">{fmtDate(task.created_at)}</div>
-      <div className="w-12 shrink-0 flex items-center justify-end gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
-        <button onClick={() => onEdit(task)} className="p-1 text-gray-300 hover:text-indigo-500 rounded"><Pencil size={11} /></button>
-        <button onClick={() => onDelete(task.id)} className="p-1 text-gray-300 hover:text-red-400 rounded"><Trash2 size={11} /></button>
+      </button>
+      <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
+        {fmtDate(task.created_at)}
+      </button>
+      {/* 우측 액션: 편집만 (삭제는 인라인으로 이동) */}
+      <div className="shrink-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity w-6">
+        <button onClick={() => onEdit(task)} className="p-1 text-gray-300 hover:text-indigo-500 rounded" title="상세 보기">
+          <Pencil size={11} />
+        </button>
       </div>
     </div>
   )
@@ -111,12 +200,15 @@ interface DraggableTaskRowProps {
   task: GanttTask
   isDraggingId?: string
   assigneeColor?: string
+  subTaskStats?: { total: number; done: number }
+  onAddSubTask?: () => void
+  onToggleExpand?: () => void
   onEdit: (t: GanttTask) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, s: TaskStatus) => void
 }
 
-export function DraggableTaskRow({ task, isDraggingId, assigneeColor, ...props }: DraggableTaskRowProps) {
+export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskStats, onAddSubTask, onToggleExpand, ...props }: DraggableTaskRowProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id })
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
   return (
@@ -126,6 +218,9 @@ export function DraggableTaskRow({ task, isDraggingId, assigneeColor, ...props }
         dragHandleProps={{ ...attributes, ...listeners }}
         isDragging={isDraggingId === task.id}
         assigneeColor={assigneeColor}
+        subTaskStats={subTaskStats}
+        onAddSubTask={onAddSubTask}
+        onToggleExpand={onToggleExpand}
         {...props}
       />
     </div>

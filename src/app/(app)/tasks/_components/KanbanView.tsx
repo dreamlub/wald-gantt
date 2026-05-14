@@ -9,7 +9,7 @@ import {
 } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { STATUS_GROUPS, STATUS_COLOR, STATUS_LABEL } from '../_constants'
+import { STATUS_GROUPS } from '../_constants'
 import { fmtDate, isOverdue, overdueDays } from '../_utils'
 
 interface Props {
@@ -23,12 +23,13 @@ interface Props {
 }
 
 // ── 카드 ──────────────────────────────────────────────────────
-function KanbanCard({ task, assigneeColor, onEdit, onDelete, isDragging }: {
+function KanbanCard({ task, assigneeColor, onEdit, onDelete, isDragging, subTaskStats }: {
   task: GanttTask
   assigneeColor?: string
   onEdit: (t: GanttTask) => void
   onDelete: (id: string) => void
   isDragging?: boolean
+  subTaskStats?: { total: number; done: number }
 }) {
   const [showMemo, setShowMemo] = useState(false)
   const overdue = isOverdue(task.due_date, task.status)
@@ -94,6 +95,17 @@ function KanbanCard({ task, assigneeColor, onEdit, onDelete, isDragging }: {
           </div>
         )}
 
+        {/* 하위 태스크 진행 */}
+        {subTaskStats && subTaskStats.total > 0 && (
+          <span className={`text-[10px] px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap
+            ${subTaskStats.done === subTaskStats.total
+              ? 'bg-green-50 text-green-600 border-green-100'
+              : 'bg-gray-50 text-gray-500 border-gray-100'}`}
+          >
+            {subTaskStats.done}/{subTaskStats.total}
+          </span>
+        )}
+
         {/* 마감일 */}
         {task.due_date && (
           <span className={`text-[10px] tabular-nums font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
@@ -129,6 +141,7 @@ function DraggableCard({ task, isDraggingId, ...props }: {
   task: GanttTask
   isDraggingId?: string
   assigneeColor?: string
+  subTaskStats?: { total: number; done: number }
   onEdit: (t: GanttTask) => void
   onDelete: (id: string) => void
 }) {
@@ -143,11 +156,12 @@ function DraggableCard({ task, isDraggingId, ...props }: {
 }
 
 // ── 드롭 가능한 컬럼 ─────────────────────────────────────────
-function KanbanColumn({ status, label, color, tasks, assigneeColorMap, getAssigneeKey, isDraggingId, onEdit, onDelete, onAddTask }: {
+function KanbanColumn({ status, label, color, tasks, allTasks, assigneeColorMap, getAssigneeKey, isDraggingId, onEdit, onDelete, onAddTask }: {
   status: TaskStatus
   label: string
   color: string
-  tasks: GanttTask[]
+  tasks: GanttTask[]      // 해당 상태의 최상위 태스크만
+  allTasks: GanttTask[]   // 하위 태스크 stats 계산용 전체 태스크
   assigneeColorMap: Map<string, string>
   getAssigneeKey: (t: GanttTask) => string
   isDraggingId?: string
@@ -177,16 +191,23 @@ function KanbanColumn({ status, label, color, tasks, assigneeColorMap, getAssign
         className={`flex-1 flex flex-col gap-2 px-2 py-2 rounded-lg min-h-[120px] transition-colors
           ${isOver ? 'bg-indigo-50/60 ring-1 ring-indigo-200 ring-inset' : ''}`}
       >
-        {tasks.map(task => (
-          <DraggableCard
-            key={task.id}
-            task={task}
-            isDraggingId={isDraggingId}
-            assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
-            onEdit={onEdit}
-            onDelete={onDelete}
-          />
-        ))}
+        {tasks.map(task => {
+          const subs = allTasks.filter(t => t.parent_id === task.id)
+          const subTaskStats = subs.length > 0
+            ? { total: subs.length, done: subs.filter(t => t.status === 'done').length }
+            : undefined
+          return (
+            <DraggableCard
+              key={task.id}
+              task={task}
+              isDraggingId={isDraggingId}
+              assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
+              subTaskStats={subTaskStats}
+              onEdit={onEdit}
+              onDelete={onDelete}
+            />
+          )
+        })}
 
         {/* 추가 버튼 */}
         <button
@@ -236,7 +257,8 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
               status={status}
               label={label}
               color={color}
-              tasks={tasks.filter(t => t.status === status)}
+              tasks={tasks.filter(t => t.status === status && !t.parent_id)}
+              allTasks={tasks}
               assigneeColorMap={assigneeColorMap}
               getAssigneeKey={getAssigneeKey}
               isDraggingId={draggingTask?.id}

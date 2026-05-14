@@ -8,13 +8,16 @@ export function fmtDate(d: string | null) {
   return `${m}/${day}`
 }
 
-/** KST 기준 몇 일 전/후 */
+/** KST 기준 몇 일 전/후 — 타임스탬프를 KST 날짜로 변환 후 비교 */
 export function relativeTime(d: string | null) {
   if (!d) return '—'
-  const todayMid = parseDateStr(todayStrKST()).getTime()
-  const target   = d.length === 10 ? parseDateStr(d).getTime() : new Date(d).getTime()
-  const diff = Math.floor((todayMid - target) / 864e5)
-  if (diff === 0) return '오늘'
+  const todayStr  = todayStrKST()
+  // ISO 타임스탬프는 KST 날짜 문자열로 변환
+  const targetStr = d.length === 10 ? d : toKSTDateStr(d)
+  if (targetStr === todayStr) return '오늘'
+  const todayMid  = parseDateStr(todayStr).getTime()
+  const targetMid = parseDateStr(targetStr).getTime()
+  const diff = Math.floor((todayMid - targetMid) / 864e5)
   if (diff === 1) return '어제'
   if (diff < 0) return `${Math.abs(diff)}일 후`
   return `${diff}일 전`

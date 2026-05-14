@@ -54,6 +54,8 @@ export interface GanttTask {
   start_date: string | null // 'YYYY-MM-DD'
   due_date: string | null   // 'YYYY-MM-DD'
   memo: string | null
+  labels: string[] | null
+  parent_id: string | null
   sort_order: number
   created_at: string
   updated_at: string
