@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useRef } from 'react'
+import { useEffect, useState, useCallback } from 'react'
 import { Link2, PanelLeftOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
@@ -10,17 +10,18 @@ import { ProjectHistoryPanel } from '@/components/gantt/ProjectHistoryPanel'
 import { TrashPanel } from '@/components/gantt/TrashPanel'
 import { MemoPanel } from '@/components/gantt/MemoPanel'
 import { ShareDialog } from '@/components/gantt/ShareDialog'
-import { createClient } from '@/lib/supabase/client'
 import {
   getOrCreateWorkspace,
   getBoards, addBoard, updateBoard, deleteBoard,
   getCategories, getProjects, getDeletedProjectsCount,
   addCategory, updateCategory, deleteCategory,
-  addProject, updateProject, softDeleteProject,
+  addProject, updateProject, softDeleteProject, restoreProject,
   getProjectsGhostDates,
 } from '@/lib/gantt-service'
 import type { GhostDates } from '@/lib/gantt-service'
 import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Workspace } from '@/types'
+import { useConfirm } from '@/hooks/use-confirm'
+import { useUndoRedo } from '@/hooks/use-undo-redo'
 
 type DialogState =
   | { type: 'addProject'; categoryId: string }
@@ -28,19 +29,15 @@ type DialogState =
   | { type: 'share' }
   | null
 
-type UndoEntry =
-  | { type: 'project'; prev: GanttProject }
-  | { type: 'projects'; prevList: GanttProject[] }
-
-const now = new Date()
-const CUR_YEAR   = now.getFullYear()
+const CUR_YEAR   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
 const VIEW_START = `${CUR_YEAR - 1}-01`
 const VIEW_END   = `${CUR_YEAR + 2}-12`
 
 const CAT_COLORS = ['#a5b4fc', '#fdba74', '#86efac', '#93c5fd', '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc']
-const MAX_UNDO = 20
 
 export default function GanttPage() {
+  const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
+
   const [workspace, setWorkspace]             = useState<Workspace | null>(null)
   const [boards, setBoards]                   = useState<GanttBoard[]>([])
   const [selectedBoardId, setSelectedBoardId] = useState<string | null>(null)
@@ -52,53 +49,15 @@ export default function GanttPage() {
   const [memoProject, setMemoProject]         = useState<GanttProject | null>(null)
   const [loading, setLoading]                 = useState(true)
   const [ghostDates, setGhostDates]           = useState<GhostDates | null>(null)
-  const [undoStack, setUndoStack]             = useState<UndoEntry[]>([])
   const [trashOpen, setTrashOpen]             = useState(false)
   const [trashCount, setTrashCount]           = useState(0)
 
-  const undoStackRef = useRef<UndoEntry[]>([])
-  undoStackRef.current = undoStack
+  const { undoCount, redoCount, pushUndo, resetStacks, handleUndo, handleRedo, projectsRef } = useUndoRedo({
+    projects,
+    onProjectsChange: setProjects,
+  })
 
-  const projectsRef = useRef<GanttProject[]>([])
-  projectsRef.current = projects
-
-  function pushUndo(entry: UndoEntry) {
-    setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), entry])
-  }
-
-  // ── Undo ─────────────────────────────────────────────────
-  const handleUndo = useCallback(async () => {
-    const stack = undoStackRef.current
-    if (stack.length === 0) return
-    const top = stack[stack.length - 1]
-    setUndoStack(prev => prev.slice(0, -1))
-
-    if (top.type === 'project') {
-      const p = top.prev
-      const restored = await updateProject(p.id, {
-        name: p.name, status: p.status,
-        start_date: p.start_date, end_date: p.end_date,
-        category_id: p.category_id, team: p.team, pm: p.pm,
-      })
-      setProjects(prev => prev.map(x => x.id === restored.id ? restored : x))
-    } else {
-      const restored = await Promise.all(
-        top.prevList.map(p => updateProject(p.id, { category_id: p.category_id, sort_order: p.sort_order }))
-      )
-      setProjects(prev => prev.map(p => restored.find(r => r.id === p.id) ?? p))
-    }
-  }, [])
-
-  useEffect(() => {
-    function onKeyDown(e: KeyboardEvent) {
-      if ((e.ctrlKey || e.metaKey) && e.key === 'z' && !e.shiftKey) {
-        e.preventDefault()
-        handleUndo()
-      }
-    }
-    document.addEventListener('keydown', onKeyDown)
-    return () => document.removeEventListener('keydown', onKeyDown)
-  }, [handleUndo])
+  const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
 
   // 1단계: 워크스페이스 + 보드 목록 로드
   const loadWorkspace = useCallback(async () => {
@@ -120,12 +79,13 @@ export default function GanttPage() {
     if (!selectedBoardId) { setLoading(false); return }
     setLoading(true)
     setGhostDates(null)
-    setUndoStack([])
+    resetStacks()
     setTrashOpen(false)
     Promise.all([getCategories(selectedBoardId), getProjects(selectedBoardId), getDeletedProjectsCount(selectedBoardId)])
       .then(([cats, projs, count]) => { setCategories(cats); setProjects(projs); setTrashCount(count) })
       .catch(console.error)
       .finally(() => setLoading(false))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBoardId])
 
   async function handleToggleGhost(enabled: boolean) {
@@ -135,9 +95,7 @@ export default function GanttPage() {
     setGhostDates(dates)
   }
 
-  const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
-
-  // ── 보드 핸들러 ──────────────────────────────────────────
+  // ── 보드 핸들러 ──────────────────────────────────────────────
 
   async function handleAddBoard(name: string) {
     if (!workspace) return
@@ -156,7 +114,11 @@ export default function GanttPage() {
   }
 
   async function handleDeleteBoard(id: string) {
-    if (!confirm('보드를 삭제하면 모든 카테고리와 프로젝트가 삭제됩니다. 계속할까요?')) return
+    const board = boards.find(b => b.id === id)
+    if (!await showConfirm({
+      title: `'${board?.name ?? '보드'}' 삭제`,
+      description: '보드를 삭제하면 모든 카테고리와 프로젝트가 영구 삭제됩니다. 되돌릴 수 없어요.',
+    })) return
     try {
       await deleteBoard(id)
       setBoards(prev => {
@@ -174,12 +136,7 @@ export default function GanttPage() {
     } catch (e) { toast.error(errMsg(e)) }
   }
 
-  async function handleSelectBoard(id: string) {
-    if (id === selectedBoardId) return
-    setSelectedBoardId(id)
-  }
-
-  // ── 카테고리 핸들러 ───────────────────────────────────────
+  // ── 카테고리 핸들러 ──────────────────────────────────────────
 
   async function handleAddCategory(name: string) {
     if (!workspace || !selectedBoardId) return
@@ -198,7 +155,11 @@ export default function GanttPage() {
   }
 
   async function handleDeleteCategory(id: string) {
-    if (!confirm('카테고리와 포함된 프로젝트를 모두 삭제할까요?')) return
+    const cat = categories.find(c => c.id === id)
+    if (!await showConfirm({
+      title: `'${cat?.name ?? '카테고리'}' 삭제`,
+      description: '포함된 프로젝트도 모두 영구 삭제됩니다. 되돌릴 수 없어요.',
+    })) return
     try {
       await deleteCategory(id)
       setCategories(prev => prev.filter(c => c.id !== id))
@@ -206,7 +167,7 @@ export default function GanttPage() {
     } catch (e) { toast.error(errMsg(e)) }
   }
 
-  // ── 프로젝트 핸들러 ───────────────────────────────────────
+  // ── 프로젝트 핸들러 ──────────────────────────────────────────
 
   async function handleSaveProject(fields: {
     categoryId: string
@@ -217,6 +178,7 @@ export default function GanttPage() {
     end_date: string | null
     team: string | null
     pm: string | null
+    memo: string | null
   }) {
     if (!workspace || !selectedBoardId) return
     try {
@@ -230,6 +192,7 @@ export default function GanttPage() {
           end_date: fields.end_date,
           team: fields.team,
           pm: fields.pm,
+          memo: fields.memo,
         })
         setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
       } else {
@@ -247,10 +210,24 @@ export default function GanttPage() {
   }
 
   async function handleDeleteProject(id: string) {
+    const project = projects.find(p => p.id === id)
     try {
       await softDeleteProject(id)
       setProjects(prev => prev.filter(p => p.id !== id))
       setTrashCount(c => c + 1)
+      toast('휴지통으로 이동했어요', {
+        action: {
+          label: '되돌리기',
+          onClick: async () => {
+            try {
+              const restored = await restoreProject(id)
+              setProjects(prev => [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
+              setTrashCount(c => Math.max(0, c - 1))
+            } catch (e) { toast.error(errMsg(e)) }
+          },
+        },
+        description: project?.name,
+      })
     } catch (e) { toast.error(errMsg(e)) }
   }
 
@@ -317,11 +294,12 @@ export default function GanttPage() {
 
   return (
     <div className="flex flex-1 overflow-hidden">
+      {confirmDialog}
       <BoardSidebar
         open={sidebarOpen}
         boards={boards}
         selectedId={selectedBoardId}
-        onSelect={handleSelectBoard}
+        onSelect={id => { if (id !== selectedBoardId) setSelectedBoardId(id) }}
         onAdd={handleAddBoard}
         onRename={handleRenameBoard}
         onDelete={handleDeleteBoard}
@@ -332,7 +310,6 @@ export default function GanttPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        {/* 간트 전용 thin toolbar */}
         <div className="h-10 border-b bg-white flex items-center px-3 gap-2 shrink-0">
           {!sidebarOpen && (
             <button
@@ -368,8 +345,10 @@ export default function GanttPage() {
               boardName={selectedBoard?.name}
               ghostDates={ghostDates}
               onToggleGhost={handleToggleGhost}
-              undoCount={undoStack.length}
+              undoCount={undoCount}
               onUndo={handleUndo}
+              redoCount={redoCount}
+              onRedo={handleRedo}
               onAddCategory={handleAddCategory}
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
@@ -398,6 +377,7 @@ export default function GanttPage() {
         categories={categories}
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
+        onDelete={id => { handleDeleteProject(id); setDialog(null) }}
       />
 
       <ShareDialog

@@ -41,7 +41,7 @@ export interface ProjectHistoryEntry {
   new_value: string | null
 }
 
-export type TaskStatus = 'backlog' | 'to-do' | 'in-progress' | 'done'
+export type TaskStatus = 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
 export type TaskType   = 'mine' | 'delegated'
 
 export interface GanttTask {
@@ -57,6 +57,7 @@ export interface GanttTask {
   sort_order: number
   created_at: string
   updated_at: string
+  deleted_at: string | null
   // 연결된 프로젝트 (join 후 포함)
   projects?: { id: string; name: string; board_name: string }[]
 }

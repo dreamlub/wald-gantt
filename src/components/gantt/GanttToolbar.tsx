@@ -1,18 +1,20 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Plus, ChevronDown, GitCompare, Undo2, Search } from 'lucide-react'
+import { Plus, ChevronDown, GitCompare, Undo2, Redo2, Search } from 'lucide-react'
 import type { GanttCategory, GanttStatus } from '@/types'
 
-type ViewMode = 'month' | 'week'
+type ViewMode = 'month' | 'week' | 'day'
 type SortMode = 'default' | 'start-asc' | 'end-desc'
 
 interface Props {
   boardName?: string
   readOnly?: boolean
-  // undo
+  // undo / redo
   undoCount?: number
   onUndo?: () => void
+  redoCount?: number
+  onRedo?: () => void
   // search
   searchQuery: string
   onSearchChange: (v: string) => void
@@ -40,7 +42,7 @@ interface Props {
 
 export function GanttToolbar({
   boardName, readOnly,
-  undoCount = 0, onUndo,
+  undoCount = 0, onUndo, redoCount = 0, onRedo,
   searchQuery, onSearchChange,
   allTeams, excludedTeams, onToggleTeam,
   allPMs, excludedPMs, onTogglePM,
@@ -86,6 +88,17 @@ export function GanttToolbar({
           >
             <Undo2 size={13} />
             {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
+          </button>
+        )}
+        {!readOnly && onRedo && (
+          <button
+            onClick={onRedo}
+            disabled={redoCount === 0}
+            title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-gray-400 hover:text-gray-600 hover:bg-gray-100"
+          >
+            <Redo2 size={13} />
+            {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
           </button>
         )}
       </div>
@@ -174,13 +187,13 @@ export function GanttToolbar({
 
         {/* 뷰 모드 */}
         <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
-          {(['month', 'week'] as const).map(mode => (
+          {(['month', 'week', 'day'] as const).map(mode => (
             <button
               key={mode}
               onClick={() => onViewModeChange(mode)}
               className={`px-2 py-1 transition-colors ${viewMode === mode ? 'bg-indigo-50 text-indigo-600 font-medium' : 'text-gray-400 hover:text-gray-600'}`}
             >
-              {mode === 'month' ? '월' : '주'}
+              {mode === 'month' ? '월' : mode === 'week' ? '주' : '일'}
             </button>
           ))}
         </div>
@@ -211,8 +224,11 @@ export function GanttToolbar({
 
         {/* 프로젝트 추가 */}
         {!readOnly && sortedCats.length > 0 && (
-          <button onClick={() => onAddProject(sortedCats[0].id)} className="flex items-center gap-1 text-sm text-indigo-600 hover:text-indigo-700 font-medium">
-            <Plus size={15} /> 프로젝트
+          <button
+            onClick={() => onAddProject(sortedCats[0].id)}
+            className="flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded transition-colors"
+          >
+            <Plus size={13} /> 프로젝트 추가
           </button>
         )}
       </div>

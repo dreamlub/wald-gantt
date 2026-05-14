@@ -1,5 +1,24 @@
 // 'YYYY-MM' 형식 유틸리티
 
+// ── KST(UTC+9) 유틸 ───────────────────────────────────────────
+
+/** KST(UTC+9) 기준 오늘 날짜 문자열 "YYYY-MM-DD" 반환 */
+export function todayStrKST(): string {
+  const d = new Date(Date.now() + 9 * 60 * 60 * 1000)
+  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+}
+
+/** KST(UTC+9) 기준 현재 연도 */
+export function currentYearKST(): number {
+  return new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
+}
+
+/** "YYYY-MM-DD" 문자열을 로컬 자정 Date로 파싱 (UTC midnight 파싱 문제 방지) */
+export function parseDateStr(s: string): Date {
+  const [y, m, d] = s.split('-').map(Number)
+  return new Date(y, m - 1, d)
+}
+
 export function parseYearMonth(ym: string): { year: number; month: number } {
   const [year, month] = ym.split('-').map(Number)
   return { year, month }
@@ -32,8 +51,7 @@ export function monthOffset(viewStart: string, target: string): number {
 }
 
 export function getDefaultViewRange(): { startYM: string; endYM: string } {
-  const now = new Date()
-  const year = now.getFullYear()
+  const year = currentYearKST()
   return {
     startYM: `${year}-01`,
     endYM: `${year}-12`,
@@ -156,4 +174,38 @@ export function weekIndexOfMonth(weeks: WeekInfo[], ym: string, pos: 'first' | '
   let last = -1
   weeks.forEach((w, i) => { if (formatYearMonth(w.year, w.month) === ym) last = i })
   return last
+}
+
+// ── Day view utilities ─────────────────────────────────────
+
+export interface DayInfo {
+  key: string        // 'YYYY-MM-DD'
+  date: Date
+  year: number
+  month: number      // 1-based
+  day: number        // 1-based
+  isWeekend: boolean
+}
+
+/** 주어진 월 범위에 포함되는 모든 날(일요일=0 기준 주말 표시)을 반환 */
+export function buildDayRange(startYM: string, endYM: string): DayInfo[] {
+  const { year: sy, month: sm } = parseYearMonth(startYM)
+  const { year: ey, month: em } = parseYearMonth(endYM)
+  const endDate = new Date(ey, em, 0)  // endYM 마지막 날
+  const result: DayInfo[] = []
+  const cur = new Date(sy, sm - 1, 1)
+  while (cur <= endDate) {
+    const year = cur.getFullYear()
+    const month = cur.getMonth() + 1
+    const day = cur.getDate()
+    const dow = cur.getDay()
+    result.push({
+      key: `${year}-${String(month).padStart(2, '0')}-${String(day).padStart(2, '0')}`,
+      date: new Date(cur),
+      year, month, day,
+      isWeekend: dow === 0 || dow === 6,
+    })
+    cur.setDate(cur.getDate() + 1)
+  }
+  return result
 }

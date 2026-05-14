@@ -154,11 +154,11 @@ export function BoardSidebar({
   return (
     <div
       className="shrink-0 flex flex-col border-r bg-gray-50 overflow-hidden transition-all duration-200"
-      style={{ width: open ? 200 : 0 }}
+      style={{ width: open ? 240 : 0 }}
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-white shrink-0 gap-2">
-        <span className="flex-1 text-[11px] font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
+        <span className="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
         <button
           onClick={onToggle}
           className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"

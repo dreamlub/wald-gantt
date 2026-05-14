@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useConfirm } from '@/hooks/use-confirm'
 import { Link2, Copy, Trash2, Loader2 } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -15,6 +16,7 @@ interface Props {
 }
 
 export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
+  const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
   const [token, setToken]     = useState<string | null>(null)
   const [loading, setLoading] = useState(false)
   const [copied, setCopied]   = useState(false)
@@ -40,7 +42,10 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
   }
 
   async function handleRevoke() {
-    if (!confirm('공유 링크를 삭제하면 기존 링크로 접근할 수 없게 됩니다. 계속할까요?')) return
+    if (!await showConfirm({
+      title: '공유 링크 삭제',
+      description: '기존 링크로 더 이상 접근할 수 없게 돼요.',
+    })) return
     setLoading(true)
     try {
       await deleteShareToken(boardId)
@@ -58,6 +63,8 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
   }
 
   return (
+    <>
+    {confirmDialog}
     <Dialog open={open} onOpenChange={v => !v && onClose()}>
       <DialogContent className="sm:max-w-md">
         <DialogHeader>
@@ -103,5 +110,6 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
         </DialogFooter>
       </DialogContent>
     </Dialog>
+    </>
   )
 }

@@ -323,7 +323,7 @@ export async function getProjectsGhostDates(projectIds: string[]): Promise<Ghost
 
 // ── Tasks ──────────────────────────────────────────────────
 
-/** 워크스페이스의 모든 태스크 (연결된 프로젝트 포함) */
+/** 워크스페이스의 모든 태스크 (연결된 프로젝트 포함, 삭제되지 않은 것만) */
 export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
   const { data, error } = await db()
     .from('gantt_tasks')
@@ -335,7 +335,44 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
       )
     `)
     .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
     .order('sort_order')
+  if (error) throw error
+
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  return (data ?? []).map((row: any) => ({
+    ...row,
+    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+      id: tp.gantt_projects.id,
+      name: tp.gantt_projects.name,
+      board_name: tp.gantt_projects.gantt_boards?.name ?? '',
+    })),
+  }))
+}
+
+export async function getDeletedTasksCount(workspaceId: string): Promise<number> {
+  const { count, error } = await db()
+    .from('gantt_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .not('deleted_at', 'is', null)
+  if (error) throw error
+  return count ?? 0
+}
+
+export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]> {
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .select(`
+      *,
+      gantt_task_projects (
+        project_id,
+        gantt_projects ( id, name, gantt_boards ( name ) )
+      )
+    `)
+    .eq('workspace_id', workspaceId)
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
   if (error) throw error
 
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
@@ -401,8 +438,33 @@ export async function updateTask(
   }
 }
 
-export async function deleteTask(id: string): Promise<void> {
+export async function softDeleteTask(id: string): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function restoreTask(id: string): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ deleted_at: null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+export async function permanentDeleteTask(id: string): Promise<void> {
   const { error } = await db().from('gantt_tasks').delete().eq('id', id)
+  if (error) throw error
+}
+
+export async function emptyTaskTrash(workspaceId: string): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .delete()
+    .eq('workspace_id', workspaceId)
+    .not('deleted_at', 'is', null)
   if (error) throw error
 }
 

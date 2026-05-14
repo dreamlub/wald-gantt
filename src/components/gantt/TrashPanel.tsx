@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, Trash2, RotateCcw } from 'lucide-react'
+import { useConfirm } from '@/hooks/use-confirm'
 import { getDeletedProjects, restoreProject, permanentDeleteProject, emptyTrash } from '@/lib/gantt-service'
 import type { GanttProject, GanttCategory } from '@/types'
 
@@ -20,6 +21,7 @@ function formatDate(iso: string): string {
 }
 
 export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Props) {
+  const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
   const [deleted, setDeleted] = useState<GanttProject[]>([])
   const [loading, setLoading] = useState(false)
 
@@ -39,13 +41,20 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
   }
 
   async function handlePermanentDelete(id: string) {
-    if (!confirm('영구 삭제하면 복원할 수 없습니다. 계속할까요?')) return
+    const project = deleted.find(p => p.id === id)
+    if (!await showConfirm({
+      title: `'${project?.name ?? '프로젝트'}' 영구 삭제`,
+      description: '영구 삭제하면 복원할 수 없어요.',
+    })) return
     await permanentDeleteProject(id)
     setDeleted(prev => prev.filter(p => p.id !== id))
   }
 
   async function handleEmptyTrash() {
-    if (!confirm(`휴지통을 비우면 ${deleted.length}개 항목이 영구 삭제됩니다. 계속할까요?`)) return
+    if (!await showConfirm({
+      title: '휴지통 비우기',
+      description: `${deleted.length}개 항목이 영구 삭제됩니다. 되돌릴 수 없어요.`,
+    })) return
     await emptyTrash(boardId)
     setDeleted([])
   }
@@ -54,6 +63,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
 
   return (
     <>
+      {confirmDialog}
       <div className="fixed inset-0 z-40" onClick={onClose} />
       <div className="fixed right-0 top-0 h-full w-80 bg-white border-l shadow-xl z-50 flex flex-col">
         {/* 헤더 */}
