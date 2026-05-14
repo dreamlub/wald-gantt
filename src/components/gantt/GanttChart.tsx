@@ -917,7 +917,7 @@ export function GanttChart({
               {/* 연도 행 */}
               <div className="flex border-b" style={{ height: YEAR_H }}>
                 {yearGroups.map(({ year, count }) => (
-                  <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r" style={{ width: colW * count }}>
+                  <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r bg-gray-50" style={{ width: colW * count }}>
                     {year}
                   </div>
                 ))}
@@ -964,10 +964,10 @@ export function GanttChart({
                     return (
                       <div
                         key={w.key}
-                        className={`text-center border-r shrink-0 flex items-center justify-center text-[9px] font-medium ${isToday ? 'text-red-400 font-bold' : 'text-gray-300'}`}
+                        className={`text-center border-r shrink-0 flex items-center justify-center text-[10px] font-medium ${isToday ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-gray-400'}`}
                         style={{ width: colW }}
                       >
-                        {w.label}
+                        {`${w.weekStart.getMonth() + 1}/${w.weekStart.getDate()}`}
                       </div>
                     )
                   })

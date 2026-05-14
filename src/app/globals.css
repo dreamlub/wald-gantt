@@ -127,6 +127,10 @@
   html {
     @apply font-sans;
   }
+  button {
+    -webkit-font-smoothing: inherit;
+    -moz-osx-font-smoothing: inherit;
+  }
 }
 
 [data-sonner-toaster],

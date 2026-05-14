@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { CalendarIcon, ChevronDown, X } from 'lucide-react'
@@ -87,6 +87,11 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const [pm, setPm]                 = useState('')
   const [memo, setMemo]             = useState('')
   const [loading, setLoading]       = useState(false)
+  const nameRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (open) setTimeout(() => nameRef.current?.focus(), 50)
+  }, [open])
 
   useEffect(() => {
     if (editProject) {
@@ -157,7 +162,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
           {/* 이름 */}
           <input
-            autoFocus
+            ref={nameRef}
             className="w-full text-sm font-medium text-gray-800 border-b border-gray-200 focus:border-indigo-400 outline-none pb-1 placeholder:text-gray-300"
             placeholder="프로젝트 이름"
             value={name}
@@ -278,7 +283,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <button
             onClick={handleSave}
             disabled={!isValid || loading}
-            className="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? '저장 중...' : editProject ? '수정' : '저장'}
           </button>
