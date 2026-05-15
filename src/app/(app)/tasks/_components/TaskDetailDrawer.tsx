@@ -1,13 +1,14 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import type { GanttTask, TaskStatus, TaskType } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
 import { fmtDate } from '../_utils'
+import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '../_constants'
 
 interface ProjectOption {
   id: string
@@ -81,18 +82,69 @@ interface Props {
   onClose: () => void
   onSave: (
     task: GanttTask,
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[] },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority },
     projectIds: string[]
   ) => Promise<void>
   onDelete: (id: string) => void
   onAddSubTask: (parentId: string, status: TaskStatus) => void
   onStatusChange: (id: string, s: TaskStatus) => void
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
+  assigneeSuggestions?: string[]
 }
 
-export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDelete, onAddSubTask, onStatusChange, onSearchProjects }: Props) {
+// ── AutocompleteInput ────────────────────────────────────────
+function AutocompleteInput({ value, onChange, suggestions, placeholder, className }: {
+  value: string
+  onChange: (v: string) => void
+  suggestions: string[]
+  placeholder?: string
+  className?: string
+}) {
+  const [acOpen, setAcOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
+  const close = useCallback(() => setAcOpen(false), [])
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [close])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        className={className}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => { onChange(e.target.value); setAcOpen(true) }}
+        onFocus={() => setAcOpen(true)}
+        onKeyDown={e => { if (e.key === 'Escape') close() }}
+        autoComplete="off"
+      />
+      {acOpen && filtered.length > 0 && (
+        <ul className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto">
+          {filtered.map(s => (
+            <li
+              key={s}
+              onPointerDown={e => { e.preventDefault(); onChange(s); close() }}
+              className="px-2.5 py-1.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
+}
+
+export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDelete, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
   const [title,      setTitle]      = useState('')
   const [status,     setStatus]     = useState<TaskStatus>('to-do')
+  const [priority,   setPriority]   = useState<Priority>(2)
   const [assignee,   setAssignee]   = useState('')
   const [startDate,  setStartDate]  = useState<Date | undefined>()
   const [dueDate,    setDueDate]    = useState<Date | undefined>()
@@ -123,6 +175,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     if (!open || !task) return
     setTitle(task.title)
     setStatus(task.status)
+    setPriority(task.priority ?? 0)
     setAssignee(task.assignee ?? '')
     setStartDate(toDate(task.start_date))
     setDueDate(toDate(task.due_date))
@@ -164,6 +217,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
         due_date: toDateStr(dueDate),
         memo: memo.trim() || null,
         labels,
+        priority,
       }, linkedProjects.map(p => p.id))
       onClose()
     } finally {
@@ -260,11 +314,12 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
             </div>
             <div className="flex-1">
               <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당자</label>
-              <input
+              <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
                 placeholder="이름 (없으면 내 할일)"
                 value={assignee}
-                onChange={e => setAssignee(e.target.value)}
+                onChange={setAssignee}
+                suggestions={assigneeSuggestions}
               />
             </div>
           </div>
@@ -295,6 +350,32 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                   if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
                 }}
               />
+            </div>
+          </div>
+
+          {/* 우선순위 */}
+          <div>
+            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
+            <div className="flex items-center gap-1 mt-1.5">
+              {PRIORITY_OPTIONS.map(opt => {
+                const meta = PRIORITY_META[opt.value]
+                const active = priority === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPriority(opt.value)}
+                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
+                      ${active
+                        ? 'font-medium border-current'
+                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                    style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
+                  >
+                    {opt.value > 0 && <PriorityBars priority={opt.value} />}
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

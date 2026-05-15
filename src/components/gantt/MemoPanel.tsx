@@ -30,7 +30,7 @@ export function MemoPanel({ project, onClose, onSave }: Props) {
     await onSave(project.id, value)
     setSaving(false)
     setSaved(true)
-    setTimeout(() => setSaved(false), 1500)
+    setTimeout(() => { setSaved(false); onClose() }, 800)
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
@@ -45,7 +45,7 @@ export function MemoPanel({ project, onClose, onSave }: Props) {
   return (
     <>
       <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-80 bg-white border-l shadow-xl z-50 flex flex-col">
+      <div className="fixed right-0 top-0 h-full w-[480px] bg-white border-l shadow-xl z-50 flex flex-col">
         {/* 헤더 */}
         <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
           <StickyNote size={14} className="text-gray-400 shrink-0" />

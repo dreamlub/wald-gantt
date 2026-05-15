@@ -2,13 +2,14 @@
 
 import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Pencil, Trash2, Paperclip, StickyNote,
+  Circle, CheckCircle2, GripVertical, Trash2, Paperclip, StickyNote,
 } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtDate, relativeTime, isOverdue, overdueDays, daysDiff } from '../_utils'
+import { fmtDate, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { labelColor } from './TaskDetailDrawer'
+import { PriorityBars } from '../_constants'
 
 interface TaskRowProps {
   task: GanttTask
@@ -90,7 +91,7 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         )}
 
         {/* 라벨 */}
-        {labels.slice(0, 2).map(l => (
+        {labels.slice(0, 4).map(l => (
           <span
             key={l}
             className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
@@ -99,7 +100,7 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             {l}
           </span>
         ))}
-        {labels.length > 2 && <span className="text-[10px] text-gray-400 shrink-0">+{labels.length - 2}</span>}
+        {labels.length > 4 && <span className="text-[10px] text-gray-400 shrink-0">+{labels.length - 4}</span>}
 
         {/* 하위 태스크 진행 뱃지 */}
         {subTaskStats && subTaskStats.total > 0 && (
@@ -136,8 +137,13 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
 
       </div>
 
-      {/* 메모 컬럼 — 간트 차트와 동일 */}
-      <div className="w-16 shrink-0 flex items-center justify-start relative">
+      {/* 우선순위 컬럼 */}
+      <div className="w-16 shrink-0 flex items-center">
+        <PriorityBars priority={task.priority} showLabel />
+      </div>
+
+      {/* 메모 컬럼 */}
+      <div className="w-10 shrink-0 flex items-center justify-start relative">
         <button
           onClick={() => onEdit(task)}
           onMouseEnter={task.memo ? e => {
@@ -174,9 +180,6 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
           </>
         )}
       </button>
-      <button onClick={() => onEdit(task)} className="w-20 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
-        {relativeTime(task.updated_at)}
-      </button>
       <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
         {fmtDate(task.start_date ?? null)}
       </button>
@@ -186,12 +189,6 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
       <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
         {fmtDate(task.created_at)}
       </button>
-      {/* 우측 액션: 편집만 (삭제는 인라인으로 이동) */}
-      <div className="shrink-0 flex items-center justify-end opacity-0 group-hover:opacity-100 transition-opacity w-6">
-        <button onClick={() => onEdit(task)} className="p-1 text-gray-300 hover:text-indigo-500 rounded" title="상세 보기">
-          <Pencil size={11} />
-        </button>
-      </div>
     </div>
   )
 }

@@ -14,7 +14,7 @@ const geistMono = Geist_Mono({
 });
 
 export const metadata: Metadata = {
-  title: "Wald Gantt",
+  title: "Wald Task Manager",
   description: "프로젝트 일정 관리",
 };
 

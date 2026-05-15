@@ -16,19 +16,18 @@ import {
   getOrCreateWorkspace, getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, searchProjects,
 } from '@/lib/gantt-service'
-import type { GanttTask, TaskStatus, TaskType, Workspace } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority, Workspace } from '@/types'
 import { todayStrKST } from '@/lib/gantt-utils'
 
 import { STATUS_GROUPS, PROJECT_COLORS, ASSIGNEE_COLORS, VIEW_TABS, type ViewType } from './_constants'
-import { isOverdue, isDueThisWeek, overdueDays, daysDiff, toKSTDateStr, weekStart } from './_utils'
+import { isOverdue, isDueThisWeek, overdueDays, daysDiff, toKSTDateStr } from './_utils'
 import { MiniCalendar } from './_components/MiniCalendar'
-import { SummaryCard } from './_components/SummaryCard'
 import { TaskRow, DraggableTaskRow, DroppableGroup } from './_components/TaskRow'
 import { ListView } from './_components/ListView'
 import { CalendarView } from './_components/CalendarView'
 import { GanttView } from './_components/GanttView'
 import { KanbanView } from './_components/KanbanView'
-import { TaskDetailDrawer } from './_components/TaskDetailDrawer'
+import { TaskDetailDrawer, labelColor } from './_components/TaskDetailDrawer'
 
 export default function TasksPage() {
   const [workspace,      setWorkspace]      = useState<Workspace | null>(null)
@@ -40,6 +39,7 @@ export default function TasksPage() {
   const [collapsed,      setCollapsed]      = useState<Set<string>>(new Set<string>())
   const [filterProject,  setFilterProject]  = useState<string | null>(null)
   const [filterAssignee, setFilterAssignee] = useState<string | null>(null)
+  const [filterLabel,    setFilterLabel]    = useState<string | null>(null)
   const [quickFilter,    setQuickFilter]    = useState<'all' | 'overdue' | 'due-this-week' | 'due-today'>('all')
   const [defaultStatus,  setDefaultStatus]  = useState<TaskStatus>('to-do')
   const [assigneeSearch, setAssigneeSearch] = useState('')
@@ -47,6 +47,7 @@ export default function TasksPage() {
   const [selectedDate,   setSelectedDate]   = useState<string | null>(null)
   const [trashOpen,      setTrashOpen]      = useState(false)
   const [trashCount,     setTrashCount]     = useState(0)
+  const [searchQuery,    setSearchQuery]    = useState('')
   const [draggingTask,   setDraggingTask]   = useState<GanttTask | null>(null)
   const [pendingParentId, setPendingParentId] = useState<string | null>(null)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
@@ -77,7 +78,7 @@ export default function TasksPage() {
   useEffect(() => { load() }, [load])
 
   async function handleSave(
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority },
     projectIds: string[]
   ) {
     if (!workspace) return
@@ -91,7 +92,7 @@ export default function TasksPage() {
 
   async function handleDrawerSave(
     task: GanttTask,
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[] },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority },
     projectIds: string[]
   ) {
     try {
@@ -195,13 +196,9 @@ export default function TasksPage() {
   const todayStr           = todayStrKST()
   const overdueCount       = tasks.filter(t => isOverdue(t.due_date, t.status)).length
   const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
-  const completedThisWeek  = tasks.filter(t => t.status === 'done' && new Date(t.updated_at) >= weekStart()).length
   const inProgressCount    = tasks.filter(t => t.status === 'in-progress').length
   const dueTodayCount      = tasks.filter(t => t.due_date === todayStr && t.status !== 'done').length
-  const dueTodayOverdue    = tasks.filter(t => t.due_date === todayStr && isOverdue(t.due_date, t.status)).length
   const todoCount          = tasks.filter(t => t.status === 'to-do').length
-  const backlogCount       = tasks.filter(t => t.status === 'backlog').length
-  const activeCount        = todoCount + inProgressCount
 
   // ── 사이드바 데이터 ──────────────────────────────────────────
   const projectMap = new Map<string, { name: string; count: number; colorIdx: number }>()
@@ -232,6 +229,10 @@ export default function TasksPage() {
     return t.type === 'mine' ? '__mine__' : (t.assignee ?? '')
   }
 
+  const labelMap = new Map<string, number>()
+  tasks.forEach(t => (t.labels ?? []).forEach(l => labelMap.set(l, (labelMap.get(l) ?? 0) + 1)))
+  const sidebarLabels = [...labelMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
+
   const taskCreatedDateSet = new Set(tasks.map(t => toKSTDateStr(t.created_at)))
 
   // ── 필터링 ───────────────────────────────────────────────────
@@ -242,9 +243,19 @@ export default function TasksPage() {
     if (filterAssignee === '__mine__') filtered = filtered.filter(t => t.type === 'mine')
     else filtered = filtered.filter(t => t.assignee === filterAssignee)
   }
+  if (filterLabel)     filtered = filtered.filter(t => (t.labels ?? []).includes(filterLabel))
   if (quickFilter === 'overdue')       filtered = filtered.filter(t => isOverdue(t.due_date, t.status))
   if (quickFilter === 'due-this-week') filtered = filtered.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done')
   if (quickFilter === 'due-today')     filtered = filtered.filter(t => t.due_date === todayStr && t.status !== 'done')
+  if (searchQuery.trim()) {
+    const q = searchQuery.toLowerCase()
+    filtered = filtered.filter(t =>
+      t.title.toLowerCase().includes(q) ||
+      (t.assignee ?? '').toLowerCase().includes(q) ||
+      (t.memo ?? '').toLowerCase().includes(q) ||
+      (t.labels ?? []).some(l => l.toLowerCase().includes(q))
+    )
+  }
 
   const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status) && !t.parent_id)
   const overdueIds   = new Set(overdueGroup.map(t => t.id))
@@ -364,6 +375,32 @@ export default function TasksPage() {
               </button>
             ))}
           </div>
+
+          {/* 라벨 */}
+          {sidebarLabels.length > 0 && (
+            <div className="mt-3">
+              <div className="px-2 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">라벨</div>
+              <div className="flex flex-wrap gap-1 px-2">
+                {sidebarLabels.map(l => {
+                  const active = filterLabel === l.name
+                  const bg = labelColor(l.name)
+                  return (
+                    <button
+                      key={l.name}
+                      onClick={() => { setFilterLabel(active ? null : l.name); setFilterProject(null); setFilterAssignee(null) }}
+                      className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full transition-all ${
+                        active ? 'text-white ring-2 ring-offset-1' : 'text-white opacity-75 hover:opacity-100'
+                      }`}
+                      style={{ backgroundColor: bg, ...(active ? { ringColor: bg } : {}) }}
+                    >
+                      # {l.name}
+                      <span className={`text-[9px] ${active ? 'text-white/80' : 'text-white/60'}`}>{l.count}</span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          )}
         </div>
 
         {/* 캘린더 */}
@@ -395,14 +432,6 @@ export default function TasksPage() {
       {/* ── 메인 콘텐츠 ──────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* KPI 카드 */}
-        <div className="grid grid-cols-4 gap-3 p-4 border-b bg-gray-50 shrink-0">
-          <SummaryCard title="지연 태스크" value={overdueCount} sub={overdueCount > 0 ? `평균 ${avgOverdueDays}일 지연` : '없음'} borderColor="#ef4444" />
-          <SummaryCard title="미완료" value={activeCount} sub={backlogCount > 0 ? `백로그 ${backlogCount}건 대기 중` : '백로그 없음'} borderColor="#6366f1" />
-          <SummaryCard title="오늘 마감" value={dueTodayCount} sub={dueTodayOverdue > 0 ? `${dueTodayOverdue}건 지연 포함` : dueTodayCount > 0 ? '오늘 처리 필요' : '없음'} borderColor="#f59e0b" />
-          <SummaryCard title="이번 주 완료" value={completedThisWeek} sub={`진행 중 ${inProgressCount}건`} borderColor="#22c55e" />
-        </div>
-
         {/* 액션 바 */}
         <div className="flex items-center border-b bg-white shrink-0 px-4 py-2 gap-2">
           {!sidebarOpen && (
@@ -430,6 +459,26 @@ export default function TasksPage() {
                 {tab.label}
               </button>
             ))}
+          </div>
+
+          {/* 검색 */}
+          <div className="relative ml-2">
+            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+            <input
+              type="text"
+              placeholder="검색..."
+              value={searchQuery}
+              onChange={e => setSearchQuery(e.target.value)}
+              className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md w-44 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 placeholder-gray-300 bg-white"
+            />
+            {searchQuery && (
+              <button
+                onClick={() => setSearchQuery('')}
+                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+              >
+                <span className="text-xs">✕</span>
+              </button>
+            )}
           </div>
 
           <div className="ml-auto">
@@ -505,13 +554,12 @@ export default function TasksPage() {
             <div className="flex items-center px-4 py-2 border-b bg-gray-50 shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
               <div className="w-5 shrink-0 mr-3" />
               <div className="flex-1 mr-4">태스크</div>
-              <div className="w-16 shrink-0">메모</div>
+              <div className="w-16 shrink-0">우선순위</div>
+              <div className="w-10 shrink-0">메모</div>
               <div className="w-28 shrink-0">담당자</div>
-              <div className="w-20 shrink-0">최근 업데이트</div>
               <div className="w-14 shrink-0">시작일</div>
               <div className="w-14 shrink-0">마감일</div>
               <div className="w-14 shrink-0">지시일</div>
-              <div className="w-12 shrink-0" />
             </div>
 
             {filtered.length === 0 ? (
@@ -646,6 +694,7 @@ export default function TasksPage() {
         defaultStatus={defaultStatus}
         defaultProjects={pendingDefaultProjects}
         onSearchProjects={handleSearch}
+        assigneeSuggestions={allAssignees.map(a => a.label).filter(Boolean)}
       />
 
       <TaskDetailDrawer
@@ -658,6 +707,7 @@ export default function TasksPage() {
         onAddSubTask={openAddSubTask}
         onStatusChange={handleStatusChange}
         onSearchProjects={handleSearch}
+        assigneeSuggestions={allAssignees.map(a => a.label).filter(Boolean)}
       />
 
       <TaskTrashPanel

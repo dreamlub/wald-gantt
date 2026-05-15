@@ -18,7 +18,8 @@ import {
   buildWeekRange, dayOffset, dayOffsetInWeeks, buildDayRange,
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
-import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import type { GanttCategory, GanttProject, GanttStatus, Priority } from '@/types'
+import { PriorityBars } from '@/app/(app)/tasks/_constants'
 import type { GhostDates } from '@/lib/gantt-service'
 
 interface Props {
@@ -45,6 +46,7 @@ interface Props {
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
+  onMoveCategory: (updates: { id: string; sort_order: number }[]) => Promise<void>
   readOnly?: boolean
 }
 
@@ -61,7 +63,6 @@ const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
 const CAT_ROW_H       = 32
 const PROJ_ROW_H      = 36
 const PROJ_ROW_H_CMP  = 56
-const ADD_ROW_H   = 24
 
 const PASTEL_COLORS = [
   '#a5b4fc', '#fdba74', '#86efac', '#93c5fd',
@@ -109,6 +110,25 @@ function SortableProjRow({ id, disabled, children }: {
   )
 }
 
+// ── Sortable category row shell ──────────────────────────────
+function SortableCatRow({ id, disabled, children }: {
+  id: string
+  disabled?: boolean
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode
+}) {
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
+  return (
+    <div
+      ref={setNodeRef}
+      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
+      {...attributes}
+    >
+      {children({ listeners, isDragging })}
+    </div>
+  )
+}
+
 // ── GanttChart ────────────────────────────────────────────────
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
@@ -116,7 +136,7 @@ export function GanttChart({
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onShowHistory, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
-  onMoveProject, readOnly = false,
+  onMoveProject, onMoveCategory, readOnly = false,
 }: Props) {
   const months = buildMonthRange(viewStart, viewEnd)
   const leftRef         = useRef<HTMLDivElement>(null)
@@ -130,13 +150,14 @@ export function GanttChart({
   const [editCatVal, setEditCatVal]         = useState('')
   const [addingCat, setAddingCat]           = useState(false)
   const [newCatName, setNewCatName]         = useState('')
-  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc'>('default')
+  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>('default')
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
   const [ghostEnabled, setGhostEnabled]   = useState(false)
   const [searchQuery, setSearchQuery]       = useState('')
   const [activeId, setActiveId]             = useState<string | null>(null)
   const [liveItems, setLiveItems]           = useState<Record<string, string[]> | null>(null)
+  const [liveCats, setLiveCats]             = useState<string[] | null>(null)
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
 
   const sensors = useSensors(
@@ -168,7 +189,11 @@ export function GanttChart({
 
   const allTeams   = [...new Set(projects.map(p => p.team || ''))].sort()
   const allPMs     = [...new Set(projects.map(p => p.pm || ''))].sort()
-  const sortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
+  const catIdSet   = new Set(categories.map(c => c.id))
+  const isCatDrag  = (id: string) => catIdSet.has(id)
+  const sortedCats = liveCats
+    ? liveCats.map(id => categories.find(c => c.id === id)!).filter(Boolean)
+    : [...categories].sort((a, b) => a.sort_order - b.sort_order)
 
   const projectsOf = (catId: string): GanttProject[] => {
     let base: GanttProject[]
@@ -194,6 +219,8 @@ export function GanttChart({
         return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
       if (sortMode === 'end-desc')
         return [...base].sort((a, b) => (a.end_date ?? '') > (b.end_date ?? '') ? -1 : 1)
+      if (sortMode === 'priority-desc')
+        return [...base].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
       return [...base].sort((a, b) => a.sort_order - b.sort_order)
     }
 
@@ -332,7 +359,7 @@ export function GanttChart({
     })
   }
 
-  // ── 프로젝트 행 DnD (dnd-kit) ────────────────────────────
+  // ── 프로젝트/카테고리 행 DnD (dnd-kit) ─────────────────────
   function findContainer(items: Record<string, string[]>, id: string): string | undefined {
     if (id in items) return id
     for (const [catId, ids] of Object.entries(items)) {
@@ -343,15 +370,22 @@ export function GanttChart({
 
   function handleProjDragStart({ active }: DragStartEvent) {
     const id = active.id as string
-    setActiveId(id)
-    const initial: Record<string, string[]> = {}
-    for (const cat of sortedCats) {
-      initial[cat.id] = projects
-        .filter(p => p.category_id === cat.id)
-        .sort((a, b) => a.sort_order - b.sort_order)
-        .map(p => p.id)
+    if (isCatDrag(id)) {
+      // 카테고리 드래그
+      setActiveId(id)
+      setLiveCats(sortedCats.map(c => c.id))
+    } else {
+      // 프로젝트 드래그
+      setActiveId(id)
+      const initial: Record<string, string[]> = {}
+      for (const cat of sortedCats) {
+        initial[cat.id] = projects
+          .filter(p => p.category_id === cat.id)
+          .sort((a, b) => a.sort_order - b.sort_order)
+          .map(p => p.id)
+      }
+      setLiveItems(initial)
     }
-    setLiveItems(initial)
   }
 
   function handleProjDragOver({ active, over }: DragOverEvent) {
@@ -359,6 +393,19 @@ export function GanttChart({
     const aid = active.id as string
     const oid = over.id as string
 
+    if (isCatDrag(aid)) {
+      // 카테고리 재정렬
+      setLiveCats(prev => {
+        if (!prev) return prev
+        const oldIdx = prev.indexOf(aid)
+        const newIdx = prev.indexOf(oid)
+        if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return prev
+        return arrayMove(prev, oldIdx, newIdx)
+      })
+      return
+    }
+
+    // 프로젝트 재정렬
     setLiveItems(prev => {
       if (!prev) return prev
       const activeContainer = findContainer(prev, aid)
@@ -384,15 +431,30 @@ export function GanttChart({
   }
 
   async function handleProjDragEnd({ active }: DragEndEvent) {
+    const id = active.id as string
+
+    if (isCatDrag(id) && liveCats) {
+      setActiveId(null)
+      const updates = liveCats
+        .map((catId, i) => ({ id: catId, sort_order: i }))
+        .filter(u => {
+          const cat = categories.find(c => c.id === u.id)
+          return cat && cat.sort_order !== u.sort_order
+        })
+      setLiveCats(null)
+      if (updates.length > 0) await onMoveCategory(updates)
+      return
+    }
+
     setActiveId(null)
     if (!liveItems) return
 
     const updates: { id: string; category_id: string; sort_order: number }[] = []
     for (const [catId, ids] of Object.entries(liveItems)) {
-      ids.forEach((id, i) => {
-        const proj = projects.find(p => p.id === id)
+      ids.forEach((projId, i) => {
+        const proj = projects.find(p => p.id === projId)
         if (proj && (proj.category_id !== catId || proj.sort_order !== i))
-          updates.push({ id, category_id: catId, sort_order: i })
+          updates.push({ id: projId, category_id: catId, sort_order: i })
       })
     }
 
@@ -403,6 +465,7 @@ export function GanttChart({
   function handleProjDragCancel() {
     setActiveId(null)
     setLiveItems(null)
+    setLiveCats(null)
   }
 
   // ── 바 드래그 핸들러 (월/주 뷰 공통) ────────────────────
@@ -523,13 +586,23 @@ export function GanttChart({
 
     if (forPanel === 'left') {
       return (
-        <div key={cat.id} data-row>
+        <SortableCatRow key={cat.id} id={cat.id} disabled={readOnly}>
+          {({ listeners }) => (
+        <div data-row>
           {/* 카테고리 헤더 — 왼쪽 */}
           <div
             className="flex items-center group border-b"
             style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
           >
-            <div className="flex items-center gap-2 pl-3 pr-2 w-full">
+            {!readOnly && (
+              <div
+                {...listeners}
+                className="pl-1.5 pr-0.5 flex items-center self-stretch cursor-grab text-gray-300 hover:text-gray-500 shrink-0"
+              >
+                <GripVertical size={13} />
+              </div>
+            )}
+            <div className={`flex items-center gap-2 ${readOnly ? 'pl-3' : 'pl-1'} pr-2 w-full min-w-0`}>
               {editCatId === cat.id ? (
                 <input
                   autoFocus
@@ -595,6 +668,12 @@ export function GanttChart({
                           <span className="text-[8px]">●</span>
                           <span>{sm.abbr}</span>
                         </button>
+                        {/* 우선순위 */}
+                        {project.priority > 0 && (
+                          <span className="shrink-0">
+                            <PriorityBars priority={project.priority as Priority} />
+                          </span>
+                        )}
                         {/* 프로젝트 이름 */}
                         <span
                           className="text-xs font-medium text-gray-800 truncate flex-1 min-w-0 cursor-pointer hover:text-indigo-600"
@@ -639,7 +718,7 @@ export function GanttChart({
 
           {/* 프로젝트 추가 행 — 왼쪽 */}
           {!readOnly && (
-            <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }}>
+            <div className="border-b border-gray-50" style={{ height: PROJ_ROW_H }}>
               <button
                 onClick={() => onAddProject(cat.id)}
                 className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
@@ -649,6 +728,8 @@ export function GanttChart({
             </div>
           )}
         </div>
+          )}
+        </SortableCatRow>
       )
     }
 
@@ -767,13 +848,14 @@ export function GanttChart({
         })}
 
         {/* 프로젝트 추가 행 — 오른쪽 */}
-        <div className="border-b border-gray-50" style={{ height: ADD_ROW_H }} />
+        <div className="border-b border-gray-50" style={{ height: PROJ_ROW_H }} />
       </div>
     )
   }
 
-  // DragOverlay 내용: 드래그 중인 프로젝트 행 미리보기
-  const activeProjForOverlay = activeId ? projects.find(p => p.id === activeId) : null
+  // DragOverlay 내용: 드래그 중인 행 미리보기
+  const activeCatForOverlay  = activeId && isCatDrag(activeId) ? categories.find(c => c.id === activeId) : null
+  const activeProjForOverlay = activeId && !isCatDrag(activeId) ? projects.find(p => p.id === activeId) : null
 
   return (
     <div className="flex flex-col h-full bg-white">
@@ -838,15 +920,57 @@ export function GanttChart({
                     onDoubleClick={() => setAddingCat(true)}
                   >
                     <span>카테고리를 추가해 보세요</span>
-                    <span className="text-[10px] text-gray-300">더블클릭 또는 하단 버튼</span>
+                    <span className="text-[10px] text-gray-300">우측 상단 버튼 또는 더블클릭</span>
                   </div>
                 )}
-                {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
+                <SortableContext items={sortedCats.map(c => c.id)} strategy={verticalListSortingStrategy}>
+                  {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
+                </SortableContext>
+
+                {/* 마지막 카테고리 바로 아래: 카테고리 추가 */}
+                {!readOnly && (
+                  addingCat ? (
+                    <div
+                      className="flex items-center gap-2 px-3 border-b"
+                      style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: '3px solid #6366f1' }}
+                    >
+                      <input
+                        autoFocus
+                        className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
+                        placeholder="카테고리명"
+                        value={newCatName}
+                        onChange={e => setNewCatName(e.target.value)}
+                        onKeyDown={e => { if (e.key === 'Enter') submitAddCat(); if (e.key === 'Escape') { setAddingCat(false); setNewCatName('') } }}
+                      />
+                      <button onClick={submitAddCat} className="p-0.5 text-indigo-500 hover:text-indigo-700"><Check size={13} /></button>
+                      <button onClick={() => { setAddingCat(false); setNewCatName('') }} className="p-0.5 text-gray-400 hover:text-gray-600"><X size={13} /></button>
+                    </div>
+                  ) : (
+                    <button
+                      onClick={() => setAddingCat(true)}
+                      className="w-full flex items-center gap-1.5 px-3 text-xs text-gray-400 hover:text-indigo-500 hover:bg-gray-50 transition-colors border-b"
+                      style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: '3px solid transparent' }}
+                    >
+                      <Plus size={12} /> 카테고리
+                    </button>
+                  )
+                )}
+
               </div>
 
               {/* DragOverlay: 드래그 중인 행의 커서 따라가는 미리보기 */}
               <DragOverlay dropAnimation={null}>
-                {activeProjForOverlay ? (() => {
+                {activeCatForOverlay ? (
+                  <div
+                    className="flex items-center gap-1.5 border border-indigo-300 bg-gray-50 shadow-xl rounded px-2 cursor-grabbing"
+                    style={{ height: CAT_ROW_H, width: leftWidth - 4, opacity: 0.95, borderLeft: `3px solid ${activeCatForOverlay.color}` }}
+                  >
+                    <GripVertical size={13} className="text-gray-400 shrink-0" />
+                    <span className="text-xs font-bold text-gray-700 truncate flex-1">
+                      {activeCatForOverlay.name}
+                    </span>
+                  </div>
+                ) : activeProjForOverlay ? (() => {
                   const sm = STATUS_META[activeProjForOverlay.status]
                   return (
                     <div
@@ -870,31 +994,8 @@ export function GanttChart({
               </DragOverlay>
             </DndContext>
 
-            {/* 하단 고정: 카테고리 추가 버튼 or 인라인 입력 */}
-            {!readOnly && <div className="shrink-0 border-t bg-white">
-              {addingCat ? (
-                <div className="flex items-center gap-2 px-3 h-9">
-                  <input
-                    autoFocus
-                    className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
-                    placeholder="카테고리명"
-                    value={newCatName}
-                    onChange={e => setNewCatName(e.target.value)}
-                    onKeyDown={e => { if (e.key === 'Enter') submitAddCat(); if (e.key === 'Escape') { setAddingCat(false); setNewCatName('') } }}
-                  />
-                  <button onClick={submitAddCat} className="p-0.5 text-indigo-500 hover:text-indigo-700"><Check size={13} /></button>
-                  <button onClick={() => { setAddingCat(false); setNewCatName('') }} className="p-0.5 text-gray-400 hover:text-gray-600"><X size={13} /></button>
-                </div>
-              ) : (
-                <button
-                  onClick={() => setAddingCat(true)}
-                  className="w-full h-9 flex items-center gap-1.5 px-3 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-50 transition-colors"
-                >
-                  <Plus size={13} /> 카테고리 추가
-                </button>
-              )}
-            </div>}
           </div>
+
         </div>
 
         {/* ── 리사이즈 핸들 ───────────────────────────────── */}
@@ -1003,31 +1104,15 @@ export function GanttChart({
               {todayX !== null && (
                 <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
               )}
-              {/* 컬럼 그리드 라인 */}
-              {viewMode === 'month' ? (
-                months.map((ym, i) => (
-                  <div key={ym} className="absolute top-0 bottom-0 border-r border-gray-100 pointer-events-none" style={{ left: i * colW, width: colW }} />
-                ))
-              ) : viewMode === 'week' ? (
-                weeks.map((w, i) => (
-                  <div
-                    key={w.key}
-                    className={`absolute top-0 bottom-0 pointer-events-none border-r ${w.weekInMonth === 1 ? 'border-gray-200' : 'border-gray-100'}`}
-                    style={{ left: i * colW, width: colW }}
-                  />
-                ))
-              ) : (
-                days.map((d, i) => (
-                  <div
-                    key={d.key}
-                    className={`absolute top-0 bottom-0 pointer-events-none border-r ${
-                      d.day === 1 ? 'border-gray-300' : d.isWeekend ? 'bg-gray-50/50 border-gray-200' : 'border-gray-100'
-                    }`}
-                    style={{ left: i * colW, width: colW }}
-                  />
-                ))
-              )}
               {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'right'))}
+
+              {/* 카테고리 추가 행 — 오른쪽 음영 */}
+              {!readOnly && (
+                <div
+                  className="border-b"
+                  style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa' }}
+                />
+              )}
             </div>
           </div>
         </div>

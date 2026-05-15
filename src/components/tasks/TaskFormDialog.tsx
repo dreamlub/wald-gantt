@@ -1,12 +1,13 @@
 'use client'
 
-import { useState, useEffect, useRef } from 'react'
+import { useState, useEffect, useRef, useCallback } from 'react'
 import { X, Search, ChevronDown, CalendarIcon } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import type { GanttTask, TaskStatus, TaskType } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
+import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
 
 interface ProjectOption {
   id: string
@@ -18,13 +19,14 @@ interface Props {
   open: boolean
   onClose: () => void
   onSave: (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority },
     projectIds: string[]
   ) => Promise<void>
   editTask?: GanttTask | null
   defaultStatus?: TaskStatus
   defaultProjects?: ProjectOption[]
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
+  assigneeSuggestions?: string[]
 }
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
@@ -45,6 +47,55 @@ function toDate(s: string | null | undefined): Date | undefined {
 function toDateStr(d: Date | undefined): string | null {
   if (!d) return null
   return format(d, 'yyyy-MM-dd')
+}
+
+// ── AutocompleteInput ────────────────────────────────────────
+function AutocompleteInput({ value, onChange, suggestions, placeholder, className }: {
+  value: string
+  onChange: (v: string) => void
+  suggestions: string[]
+  placeholder?: string
+  className?: string
+}) {
+  const [open, setOpen] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
+  const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
+  const close = useCallback(() => setOpen(false), [])
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close()
+    }
+    document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [close])
+
+  return (
+    <div ref={containerRef} className="relative">
+      <input
+        className={className}
+        placeholder={placeholder}
+        value={value}
+        onChange={e => { onChange(e.target.value); setOpen(true) }}
+        onFocus={() => setOpen(true)}
+        onKeyDown={e => { if (e.key === 'Escape') close() }}
+        autoComplete="off"
+      />
+      {open && filtered.length > 0 && (
+        <ul className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto">
+          {filtered.map(s => (
+            <li
+              key={s}
+              onPointerDown={e => { e.preventDefault(); onChange(s); close() }}
+              className="px-2.5 py-1.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
+            >
+              {s}
+            </li>
+          ))}
+        </ul>
+      )}
+    </div>
+  )
 }
 
 // ── DatePickerButton ─────────────────────────────────────────
@@ -79,9 +130,10 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 }
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [] }: Props) {
   const [title,     setTitle]     = useState('')
   const [status,    setStatus]    = useState<TaskStatus>('to-do')
+  const [priority,  setPriority]  = useState<Priority>(2)
   const [assignee,  setAssignee]  = useState('')
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [dueDate,   setDueDate]   = useState<Date | undefined>(undefined)
@@ -112,13 +164,14 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
     if (editTask) {
       setTitle(editTask.title)
       setStatus(editTask.status)
+      setPriority(editTask.priority ?? 0)
       setAssignee(editTask.assignee ?? '')
       setStartDate(toDate(editTask.start_date))
       setDueDate(toDate(editTask.due_date))
       setMemo(editTask.memo ?? '')
       setLinkedProjects(editTask.projects ?? [])
     } else {
-      setTitle(''); setStatus(defaultStatus)
+      setTitle(''); setStatus(defaultStatus); setPriority(2)
       setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo('')
       setLinkedProjects(defaultProjects ?? [])
     }
@@ -157,6 +210,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
           start_date: toDateStr(startDate),
           due_date: toDateStr(dueDate),
           memo: memo.trim() || null,
+          priority,
         },
         linkedProjects.map(p => p.id)
       )
@@ -232,12 +286,39 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
 
             <div className="flex-1">
               <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당자</label>
-              <input
+              <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
                 placeholder="이름 (없으면 내 할일)"
                 value={assignee}
-                onChange={e => setAssignee(e.target.value)}
+                onChange={setAssignee}
+                suggestions={assigneeSuggestions}
               />
+            </div>
+          </div>
+
+          {/* 우선순위 */}
+          <div>
+            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
+            <div className="flex items-center gap-1 mt-1.5">
+              {PRIORITY_OPTIONS.map(opt => {
+                const meta = PRIORITY_META[opt.value]
+                const active = priority === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPriority(opt.value)}
+                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
+                      ${active
+                        ? 'font-medium border-current'
+                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                    style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
+                  >
+                    {opt.value > 0 && <PriorityBars priority={opt.value} />}
+                    {opt.label}
+                  </button>
+                )
+              })}
             </div>
           </div>
 

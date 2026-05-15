@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { Circle, CheckCircle2, Pencil, Trash2 } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtDate, relativeTime, isOverdue, overdueDays } from '../_utils'
-import { STATUS_COLOR, STATUS_LABEL } from '../_constants'
+import { fmtDate, isOverdue, overdueDays } from '../_utils'
+import { STATUS_COLOR, STATUS_LABEL, PriorityBars } from '../_constants'
 
-export type SortKey = 'title' | 'status' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
+export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
 const STATUS_ORDER: Record<TaskStatus, number> = { backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
 
@@ -31,6 +31,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onDe
   const sorted = [...tasks].sort((a, b) => {
     let va: string | number = 0, vb: string | number = 0
     if (sortKey === 'status') { va = STATUS_ORDER[a.status]; vb = STATUS_ORDER[b.status] }
+    else if (sortKey === 'priority') { va = a.priority ?? 0; vb = b.priority ?? 0 }
     else if (sortKey === 'assignee') {
       va = a.type === 'mine' ? '내 할일' : (a.assignee ?? '')
       vb = b.type === 'mine' ? '내 할일' : (b.assignee ?? '')
@@ -61,9 +62,9 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onDe
       <div className="flex items-center px-4 py-2 border-b bg-gray-50 shrink-0 sticky top-0 z-10">
         <div className="w-6 shrink-0 mr-2" />
         <div className="flex-1 mr-4"><SortBtn col="title" label="태스크" /></div>
+        <div className="w-16 shrink-0"><SortBtn col="priority" label="우선순위" /></div>
         <div className="w-24 shrink-0"><SortBtn col="status" label="상태" /></div>
         <div className="w-28 shrink-0"><SortBtn col="assignee" label="담당자" /></div>
-        <div className="w-20 shrink-0"><SortBtn col="updated_at" label="업데이트" /></div>
         <div className="w-14 shrink-0"><SortBtn col="start_date" label="시작일" /></div>
         <div className="w-14 shrink-0"><SortBtn col="due_date" label="마감일" /></div>
         <div className="w-14 shrink-0"><SortBtn col="created_at" label="지시일" /></div>
@@ -97,6 +98,9 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onDe
                 </span>
               )}
             </div>
+            <div className="w-16 shrink-0">
+              <PriorityBars priority={task.priority} showLabel />
+            </div>
             <div className="w-24 shrink-0">
               <span
                 className="text-[11px] px-1.5 py-0.5 rounded-full font-medium"
@@ -113,7 +117,6 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onDe
                 </>
               )}
             </div>
-            <div className="w-20 shrink-0 text-[11px] text-gray-400 tabular-nums">{relativeTime(task.updated_at)}</div>
             <div className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums">{fmtDate(task.start_date ?? null)}</div>
             <div className={`w-14 shrink-0 text-[11px] tabular-nums font-medium ${overdue ? 'text-red-500' : 'text-gray-400'}`}>{fmtDate(task.due_date)}</div>
             <div className="w-14 shrink-0 text-[10px] text-gray-300 tabular-nums">{fmtDate(task.created_at)}</div>

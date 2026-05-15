@@ -6,7 +6,6 @@ import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
-import { ProjectHistoryPanel } from '@/components/gantt/ProjectHistoryPanel'
 import { TrashPanel } from '@/components/gantt/TrashPanel'
 import { MemoPanel } from '@/components/gantt/MemoPanel'
 import { ShareDialog } from '@/components/gantt/ShareDialog'
@@ -19,7 +18,7 @@ import {
   getProjectsGhostDates,
 } from '@/lib/gantt-service'
 import type { GhostDates } from '@/lib/gantt-service'
-import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Workspace } from '@/types'
+import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Priority, Workspace } from '@/types'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 
@@ -45,7 +44,6 @@ export default function GanttPage() {
   const [projects, setProjects]               = useState<GanttProject[]>([])
   const [dialog, setDialog]                   = useState<DialogState>(null)
   const [sidebarOpen, setSidebarOpen]         = useState(true)
-  const [historyProject, setHistoryProject]   = useState<GanttProject | null>(null)
   const [memoProject, setMemoProject]         = useState<GanttProject | null>(null)
   const [loading, setLoading]                 = useState(true)
   const [ghostDates, setGhostDates]           = useState<GhostDates | null>(null)
@@ -179,6 +177,7 @@ export default function GanttPage() {
     team: string | null
     pm: string | null
     memo: string | null
+    priority: Priority
   }) {
     if (!workspace || !selectedBoardId) return
     try {
@@ -193,6 +192,7 @@ export default function GanttPage() {
           team: fields.team,
           pm: fields.pm,
           memo: fields.memo,
+          priority: fields.priority,
         })
         setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
       } else {
@@ -282,6 +282,15 @@ export default function GanttPage() {
     } catch (e) { toast.error(errMsg(e)) }
   }
 
+  async function handleMoveCategory(updates: { id: string; sort_order: number }[]) {
+    try {
+      const updated = await Promise.all(
+        updates.map(u => updateCategory(u.id, { sort_order: u.sort_order }))
+      )
+      setCategories(prev => prev.map(c => updated.find(u => u.id === c.id) ?? c))
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
   const selectedBoard = boards.find(b => b.id === selectedBoardId)
 
   if (loading && boards.length === 0) {
@@ -355,12 +364,13 @@ export default function GanttPage() {
               onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
               onEditProject={project => setDialog({ type: 'editProject', project })}
               onDeleteProject={handleDeleteProject}
-              onShowHistory={setHistoryProject}
+              onShowHistory={() => {}}
               onOpenMemo={setMemoProject}
               onUpdateProjectDates={handleUpdateProjectDates}
               onUpdateProjectName={handleUpdateProjectName}
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onMoveProject={handleMoveProject}
+              onMoveCategory={handleMoveCategory}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-gray-400 text-sm">
@@ -378,6 +388,8 @@ export default function GanttPage() {
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
         onDelete={id => { handleDeleteProject(id); setDialog(null) }}
+        allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
+        allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
       />
 
       <ShareDialog
@@ -385,11 +397,6 @@ export default function GanttPage() {
         onClose={() => setDialog(null)}
         boardId={selectedBoardId ?? ''}
         boardName={selectedBoard?.name ?? ''}
-      />
-
-      <ProjectHistoryPanel
-        project={historyProject}
-        onClose={() => setHistoryProject(null)}
       />
 
       <MemoPanel
