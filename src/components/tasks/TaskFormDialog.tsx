@@ -179,13 +179,13 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
   }, [open, editTask])
 
   useEffect(() => {
-    if (!projSearch.trim()) { setProjResults([]); return }
+    if (!showProjDrop) return
     const timer = setTimeout(async () => {
       const results = await onSearchProjects(projSearch)
       setProjResults(results.filter(r => !linkedProjects.some(l => l.id === r.id)))
-    }, 200)
+    }, projSearch.trim() ? 200 : 0)
     return () => clearTimeout(timer)
-  }, [projSearch, linkedProjects, onSearchProjects])
+  }, [projSearch, linkedProjects, onSearchProjects, showProjDrop])
 
   useEffect(() => {
     function onClick(e: MouseEvent) {
@@ -296,32 +296,6 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
             </div>
           </div>
 
-          {/* 우선순위 */}
-          <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
-            <div className="flex items-center gap-1 mt-1.5">
-              {PRIORITY_OPTIONS.map(opt => {
-                const meta = PRIORITY_META[opt.value]
-                const active = priority === opt.value
-                return (
-                  <button
-                    key={opt.value}
-                    type="button"
-                    onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
-                      ${active
-                        ? 'font-medium border-current'
-                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
-                    style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
-                  >
-                    {opt.value > 0 && <PriorityBars priority={opt.value} />}
-                    {opt.label}
-                  </button>
-                )
-              })}
-            </div>
-          </div>
-
           {/* 시작일 / 마감일 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
@@ -353,6 +327,32 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
             )}
           </div>
 
+          {/* 우선순위 */}
+          <div>
+            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
+            <div className="flex items-center gap-1 mt-1.5">
+              {PRIORITY_OPTIONS.map(opt => {
+                const meta = PRIORITY_META[opt.value]
+                const active = priority === opt.value
+                return (
+                  <button
+                    key={opt.value}
+                    type="button"
+                    onClick={() => setPriority(opt.value)}
+                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
+                      ${active
+                        ? 'font-medium border-current'
+                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                    style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
+                  >
+                    {opt.value > 0 && <PriorityBars priority={opt.value} />}
+                    {opt.label}
+                  </button>
+                )
+              })}
+            </div>
+          </div>
+
           {/* 연결 프로젝트 */}
           <div>
             <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">연결 프로젝트</label>
@@ -378,25 +378,43 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
                 <Search size={11} className="text-gray-300 shrink-0" />
                 <input
                   className="flex-1 text-xs py-1.5 outline-none placeholder:text-gray-300"
-                  placeholder="프로젝트 검색..."
+                  placeholder="클릭해서 전체 보기 / 검색"
                   value={projSearch}
                   onChange={e => { setProjSearch(e.target.value); setShowProjDrop(true) }}
-                  onFocus={() => projSearch && setShowProjDrop(true)}
+                  onFocus={() => setShowProjDrop(true)}
                 />
+                <ChevronDown size={11} className="text-gray-300 shrink-0" />
               </div>
               {showProjDrop && projResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 py-1 max-h-48 overflow-y-auto">
-                  {projResults.map(p => (
-                    <button
-                      key={p.id}
-                      onClick={() => linkProject(p)}
-                      className="w-full flex items-center gap-2 px-3 py-2 text-xs hover:bg-gray-50 text-left"
-                    >
-                      <span className="text-gray-400 shrink-0">{p.board_name}</span>
-                      <span className="text-gray-300">/</span>
-                      <span className="text-gray-700">{p.name}</span>
-                    </button>
-                  ))}
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
+                  {(() => {
+                    const groups = projResults.reduce<Record<string, ProjectOption[]>>((acc, p) => {
+                      const key = p.board_name || '(보드 없음)'
+                      ;(acc[key] ??= []).push(p)
+                      return acc
+                    }, {})
+                    return Object.entries(groups).map(([board, list]) => (
+                      <div key={board}>
+                        <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                          {board}
+                        </div>
+                        {list.map(p => (
+                          <button
+                            key={p.id}
+                            onClick={() => linkProject(p)}
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-indigo-50 text-left"
+                          >
+                            <span className="text-gray-700">{p.name}</span>
+                          </button>
+                        ))}
+                      </div>
+                    ))
+                  })()}
+                </div>
+              )}
+              {showProjDrop && projResults.length === 0 && (
+                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-[11px] text-gray-400">
+                  {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
                 </div>
               )}
             </div>

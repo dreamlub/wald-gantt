@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { todayStrKST } from '@/lib/gantt-utils'
 import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_COLOR } from '../_constants'
+import { isOverdue } from '../_utils'
 
 interface Props {
   tasks: GanttTask[]
@@ -32,10 +33,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
   }
 
   function tasksForDay(key: string) {
-    return tasks.filter(t =>
-      (t.due_date && t.due_date.startsWith(key)) ||
-      (t.start_date && t.start_date.startsWith(key))
-    )
+    return tasks.filter(t => t.due_date && t.due_date.startsWith(key))
   }
 
   return (
@@ -87,17 +85,32 @@ export function CalendarView({ tasks, onEdit }: Props) {
                   {d}
                 </span>
                 <div className="flex flex-col gap-0.5 overflow-hidden">
-                  {dayTasks.slice(0, 3).map(task => (
-                    <button
-                      key={task.id}
-                      onClick={() => onEdit(task)}
-                      className="text-left text-[10px] px-1.5 py-0.5 rounded truncate font-medium transition-opacity hover:opacity-80"
-                      style={{ backgroundColor: STATUS_COLOR[task.status] + '25', color: STATUS_COLOR[task.status] }}
-                      title={task.title}
-                    >
-                      {task.title}
-                    </button>
-                  ))}
+                  {dayTasks.slice(0, 3).map(task => {
+                    const isDone       = task.status === 'done'
+                    const overdue      = isOverdue(task.due_date, task.status)
+                    const stripeColor  = overdue ? '#ef4444' : STATUS_COLOR[task.status]
+                    const filledBg     = overdue ? '#fef2f2' : STATUS_COLOR[task.status] + '20'
+                    return (
+                      <button
+                        key={task.id}
+                        onClick={() => onEdit(task)}
+                        className={`flex items-center gap-1 text-left text-[10px] px-1.5 py-0.5 rounded-r truncate transition-opacity hover:opacity-80 border-l-[3px] ${isDone ? 'opacity-55' : ''}`}
+                        style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
+                        title={task.title}
+                      >
+                        <span className={`truncate flex-1 ${
+                          isDone ? 'line-through font-medium text-gray-400' :
+                          task.priority === 3 ? 'font-semibold text-rose-500' :
+                          task.priority === 2 ? 'font-medium text-gray-900' :
+                          task.priority === 1 ? 'font-normal text-gray-700' :
+                          'font-normal text-gray-500'
+                        }`}>
+                          {task.title}
+                        </span>
+                        {task.memo && <span className="w-1 h-1 rounded-full bg-indigo-400 shrink-0" />}
+                      </button>
+                    )
+                  })}
                   {dayTasks.length > 3 && (
                     <span className="text-[9px] text-gray-400 px-1">+{dayTasks.length - 3}개 더</span>
                   )}

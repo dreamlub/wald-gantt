@@ -10,12 +10,13 @@ import { getProjectHistory } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistoryEntry } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
 
-function AutocompleteInput({ value, onChange, suggestions, placeholder, className }: {
+function AutocompleteInput({ value, onChange, suggestions, placeholder, className, name }: {
   value: string
   onChange: (v: string) => void
   suggestions: string[]
   placeholder?: string
   className?: string
+  name?: string
 }) {
   const [open, setOpen] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
@@ -35,6 +36,7 @@ function AutocompleteInput({ value, onChange, suggestions, placeholder, classNam
   return (
     <div ref={containerRef} className="relative">
       <input
+        name={name}
         className={className}
         placeholder={placeholder}
         value={value}
@@ -131,12 +133,14 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
 }
 
 const STATUSES: { value: GanttStatus; label: string }[] = [
+  { value: 'backlog',     label: 'Backlog' },
   { value: 'to-do',       label: 'To-Do' },
   { value: 'in-progress', label: 'In-Progress' },
-  { value: 'pending',     label: 'Pending' },
-  { value: 'backlog',     label: 'Backlog' },
   { value: 'done',        label: 'Done' },
+  { value: 'pending',     label: 'Pending' },
 ]
+
+type DialogTab = 'info' | 'memo' | 'history'
 
 interface Props {
   open: boolean
@@ -156,6 +160,7 @@ interface Props {
   categories: GanttCategory[]
   defaultCategoryId?: string
   editProject?: GanttProject | null
+  initialTab?: DialogTab
   onDelete?: (id: string) => void
   allTeams?: string[]
   allPMs?: string[]
@@ -202,7 +207,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   )
 }
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, onDelete, allTeams = [], allPMs = [] }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', onDelete, allTeams = [], allPMs = [] }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -213,12 +218,19 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const [memo, setMemo]             = useState('')
   const [priority, setPriority]     = useState<Priority>(2)
   const [loading, setLoading]       = useState(false)
-  const [tab, setTab]               = useState<'info' | 'history'>('info')
+  const [tab, setTab]               = useState<DialogTab>('info')
   const nameRef = useRef<HTMLInputElement>(null)
+  const memoRef = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
-    if (open) { setTab('info'); setTimeout(() => nameRef.current?.focus(), 50) }
-  }, [open])
+    if (open) {
+      setTab(initialTab)
+      setTimeout(() => {
+        if (initialTab === 'memo') memoRef.current?.focus()
+        else nameRef.current?.focus()
+      }, 50)
+    }
+  }, [open, initialTab])
 
   useEffect(() => {
     if (editProject) {
@@ -287,16 +299,27 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               <X size={16} />
             </button>
           </div>
-          {editProject && (
-            <div className="flex px-5 gap-4">
-              <button
-                onClick={() => setTab('info')}
-                className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
-                  tab === 'info' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
-                }`}
-              >
-                정보
-              </button>
+          <div className="flex px-5 gap-4">
+            <button
+              onClick={() => setTab('info')}
+              className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
+                tab === 'info' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              정보
+            </button>
+            <button
+              onClick={() => setTab('memo')}
+              className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                tab === 'memo' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+              }`}
+            >
+              메모
+              {memo.trim() && (
+                <span className="w-1 h-1 rounded-full bg-indigo-400" />
+              )}
+            </button>
+            {editProject && (
               <button
                 onClick={() => setTab('history')}
                 className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
@@ -305,16 +328,22 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               >
                 이력
               </button>
-            </div>
-          )}
+            )}
+          </div>
         </div>
 
         {/* Scrollable content */}
         {tab === 'info' ? (
-        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        <form
+          className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4"
+          autoComplete="off"
+          onSubmit={e => e.preventDefault()}
+        >
           {/* 이름 */}
           <input
             ref={nameRef}
+            name="project-name"
+            autoComplete="off"
             className="w-full text-sm font-medium text-gray-800 border-b border-gray-200 focus:border-indigo-400 outline-none pb-1 placeholder:text-gray-300"
             placeholder="프로젝트 이름"
             value={name}
@@ -393,6 +422,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             <div className="flex-1">
               <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당팀</label>
               <AutocompleteInput
+                name="project-team"
                 className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
                 placeholder="예: 개발팀"
                 value={team}
@@ -403,6 +433,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             <div className="flex-1">
               <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">PM</label>
               <AutocompleteInput
+                name="project-pm"
                 className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
                 placeholder="예: 홍길동"
                 value={pm}
@@ -438,18 +469,18 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             </div>
           </div>
 
-          {/* 메모 */}
-          <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">메모</label>
-            <textarea
-              className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-2 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700 resize-none"
-              placeholder="메모를 입력하세요"
-              rows={3}
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-            />
-          </div>
-
+        </form>
+        ) : tab === 'memo' ? (
+        <div className="flex-1 overflow-hidden p-5">
+          <textarea
+            ref={memoRef}
+            name="project-memo"
+            autoComplete="off"
+            className="w-full h-full text-xs border border-gray-200 rounded p-3 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700 resize-none leading-relaxed"
+            placeholder="메모를 입력하세요"
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
+          />
         </div>
         ) : (
         <div className="flex-1 overflow-y-auto">

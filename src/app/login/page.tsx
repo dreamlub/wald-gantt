@@ -42,7 +42,7 @@ export default function LoginPage() {
   return (
     <div className="min-h-screen flex items-center justify-center bg-gray-50">
       <div className="bg-white rounded-xl shadow-sm border p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Wald Gantt</h1>
+        <h1 className="text-2xl font-bold text-gray-900 mb-1">Wald Task Manager</h1>
         <p className="text-sm text-gray-500 mb-6">프로젝트 일정 관리</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">

@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { GanttBoard, GanttCategory, GanttProject, GanttTask, ProjectHistoryEntry, TaskStatus, TaskType, Workspace } from '@/types'
+import type { GanttBoard, GanttCategory, GanttProject, GanttTask, Priority, ProjectHistoryEntry, TaskHistoryEntry, TaskStatus, TaskType, Workspace } from '@/types'
 
 const db = () => createClient()
 
@@ -211,7 +211,7 @@ export async function addProject(
   workspaceId: string,
   categoryId: string,
   parentId: string | null,
-  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null }
+  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null; priority?: Priority | null }
 ): Promise<GanttProject> {
   const { data: existing } = await db()
     .from('gantt_projects')
@@ -290,35 +290,15 @@ export async function getProjectHistory(projectId: string): Promise<ProjectHisto
   return data
 }
 
-export type GhostDates = Record<string, { start_date: string | null; end_date: string | null }>
-
-/** 보드 내 프로젝트들의 가장 최근 이전 날짜(old_value)를 가져옴 */
-export async function getProjectsGhostDates(projectIds: string[]): Promise<GhostDates> {
-  if (projectIds.length === 0) return {}
+export async function getTaskHistory(taskId: string): Promise<TaskHistoryEntry[]> {
   const { data, error } = await db()
-    .from('gantt_project_history')
-    .select('project_id, field_name, old_value, changed_at')
-    .in('project_id', projectIds)
-    .in('field_name', ['start_date', 'end_date', 'start_month', 'end_month'])
+    .from('gantt_task_history')
+    .select('*')
+    .eq('task_id', taskId)
     .order('changed_at', { ascending: false })
+    .limit(100)
   if (error) throw error
-
-  const result: GhostDates = {}
-  const seen = new Set<string>()
-  for (const entry of data ?? []) {
-    const key = `${entry.project_id}:${entry.field_name}`
-    if (seen.has(key)) continue
-    seen.add(key)
-    if (!result[entry.project_id]) result[entry.project_id] = { start_date: null, end_date: null }
-    const val = entry.old_value as string | null
-    const normalized = val && val.length === 7 ? val + '-01' : val
-    if (entry.field_name === 'start_date' || entry.field_name === 'start_month') {
-      result[entry.project_id].start_date = normalized
-    } else {
-      result[entry.project_id].end_date = normalized
-    }
-  }
-  return result
+  return data
 }
 
 // ── Tasks ──────────────────────────────────────────────────
@@ -388,7 +368,7 @@ export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]>
 
 export async function addTask(
   workspaceId: string,
-  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels?: string[] | null; parent_id?: string | null },
+  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels?: string[] | null; parent_id?: string | null; priority?: Priority | null },
   projectIds: string[] = []
 ): Promise<GanttTask> {
   const { data: existing } = await db()
@@ -419,7 +399,7 @@ export async function addTask(
 
 export async function updateTask(
   id: string,
-  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'sort_order'>>,
+  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'priority' | 'sort_order'>>,
   projectIds?: string[]
 ): Promise<void> {
   const { error } = await db()

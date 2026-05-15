@@ -1,5 +1,8 @@
 export type GanttStatus = 'in-progress' | 'pending' | 'backlog' | 'to-do' | 'done'
 
+/** 0 = 없음, 1 = 낮음, 2 = 보통, 3 = 높음 */
+export type Priority = 0 | 1 | 2 | 3
+
 export interface Workspace {
   id: string
   name: string
@@ -41,6 +44,15 @@ export interface ProjectHistoryEntry {
   new_value: string | null
 }
 
+export interface TaskHistoryEntry {
+  id: string
+  task_id: string
+  changed_at: string
+  field_name: string
+  old_value: string | null
+  new_value: string | null
+}
+
 export type TaskStatus = 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
 export type TaskType   = 'mine' | 'delegated'
 
@@ -56,6 +68,7 @@ export interface GanttTask {
   memo: string | null
   labels: string[] | null
   parent_id: string | null
+  priority: Priority | null
   sort_order: number
   created_at: string
   updated_at: string
@@ -78,6 +91,7 @@ export interface GanttProject {
   team: string | null
   pm: string | null
   memo: string | null
+  priority: Priority | null
   created_at: string
   updated_at: string
   deleted_at: string | null

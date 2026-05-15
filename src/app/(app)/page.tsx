@@ -7,7 +7,6 @@ import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import { TrashPanel } from '@/components/gantt/TrashPanel'
-import { MemoPanel } from '@/components/gantt/MemoPanel'
 import { ShareDialog } from '@/components/gantt/ShareDialog'
 import {
   getOrCreateWorkspace,
@@ -15,24 +14,20 @@ import {
   getCategories, getProjects, getDeletedProjectsCount,
   addCategory, updateCategory, deleteCategory,
   addProject, updateProject, softDeleteProject, restoreProject,
-  getProjectsGhostDates,
 } from '@/lib/gantt-service'
-import type { GhostDates } from '@/lib/gantt-service'
 import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Priority, Workspace } from '@/types'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 
 type DialogState =
   | { type: 'addProject'; categoryId: string }
-  | { type: 'editProject'; project: GanttProject }
+  | { type: 'editProject'; project: GanttProject; initialTab?: 'info' | 'memo' | 'history' }
   | { type: 'share' }
   | null
 
 const CUR_YEAR   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
 const VIEW_START = `${CUR_YEAR - 1}-01`
 const VIEW_END   = `${CUR_YEAR + 2}-12`
-
-const CAT_COLORS = ['#a5b4fc', '#fdba74', '#86efac', '#93c5fd', '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc']
 
 export default function GanttPage() {
   const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
@@ -44,9 +39,7 @@ export default function GanttPage() {
   const [projects, setProjects]               = useState<GanttProject[]>([])
   const [dialog, setDialog]                   = useState<DialogState>(null)
   const [sidebarOpen, setSidebarOpen]         = useState(true)
-  const [memoProject, setMemoProject]         = useState<GanttProject | null>(null)
   const [loading, setLoading]                 = useState(true)
-  const [ghostDates, setGhostDates]           = useState<GhostDates | null>(null)
   const [trashOpen, setTrashOpen]             = useState(false)
   const [trashCount, setTrashCount]           = useState(0)
 
@@ -76,7 +69,6 @@ export default function GanttPage() {
   useEffect(() => {
     if (!selectedBoardId) { setLoading(false); return }
     setLoading(true)
-    setGhostDates(null)
     resetStacks()
     setTrashOpen(false)
     Promise.all([getCategories(selectedBoardId), getProjects(selectedBoardId), getDeletedProjectsCount(selectedBoardId)])
@@ -85,13 +77,6 @@ export default function GanttPage() {
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBoardId])
-
-  async function handleToggleGhost(enabled: boolean) {
-    if (!enabled) { setGhostDates(null); return }
-    const ids = projects.map(p => p.id)
-    const dates = await getProjectsGhostDates(ids)
-    setGhostDates(dates)
-  }
 
   // ── 보드 핸들러 ──────────────────────────────────────────────
 
@@ -136,18 +121,17 @@ export default function GanttPage() {
 
   // ── 카테고리 핸들러 ──────────────────────────────────────────
 
-  async function handleAddCategory(name: string) {
+  async function handleAddCategory(name: string, color: string) {
     if (!workspace || !selectedBoardId) return
     try {
-      const color = CAT_COLORS[categories.length % CAT_COLORS.length]
       const cat = await addCategory(selectedBoardId, workspace.id, name, color)
       setCategories(prev => [...prev, cat])
     } catch (e) { toast.error(errMsg(e)) }
   }
 
-  async function handleUpdateCategory(id: string, name: string) {
+  async function handleUpdateCategory(id: string, updates: { name?: string; color?: string }) {
     try {
-      const updated = await updateCategory(id, { name })
+      const updated = await updateCategory(id, updates)
       setCategories(prev => prev.map(c => c.id === id ? updated : c))
     } catch (e) { toast.error(errMsg(e)) }
   }
@@ -203,6 +187,7 @@ export default function GanttPage() {
           end_date: fields.end_date,
           team: fields.team,
           pm: fields.pm,
+          priority: fields.priority,
         })
         setProjects(prev => [...prev, created])
       }
@@ -228,14 +213,6 @@ export default function GanttPage() {
         },
         description: project?.name,
       })
-    } catch (e) { toast.error(errMsg(e)) }
-  }
-
-  async function handleSaveMemo(projectId: string, memo: string) {
-    try {
-      const updated = await updateProject(projectId, { memo: memo || null })
-      setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
-      setMemoProject(updated)
     } catch (e) { toast.error(errMsg(e)) }
   }
 
@@ -352,8 +329,6 @@ export default function GanttPage() {
               viewStart={VIEW_START}
               viewEnd={VIEW_END}
               boardName={selectedBoard?.name}
-              ghostDates={ghostDates}
-              onToggleGhost={handleToggleGhost}
               undoCount={undoCount}
               onUndo={handleUndo}
               redoCount={redoCount}
@@ -365,7 +340,7 @@ export default function GanttPage() {
               onEditProject={project => setDialog({ type: 'editProject', project })}
               onDeleteProject={handleDeleteProject}
               onShowHistory={() => {}}
-              onOpenMemo={setMemoProject}
+              onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
               onUpdateProjectDates={handleUpdateProjectDates}
               onUpdateProjectName={handleUpdateProjectName}
               onUpdateProjectStatus={handleUpdateProjectStatus}
@@ -387,6 +362,7 @@ export default function GanttPage() {
         categories={categories}
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
+        initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
         onDelete={id => { handleDeleteProject(id); setDialog(null) }}
         allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
         allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
@@ -397,12 +373,6 @@ export default function GanttPage() {
         onClose={() => setDialog(null)}
         boardId={selectedBoardId ?? ''}
         boardName={selectedBoard?.name ?? ''}
-      />
-
-      <MemoPanel
-        project={memoProject}
-        onClose={() => setMemoProject(null)}
-        onSave={handleSaveMemo}
       />
 
       <TrashPanel

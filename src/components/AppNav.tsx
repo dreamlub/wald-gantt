@@ -2,14 +2,15 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { BarChart2, CheckSquare, FileText, Settings, LogOut } from 'lucide-react'
+import { BarChart2, CheckSquare, FileText, Clock, Settings, LogOut } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
-  { href: '/',       icon: BarChart2,    label: '간트' },
-  { href: '/tasks',  icon: CheckSquare,  label: '태스크' },
-  { href: '/weekly',    icon: FileText,     label: '주간보고' },
-  { href: '/settings',  icon: Settings,     label: '설정' },
+  { href: '/',          icon: BarChart2,    label: 'Schedule' },
+  { href: '/tasks',     icon: CheckSquare,  label: 'Task' },
+  { href: '/weekly',    icon: FileText,     label: 'Weekly' },
+  { href: '/timeline',  icon: Clock,        label: 'Timeline' },
+  { href: '/settings',  icon: Settings,     label: 'Settings' },
 ]
 
 export function AppNav() {

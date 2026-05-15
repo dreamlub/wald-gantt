@@ -1,8 +1,8 @@
 'use client'
 
-import React, { useCallback, useEffect, useState } from 'react'
+import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
-  Plus, ChevronDown, ChevronRight, LayoutList, Search,
+  Plus, ChevronDown, ChevronRight, LayoutList, Search, X,
   PanelLeftClose, PanelLeftOpen, Trash2,
 } from 'lucide-react'
 import { toast } from 'sonner'
@@ -20,8 +20,7 @@ import type { GanttTask, TaskStatus, TaskType, Priority, Workspace } from '@/typ
 import { todayStrKST } from '@/lib/gantt-utils'
 
 import { STATUS_GROUPS, PROJECT_COLORS, ASSIGNEE_COLORS, VIEW_TABS, type ViewType } from './_constants'
-import { isOverdue, isDueThisWeek, overdueDays, daysDiff, toKSTDateStr } from './_utils'
-import { MiniCalendar } from './_components/MiniCalendar'
+import { isOverdue, isStartDelayed, isDueThisWeek, isDueNextWeek, overdueDays, daysDiff, isLightColor } from './_utils'
 import { TaskRow, DraggableTaskRow, DroppableGroup } from './_components/TaskRow'
 import { ListView } from './_components/ListView'
 import { CalendarView } from './_components/CalendarView'
@@ -40,20 +39,26 @@ export default function TasksPage() {
   const [filterProject,  setFilterProject]  = useState<string | null>(null)
   const [filterAssignee, setFilterAssignee] = useState<string | null>(null)
   const [filterLabel,    setFilterLabel]    = useState<string | null>(null)
-  const [quickFilter,    setQuickFilter]    = useState<'all' | 'overdue' | 'due-this-week' | 'due-today'>('all')
+  const [quickFilter,    setQuickFilter]    = useState<'all' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week'>('all')
   const [defaultStatus,  setDefaultStatus]  = useState<TaskStatus>('to-do')
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [view,           setView]           = useState<ViewType>('normal')
-  const [selectedDate,   setSelectedDate]   = useState<string | null>(null)
   const [trashOpen,      setTrashOpen]      = useState(false)
   const [trashCount,     setTrashCount]     = useState(0)
   const [searchQuery,    setSearchQuery]    = useState('')
+  const [searchOpen,     setSearchOpen]     = useState(false)
+  const searchRef       = useRef<HTMLDivElement>(null)
+  const searchInputRef  = useRef<HTMLInputElement>(null)
   const [draggingTask,   setDraggingTask]   = useState<GanttTask | null>(null)
   const [pendingParentId, setPendingParentId] = useState<string | null>(null)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
   const [drawerTask,      setDrawerTask]      = useState<GanttTask | null>(null)
   const [drawerOpen,      setDrawerOpen]      = useState(false)
   const [pendingDefaultProjects, setPendingDefaultProjects] = useState<{ id: string; name: string; board_name: string }[]>([])
+  const [assigneesExpanded, setAssigneesExpanded] = useState(false)
+  const [quickAddStatus,   setQuickAddStatus]   = useState<TaskStatus | null>(null)
+  const [quickAddParentId, setQuickAddParentId] = useState<string | null>(null)
+  const [quickAddTitle,    setQuickAddTitle]    = useState('')
 
   const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
 
@@ -76,6 +81,20 @@ export default function TasksPage() {
   }, [])
 
   useEffect(() => { load() }, [load])
+
+  useEffect(() => {
+    if (searchOpen) searchInputRef.current?.focus()
+  }, [searchOpen])
+
+  useEffect(() => {
+    function onPointerDown(e: PointerEvent) {
+      if (!searchRef.current?.contains(e.target as Node)) {
+        if (!searchQuery) setSearchOpen(false)
+      }
+    }
+    if (searchOpen) document.addEventListener('pointerdown', onPointerDown)
+    return () => document.removeEventListener('pointerdown', onPointerDown)
+  }, [searchOpen, searchQuery])
 
   async function handleSave(
     fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority },
@@ -169,15 +188,94 @@ export default function TasksPage() {
     setDefaultStatus(status); setEditTask(null); setPendingParentId(null); setFormOpen(true)
   }
 
-  function openAddSubTask(parentId: string, status: TaskStatus) {
-    const parent = tasks.find(t => t.id === parentId)
-    setDefaultStatus(status)
-    setEditTask(null)
-    setPendingParentId(parentId)
-    setPendingDefaultProjects(parent?.projects ?? [])
-    setExpandedParents(prev => new Set([...prev, parentId]))
-    setFormOpen(true)
+  async function commitQuickAdd(status: TaskStatus) {
+    if (!workspace) return
+    const title = quickAddTitle.trim()
+    if (!title) { setQuickAddStatus(null); setQuickAddTitle(''); return }
+    try {
+      await addTask(workspace.id, {
+        title,
+        status,
+        type: 'mine',
+        assignee: null,
+        start_date: null,
+        due_date: null,
+        memo: null,
+        priority: 2,
+        labels: [],
+      }, [])
+      setQuickAddTitle('')
+      await load()
+      // 연속 등록 위해 입력창 유지
+    } catch (e) { toast.error(errMsg(e)) }
   }
+
+  function cancelQuickAdd() { setQuickAddStatus(null); setQuickAddTitle('') }
+
+  async function listQuickCreate(title: string, status: TaskStatus) {
+    if (!workspace) return
+    try {
+      await addTask(workspace.id, {
+        title, status, type: 'mine', assignee: null,
+        start_date: null, due_date: null, memo: null, priority: 2, labels: [],
+      }, [])
+      await load()
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  async function listSubQuickCreate(parentId: string, title: string) {
+    if (!workspace) return
+    const parent = tasks.find(t => t.id === parentId)
+    if (!parent) return
+    try {
+      await addTask(workspace.id, {
+        title,
+        status: parent.status,
+        type: 'mine',
+        assignee: null,
+        start_date: null,
+        due_date: null,
+        memo: null,
+        priority: 2,
+        labels: [],
+        parent_id: parentId,
+      }, parent.projects?.map(p => p.id) ?? [])
+      await load()
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  function openAddSubTask(parentId: string, _status: TaskStatus) {
+    // 인라인 퀵 등록으로 전환 — 부모를 펼치고 입력창 노출
+    setExpandedParents(prev => new Set([...prev, parentId]))
+    setQuickAddParentId(parentId)
+    setQuickAddTitle('')
+  }
+
+  async function commitQuickAddSub(parentId: string) {
+    if (!workspace) return
+    const parent = tasks.find(t => t.id === parentId)
+    if (!parent) return
+    const title = quickAddTitle.trim()
+    if (!title) { setQuickAddParentId(null); setQuickAddTitle(''); return }
+    try {
+      await addTask(workspace.id, {
+        title,
+        status: parent.status,
+        type: 'mine',
+        assignee: null,
+        start_date: null,
+        due_date: null,
+        memo: null,
+        priority: 2,
+        labels: [],
+        parent_id: parentId,
+      }, parent.projects?.map(p => p.id) ?? [])
+      setQuickAddTitle('')
+      await load()
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  function cancelQuickAddSub() { setQuickAddParentId(null); setQuickAddTitle('') }
 
   function toggleExpanded(parentId: string) {
     setExpandedParents(prev => {
@@ -195,9 +293,11 @@ export default function TasksPage() {
   // ── 통계 ─────────────────────────────────────────────────────
   const todayStr           = todayStrKST()
   const overdueCount       = tasks.filter(t => isOverdue(t.due_date, t.status)).length
-  const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
-  const inProgressCount    = tasks.filter(t => t.status === 'in-progress').length
+  const startDelayedCount  = tasks.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status)).length
   const dueTodayCount      = tasks.filter(t => t.due_date === todayStr && t.status !== 'done').length
+  const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
+  const dueNextWeekCount   = tasks.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done').length
+  const inProgressCount    = tasks.filter(t => t.status === 'in-progress').length
   const todoCount          = tasks.filter(t => t.status === 'to-do').length
 
   // ── 사이드바 데이터 ──────────────────────────────────────────
@@ -216,9 +316,17 @@ export default function TasksPage() {
     const cur = assigneeMap.get(key) ?? { label, count: 0 }
     assigneeMap.set(key, { ...cur, count: cur.count + 1 })
   })
-  const allAssignees = [...assigneeMap.entries()].map(([key, v]) => ({ key, ...v }))
-  const sidebarAssignees = allAssignees
+  const allAssignees = [...assigneeMap.entries()]
+    .map(([key, v]) => ({ key, ...v }))
+    .sort((a, b) => b.count - a.count)
+  const ASSIGNEE_VISIBLE_LIMIT = 7
+  const sidebarAssigneesFull = allAssignees
     .filter(a => !assigneeSearch || a.label.toLowerCase().includes(assigneeSearch.toLowerCase()))
+  const isSearching = !!assigneeSearch.trim()
+  const sidebarAssignees = (isSearching || assigneesExpanded)
+    ? sidebarAssigneesFull
+    : sidebarAssigneesFull.slice(0, ASSIGNEE_VISIBLE_LIMIT)
+  const assigneesHidden = sidebarAssigneesFull.length - sidebarAssignees.length
 
   const assigneeColorMap = new Map<string, string>()
   allAssignees.forEach(({ key }, i) => {
@@ -233,11 +341,8 @@ export default function TasksPage() {
   tasks.forEach(t => (t.labels ?? []).forEach(l => labelMap.set(l, (labelMap.get(l) ?? 0) + 1)))
   const sidebarLabels = [...labelMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
 
-  const taskCreatedDateSet = new Set(tasks.map(t => toKSTDateStr(t.created_at)))
-
   // ── 필터링 ───────────────────────────────────────────────────
   let filtered = tasks
-  if (selectedDate)    filtered = filtered.filter(t => toKSTDateStr(t.created_at) === selectedDate)
   if (filterProject)   filtered = filtered.filter(t => t.projects?.some(p => p.id === filterProject))
   if (filterAssignee) {
     if (filterAssignee === '__mine__') filtered = filtered.filter(t => t.type === 'mine')
@@ -245,8 +350,10 @@ export default function TasksPage() {
   }
   if (filterLabel)     filtered = filtered.filter(t => (t.labels ?? []).includes(filterLabel))
   if (quickFilter === 'overdue')       filtered = filtered.filter(t => isOverdue(t.due_date, t.status))
-  if (quickFilter === 'due-this-week') filtered = filtered.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done')
+  if (quickFilter === 'start-delayed') filtered = filtered.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status))
   if (quickFilter === 'due-today')     filtered = filtered.filter(t => t.due_date === todayStr && t.status !== 'done')
+  if (quickFilter === 'due-this-week') filtered = filtered.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done')
+  if (quickFilter === 'due-next-week') filtered = filtered.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done')
   if (searchQuery.trim()) {
     const q = searchQuery.toLowerCase()
     filtered = filtered.filter(t =>
@@ -277,10 +384,12 @@ export default function TasksPage() {
     : 0
 
   const quickItems = [
-    { key: 'all',           label: '전체',         count: tasks.length,      icon: <LayoutList size={12} className="shrink-0" /> },
-    { key: 'overdue',       label: '지연',          count: overdueCount,     icon: <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" /> },
-    { key: 'due-this-week', label: '이번 주 마감',  count: dueThisWeekCount, icon: <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" /> },
-    { key: 'due-today',     label: '오늘 마감',     count: dueTodayCount,    icon: <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" /> },
+    { key: 'all',           label: '전체',         count: tasks.length,        icon: <LayoutList size={12} className="shrink-0" /> },
+    { key: 'overdue',       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" /> },
+    { key: 'start-delayed', label: '시작 지연',     count: startDelayedCount,  icon: <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" /> },
+    { key: 'due-today',     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" /> },
+    { key: 'due-this-week', label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" /> },
+    { key: 'due-next-week', label: '다음 주 마감',  count: dueNextWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" /> },
   ] as const
 
   if (loading) return (
@@ -313,7 +422,7 @@ export default function TasksPage() {
           {quickItems.map(item => (
             <button
               key={item.key}
-              onClick={() => setQuickFilter(item.key as typeof quickFilter)}
+              onClick={() => setQuickFilter(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key as typeof quickFilter)}
               className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors
                 ${quickFilter === item.key
                   ? 'bg-indigo-50 text-indigo-700 font-medium'
@@ -374,6 +483,14 @@ export default function TasksPage() {
                 <span className="text-xs text-gray-400">{a.count}</span>
               </button>
             ))}
+            {!isSearching && (assigneesHidden > 0 || assigneesExpanded) && (
+              <button
+                onClick={() => setAssigneesExpanded(v => !v)}
+                className="w-full text-left px-2 py-1 text-[11px] text-gray-400 hover:text-indigo-500 transition-colors"
+              >
+                {assigneesExpanded ? '접기' : `+ ${assigneesHidden}명 더보기`}
+              </button>
+            )}
           </div>
 
           {/* 라벨 */}
@@ -384,32 +501,24 @@ export default function TasksPage() {
                 {sidebarLabels.map(l => {
                   const active = filterLabel === l.name
                   const bg = labelColor(l.name)
+                  const fg = isLightColor(bg) ? '#1f2937' : '#ffffff'
                   return (
                     <button
                       key={l.name}
                       onClick={() => { setFilterLabel(active ? null : l.name); setFilterProject(null); setFilterAssignee(null) }}
                       className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full transition-all ${
-                        active ? 'text-white ring-2 ring-offset-1' : 'text-white opacity-75 hover:opacity-100'
+                        active ? 'ring-2 ring-offset-1' : 'opacity-75 hover:opacity-100'
                       }`}
-                      style={{ backgroundColor: bg, ...(active ? { ringColor: bg } : {}) }}
+                      style={{ backgroundColor: bg, color: fg, ...(active ? { ringColor: bg } : {}) }}
                     >
                       # {l.name}
-                      <span className={`text-[9px] ${active ? 'text-white/80' : 'text-white/60'}`}>{l.count}</span>
+                      <span className="text-[9px] opacity-70">{l.count}</span>
                     </button>
                   )
                 })}
               </div>
             </div>
           )}
-        </div>
-
-        {/* 캘린더 */}
-        <div className="shrink-0 border-t">
-          <MiniCalendar
-            taskDates={taskCreatedDateSet}
-            onDateSelect={setSelectedDate}
-            selectedDate={selectedDate}
-          />
         </div>
 
         {/* 휴지통 */}
@@ -461,22 +570,37 @@ export default function TasksPage() {
             ))}
           </div>
 
-          {/* 검색 */}
-          <div className="relative ml-2">
-            <Search size={13} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
-            <input
-              type="text"
-              placeholder="검색..."
-              value={searchQuery}
-              onChange={e => setSearchQuery(e.target.value)}
-              className="pl-7 pr-2 py-1.5 text-xs border border-gray-200 rounded-md w-44 outline-none focus:border-indigo-300 focus:ring-2 focus:ring-indigo-100 placeholder-gray-300 bg-white"
-            />
-            {searchQuery && (
+          {/* 검색 — 토글 펼침 */}
+          <div ref={searchRef} className="relative flex items-center ml-2">
+            {searchOpen || searchQuery ? (
+              <div className="relative flex items-center">
+                <Search size={12} className="absolute left-2 text-gray-300 pointer-events-none" />
+                <input
+                  ref={searchInputRef}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
+                  placeholder="태스크 검색"
+                  className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-indigo-300 text-gray-600 placeholder:text-gray-300"
+                />
+                {searchQuery && (
+                  <button
+                    onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
+                    className="absolute right-1 text-gray-300 hover:text-gray-500"
+                    title="지우기"
+                  >
+                    <X size={12} />
+                  </button>
+                )}
+              </div>
+            ) : (
               <button
-                onClick={() => setSearchQuery('')}
-                className="absolute right-1.5 top-1/2 -translate-y-1/2 text-gray-300 hover:text-gray-500"
+                onClick={() => setSearchOpen(true)}
+                title="태스크 검색"
+                className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
               >
-                <span className="text-xs">✕</span>
+                <Search size={13} />
               </button>
             )}
           </div>
@@ -484,15 +608,15 @@ export default function TasksPage() {
           <div className="ml-auto">
             <button
               onClick={() => openAdd('to-do')}
-              className="flex items-center gap-1 text-xs font-medium text-white bg-indigo-600 hover:bg-indigo-700 px-3 py-1.5 rounded transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-white bg-gray-900 hover:bg-black px-3 py-1.5 rounded transition-colors"
             >
               <Plus size={13} /> 태스크 추가
             </button>
           </div>
         </div>
 
-        {/* 담당자 필터 바 (일반/목록 뷰) */}
-        {(view === 'normal' || view === 'list' || view === 'kanban') && allAssignees.length > 0 && (
+        {/* 담당자 필터 바 — 사이드바 닫혔을 때만 표시 (사이드바 "담당자" 섹션과 중복 회피) */}
+        {!sidebarOpen && (view === 'normal' || view === 'list' || view === 'kanban') && allAssignees.length > 0 && (
           <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-white shrink-0 overflow-x-auto">
             <button
               onClick={() => setFilterAssignee(null)}
@@ -521,16 +645,28 @@ export default function TasksPage() {
         )}
 
         {/* ── 뷰 렌더링 ─────────────────────────────────────── */}
-        {view === 'list' ? (
-          <ListView
-            tasks={filtered}
-            assigneeColorMap={assigneeColorMap}
-            getAssigneeKey={getAssigneeKey}
-            onEdit={editHandler}
-            onDelete={handleDelete}
-            onStatusChange={handleStatusChange}
-          />
-        ) : view === 'calendar' ? (
+        {view === 'list' ? (() => {
+          const hasFilter = quickFilter !== 'all' || !!filterProject || !!filterAssignee || !!filterLabel || !!searchQuery.trim()
+          const emptyMsg = quickFilter === 'overdue'       ? '지연된 태스크가 없어요 👍'
+                         : quickFilter === 'start-delayed' ? '시작 지연 태스크가 없어요 👍'
+                         : quickFilter === 'due-today'     ? '오늘 마감 태스크가 없어요'
+                         : quickFilter === 'due-this-week' ? '이번 주 마감 태스크가 없어요'
+                         : quickFilter === 'due-next-week' ? '다음 주 마감 태스크가 없어요'
+                         : hasFilter                       ? '조건에 맞는 태스크가 없어요'
+                         : '태스크가 없어요'
+          return (
+            <ListView
+              tasks={filtered}
+              assigneeColorMap={assigneeColorMap}
+              getAssigneeKey={getAssigneeKey}
+              onEdit={editHandler}
+              onStatusChange={handleStatusChange}
+              emptyMessage={emptyMsg}
+              onQuickCreate={listQuickCreate}
+              onSubQuickCreate={listSubQuickCreate}
+            />
+          )
+        })() : view === 'calendar' ? (
           <CalendarView
             tasks={filtered}
             onEdit={editHandler}
@@ -542,9 +678,8 @@ export default function TasksPage() {
             assigneeColorMap={assigneeColorMap}
             getAssigneeKey={getAssigneeKey}
             onEdit={editHandler}
-            onDelete={handleDelete}
             onStatusChange={handleStatusChange}
-            onAddTask={openAdd}
+            onQuickCreate={listQuickCreate}
           />
         ) : view === 'gantt' ? (
           <GanttView tasks={filtered} onEdit={editHandler} />
@@ -554,20 +689,29 @@ export default function TasksPage() {
             <div className="flex items-center px-4 py-2 border-b bg-gray-50 shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
               <div className="w-5 shrink-0 mr-3" />
               <div className="flex-1 mr-4">태스크</div>
-              <div className="w-16 shrink-0">우선순위</div>
               <div className="w-10 shrink-0">메모</div>
               <div className="w-28 shrink-0">담당자</div>
-              <div className="w-14 shrink-0">시작일</div>
-              <div className="w-14 shrink-0">마감일</div>
-              <div className="w-14 shrink-0">지시일</div>
+              <div className="w-24 shrink-0">일정</div>
             </div>
 
-            {filtered.length === 0 ? (
-              <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
-                <p className="text-xs">태스크가 없어요</p>
-                <button onClick={() => openAdd('to-do')} className="text-xs text-indigo-500 hover:text-indigo-700">+ 첫 번째 태스크 추가</button>
-              </div>
-            ) : (
+            {filtered.length === 0 ? (() => {
+              const hasFilter = quickFilter !== 'all' || !!filterProject || !!filterAssignee || !!filterLabel || !!searchQuery.trim()
+              const emptyMsg = quickFilter === 'overdue'       ? '지연된 태스크가 없어요 👍'
+                             : quickFilter === 'start-delayed' ? '시작 지연 태스크가 없어요 👍'
+                             : quickFilter === 'due-today'     ? '오늘 마감 태스크가 없어요'
+                             : quickFilter === 'due-this-week' ? '이번 주 마감 태스크가 없어요'
+                             : quickFilter === 'due-next-week' ? '다음 주 마감 태스크가 없어요'
+                             : hasFilter                       ? '조건에 맞는 태스크가 없어요'
+                             : '태스크가 없어요'
+              return (
+                <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+                  <p className="text-xs">{emptyMsg}</p>
+                  {!hasFilter && (
+                    <button onClick={() => openAdd('to-do')} className="text-xs text-gray-900 hover:text-black">+ 첫 번째 태스크 추가</button>
+                  )}
+                </div>
+              )
+            })() : (
               <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
                 {overdueGroup.length > 0 && (
                   <div>
@@ -587,7 +731,7 @@ export default function TasksPage() {
                     </button>
                     {!collapsed.has('__overdue__') && overdueGroup.map(task => {
                       const subs = getSubTasks(task.id)
-                      const isExp = expandedParents.has(task.id)
+                      const isExp = expandedParents.has(task.id) || quickAddParentId === task.id
                       return (
                         <div key={task.id}>
                           <DraggableTaskRow task={task}
@@ -604,6 +748,30 @@ export default function TasksPage() {
                               assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
                             />
                           ))}
+                          {isExp && quickAddParentId === task.id ? (
+                            <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-gray-50 bg-indigo-50/30">
+                              <Plus size={10} className="text-indigo-400 shrink-0" />
+                              <input
+                                autoFocus
+                                value={quickAddTitle}
+                                onChange={e => setQuickAddTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitQuickAddSub(task.id) }
+                                  if (e.key === 'Escape') cancelQuickAddSub()
+                                }}
+                                onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAddSub() }}
+                                placeholder="하위 태스크 제목 후 Enter, Esc 취소"
+                                className="flex-1 text-[11px] outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                              />
+                            </div>
+                          ) : isExp && subs.length > 0 && (
+                            <button
+                              onClick={() => openAddSubTask(task.id, task.status)}
+                              className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-colors border-b border-gray-50"
+                            >
+                              <Plus size={10} /> 하위 태스크 추가
+                            </button>
+                          )}
                         </div>
                       )
                     })}
@@ -633,7 +801,7 @@ export default function TasksPage() {
                         <>
                           {group.map(task => {
                             const subs = getSubTasks(task.id)
-                            const isExp = expandedParents.has(task.id)
+                            const isExp = expandedParents.has(task.id) || quickAddParentId === task.id
                             return (
                               <div key={task.id}>
                                 <DraggableTaskRow task={task}
@@ -650,10 +818,26 @@ export default function TasksPage() {
                                     assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
                                   />
                                 ))}
-                                {isExp && (
+                                {isExp && quickAddParentId === task.id ? (
+                                  <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-gray-50 bg-indigo-50/30">
+                                    <Plus size={10} className="text-indigo-400 shrink-0" />
+                                    <input
+                                      autoFocus
+                                      value={quickAddTitle}
+                                      onChange={e => setQuickAddTitle(e.target.value)}
+                                      onKeyDown={e => {
+                                        if (e.key === 'Enter') { e.preventDefault(); commitQuickAddSub(task.id) }
+                                        if (e.key === 'Escape') cancelQuickAddSub()
+                                      }}
+                                      onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAddSub() }}
+                                      placeholder="하위 태스크 제목 후 Enter, Esc 취소"
+                                      className="flex-1 text-[11px] outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                                    />
+                                  </div>
+                                ) : isExp && subs.length > 0 && (
                                   <button
                                     onClick={() => openAddSubTask(task.id, task.status)}
-                                    className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-colors border-b border-gray-50"
+                                    className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-gray-900 hover:bg-gray-50 transition-colors border-b border-gray-50"
                                   >
                                     <Plus size={10} /> 하위 태스크 추가
                                   </button>
@@ -661,12 +845,31 @@ export default function TasksPage() {
                               </div>
                             )
                           })}
-                          <button
-                            onClick={() => openAdd(status)}
-                            className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-gray-400 hover:text-indigo-500 hover:bg-gray-50 transition-colors border-b border-gray-50"
-                          >
-                            <Plus size={11} /> 태스크 추가
-                          </button>
+                          {quickAddStatus === status ? (
+                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-50 bg-indigo-50/30">
+                              <Plus size={11} className="text-indigo-400 shrink-0" />
+                              <input
+                                autoFocus
+                                value={quickAddTitle}
+                                onChange={e => setQuickAddTitle(e.target.value)}
+                                onKeyDown={e => {
+                                  if (e.key === 'Enter') { e.preventDefault(); commitQuickAdd(status) }
+                                  if (e.key === 'Escape') cancelQuickAdd()
+                                }}
+                                onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAdd() }}
+                                placeholder="제목 입력 후 Enter, Esc로 취소"
+                                className="flex-1 text-xs outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                              />
+                              <span className="text-[10px] text-gray-300 shrink-0">상세 설정은 행 클릭</span>
+                            </div>
+                          ) : (
+                            <button
+                              onClick={() => { setQuickAddStatus(status); setQuickAddTitle('') }}
+                              className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                            >
+                              <Plus size={11} /> 태스크 추가
+                            </button>
+                          )}
                         </>
                       )}
                     </DroppableGroup>
@@ -688,7 +891,7 @@ export default function TasksPage() {
 
       <TaskFormDialog
         open={formOpen}
-        onClose={() => { setFormOpen(false); setEditTask(null); setPendingDefaultProjects([]) }}
+        onClose={() => { setFormOpen(false); setEditTask(null); setPendingDefaultProjects([]); setPendingParentId(null) }}
         onSave={handleSave}
         editTask={editTask}
         defaultStatus={defaultStatus}

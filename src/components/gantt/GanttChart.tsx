@@ -11,16 +11,19 @@ import {
   sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
-import { Plus, Trash2, GripVertical, Check, X, StickyNote } from 'lucide-react'
+import { Plus, Trash2, GripVertical, StickyNote, Palette } from 'lucide-react'
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Button } from '@/components/ui/button'
 import { GanttToolbar } from './GanttToolbar'
 import {
   buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS,
   buildWeekRange, dayOffset, dayOffsetInWeeks, buildDayRange,
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
-import type { GanttCategory, GanttProject, GanttStatus, Priority } from '@/types'
-import { PriorityBars } from '@/app/(app)/tasks/_constants'
-import type { GhostDates } from '@/lib/gantt-service'
+import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import { clampTooltipPos } from '@/app/(app)/tasks/_utils'
+import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 
 interface Props {
   categories: GanttCategory[]
@@ -28,14 +31,12 @@ interface Props {
   viewStart: string
   viewEnd: string
   boardName?: string
-  ghostDates?: GhostDates | null
-  onToggleGhost?: (enabled: boolean) => Promise<void>
   undoCount?: number
   onUndo?: () => void
   redoCount?: number
   onRedo?: () => void
-  onAddCategory: (name: string) => Promise<void>
-  onUpdateCategory: (id: string, name: string) => Promise<void>
+  onAddCategory: (name: string, color: string) => Promise<void>
+  onUpdateCategory: (id: string, updates: { name?: string; color?: string }) => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
   onAddProject: (categoryId: string) => void
   onEditProject: (project: GanttProject) => void
@@ -46,12 +47,12 @@ interface Props {
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
-  onMoveCategory: (updates: { id: string; sort_order: number }[]) => Promise<void>
+  onMoveCategory?: (updates: { id: string; sort_order: number }[]) => Promise<void>
   readOnly?: boolean
 }
 
 const COL_WIDTH      = 72
-const WEEK_COL_WIDTH = 44
+const WEEK_COL_WIDTH = 36
 const DAY_COL_WIDTH  = 28
 const LEFT_WIDTH_DEFAULT = 260
 const LEFT_WIDTH_MIN     = 160
@@ -62,12 +63,35 @@ const TODAY_H     = 18
 const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
 const CAT_ROW_H       = 32
 const PROJ_ROW_H      = 36
-const PROJ_ROW_H_CMP  = 56
 
-const PASTEL_COLORS = [
-  '#a5b4fc', '#fdba74', '#86efac', '#93c5fd',
-  '#f9a8d4', '#fde047', '#c4b5fd', '#7dd3fc',
+const CAT_COLORS = [
+  // 자주 쓰는 색 (Tailwind 400)
+  '#818cf8', '#60a5fa', '#4ade80', '#facc15',
+  '#fb923c', '#f87171', '#f472b6', '#c084fc',
+  // 파스텔 (Tailwind 200)
+  '#c7d2fe', '#bfdbfe', '#bbf7d0', '#fef08a',
+  '#fed7aa', '#fecaca', '#fbcfe8', '#ddd6fe',
 ]
+
+function randomCatColor(usedColors: Set<string>): string {
+  const available = CAT_COLORS.filter(c => !usedColors.has(c))
+  const pool = available.length > 0 ? available : CAT_COLORS
+  return pool[Math.floor(Math.random() * pool.length)]
+}
+
+function isProjectOverdue(p: GanttProject, todayStr: string): boolean {
+  return !!p.end_date && p.status !== 'done' && p.end_date < todayStr
+}
+
+function isStartDelayed(p: GanttProject, todayStr: string): boolean {
+  return !!p.start_date && (p.status === 'to-do' || p.status === 'backlog') && p.start_date < todayStr
+}
+
+function daysBetween(fromDate: string, toDateStr: string): number {
+  const from = new Date(fromDate + 'T00:00:00')
+  const to   = new Date(toDateStr + 'T00:00:00')
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000))
+}
 
 const STATUS_META: Record<GanttStatus, { label: string; abbr: string; dot: string }> = {
   'to-do':       { label: 'To-Do',       abbr: 'T', dot: '#6366f1' },
@@ -76,7 +100,7 @@ const STATUS_META: Record<GanttStatus, { label: string; abbr: string; dot: strin
   'backlog':     { label: 'Backlog',     abbr: 'B', dot: '#9ca3af' },
   'done':        { label: 'Done',        abbr: 'D', dot: '#22c55e' },
 }
-const STATUS_ORDER: GanttStatus[] = ['to-do', 'in-progress', 'pending', 'backlog', 'done']
+const STATUS_ORDER: GanttStatus[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 type ViewMode = 'month' | 'week' | 'day'
@@ -86,7 +110,10 @@ function formatBarDate(start: string, end: string): string {
   const [ey, em, ed] = end.split('-')
   const sLabel = `${parseInt(sm)}/${parseInt(sd)}`
   const eLabel = `${parseInt(em)}/${parseInt(ed)}`
-  if (sy === ey) return `${sLabel} ~ ${eLabel}`
+  if (sy === ey) {
+    if (sm === em) return `${sLabel} ~ ${parseInt(ed)}`
+    return `${sLabel} ~ ${eLabel}`
+  }
   return `${sy.slice(2)}.${sLabel} ~ ${ey.slice(2)}.${eLabel}`
 }
 
@@ -132,7 +159,7 @@ function SortableCatRow({ id, disabled, children }: {
 // ── GanttChart ────────────────────────────────────────────────
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
-  ghostDates, onToggleGhost, undoCount = 0, onUndo, redoCount = 0, onRedo,
+  undoCount = 0, onUndo, redoCount = 0, onRedo,
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onShowHistory, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
@@ -150,10 +177,12 @@ export function GanttChart({
   const [editCatVal, setEditCatVal]         = useState('')
   const [addingCat, setAddingCat]           = useState(false)
   const [newCatName, setNewCatName]         = useState('')
+  const [newCatColor, setNewCatColor]       = useState<string>(CAT_COLORS[0])
   const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>('default')
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
-  const [ghostEnabled, setGhostEnabled]   = useState(false)
+  const [overdueFilter, setOverdueFilter] = useState(false)
+  const [startDelayedFilter, setStartDelayedFilter] = useState(false)
   const [searchQuery, setSearchQuery]       = useState('')
   const [activeId, setActiveId]             = useState<string | null>(null)
   const [liveItems, setLiveItems]           = useState<Record<string, string[]> | null>(null)
@@ -187,8 +216,33 @@ export function GanttChart({
     else monthGroups[monthGroups.length-1].count++
   }
 
+  // 그리드 세로선 위치 — 월: 매월 / 주: 매월 / 일: 매주(일요일)
+  const gridLinePositions: number[] = []
+  if (viewMode === 'month') {
+    for (let i = 1; i < months.length; i++) gridLinePositions.push(i * colW)
+  } else if (viewMode === 'week') {
+    let acc = 0
+    for (let g = 0; g < monthGroups.length - 1; g++) {
+      acc += monthGroups[g].count
+      gridLinePositions.push(acc * colW)
+    }
+  } else {
+    for (let i = 1; i < days.length; i++) {
+      if (days[i].date.getDay() === 0) gridLinePositions.push(i * colW)
+    }
+  }
+
   const allTeams   = [...new Set(projects.map(p => p.team || ''))].sort()
   const allPMs     = [...new Set(projects.map(p => p.pm || ''))].sort()
+
+  // KST 기준 오늘 (지연 계산용)
+  const _today   = new Date()
+  const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`
+  const overdueCount = projects.filter(p => isProjectOverdue(p, todayStr)).length
+  const startDelayedCount = projects.filter(p => isStartDelayed(p, todayStr) && !isProjectOverdue(p, todayStr)).length
+
+  const pmColorMap = new Map<string, string>()
+  allPMs.filter(Boolean).forEach((pm, i) => pmColorMap.set(pm, ASSIGNEE_COLORS[i % ASSIGNEE_COLORS.length]))
   const catIdSet   = new Set(categories.map(c => c.id))
   const isCatDrag  = (id: string) => catIdSet.has(id)
   const sortedCats = liveCats
@@ -213,6 +267,11 @@ export function GanttChart({
       base = base.filter(p => !excludedTeams.has(p.team || ''))
     if (excludedPMs.size > 0)
       base = base.filter(p => !excludedPMs.has(p.pm || ''))
+    if (overdueFilter || startDelayedFilter)
+      base = base.filter(p =>
+        (overdueFilter && isProjectOverdue(p, todayStr)) ||
+        (startDelayedFilter && isStartDelayed(p, todayStr) && !isProjectOverdue(p, todayStr))
+      )
 
     if (!liveItems) {
       if (sortMode === 'start-asc')
@@ -249,9 +308,8 @@ export function GanttChart({
     }
   }
 
-  const today   = new Date()
+  const today  = _today
   const todayYM  = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`
-  const todayStr = `${todayYM}-${String(today.getDate()).padStart(2, '0')}`
 
   let todayX: number | null = null
   if (viewMode === 'month') {
@@ -283,6 +341,13 @@ export function GanttChart({
   function onLeftWheel(e: React.WheelEvent) {
     if (rightRef.current) rightRef.current.scrollTop += e.deltaY
   }
+
+  // 카테고리 추가 모달 열릴 때 랜덤 색상 (미사용 우선)
+  useEffect(() => {
+    if (addingCat) {
+      setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
+    }
+  }, [addingCat, categories])
 
   // 뷰 모드 변경 시 today로 스크롤
   useEffect(() => {
@@ -328,13 +393,13 @@ export function GanttChart({
     e.stopPropagation(); setEditCatId(c.id); setEditCatVal(c.name)
   }
   async function commitEditCat(id: string) {
-    if (editCatVal.trim()) await onUpdateCategory(id, editCatVal.trim())
+    if (editCatVal.trim()) await onUpdateCategory(id, { name: editCatVal.trim() })
     setEditCatId(null)
   }
 
   async function submitAddCat() {
     const name = newCatName.trim()
-    if (name) await onAddCategory(name)
+    if (name) await onAddCategory(name, newCatColor)
     setNewCatName(''); setAddingCat(false)
   }
 
@@ -442,7 +507,7 @@ export function GanttChart({
           return cat && cat.sort_order !== u.sort_order
         })
       setLiveCats(null)
-      if (updates.length > 0) await onMoveCategory(updates)
+      if (updates.length > 0) await onMoveCategory?.(updates)
       return
     }
 
@@ -510,6 +575,7 @@ export function GanttChart({
       document.body.appendChild(tooltip)
 
       const barEl = (e.currentTarget as HTMLElement).closest('[data-bar-id]') as HTMLElement | null
+      const metaEl = barEl?.parentElement?.querySelector(`[data-bar-meta-id="${p.id}"]`) as HTMLElement | null
 
       function shift(date: Date, d: number): Date { const r = new Date(date); r.setDate(r.getDate() + d); return r }
       function fmt(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
@@ -537,6 +603,7 @@ export function GanttChart({
             previewColStart = origColStart; previewColEnd = Math.max(origColStart, Math.min(origColEnd + delta, totalCols - 1))
           }
           if (barEl) { barEl.style.left = `${previewColStart * cw + 4}px`; barEl.style.width = `${(previewColEnd - previewColStart + 1) * cw - 8}px` }
+          if (metaEl) { metaEl.style.left = `${(previewColEnd + 1) * cw + 12}px` }
           // 툴팁
           const sk = ds[Math.max(0, Math.min(previewColStart, ds.length-1))].key
           const ek = ds[Math.max(0, Math.min(previewColEnd,   ds.length-1))].key
@@ -550,6 +617,7 @@ export function GanttChart({
           else if (dragType === 'resize-left') { ns = shift(origStartDate, d);  if (ns > origEndDate)   ns = origEndDate }
           else                             { ne = shift(origEndDate, d);    if (ne < origStartDate) ne = origStartDate }
           if (barEl) { const px = barPx(ns, ne); barEl.style.left = `${px.left}px`; barEl.style.width = `${px.width}px` }
+          if (metaEl) { const px = barPx(ns, ne); metaEl.style.left = `${px.left + px.width + 16}px` }
           // 툴팁
           tooltipLabel.textContent = formatBarDate(fmt(ns), fmt(ne))
           tooltip.style.left = `${me.clientX}px`; tooltip.style.top = `${me.clientY}px`; tooltip.style.display = 'block'
@@ -581,7 +649,7 @@ export function GanttChart({
 
   // ── 행 렌더 헬퍼 ─────────────────────────────────────────
   const renderCategoryRows = (cat: GanttCategory, catIdx: number, forPanel: 'left' | 'right') => {
-    const barColor  = PASTEL_COLORS[catIdx % PASTEL_COLORS.length]
+    const barColor  = cat.color
     const catProjs  = projectsOf(cat.id)
 
     if (forPanel === 'left') {
@@ -620,8 +688,29 @@ export function GanttChart({
               <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{catProjs.length}</span>
               {!readOnly && (
                 <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
-                  <button onClick={() => onAddProject(cat.id)} className="p-1 text-gray-300 hover:text-indigo-500 rounded"><Plus size={12} /></button>
-                  <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-300 hover:text-red-400 rounded"><Trash2 size={11} /></button>
+                  <Popover>
+                    <PopoverTrigger
+                      className="p-1 text-gray-300 hover:text-indigo-500 rounded"
+                      title="색상 변경"
+                    >
+                      <Palette size={12} />
+                    </PopoverTrigger>
+                    <PopoverContent className="w-auto p-2" align="start">
+                      <div className="grid grid-cols-8 gap-1.5">
+                        {CAT_COLORS.map(c => (
+                          <button
+                            key={c}
+                            type="button"
+                            onClick={() => onUpdateCategory(cat.id, { color: c })}
+                            className={`w-5 h-5 rounded-full hover:scale-110 transition-transform border border-black/5 ${cat.color === c ? 'ring-2 ring-gray-800 ring-offset-1' : ''}`}
+                            style={{ backgroundColor: c }}
+                            title={c}
+                          />
+                        ))}
+                      </div>
+                    </PopoverContent>
+                  </Popover>
+                  <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-300 hover:text-red-400 rounded" title="카테고리 삭제"><Trash2 size={11} /></button>
                 </div>
               )}
             </div>
@@ -641,11 +730,11 @@ export function GanttChart({
                       style={{ opacity: isDragging ? 0 : 1 }}
                     >
                       <div
-                        className="flex items-center gap-1.5 group border-b px-2"
+                        className="flex items-center gap-1.5 group border-b pl-3 pr-2 relative"
                         style={{
-                          height: ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H,
+                          height: PROJ_ROW_H,
                           backgroundColor: isBacklog ? '#f3f4f6' : 'white',
-                          ...(readOnly && { borderLeft: `3px solid ${barColor}55`, paddingLeft: 14 }),
+                          ...(readOnly && { paddingLeft: 14 }),
                         }}
                       >
                         {!readOnly && (
@@ -658,55 +747,74 @@ export function GanttChart({
                             <GripVertical size={13} className="text-gray-300" />
                           </button>
                         )}
-                        {/* 상태 불릿 + 약식 */}
+                        {/* 상태 약자 배지 — 클릭 시 상태 사이클 */}
                         <button
+                          type="button"
                           onClick={readOnly ? undefined : () => cycleStatus(project)}
-                          className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold leading-none tabular-nums"
-                          style={{ color: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
+                          aria-label={sm.label}
                           title={sm.label}
+                          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white hover:scale-110 transition-transform"
+                          style={{ backgroundColor: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
                         >
-                          <span className="text-[8px]">●</span>
-                          <span>{sm.abbr}</span>
+                          {sm.abbr}
                         </button>
-                        {/* 우선순위 */}
-                        {project.priority > 0 && (
-                          <span className="shrink-0">
-                            <PriorityBars priority={project.priority as Priority} />
-                          </span>
-                        )}
-                        {/* 프로젝트 이름 */}
+                        {/* 프로젝트 이름 — 우선순위에 따른 강조 */}
                         <span
-                          className="text-xs font-medium text-gray-800 truncate flex-1 min-w-0 cursor-pointer hover:text-indigo-600"
+                          className={`text-xs truncate min-w-0 cursor-pointer hover:text-indigo-600 ${
+                            project.priority === 3 ? 'font-semibold text-rose-400' :
+                            project.priority === 2 ? 'font-medium text-gray-900' :
+                            project.priority === 1 ? 'font-normal text-gray-600' :
+                            'font-normal text-gray-400'
+                          }`}
                           onClick={readOnly ? undefined : () => onEditProject(project)}
                           title={project.name}
                         >
                           {project.name}
                         </span>
-                        {/* 메모 버튼 */}
+                        {/* 지연 뱃지 — 마감 지연 우선, 그 다음 시작 지연 */}
+                        {isProjectOverdue(project, todayStr) ? (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium border border-red-100 whitespace-nowrap">
+                            지연 {daysBetween(project.end_date!, todayStr)}일
+                          </span>
+                        ) : isStartDelayed(project, todayStr) ? (
+                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium border border-amber-100 whitespace-nowrap">
+                            시작 지연 {daysBetween(project.start_date!, todayStr)}일
+                          </span>
+                        ) : null}
+                        <span className="flex-1 min-w-0" />
+                        {/* 우측 액션 영역 — 메모(상시: 메모 있을 때) + 삭제(호버 시) */}
                         {!readOnly && (
-                          <button
-                            onClick={() => onOpenMemo(project)}
-                            onMouseEnter={project.memo ? e => setMemoHover({ text: project.memo!, x: e.clientX, y: e.clientY }) : undefined}
-                            onMouseLeave={project.memo ? () => setMemoHover(null) : undefined}
-                            className={`shrink-0 p-1 rounded transition-all ${
-                              project.memo
-                                ? 'text-indigo-400 hover:text-indigo-600'
-                                : 'text-gray-200 opacity-0 group-hover:opacity-100 hover:text-indigo-400'
-                            }`}
-                            title="메모"
-                          >
-                            <StickyNote size={11} />
-                          </button>
-                        )}
-                        {/* 삭제 버튼 */}
-                        {!readOnly && (
-                          <button
-                            onClick={e => { e.stopPropagation(); onDeleteProject(project.id) }}
-                            className="shrink-0 p-1 rounded opacity-0 group-hover:opacity-100 text-gray-300 hover:text-red-400 transition-all"
-                            title="삭제 (휴지통으로 이동)"
-                          >
-                            <Trash2 size={11} />
-                          </button>
+                          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pl-8 pr-2">
+                            {/* 호버 시에만 보이는 배경 그라데이션 */}
+                            <div
+                              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
+                              style={{
+                                background: `linear-gradient(to left, ${isBacklog ? '#f3f4f6' : '#ffffff'} 55%, ${isBacklog ? 'rgba(243,244,246,0)' : 'rgba(255,255,255,0)'} 100%)`,
+                              }}
+                            />
+                            {/* 삭제 — 호버 시에만 */}
+                            <button
+                              onClick={e => { e.stopPropagation(); onDeleteProject(project.id) }}
+                              className="relative shrink-0 p-1 rounded text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
+                              title="삭제 (휴지통으로 이동)"
+                            >
+                              <Trash2 size={11} />
+                            </button>
+                            {/* 메모 — 있으면 상시, 없으면 호버 시 */}
+                            <button
+                              onClick={() => onOpenMemo(project)}
+                              onMouseEnter={project.memo ? e => setMemoHover({ text: project.memo!, x: e.clientX, y: e.clientY }) : undefined}
+                              onMouseLeave={project.memo ? () => setMemoHover(null) : undefined}
+                              className={`relative shrink-0 p-1 rounded transition-opacity ${
+                                project.memo
+                                  ? 'text-indigo-500 hover:text-indigo-700'
+                                  : 'text-gray-300 hover:text-indigo-400 opacity-0 group-hover:opacity-100'
+                              }`}
+                              title="메모"
+                            >
+                              <StickyNote size={11} />
+                            </button>
+                          </div>
                         )}
                       </div>
                     </div>
@@ -747,96 +855,77 @@ export function GanttChart({
           const cols      = barCols(project)
           const isBacklog = project.status === 'backlog'
 
-          const ghost = ghostEnabled && ghostDates?.[project.id]
-          const ghostProject = ghost ? {
-            ...project,
-            start_date: ghost.start_date ?? project.start_date,
-            end_date:   ghost.end_date   ?? project.end_date,
-          } : null
-          const ghostCols = ghostProject ? barCols(ghostProject) : null
-          const hasGhostDiff = ghostCols && cols && (
-            Math.abs(ghostCols.start - cols.start) > 0.01 ||
-            Math.abs(ghostCols.end - cols.end) > 0.01
-          )
+          const BAR_H   = 20
+          const curTop  = (PROJ_ROW_H - BAR_H) / 2
+          const barWidth = (cols ? cols.end - cols.start : 0) * colW - 8
 
-          const showCompare = !!(ghostEnabled && hasGhostDiff)
-          const rowH   = ghostEnabled ? PROJ_ROW_H_CMP : PROJ_ROW_H
-
-          const BAR_H   = 14
-          const GHOST_H = 14
-          const curTop   = (PROJ_ROW_H - BAR_H) / 2
-          const ghostTop = curTop + BAR_H + 8
+          // 날짜 텍스트가 바 안에 들어가는지 정확히 판단 (글자수 × 평균 폭 + padding)
+          const dateText = (project.start_date && project.end_date) ? formatBarDate(project.start_date, project.end_date) : ''
+          const dateFitsInside = dateText.length > 0 && barWidth >= dateText.length * 5.5 + 14
 
           return (
             <div
               key={project.id}
               className="relative border-b"
-              style={{ height: rowH, backgroundColor: isBacklog ? '#f3f4f6' : 'white' }}
+              style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'transparent' }}
             >
-              {/* ghost 바 */}
-              {showCompare && ghostCols && (
-                <div
-                  className="absolute rounded-full overflow-hidden flex items-center pointer-events-none select-none"
-                  style={{
-                    top: ghostTop,
-                    left: ghostCols.start * colW + 4,
-                    width: Math.max(2, (ghostCols.end - ghostCols.start) * colW - 8),
-                    height: GHOST_H,
-                    backgroundColor: barColor + '28',
-                    border: `1.5px dashed ${barColor}`,
-                  }}
-                >
-                  {ghostProject?.start_date && ghostProject?.end_date && (
-                    <span className="px-2 text-[9px] font-medium tabular-nums truncate" style={{ color: barColor }}>
-                      {formatBarDate(ghostProject.start_date, ghostProject.end_date)}
-                    </span>
-                  )}
-                </div>
-              )}
-
               {cols && (
                 <>
                   {/* 현재 바 */}
                   <div
                     data-bar-id={project.id}
-                    className="absolute rounded-full overflow-hidden flex items-center"
+                    className="absolute rounded overflow-hidden flex items-center"
                     style={{
                       top: curTop,
                       left: cols.start * colW + 4,
-                      width: (cols.end - cols.start) * colW - 8,
+                      width: barWidth,
                       height: BAR_H,
-                      backgroundColor: barColor,
+                      backgroundColor: barColor + 'bb',
+                      border: `1.5px solid ${barColor}`,
+                      paddingLeft: 5,
+                      paddingRight: 4,
                       cursor: readOnly ? 'default' : 'grab',
                     }}
                     onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
                   >
-                    {!readOnly && <div className="absolute left-0 top-0 bottom-0 w-3 rounded-l-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />}
-                    {project.start_date && project.end_date && (
-                      <span className="px-2 text-[9px] font-medium tabular-nums truncate pointer-events-none select-none" style={{ color: '#1f2937' }}>
-                        {formatBarDate(project.start_date, project.end_date)}
+                    {!readOnly && <div className="absolute left-0 top-0 bottom-0 w-2 rounded-l cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />}
+                    {dateFitsInside && (
+                      <span
+                        className="text-[10px] font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
+                        style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
+                      >
+                        {dateText}
                       </span>
                     )}
-                    {!readOnly && <div className="absolute right-0 top-0 bottom-0 w-3 rounded-r-full cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />}
+                    {!readOnly && <div className="absolute right-0 top-0 bottom-0 w-2 rounded-r cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />}
                   </div>
 
-                  {/* 바 오른쪽: 팀/PM 뱃지 */}
-                  {(project.team || project.pm) && (
+                  {/* 바 오른쪽: 날짜(못 들어갈 때) + 팀/PM 메타 */}
+                  {((!dateFitsInside && dateText) || project.team || project.pm) && (
                     <div
-                      className="absolute flex items-center gap-1 pointer-events-none"
+                      data-bar-meta-id={project.id}
+                      className="absolute flex items-center gap-3 pointer-events-none"
                       style={{
-                        left: (showCompare && ghostCols ? Math.max(cols.end, ghostCols.end) : cols.end) * colW + 8,
+                        left: cols.end * colW + 12,
                         top: curTop + BAR_H / 2,
                         transform: 'translateY(-50%)',
                       }}
                     >
+                      {!dateFitsInside && dateText && (
+                        <span className="text-[10px] font-medium tabular-nums whitespace-nowrap text-gray-500">
+                          {dateText}
+                        </span>
+                      )}
                       {project.team && (
-                        <span className="text-[10px] font-medium px-1.5 py-0.5 rounded whitespace-nowrap" style={{ backgroundColor: barColor + '60', color: '#374151' }}>
+                        <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-gray-600">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: barColor }} />
                           {project.team}
                         </span>
                       )}
                       {project.pm && (
-                        <span className="text-[10px] px-1.5 py-0.5 rounded whitespace-nowrap border" style={{ borderColor: barColor, color: '#374151' }}>
-                          👤 {project.pm}
+                        <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-gray-600">
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: pmColorMap.get(project.pm) ?? '#9ca3af' }} />
+                          {project.pm}
                         </span>
                       )}
                     </div>
@@ -867,6 +956,12 @@ export function GanttChart({
         onUndo={onUndo}
         redoCount={redoCount}
         onRedo={onRedo}
+        overdueCount={overdueCount}
+        overdueFilter={overdueFilter}
+        onToggleOverdueFilter={() => setOverdueFilter(v => !v)}
+        startDelayedCount={startDelayedCount}
+        startDelayedFilter={startDelayedFilter}
+        onToggleStartDelayedFilter={() => setStartDelayedFilter(v => !v)}
         searchQuery={searchQuery}
         onSearchChange={setSearchQuery}
         allTeams={allTeams}
@@ -879,10 +974,9 @@ export function GanttChart({
         onViewModeChange={setViewMode}
         sortMode={sortMode}
         onSortModeChange={setSortMode}
-        ghostEnabled={ghostEnabled}
-        onToggleGhost={onToggleGhost ? async (enabled) => { setGhostEnabled(enabled); await onToggleGhost(enabled) } : undefined}
         sortedCats={sortedCats}
         onAddProject={onAddProject}
+        onAddCategory={() => setAddingCat(true)}
       />
 
       {/* 메인 영역 */}
@@ -894,8 +988,17 @@ export function GanttChart({
           className="shrink-0 flex flex-col shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
           style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
         >
-          <div className="shrink-0 border-b bg-white flex items-end" style={{ height: HEADER_H }}>
+          <div className="shrink-0 border-b bg-white flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
             <span className="text-[11px] font-semibold text-gray-400 px-3 pb-2">프로젝트</span>
+            {!readOnly && (
+              <button
+                onClick={() => setAddingCat(true)}
+                className="flex items-center gap-0.5 text-[11px] text-gray-400 hover:text-gray-900 pb-2 transition-colors"
+                title="카테고리 추가"
+              >
+                <Plus size={11} /> 카테고리
+              </button>
+            )}
           </div>
           <div
             ref={leftRef}
@@ -927,35 +1030,6 @@ export function GanttChart({
                   {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
                 </SortableContext>
 
-                {/* 마지막 카테고리 바로 아래: 카테고리 추가 */}
-                {!readOnly && (
-                  addingCat ? (
-                    <div
-                      className="flex items-center gap-2 px-3 border-b"
-                      style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: '3px solid #6366f1' }}
-                    >
-                      <input
-                        autoFocus
-                        className="text-xs font-bold border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
-                        placeholder="카테고리명"
-                        value={newCatName}
-                        onChange={e => setNewCatName(e.target.value)}
-                        onKeyDown={e => { if (e.key === 'Enter') submitAddCat(); if (e.key === 'Escape') { setAddingCat(false); setNewCatName('') } }}
-                      />
-                      <button onClick={submitAddCat} className="p-0.5 text-indigo-500 hover:text-indigo-700"><Check size={13} /></button>
-                      <button onClick={() => { setAddingCat(false); setNewCatName('') }} className="p-0.5 text-gray-400 hover:text-gray-600"><X size={13} /></button>
-                    </div>
-                  ) : (
-                    <button
-                      onClick={() => setAddingCat(true)}
-                      className="w-full flex items-center gap-1.5 px-3 text-xs text-gray-400 hover:text-indigo-500 hover:bg-gray-50 transition-colors border-b"
-                      style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: '3px solid transparent' }}
-                    >
-                      <Plus size={12} /> 카테고리
-                    </button>
-                  )
-                )}
-
               </div>
 
               {/* DragOverlay: 드래그 중인 행의 커서 따라가는 미리보기 */}
@@ -979,11 +1053,11 @@ export function GanttChart({
                     >
                       <GripVertical size={13} className="text-gray-400 shrink-0" />
                       <span
-                        className="shrink-0 flex items-center gap-0.5 text-[10px] font-bold leading-none"
-                        style={{ color: sm.dot }}
+                        className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                        style={{ backgroundColor: sm.dot }}
+                        aria-label={sm.label}
                       >
-                        <span className="text-[8px]">●</span>
-                        <span>{sm.abbr}</span>
+                        {sm.abbr}
                       </span>
                       <span className="text-xs font-medium text-gray-800 truncate flex-1">
                         {activeProjForOverlay.name}
@@ -1068,7 +1142,7 @@ export function GanttChart({
                         className={`text-center border-r shrink-0 flex items-center justify-center text-[10px] font-medium ${isToday ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-gray-400'}`}
                         style={{ width: colW }}
                       >
-                        {`${w.weekStart.getMonth() + 1}/${w.weekStart.getDate()}`}
+                        {w.weekStart.getDate()}
                       </div>
                     )
                   })
@@ -1100,19 +1174,19 @@ export function GanttChart({
             className="flex-1 overflow-auto"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
-            <div style={{ width: totalWidth }} className="relative">
+            <div style={{ width: totalWidth }} className="relative bg-white">
+              {/* 그리드 세로선 */}
+              {gridLinePositions.map((x, i) => (
+                <div
+                  key={`gl-${i}`}
+                  className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none"
+                  style={{ left: x }}
+                />
+              ))}
               {todayX !== null && (
-                <div className="absolute top-0 bottom-0 w-px bg-red-200 z-10 pointer-events-none" style={{ left: todayX }} />
+                <div className="absolute top-0 bottom-0 w-px bg-indigo-400 opacity-70 z-10 pointer-events-none" style={{ left: todayX }} />
               )}
               {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'right'))}
-
-              {/* 카테고리 추가 행 — 오른쪽 음영 */}
-              {!readOnly && (
-                <div
-                  className="border-b"
-                  style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa' }}
-                />
-              )}
             </div>
           </div>
         </div>
@@ -1129,17 +1203,61 @@ export function GanttChart({
       </div>
 
       {/* 메모 hover 툴팁 */}
-      {memoHover && (
-        <div
-          className="fixed z-[9999] pointer-events-none max-w-xs"
-          style={{ left: memoHover.x + 14, top: memoHover.y - 8 }}
-        >
-          <div className="bg-gray-900 text-gray-100 text-xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words">
-            {memoHover.text}
+      {memoHover && (() => {
+        const pos = clampTooltipPos(memoHover.x, memoHover.y)
+        return (
+          <div
+            className="fixed z-[9999] pointer-events-none max-w-xs"
+            style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
+          >
+            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+              {memoHover.text}
+            </div>
+            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
           </div>
-          <div className="absolute -left-1.5 top-3 w-3 h-3 bg-gray-900 rotate-45" />
-        </div>
-      )}
+        )
+      })()}
+
+      {/* 카테고리 추가 모달 */}
+      <Dialog open={addingCat} onOpenChange={open => { if (!open) { setAddingCat(false); setNewCatName('') } }}>
+        <DialogContent className="sm:max-w-sm">
+          <DialogHeader>
+            <DialogTitle>카테고리 추가</DialogTitle>
+          </DialogHeader>
+          <div className="flex flex-col gap-4 py-2">
+            <div>
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">이름</label>
+              <input
+                autoFocus
+                className="mt-1.5 w-full text-sm border border-gray-200 rounded px-3 py-2 outline-none focus:border-indigo-300 placeholder:text-gray-300"
+                placeholder="카테고리명"
+                value={newCatName}
+                onChange={e => setNewCatName(e.target.value)}
+                onKeyDown={e => { if (e.key === 'Enter') submitAddCat(); if (e.key === 'Escape') { setAddingCat(false); setNewCatName('') } }}
+              />
+            </div>
+            <div>
+              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">색상</label>
+              <div className="mt-1.5 flex flex-wrap gap-1.5">
+                {CAT_COLORS.map(c => (
+                  <button
+                    key={c}
+                    type="button"
+                    onClick={() => setNewCatColor(c)}
+                    className={`w-6 h-6 rounded-full hover:scale-110 transition-transform border border-black/5 ${newCatColor === c ? 'ring-2 ring-gray-800 ring-offset-1' : ''}`}
+                    style={{ backgroundColor: c }}
+                    title={c}
+                  />
+                ))}
+              </div>
+            </div>
+          </div>
+          <DialogFooter>
+            <Button variant="outline" onClick={() => { setAddingCat(false); setNewCatName('') }}>취소</Button>
+            <Button onClick={submitAddCat} disabled={!newCatName.trim()}>추가</Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   )
 }

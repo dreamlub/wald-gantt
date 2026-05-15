@@ -2,14 +2,13 @@
 
 import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Trash2, Paperclip, StickyNote,
+  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote,
 } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtDate, isOverdue, overdueDays, daysDiff } from '../_utils'
+import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor, clampTooltipPos } from '../_utils'
 import { labelColor } from './TaskDetailDrawer'
-import { PriorityBars } from '../_constants'
 
 interface TaskRowProps {
   task: GanttTask
@@ -30,9 +29,11 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
   const overdue  = isOverdue(task.due_date, task.status)
+  const startDelayed = !overdue && isStartDelayed(task.start_date, task.status)
   const isDone   = task.status === 'done'
   const noUpdate = daysDiff(task.updated_at) >= 7 && !isDone
   const odDays   = overdueDays(task.due_date)
+  const sdDays   = startDelayedDays(task.start_date)
   const color    = assigneeColor ?? '#9ca3af'
   const assigneeName = task.type === 'mine' ? '내 할일' : (task.assignee ?? '')
   const labels = task.labels ?? []
@@ -61,7 +62,13 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         {/* 제목 — 클릭 시 드로어 */}
         <button
           onClick={() => onEdit(task)}
-          className={`text-xs font-medium shrink-0 truncate max-w-[40%] text-left hover:text-indigo-600 transition-colors ${isDone ? 'line-through text-gray-400' : 'text-gray-800'}`}
+          className={`text-xs min-w-0 truncate text-left hover:text-indigo-600 transition-colors ${
+            isDone ? 'line-through font-medium text-gray-400' :
+            task.priority === 3 ? 'font-semibold text-rose-400' :
+            task.priority === 2 ? 'font-medium text-gray-900' :
+            task.priority === 1 ? 'font-normal text-gray-600' :
+            'font-normal text-gray-400'
+          }`}
         >
           {task.title}
         </button>
@@ -71,7 +78,12 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             지연 {odDays}일
           </span>
         )}
-        {noUpdate && !overdue && (
+        {startDelayed && (
+          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium border border-amber-100 whitespace-nowrap">
+            시작 지연 {sdDays}일
+          </span>
+        )}
+        {noUpdate && !overdue && !startDelayed && (
           <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 font-medium border border-orange-100 whitespace-nowrap">
             {daysDiff(task.updated_at)}일 무응답
           </span>
@@ -91,16 +103,19 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         )}
 
         {/* 라벨 */}
-        {labels.slice(0, 4).map(l => (
-          <span
-            key={l}
-            className="shrink-0 text-[10px] px-1.5 py-0.5 rounded-full text-white font-medium whitespace-nowrap"
-            style={{ backgroundColor: labelColor(l) }}
-          >
-            {l}
-          </span>
-        ))}
-        {labels.length > 4 && <span className="text-[10px] text-gray-400 shrink-0">+{labels.length - 4}</span>}
+        {labels.slice(0, 4).map(l => {
+          const bg = labelColor(l)
+          return (
+            <span
+              key={l}
+              className="shrink-0 text-[9px] leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
+              style={{ backgroundColor: bg, color: isLightColor(bg) ? '#1f2937' : '#ffffff' }}
+            >
+              {l}
+            </span>
+          )
+        })}
+        {labels.length > 4 && <span className="text-[9px] text-gray-400 shrink-0">+{labels.length - 4}</span>}
 
         {/* 하위 태스크 진행 뱃지 */}
         {subTaskStats && subTaskStats.total > 0 && (
@@ -116,30 +131,16 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
           </button>
         )}
 
-        {/* sub + 버튼 */}
-        {onAddSubTask && !isSubTask && (
+        {/* 하위 태스크 추가 — 호버 시 표시 */}
+        {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:text-indigo-500 hover:border-indigo-300 hover:bg-indigo-50 transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-100 transition-all whitespace-nowrap"
+            title="하위 태스크 추가"
           >
             sub +
           </button>
         )}
-
-        {/* 인라인 삭제 버튼 */}
-        <button
-          onClick={e => { e.stopPropagation(); onDelete(task.id) }}
-          className="shrink-0 opacity-0 group-hover:opacity-100 p-0.5 text-gray-400 hover:text-red-400 rounded transition-all"
-          title="삭제"
-        >
-          <Trash2 size={11} />
-        </button>
-
-      </div>
-
-      {/* 우선순위 컬럼 */}
-      <div className="w-16 shrink-0 flex items-center">
-        <PriorityBars priority={task.priority} showLabel />
       </div>
 
       {/* 메모 컬럼 */}
@@ -159,17 +160,20 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         >
           <StickyNote size={12} />
         </button>
-        {memoPos && task.memo && (
-          <div
-            className="fixed z-[9999] pointer-events-none max-w-xs"
-            style={{ left: memoPos.x + 14, top: memoPos.y - 8 }}
-          >
-            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words">
-              {task.memo}
+        {memoPos && task.memo && (() => {
+          const pos = clampTooltipPos(memoPos.x, memoPos.y)
+          return (
+            <div
+              className="fixed z-[9999] pointer-events-none max-w-xs"
+              style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
+            >
+              <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+                {task.memo}
+              </div>
+              <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
             </div>
-            <div className="absolute -left-1.5 top-3 w-3 h-3 bg-gray-900 rotate-45" />
-          </div>
-        )}
+          )
+        })()}
       </div>
 
       <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-indigo-500 transition-colors">
@@ -180,14 +184,8 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
           </>
         )}
       </button>
-      <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
-        {fmtDate(task.start_date ?? null)}
-      </button>
-      <button onClick={() => onEdit(task)} className={`w-14 shrink-0 text-[11px] tabular-nums text-left hover:text-indigo-500 transition-colors ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
-        {fmtDate(task.due_date)}
-      </button>
-      <button onClick={() => onEdit(task)} className="w-14 shrink-0 text-[11px] text-gray-400 tabular-nums text-left hover:text-indigo-500 transition-colors">
-        {fmtDate(task.created_at)}
+      <button onClick={() => onEdit(task)} className={`w-24 shrink-0 text-[11px] tabular-nums text-left hover:text-indigo-500 transition-colors ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
+        {fmtRange(task.start_date ?? null, task.due_date)}
       </button>
     </div>
   )
