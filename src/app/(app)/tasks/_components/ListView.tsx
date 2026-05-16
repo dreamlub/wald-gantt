@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus } from 'lucide-react'
+import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff, clampTooltipPos, isLightColor } from '../_utils'
 import { STATUS_COLOR, STATUS_LABEL } from '../_constants'
@@ -10,6 +10,28 @@ import { labelColor } from './TaskDetailDrawer'
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
 const STATUS_ORDER: Record<TaskStatus, number> = { backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
+
+function SortBtn({
+  col, label, sortKey, sortDir, onToggle,
+}: {
+  col: SortKey
+  label: string
+  sortKey: SortKey
+  sortDir: 'asc' | 'desc'
+  onToggle: (k: SortKey) => void
+}) {
+  const active = sortKey === col
+  return (
+    <button
+      onClick={() => onToggle(col)}
+      className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+        ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
+    >
+      {label}
+      <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </button>
+  )
+}
 
 interface Props {
   tasks: GanttTask[]
@@ -20,9 +42,12 @@ interface Props {
   emptyMessage?: string
   onQuickCreate?: (title: string, status: TaskStatus) => Promise<void>
   onSubQuickCreate?: (parentId: string, title: string) => Promise<void>
+  selectionMode?: boolean
+  selectedIds?: Set<string>
+  onSelect?: (id: string) => void
 }
 
-export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onSubQuickCreate }: Props) {
+export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onSubQuickCreate, selectionMode, selectedIds, onSelect }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('due_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
@@ -134,34 +159,42 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     if (cur) groups.push(cur)
   }
 
-  function SortBtn({ col, label }: { col: SortKey; label: string }) {
-    const active = sortKey === col
-    return (
-      <button
-        onClick={() => toggleSort(col)}
-        className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-gray-600 transition-colors
-          ${active ? 'text-indigo-600' : 'text-gray-400'}`}
-      >
-        {label}
-        <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
-      </button>
-    )
-  }
-
   return (
-    <div className="flex-1 overflow-y-auto">
+    <div className="flex-1 flex flex-col overflow-hidden">
       {/* 헤더 */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b bg-gray-50 shrink-0 sticky top-0 z-10">
-        <div className="w-6 shrink-0" />
-        <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" /></div>
-        <div className="w-8 shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">메모</div>
-        <div className="w-28 shrink-0"><SortBtn col="status" label="상태" /></div>
-        <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" /></div>
-        <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" /></div>
+      <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted shrink-0">
+        <div className="w-6 shrink-0 flex items-center justify-center">
+          {selectionMode && (
+            <button
+              onClick={() => {
+                const allIds = tasks.map(t => t.id)
+                const allSelected = allIds.every(id => selectedIds?.has(id))
+                allIds.forEach(id => {
+                  const isSelected = selectedIds?.has(id) ?? false
+                  if (allSelected ? isSelected : !isSelected) onSelect?.(id)
+                })
+              }}
+              className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${
+                tasks.length > 0 && tasks.every(t => selectedIds?.has(t.id))
+                  ? 'bg-lilac-500 border-lilac-500'
+                  : 'border-border hover:border-lilac-400'
+              }`}
+              title="전체 선택/해제"
+            >
+              {tasks.length > 0 && tasks.every(t => selectedIds?.has(t.id)) && <Check size={8} className="text-white" strokeWidth={3} />}
+            </button>
+          )}
+        </div>
+        <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-8 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">메모</div>
+        <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
 
+      <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
       {renderList.length === 0 ? (
-        <div className="flex items-center justify-center h-40 text-gray-400 text-xs">{emptyMessage}</div>
+        <div className="flex items-center justify-center h-40 text-ink-400 text-xs">{emptyMessage}</div>
       ) : groups.flatMap(({ parent, subs }) => {
         const rows: React.ReactNode[] = []
         const items: { task: GanttTask; isSub: boolean }[] = [
@@ -172,55 +205,66 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           const overdue   = isOverdue(task.due_date, task.status)
           const isDone    = task.status === 'done'
           const noUpdate  = daysDiff(task.updated_at) >= 7 && !isDone
-          const color     = assigneeColorMap.get(getAssigneeKey(task)) ?? '#9ca3af'
+          const color     = assigneeColorMap.get(getAssigneeKey(task)) ?? 'var(--color-ink-300)'
           const assigneeName = task.type === 'mine' ? '내 할일' : (task.assignee ?? '')
           const subStats  = !isSub ? subStatsByParent.get(task.id) : undefined
           const labels    = task.labels ?? []
           rows.push(
           <div
             key={task.id}
-            onClick={() => onEdit(task)}
-            className={`group flex items-center gap-4 px-4 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-gray-50/40' : ''}`}
+            onClick={() => selectionMode ? onSelect?.(task.id) : onEdit(task)}
+            className={`group flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''}`}
           >
             <div className="w-6 shrink-0 flex items-center">
-              {isSub && <CornerDownRight size={11} className="text-gray-300 mr-0.5" />}
-              <button
-                onClick={e => { e.stopPropagation(); onStatusChange(task.id, task.status === 'done' ? 'to-do' : 'done') }}
-                className="shrink-0"
-              >
-                {isDone
-                  ? <CheckCircle2 size={16} className="text-green-400" />
-                  : <Circle size={16} className="text-gray-300 hover:text-indigo-400 transition-colors" />}
-              </button>
+              {selectionMode ? (
+                <button
+                  onClick={e => { e.stopPropagation(); onSelect?.(task.id) }}
+                  className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selectedIds?.has(task.id) ? 'bg-lilac-500 border-lilac-500' : 'border-border hover:border-lilac-400'}`}
+                >
+                  {selectedIds?.has(task.id) && <Check size={8} className="text-white" strokeWidth={3} />}
+                </button>
+              ) : (
+                <>
+                  {isSub && <CornerDownRight size={11} className="text-ink-300 mr-0.5" />}
+                  <button
+                    onClick={e => { e.stopPropagation(); onStatusChange(task.id, task.status === 'done' ? 'to-do' : 'done') }}
+                    className="shrink-0"
+                  >
+                    {isDone
+                      ? <CheckCircle2 size={16} className="text-mint-500" />
+                      : <Circle size={16} className="text-ink-300 hover:text-lilac-400 transition-colors" />}
+                  </button>
+                </>
+              )}
             </div>
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
               <span className={`text-xs truncate min-w-0 ${
-                isDone ? 'line-through text-gray-400' :
-                task.priority === 3 ? 'font-semibold text-rose-400' :
-                task.priority === 2 ? 'font-medium text-gray-900' :
-                task.priority === 1 ? 'font-normal text-gray-600' :
-                'font-normal text-gray-400'
+                isDone ? 'line-through text-ink-400' :
+                task.priority === 3 ? 'font-semibold text-rose-500' :
+                task.priority === 2 ? 'font-medium text-foreground' :
+                task.priority === 1 ? 'font-normal text-muted-foreground' :
+                'font-normal text-ink-400'
               }`}>{task.title}</span>
               {overdue && (
-                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium border border-red-100 whitespace-nowrap">
+                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                   지연 {overdueDays(task.due_date)}일
                 </span>
               )}
               {noUpdate && !overdue && (
-                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 font-medium border border-orange-100 whitespace-nowrap">
+                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
                   {daysDiff(task.updated_at)}일 무응답
                 </span>
               )}
               {/* 연결 프로젝트 */}
               {task.projects && task.projects.length > 0 && (
                 <>
-                  <span className="text-gray-200 text-[10px] shrink-0">·</span>
+                  <span className="text-ink-200 text-[10px] shrink-0">·</span>
                   {task.projects.slice(0, 2).map(p => (
-                    <span key={p.id} className="flex items-center gap-0.5 text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                    <span key={p.id} className="flex items-center gap-0.5 text-[10px] bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                       <Paperclip size={8} className="shrink-0" />{p.name}
                     </span>
                   ))}
-                  {task.projects.length > 2 && <span className="text-[10px] text-gray-400 shrink-0">+{task.projects.length - 2}</span>}
+                  {task.projects.length > 2 && <span className="text-[10px] text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
                 </>
               )}
               {/* 라벨 */}
@@ -236,14 +280,14 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                   </span>
                 )
               })}
-              {labels.length > 4 && <span className="text-[9px] text-gray-400 shrink-0">+{labels.length - 4}</span>}
+              {labels.length > 4 && <span className="text-[9px] text-ink-400 shrink-0">+{labels.length - 4}</span>}
               {/* 하위 진행 */}
               {subStats && subStats.total > 0 && (
                 <span
                   className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap ${
                     subStats.done === subStats.total
-                      ? 'bg-green-50 text-green-600 border-green-100'
-                      : 'bg-gray-50 text-gray-500 border-gray-100'
+                      ? 'bg-mint-100 text-mint-500 border-mint-100'
+                      : 'bg-muted text-muted-foreground border-border'
                   }`}
                 >
                   {subStats.done}/{subStats.total}
@@ -253,7 +297,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               {!isSub && onSubQuickCreate && (
                 <button
                   onClick={e => { e.stopPropagation(); setSubQuickParentId(task.id); setSubQuickTitle('') }}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-100 transition-all whitespace-nowrap"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
                   title="하위 태스크 추가"
                 >
                   sub +
@@ -266,7 +310,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                   onClick={e => { e.stopPropagation(); onEdit(task) }}
                   onMouseEnter={e => setMemoHover({ taskId: task.id, x: e.clientX, y: e.clientY })}
                   onMouseLeave={() => setMemoHover(null)}
-                  className="text-indigo-400 hover:text-indigo-600 transition-colors"
+                  className="text-lilac-400 hover:text-accent-foreground transition-colors"
                 >
                   <StickyNote size={12} />
                 </button>
@@ -274,29 +318,29 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             </div>
             <div className="w-28 shrink-0 flex items-center gap-1.5">
               <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
-              <span className="text-[11px] text-gray-600 truncate">{STATUS_LABEL[task.status]}</span>
+              <span className="text-[11px] text-muted-foreground truncate">{STATUS_LABEL[task.status]}</span>
             </div>
             <div className="w-32 shrink-0 flex items-center gap-1.5">
               {assigneeName && (
                 <>
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <span className="text-[11px] text-gray-500 truncate">{assigneeName}</span>
+                  <span className="text-[11px] text-muted-foreground truncate">{assigneeName}</span>
                 </>
               )}
             </div>
-            <div className={`w-24 shrink-0 text-right pr-2 text-[11px] tabular-nums ${overdue ? 'text-red-500 font-medium' : 'text-gray-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
+            <div className={`w-24 shrink-0 text-right pr-2 text-[11px] tabular-nums ${overdue ? 'text-status-late font-medium' : 'text-ink-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
           </div>
           )
         }
         // 부모의 sub들 다음에 인라인 sub 퀵 등록 입력 (호버 sub+ 클릭 시 노출)
         if (subQuickParentId === parent.id) {
           rows.push(
-            <div key={`${parent.id}-sub-quick`} className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-50 bg-indigo-50/30">
+            <div key={`${parent.id}-sub-quick`} className="flex items-center gap-1.5 px-4 py-2 border-b border-ink-150 bg-accent/30">
               <div className="w-6 shrink-0 flex items-center">
-                <CornerDownRight size={11} className="text-indigo-400 mr-0.5" />
+                <CornerDownRight size={11} className="text-lilac-400 mr-0.5" />
               </div>
               <div className="flex-1 pl-4 flex items-center gap-1.5">
-                <Plus size={10} className="text-indigo-400 shrink-0" />
+                <Plus size={10} className="text-lilac-400 shrink-0" />
                 <input
                   autoFocus
                   value={subQuickTitle}
@@ -307,7 +351,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                   }}
                   onBlur={() => { if (!subQuickTitle.trim()) cancelSubQuickAdd() }}
                   placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-                  className="flex-1 text-[11px] outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                  className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                 />
               </div>
             </div>
@@ -318,8 +362,8 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
 
       {/* 인라인 퀵 추가 — 결과가 있을 때만 표시 */}
       {onQuickCreate && renderList.length > 0 && (quickAddOpen ? (
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-50 bg-indigo-50/30">
-          <Plus size={11} className="text-indigo-400 shrink-0" />
+        <div className="flex items-center gap-1.5 px-4 py-2 border-b border-ink-150 bg-accent/30">
+          <Plus size={11} className="text-lilac-400 shrink-0" />
           <input
             autoFocus
             value={quickAddTitle}
@@ -330,14 +374,14 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             }}
             onBlur={() => { if (!quickAddTitle.trim()) { setQuickAddOpen(false); setQuickAddTitle('') } }}
             placeholder="제목 입력 후 Enter, Esc로 취소 (기본 To-Do)"
-            className="flex-1 text-xs outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+            className="flex-1 text-xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
           />
-          <span className="text-[10px] text-gray-300 shrink-0">상세 설정은 행 클릭</span>
+          <span className="text-[10px] text-ink-300 shrink-0">상세 설정은 행 클릭</span>
         </div>
       ) : (
         <button
           onClick={() => { setQuickAddOpen(true); setQuickAddTitle('') }}
-          className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors border-b border-gray-50"
+          className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
         >
           <Plus size={11} /> 태스크 추가
         </button>
@@ -350,13 +394,14 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
         const pos = clampTooltipPos(memoHover.x, memoHover.y)
         return (
           <div className="fixed z-[9999] pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
-            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
               {t.memo}
             </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
+            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
           </div>
         )
       })()}
+      </div>
     </div>
   )
 }

@@ -63,11 +63,19 @@ export default function GanttPage() {
     }
   }, [])
 
-  useEffect(() => { loadWorkspace() }, [loadWorkspace])
-
-  // 2단계: 선택된 보드의 카테고리 + 프로젝트 로드
+  // 초기 1회: 워크스페이스/보드 로드 (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
-    if (!selectedBoardId) { setLoading(false); return }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadWorkspace()
+  }, [loadWorkspace])
+
+  // 2단계: 선택된 보드의 카테고리 + 프로젝트 로드 (외부 fetch → setState 의도된 패턴)
+  useEffect(() => {
+    if (!selectedBoardId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false)
+      return
+    }
     setLoading(true)
     resetStacks()
     setTrashOpen(false)
@@ -272,8 +280,8 @@ export default function GanttPage() {
 
   if (loading && boards.length === 0) {
     return (
-      <div className="flex-1 flex items-center justify-center bg-gray-50">
-        <div className="text-gray-400 text-sm">로딩 중...</div>
+      <div className="flex-1 flex items-center justify-center bg-muted">
+        <div className="text-muted-foreground text-sm">로딩 중...</div>
       </div>
     )
   }
@@ -296,11 +304,11 @@ export default function GanttPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="h-10 border-b bg-white flex items-center px-3 gap-2 shrink-0">
+        <div className="h-12 border-b bg-card flex items-center px-3 gap-2 shrink-0">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
               title="사이드바 열기"
             >
               <PanelLeftOpen size={15} />
@@ -310,17 +318,17 @@ export default function GanttPage() {
           <button
             onClick={() => setDialog({ type: 'share' })}
             disabled={!selectedBoardId}
-            className="flex items-center gap-1 text-xs text-gray-500 hover:text-gray-700 px-2 py-1 rounded hover:bg-gray-100 disabled:opacity-40 disabled:cursor-not-allowed"
+            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
           >
             <Link2 size={13} />
             공유
           </button>
         </div>
 
-        <main className="flex-1 overflow-hidden bg-white">
+        <main className="flex-1 overflow-hidden bg-background">
           {loading ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-gray-400 text-sm">로딩 중...</div>
+              <div className="text-muted-foreground text-sm">로딩 중...</div>
             </div>
           ) : selectedBoardId ? (
             <GanttChart
@@ -348,7 +356,7 @@ export default function GanttPage() {
               onMoveCategory={handleMoveCategory}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-gray-400 text-sm">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
               사이드바에서 보드를 선택하거나 새로 만들어 보세요
             </div>
           )}

@@ -18,11 +18,13 @@ export function useUndoRedo({ projects, onProjectsChange }: Params) {
   const [redoStack, setRedoStack] = useState<UndoEntry[]>([])
 
   const undoStackRef = useRef<UndoEntry[]>([])
-  undoStackRef.current = undoStack
   const redoStackRef = useRef<UndoEntry[]>([])
-  redoStackRef.current = redoStack
   const projectsRef = useRef<GanttProject[]>([])
-  projectsRef.current = projects
+
+  // render 중 ref.current 변경은 react-hooks/refs 위반 → effect로 동기화
+  useEffect(() => { undoStackRef.current = undoStack }, [undoStack])
+  useEffect(() => { redoStackRef.current = redoStack }, [redoStack])
+  useEffect(() => { projectsRef.current = projects }, [projects])
 
   function pushUndo(entry: UndoEntry) {
     setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), entry])

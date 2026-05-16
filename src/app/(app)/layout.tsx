@@ -1,4 +1,5 @@
 import { AppNav } from '@/components/AppNav'
+import { ScrollToTopButton } from '@/components/ScrollToTopButton'
 
 export default function AppLayout({ children }: { children: React.ReactNode }) {
   return (
@@ -7,6 +8,7 @@ export default function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="flex-1 flex overflow-hidden min-w-0">
         {children}
       </div>
+      <ScrollToTopButton />
     </div>
   )
 }

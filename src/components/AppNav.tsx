@@ -7,9 +7,9 @@ import { createClient } from '@/lib/supabase/client'
 
 const navItems = [
   { href: '/',          icon: BarChart2,    label: 'Schedule' },
-  { href: '/tasks',     icon: CheckSquare,  label: 'Task' },
+  { href: '/tasks',     icon: CheckSquare,  label: 'Tasks' },
   { href: '/weekly',    icon: FileText,     label: 'Weekly' },
-  { href: '/timeline',  icon: Clock,        label: 'Timeline' },
+  { href: '/summary',   icon: Clock,        label: 'Summary' },
   { href: '/settings',  icon: Settings,     label: 'Settings' },
 ]
 
@@ -23,9 +23,9 @@ export function AppNav() {
   }
 
   return (
-    <div className="shrink-0 flex flex-col bg-gray-900 text-white" style={{ width: 56 }}>
+    <div className="shrink-0 flex flex-col bg-ink-900 text-white" style={{ width: 56 }}>
       {/* 브랜드 */}
-      <div className="h-12 flex items-center justify-center border-b border-gray-800 shrink-0">
+      <div className="h-12 flex items-center justify-center border-b border-white/10 shrink-0">
         <span className="text-sm font-black text-white tracking-tight">W</span>
       </div>
 
@@ -40,8 +40,8 @@ export function AppNav() {
               title={label}
               className={`flex flex-col items-center justify-center gap-1 w-full py-3 transition-colors ${
                 isActive
-                  ? 'text-white bg-gray-700'
-                  : 'text-gray-500 hover:text-gray-200 hover:bg-gray-800'
+                  ? 'text-white bg-white/15'
+                  : 'text-white/50 hover:text-white hover:bg-white/10'
               }`}
             >
               <Icon size={17} />
@@ -52,11 +52,11 @@ export function AppNav() {
       </nav>
 
       {/* 로그아웃 */}
-      <div className="shrink-0 border-t border-gray-800 mb-1">
+      <div className="shrink-0 border-t border-white/10 mb-1">
         <button
           onClick={handleSignOut}
           title="로그아웃"
-          className="flex flex-col items-center justify-center gap-1 w-full py-3 text-gray-600 hover:text-gray-300 hover:bg-gray-800 transition-colors"
+          className="flex flex-col items-center justify-center gap-1 w-full py-3 text-white/35 hover:text-white hover:bg-white/10 transition-colors"
         >
           <LogOut size={15} />
           <span className="text-[9px]">나가기</span>

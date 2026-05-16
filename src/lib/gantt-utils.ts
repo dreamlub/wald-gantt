@@ -1,4 +1,5 @@
 // 'YYYY-MM' 형식 유틸리티
+import { format } from 'date-fns'
 
 // ── KST(UTC+9) 유틸 ───────────────────────────────────────────
 
@@ -17,6 +18,19 @@ export function currentYearKST(): number {
 export function parseDateStr(s: string): Date {
   const [y, m, d] = s.split('-').map(Number)
   return new Date(y, m - 1, d)
+}
+
+/** ISO/날짜 문자열 → Date (invalid면 undefined) */
+export function toDate(s: string | null | undefined): Date | undefined {
+  if (!s) return undefined
+  const d = new Date(s)
+  return isNaN(d.getTime()) ? undefined : d
+}
+
+/** Date → "YYYY-MM-DD" (없으면 null) */
+export function toDateStr(d: Date | undefined): string | null {
+  if (!d) return null
+  return format(d, 'yyyy-MM-dd')
 }
 
 export function parseYearMonth(ym: string): { year: number; month: number } {
@@ -56,20 +70,6 @@ export function getDefaultViewRange(): { startYM: string; endYM: string } {
     startYM: `${year}-01`,
     endYM: `${year}-12`,
   }
-}
-
-export const STATUS_LABELS: Record<string, string> = {
-  'in-progress': 'In-Progress',
-  'pending': 'Pending',
-  'backlog': 'Backlog',
-  'to-do': 'To-Do',
-}
-
-export const STATUS_COLORS: Record<string, string> = {
-  'in-progress': 'bg-blue-100 text-blue-700',
-  'pending': 'bg-yellow-100 text-yellow-700',
-  'backlog': 'bg-slate-100 text-slate-600',
-  'to-do': 'bg-purple-100 text-purple-700',
 }
 
 export const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']

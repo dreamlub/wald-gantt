@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
-import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Clock } from 'lucide-react'
+import { useState, useEffect, useRef } from 'react'
+import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Clock, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -10,6 +10,8 @@ import type { GanttTask, TaskStatus, TaskType, Priority, TaskHistoryEntry } from
 import { fmtDate } from '../_utils'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '../_constants'
 import { getTaskHistory } from '@/lib/gantt-service'
+import { toDate, toDateStr } from '@/lib/gantt-utils'
+import { AutocompleteInput } from '@/components/AutocompleteInput'
 
 type DrawerTab = 'info' | 'memo' | 'history'
 
@@ -53,7 +55,9 @@ function groupHistByTime(entries: TaskHistoryEntry[]): TaskHistoryEntry[][] {
 function TaskHistorySection({ taskId }: { taskId: string }) {
   const [entries, setEntries] = useState<TaskHistoryEntry[]>([])
   const [loading, setLoading] = useState(false)
+  // taskId가 바뀔 때 히스토리 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getTaskHistory(taskId).then(setEntries).catch(console.error).finally(() => setLoading(false))
   }, [taskId])
@@ -61,22 +65,22 @@ function TaskHistorySection({ taskId }: { taskId: string }) {
   return (
     <div className="flex flex-col">
       {loading ? (
-        <div className="flex items-center justify-center h-20 text-gray-400 text-xs">로딩 중...</div>
+        <div className="flex items-center justify-center h-20 text-ink-400 text-xs">로딩 중...</div>
       ) : groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-28 text-gray-300 text-xs gap-1">
+        <div className="flex flex-col items-center justify-center h-28 text-ink-300 text-xs gap-1">
           <Clock size={20} className="opacity-30" />
           수정 이력이 없습니다
         </div>
       ) : groups.map((group, gi) => (
-        <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-gray-50 transition-colors">
-          <div className="text-[10px] text-gray-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
+        <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-muted transition-colors">
+          <div className="text-[10px] text-ink-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
           <div className="space-y-1">
             {group.map(entry => (
               <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-gray-500 font-semibold w-12 shrink-0">{HIST_FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
-                <span className="text-[11px] text-gray-400 line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
-                <span className="text-[10px] text-gray-300">→</span>
-                <span className="text-[11px] text-gray-700 font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
+                <span className="text-[11px] text-muted-foreground font-semibold w-12 shrink-0">{HIST_FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
+                <span className="text-[11px] text-ink-400 line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
+                <span className="text-[10px] text-ink-300">→</span>
+                <span className="text-[11px] text-ink-700 font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
               </div>
             ))}
           </div>
@@ -111,16 +115,6 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
   { value: 'pending',     label: 'Pending',      color: '#f97316' },
 ]
 
-function toDate(s: string | null | undefined): Date | undefined {
-  if (!s) return undefined
-  const d = new Date(s)
-  return isNaN(d.getTime()) ? undefined : d
-}
-function toDateStr(d: Date | undefined): string | null {
-  if (!d) return null
-  return format(d, 'yyyy-MM-dd')
-}
-
 function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   value: Date | undefined
   onChange: (d: Date | undefined) => void
@@ -130,11 +124,11 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   const [open, setOpen] = useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-gray-200 bg-white px-2 text-xs h-8 font-normal transition-colors hover:bg-gray-50 focus:outline-none focus:border-indigo-300">
-        <CalendarIcon size={13} className="text-gray-400 shrink-0" />
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
+        <CalendarIcon size={13} className="text-ink-400 shrink-0" />
         {value
-          ? <span className="text-gray-700">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
-          : <span className="text-gray-300">{placeholder}</span>
+          ? <span className="text-ink-700">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
+          : <span className="text-ink-300">{placeholder}</span>
         }
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -162,62 +156,14 @@ interface Props {
     projectIds: string[]
   ) => Promise<void>
   onDelete: (id: string) => void
+  onDuplicate?: (task: GanttTask) => void
   onAddSubTask: (parentId: string, status: TaskStatus) => void
   onStatusChange: (id: string, s: TaskStatus) => void
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
   assigneeSuggestions?: string[]
 }
 
-// ── AutocompleteInput ────────────────────────────────────────
-function AutocompleteInput({ value, onChange, suggestions, placeholder, className }: {
-  value: string
-  onChange: (v: string) => void
-  suggestions: string[]
-  placeholder?: string
-  className?: string
-}) {
-  const [acOpen, setAcOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-  const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
-  const close = useCallback(() => setAcOpen(false), [])
-
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [close])
-
-  return (
-    <div ref={containerRef} className="relative">
-      <input
-        className={className}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => { onChange(e.target.value); setAcOpen(true) }}
-        onFocus={() => setAcOpen(true)}
-        onKeyDown={e => { if (e.key === 'Escape') close() }}
-        autoComplete="off"
-      />
-      {acOpen && filtered.length > 0 && (
-        <ul className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto">
-          {filtered.map(s => (
-            <li
-              key={s}
-              onPointerDown={e => { e.preventDefault(); onChange(s); close() }}
-              className="px-2.5 py-1.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
-            >
-              {s}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
-
-export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDelete, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
+export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
   const [title,      setTitle]      = useState('')
   const [status,     setStatus]     = useState<TaskStatus>('to-do')
   const [priority,   setPriority]   = useState<Priority>(2)
@@ -248,8 +194,10 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     }
   }, [open])
 
+  // 드로어가 열리거나 task prop이 바뀌면 폼 상태를 task로 동기화 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
     if (!open || !task) return
+    /* eslint-disable react-hooks/set-state-in-effect */
     setTitle(task.title)
     setStatus(task.status)
     setPriority(task.priority ?? 0)
@@ -261,6 +209,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     setLinkedProjects(task.projects ?? [])
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput('')
     setTab('info')
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, task])
 
   useEffect(() => {
@@ -325,21 +274,30 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
         onClick={onClose}
       />
       <div
-        className={`absolute right-0 top-0 h-full w-[480px] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 top-0 h-full w-[480px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* 헤더 + 탭 */}
         <div className="shrink-0 border-b">
           <div className="flex items-center px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-gray-800 flex-1">태스크 수정</h2>
+            <h2 className="text-sm font-semibold text-foreground flex-1">태스크 수정</h2>
             <div className="flex items-center gap-1">
+              {onDuplicate && task && (
+                <button
+                  onClick={() => { onDuplicate(task); onClose() }}
+                  className="p-1 text-ink-300 hover:text-lilac-400 rounded transition-colors"
+                  title="복제"
+                >
+                  <Copy size={14} />
+                </button>
+              )}
               <button
                 onClick={() => { if (task) { onDelete(task.id); onClose() } }}
-                className="p-1 text-gray-300 hover:text-red-400 rounded transition-colors"
+                className="p-1 text-ink-300 hover:text-status-late rounded transition-colors"
                 title="삭제"
               >
                 <Trash2 size={14} />
               </button>
-              <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+              <button onClick={onClose} className="p-1 text-ink-400 hover:text-muted-foreground rounded">
                 <X size={16} />
               </button>
             </div>
@@ -348,7 +306,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
             <button
               onClick={() => setTab('info')}
               className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
-                tab === 'info' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                tab === 'info' ? 'border-lilac-500 text-accent-foreground' : 'border-transparent text-ink-400 hover:text-muted-foreground'
               }`}
             >
               정보
@@ -356,16 +314,16 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
             <button
               onClick={() => setTab('memo')}
               className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
-                tab === 'memo' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                tab === 'memo' ? 'border-lilac-500 text-accent-foreground' : 'border-transparent text-ink-400 hover:text-muted-foreground'
               }`}
             >
               메모
-              {memo.trim() && <span className="w-1 h-1 rounded-full bg-indigo-400" />}
+              {memo.trim() && <span className="w-1 h-1 rounded-full bg-lilac-400" />}
             </button>
             <button
               onClick={() => setTab('history')}
               className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
-                tab === 'history' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                tab === 'history' ? 'border-lilac-500 text-accent-foreground' : 'border-transparent text-ink-400 hover:text-muted-foreground'
               }`}
             >
               이력
@@ -385,13 +343,13 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
               title={task?.status === 'done' ? '완료 취소' : '완료 처리'}
             >
               {task?.status === 'done'
-                ? <CheckCircle2 size={16} className="text-green-400" />
-                : <Circle size={16} className="text-gray-300 hover:text-indigo-400 transition-colors" />
+                ? <CheckCircle2 size={16} className="text-mint-500" />
+                : <Circle size={16} className="text-ink-300 hover:text-lilac-400 transition-colors" />
               }
             </button>
             <input
               ref={titleRef}
-              className="flex-1 text-sm font-medium text-gray-800 border-b border-gray-200 focus:border-indigo-400 outline-none pb-1 placeholder:text-gray-300"
+              className="flex-1 text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
               placeholder="태스크 제목"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -402,7 +360,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">상태</label>
+              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -411,19 +369,19 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                 <select
                   value={status}
                   onChange={e => setStatus(e.target.value as TaskStatus)}
-                  className="w-full text-xs border border-gray-200 rounded pl-6 pr-6 py-1.5 outline-none focus:border-indigo-300 appearance-none bg-white text-gray-700"
+                  className="w-full text-xs border border-border rounded pl-6 pr-6 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-ink-700"
                 >
                   {STATUS_OPTIONS.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 pointer-events-none" />
               </div>
             </div>
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당자</label>
+              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
               <AutocompleteInput
-                className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
+                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700"
                 placeholder="이름 (없으면 내 할일)"
                 value={assignee}
                 onChange={setAssignee}
@@ -436,7 +394,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
           <div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">시작일</label>
+                <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -447,7 +405,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">마감일</label>
+                <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -458,12 +416,12 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                 </div>
               </div>
             </div>
-            {dateError && <p className="text-[11px] text-red-500 mt-1">{dateError}</p>}
+            {dateError && <p className="text-[11px] text-status-late mt-1">{dateError}</p>}
           </div>
 
           {/* 우선순위 */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
+            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -476,7 +434,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                     className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
-                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                        : 'border-border text-ink-400 hover:border-ink-300'}`}
                     style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
                   >
                     {opt.value > 0 && <PriorityBars priority={opt.value} />}
@@ -489,20 +447,20 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
 
           {/* 연결 프로젝트 */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">연결 프로젝트</label>
+            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
             {linkedProjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
                 {linkedProjects.map(p => (
                   <span
                     key={p.id}
-                    className="flex items-center gap-1 text-[11px] bg-indigo-50 text-indigo-700 border border-indigo-200 px-2 py-0.5 rounded-full"
+                    className="flex items-center gap-1 text-[11px] bg-accent text-accent-foreground border border-lilac-200 px-2 py-0.5 rounded-full"
                   >
-                    <span className="text-indigo-400 text-[9px]">{p.board_name}</span>
+                    <span className="text-lilac-400 text-[9px]">{p.board_name}</span>
                     <span>/</span>
                     {p.name}
                     <button
                       onClick={() => setLinkedProjects(prev => prev.filter(lp => lp.id !== p.id))}
-                      className="ml-0.5 text-indigo-300 hover:text-indigo-600"
+                      className="ml-0.5 text-lilac-300 hover:text-accent-foreground"
                     >
                       <X size={10} />
                     </button>
@@ -511,19 +469,19 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
               </div>
             )}
             <div className="relative mt-1.5" ref={projRef}>
-              <div className="flex items-center border border-gray-200 rounded px-2.5 gap-1.5 focus-within:border-indigo-300">
-                <Search size={11} className="text-gray-300 shrink-0" />
+              <div className="flex items-center border border-border rounded px-2.5 gap-1.5 focus-within:border-lilac-300">
+                <Search size={11} className="text-ink-300 shrink-0" />
                 <input
-                  className="flex-1 text-xs py-1.5 outline-none placeholder:text-gray-300"
+                  className="flex-1 text-xs py-1.5 outline-none placeholder:text-ink-300"
                   placeholder="클릭해서 전체 보기 / 검색"
                   value={projSearch}
                   onChange={e => { setProjSearch(e.target.value); setShowProjDrop(true) }}
                   onFocus={() => setShowProjDrop(true)}
                 />
-                <ChevronDown size={11} className="text-gray-300 shrink-0" />
+                <ChevronDown size={11} className="text-ink-300 shrink-0" />
               </div>
               {showProjDrop && projResults.length > 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-1 max-h-60 overflow-y-auto">
                   {(() => {
                     const groups = projResults.reduce<Record<string, ProjectOption[]>>((acc, p) => {
                       const key = p.board_name || '(보드 없음)'
@@ -532,16 +490,16 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                     }, {})
                     return Object.entries(groups).map(([board, list]) => (
                       <div key={board}>
-                        <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold text-gray-400 uppercase tracking-wider bg-gray-50/50">
+                        <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
                           {board}
                         </div>
                         {list.map(p => (
                           <button
                             key={p.id}
                             onClick={() => linkProject(p)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-indigo-50 text-left"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left"
                           >
-                            <span className="text-gray-700">{p.name}</span>
+                            <span className="text-ink-700">{p.name}</span>
                           </button>
                         ))}
                       </div>
@@ -550,7 +508,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                 </div>
               )}
               {showProjDrop && projResults.length === 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-white border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-[11px] text-gray-400">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-[11px] text-ink-400">
                   {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
                 </div>
               )}
@@ -559,7 +517,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
 
           {/* 라벨 */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -575,7 +533,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
                 </button>
               ))}
               <input
-                className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-gray-200 outline-none focus:border-indigo-300 text-gray-600 placeholder:text-gray-300 min-w-[100px]"
+                className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
                 placeholder="입력 후 Enter"
                 value={labelInput}
                 onChange={e => setLabelInput(e.target.value)}
@@ -589,25 +547,25 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
           {/* 하위 태스크 — 상위 태스크일 때만 표시 */}
           {!task?.parent_id && <div>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider flex-1">
+              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex-1">
                 하위 태스크{subTasks.length > 0 && ` (${doneCount}/${subTasks.length})`}
               </label>
             </div>
             {subTasks.length > 0 && (
               <div className="flex flex-col gap-0.5 mb-2">
                 {subTasks.map(sub => (
-                  <div key={sub.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-gray-50">
+                  <div key={sub.id} className="flex items-center gap-2 px-2 py-1.5 rounded-md hover:bg-muted">
                     <button onClick={() => onStatusChange(sub.id, sub.status === 'done' ? 'to-do' : 'done')} className="shrink-0">
                       {sub.status === 'done'
-                        ? <CheckCircle2 size={13} className="text-green-400" />
-                        : <Circle size={13} className="text-gray-300 hover:text-indigo-400 transition-colors" />
+                        ? <CheckCircle2 size={13} className="text-mint-500" />
+                        : <Circle size={13} className="text-ink-300 hover:text-lilac-400 transition-colors" />
                       }
                     </button>
-                    <span className={`flex-1 text-xs ${sub.status === 'done' ? 'line-through text-gray-400' : 'text-gray-700'}`}>
+                    <span className={`flex-1 text-xs ${sub.status === 'done' ? 'line-through text-ink-400' : 'text-ink-700'}`}>
                       {sub.title}
                     </span>
                     {sub.due_date && (
-                      <span className="text-[10px] text-gray-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
+                      <span className="text-[10px] text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
                     )}
                   </div>
                 ))}
@@ -616,7 +574,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
             {task && (
               <button
                 onClick={() => { onAddSubTask(task.id, task.status); onClose() }}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-gray-200 text-[11px] text-gray-400 hover:text-gray-900 hover:border-gray-400 transition-colors"
+                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-[11px] text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
               >
                 <Plus size={11} /> 하위 태스크 추가
               </button>
@@ -625,17 +583,17 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
 
           {/* 메타 정보 */}
           {task && (
-            <div className="text-[10px] text-gray-300 flex flex-col gap-0.5 pt-2 border-t border-gray-100">
+            <div className="text-[10px] text-ink-300 flex flex-col gap-0.5 pt-2 border-t border-border">
               <span>생성일: {fmtDate(task.created_at)}</span>
               <span>수정일: {fmtDate(task.updated_at)}</span>
-              {task.parent_id && <span className="text-indigo-300">· 상위 태스크의 하위 항목</span>}
+              {task.parent_id && <span className="text-lilac-300">· 상위 태스크의 하위 항목</span>}
             </div>
           )}
         </div>
         ) : tab === 'memo' ? (
         <div className="flex-1 overflow-hidden p-5">
           <textarea
-            className="w-full h-full text-xs border border-gray-200 rounded p-3 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700 resize-none leading-relaxed"
+            className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700 resize-none leading-relaxed"
             placeholder="메모를 입력하세요"
             value={memo}
             onChange={e => setMemo(e.target.value)}
@@ -651,14 +609,14 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
         <div className="shrink-0 px-5 py-3 border-t flex justify-end gap-2">
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-ink-700 hover:bg-muted rounded transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleSave}
             disabled={!isValid || saving}
-            className="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded font-medium hover:bg-indigo-700 disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 text-xs bg-accent-foreground text-white rounded font-medium hover:bg-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
           >
             {saving ? '저장 중...' : '저장'}
           </button>

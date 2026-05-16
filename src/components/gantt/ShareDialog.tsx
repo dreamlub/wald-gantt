@@ -21,8 +21,10 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied]   = useState(false)
 
+  // 다이얼로그 열릴 때 공유 토큰 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getShareToken(boardId)
       .then(setToken)
@@ -75,25 +77,25 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
         </DialogHeader>
 
         <div className="space-y-4 py-2">
-          <p className="text-xs text-gray-500">
-            <span className="font-medium text-gray-700">{boardName}</span> 보드의 공개 읽기 링크를 생성합니다. 링크를 아는 누구나 로그인 없이 열람할 수 있습니다.
+          <p className="text-xs text-muted-foreground">
+            <span className="font-medium text-foreground">{boardName}</span> 보드의 공개 읽기 링크를 생성합니다. 링크를 아는 누구나 로그인 없이 열람할 수 있습니다.
           </p>
 
           {loading ? (
             <div className="flex items-center justify-center h-12">
-              <Loader2 size={18} className="animate-spin text-gray-400" />
+              <Loader2 size={18} className="animate-spin text-muted-foreground" />
             </div>
           ) : shareUrl ? (
             <div className="space-y-2">
               <div className="flex items-center gap-2">
-                <Input value={shareUrl} readOnly className="text-xs text-gray-600 flex-1" />
+                <Input value={shareUrl} readOnly className="text-xs text-muted-foreground flex-1" />
                 <Button variant="outline" size="sm" onClick={handleCopy} className="shrink-0">
-                  {copied ? <span className="text-green-600 text-xs">복사됨!</span> : <><Copy size={13} /> 복사</>}
+                  {copied ? <span className="text-mint-500 text-xs">복사됨!</span> : <><Copy size={13} /> 복사</>}
                 </Button>
               </div>
               <button
                 onClick={handleRevoke}
-                className="flex items-center gap-1 text-xs text-red-400 hover:text-red-600 transition-colors"
+                className="flex items-center gap-1 text-xs text-status-late hover:text-status-late/80 transition-colors"
               >
                 <Trash2 size={12} /> 링크 삭제
               </button>

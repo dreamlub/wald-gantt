@@ -7,23 +7,26 @@ import {
   type DragStartEvent, type DragOverEvent, type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy, useSortable,
+  SortableContext, verticalListSortingStrategy,
   sortableKeyboardCoordinates, arrayMove,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
-import { Plus, Trash2, GripVertical, StickyNote, Palette } from 'lucide-react'
+import { Plus, GripVertical } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Button } from '@/components/ui/button'
 import { GanttToolbar } from './GanttToolbar'
 import {
-  buildMonthRange, monthOffset, formatYearMonth, parseYearMonth, MONTH_LABELS,
+  buildMonthRange, monthOffset, formatYearMonth, MONTH_LABELS,
   buildWeekRange, dayOffset, dayOffsetInWeeks, buildDayRange,
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 import { clampTooltipPos } from '@/app/(app)/tasks/_utils'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
+import {
+  CAT_ROW_H, PROJ_ROW_H, CAT_COLORS, STATUS_META, STATUS_ORDER,
+  randomCatColor, isProjectOverdue, isStartDelayed, formatBarDate,
+  GanttCategoryLeft, GanttCategoryRight,
+} from './_GanttRows'
 
 interface Props {
   categories: GanttCategory[]
@@ -61,108 +64,17 @@ const YEAR_H      = 34
 const MONTH_H     = 28
 const TODAY_H     = 18
 const HEADER_H    = YEAR_H + MONTH_H + TODAY_H  // 80
-const CAT_ROW_H       = 32
-const PROJ_ROW_H      = 36
-
-const CAT_COLORS = [
-  // 자주 쓰는 색 (Tailwind 400)
-  '#818cf8', '#60a5fa', '#4ade80', '#facc15',
-  '#fb923c', '#f87171', '#f472b6', '#c084fc',
-  // 파스텔 (Tailwind 200)
-  '#c7d2fe', '#bfdbfe', '#bbf7d0', '#fef08a',
-  '#fed7aa', '#fecaca', '#fbcfe8', '#ddd6fe',
-]
-
-function randomCatColor(usedColors: Set<string>): string {
-  const available = CAT_COLORS.filter(c => !usedColors.has(c))
-  const pool = available.length > 0 ? available : CAT_COLORS
-  return pool[Math.floor(Math.random() * pool.length)]
-}
-
-function isProjectOverdue(p: GanttProject, todayStr: string): boolean {
-  return !!p.end_date && p.status !== 'done' && p.end_date < todayStr
-}
-
-function isStartDelayed(p: GanttProject, todayStr: string): boolean {
-  return !!p.start_date && (p.status === 'to-do' || p.status === 'backlog') && p.start_date < todayStr
-}
-
-function daysBetween(fromDate: string, toDateStr: string): number {
-  const from = new Date(fromDate + 'T00:00:00')
-  const to   = new Date(toDateStr + 'T00:00:00')
-  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000))
-}
-
-const STATUS_META: Record<GanttStatus, { label: string; abbr: string; dot: string }> = {
-  'to-do':       { label: 'To-Do',       abbr: 'T', dot: '#6366f1' },
-  'in-progress': { label: 'In Progress', abbr: 'I', dot: '#f59e0b' },
-  'pending':     { label: 'Pending',     abbr: 'P', dot: '#a78bfa' },
-  'backlog':     { label: 'Backlog',     abbr: 'B', dot: '#9ca3af' },
-  'done':        { label: 'Done',        abbr: 'D', dot: '#22c55e' },
-}
-const STATUS_ORDER: GanttStatus[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
 const DOW_LABELS = ['S', 'M', 'T', 'W', 'T', 'F', 'S']
 
 type ViewMode = 'month' | 'week' | 'day'
-
-function formatBarDate(start: string, end: string): string {
-  const [sy, sm, sd] = start.split('-')
-  const [ey, em, ed] = end.split('-')
-  const sLabel = `${parseInt(sm)}/${parseInt(sd)}`
-  const eLabel = `${parseInt(em)}/${parseInt(ed)}`
-  if (sy === ey) {
-    if (sm === em) return `${sLabel} ~ ${parseInt(ed)}`
-    return `${sLabel} ~ ${eLabel}`
-  }
-  return `${sy.slice(2)}.${sLabel} ~ ${ey.slice(2)}.${eLabel}`
-}
-
-
-// ── Sortable project row shell ────────────────────────────────
-function SortableProjRow({ id, disabled, children }: {
-  id: string
-  disabled?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode
-}) {
-  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition }}
-      {...attributes}
-    >
-      {children({ listeners, isDragging })}
-    </div>
-  )
-}
-
-// ── Sortable category row shell ──────────────────────────────
-function SortableCatRow({ id, disabled, children }: {
-  id: string
-  disabled?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  children: (props: { listeners: any; isDragging: boolean }) => React.ReactNode
-}) {
-  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
-  return (
-    <div
-      ref={setNodeRef}
-      style={{ transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0 : 1 }}
-      {...attributes}
-    >
-      {children({ listeners, isDragging })}
-    </div>
-  )
-}
 
 // ── GanttChart ────────────────────────────────────────────────
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
   onAddCategory, onUpdateCategory, onDeleteCategory,
-  onAddProject, onEditProject, onDeleteProject, onShowHistory, onOpenMemo,
-  onUpdateProjectDates, onUpdateProjectName, onUpdateProjectStatus,
+  onAddProject, onEditProject, onDeleteProject, onOpenMemo,
+  onUpdateProjectDates, onUpdateProjectStatus,
   onMoveProject, onMoveCategory, readOnly = false,
 }: Props) {
   const months = buildMonthRange(viewStart, viewEnd)
@@ -342,9 +254,10 @@ export function GanttChart({
     if (rightRef.current) rightRef.current.scrollTop += e.deltaY
   }
 
-  // 카테고리 추가 모달 열릴 때 랜덤 색상 (미사용 우선)
+  // 카테고리 추가 모달 열릴 때 랜덤 색상 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
     if (addingCat) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
     }
   }, [addingCat, categories])
@@ -647,307 +560,12 @@ export function GanttChart({
     }
   }, [viewStart, viewEnd, viewMode, totalCols, onUpdateProjectDates])
 
-  // ── 행 렌더 헬퍼 ─────────────────────────────────────────
-  const renderCategoryRows = (cat: GanttCategory, catIdx: number, forPanel: 'left' | 'right') => {
-    const barColor  = cat.color
-    const catProjs  = projectsOf(cat.id)
-
-    if (forPanel === 'left') {
-      return (
-        <SortableCatRow key={cat.id} id={cat.id} disabled={readOnly}>
-          {({ listeners }) => (
-        <div data-row>
-          {/* 카테고리 헤더 — 왼쪽 */}
-          <div
-            className="flex items-center group border-b"
-            style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa', borderLeft: `3px solid ${cat.color}` }}
-          >
-            {!readOnly && (
-              <div
-                {...listeners}
-                className="pl-1.5 pr-0.5 flex items-center self-stretch cursor-grab text-gray-300 hover:text-gray-500 shrink-0"
-              >
-                <GripVertical size={13} />
-              </div>
-            )}
-            <div className={`flex items-center gap-2 ${readOnly ? 'pl-3' : 'pl-1'} pr-2 w-full min-w-0`}>
-              {editCatId === cat.id ? (
-                <input
-                  autoFocus
-                  className="text-xs font-bold text-gray-800 border-b border-indigo-400 outline-none bg-transparent flex-1 min-w-0"
-                  value={editCatVal}
-                  onChange={e => setEditCatVal(e.target.value)}
-                  onBlur={() => commitEditCat(cat.id)}
-                  onKeyDown={e => { if (e.key === 'Enter') commitEditCat(cat.id); if (e.key === 'Escape') setEditCatId(null) }}
-                />
-              ) : (
-                <span className="text-xs font-bold text-gray-700 cursor-text hover:text-indigo-600 truncate" onClick={readOnly ? undefined : e => startEditCat(cat, e)}>
-                  {cat.name}
-                </span>
-              )}
-              <span className="text-[10px] text-gray-400 shrink-0 tabular-nums">{catProjs.length}</span>
-              {!readOnly && (
-                <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
-                  <Popover>
-                    <PopoverTrigger
-                      className="p-1 text-gray-300 hover:text-indigo-500 rounded"
-                      title="색상 변경"
-                    >
-                      <Palette size={12} />
-                    </PopoverTrigger>
-                    <PopoverContent className="w-auto p-2" align="start">
-                      <div className="grid grid-cols-8 gap-1.5">
-                        {CAT_COLORS.map(c => (
-                          <button
-                            key={c}
-                            type="button"
-                            onClick={() => onUpdateCategory(cat.id, { color: c })}
-                            className={`w-5 h-5 rounded-full hover:scale-110 transition-transform border border-black/5 ${cat.color === c ? 'ring-2 ring-gray-800 ring-offset-1' : ''}`}
-                            style={{ backgroundColor: c }}
-                            title={c}
-                          />
-                        ))}
-                      </div>
-                    </PopoverContent>
-                  </Popover>
-                  <button onClick={() => onDeleteCategory(cat.id)} className="p-1 text-gray-300 hover:text-red-400 rounded" title="카테고리 삭제"><Trash2 size={11} /></button>
-                </div>
-              )}
-            </div>
-          </div>
-
-          {/* 프로젝트 행 — 왼쪽 (dnd-kit) */}
-          <SortableContext items={catProjs.map(p => p.id)} strategy={verticalListSortingStrategy}>
-            {catProjs.map(project => {
-              const isBacklog = project.status === 'backlog'
-              const sm        = STATUS_META[project.status]
-
-              return (
-                <SortableProjRow key={project.id} id={project.id} disabled={readOnly}>
-                  {({ listeners, isDragging }) => (
-                    <div
-                      className="relative"
-                      style={{ opacity: isDragging ? 0 : 1 }}
-                    >
-                      <div
-                        className="flex items-center gap-1.5 group border-b pl-3 pr-2 relative"
-                        style={{
-                          height: PROJ_ROW_H,
-                          backgroundColor: isBacklog ? '#f3f4f6' : 'white',
-                          ...(readOnly && { paddingLeft: 14 }),
-                        }}
-                      >
-                        {!readOnly && (
-                          <button
-                            {...listeners}
-                            className="shrink-0 cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
-                            onClick={e => e.stopPropagation()}
-                            tabIndex={-1}
-                          >
-                            <GripVertical size={13} className="text-gray-300" />
-                          </button>
-                        )}
-                        {/* 상태 약자 배지 — 클릭 시 상태 사이클 */}
-                        <button
-                          type="button"
-                          onClick={readOnly ? undefined : () => cycleStatus(project)}
-                          aria-label={sm.label}
-                          title={sm.label}
-                          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white hover:scale-110 transition-transform"
-                          style={{ backgroundColor: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
-                        >
-                          {sm.abbr}
-                        </button>
-                        {/* 프로젝트 이름 — 우선순위에 따른 강조 */}
-                        <span
-                          className={`text-xs truncate min-w-0 cursor-pointer hover:text-indigo-600 ${
-                            project.priority === 3 ? 'font-semibold text-rose-400' :
-                            project.priority === 2 ? 'font-medium text-gray-900' :
-                            project.priority === 1 ? 'font-normal text-gray-600' :
-                            'font-normal text-gray-400'
-                          }`}
-                          onClick={readOnly ? undefined : () => onEditProject(project)}
-                          title={project.name}
-                        >
-                          {project.name}
-                        </span>
-                        {/* 지연 뱃지 — 마감 지연 우선, 그 다음 시작 지연 */}
-                        {isProjectOverdue(project, todayStr) ? (
-                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium border border-red-100 whitespace-nowrap">
-                            지연 {daysBetween(project.end_date!, todayStr)}일
-                          </span>
-                        ) : isStartDelayed(project, todayStr) ? (
-                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium border border-amber-100 whitespace-nowrap">
-                            시작 지연 {daysBetween(project.start_date!, todayStr)}일
-                          </span>
-                        ) : null}
-                        <span className="flex-1 min-w-0" />
-                        {/* 우측 액션 영역 — 메모(상시: 메모 있을 때) + 삭제(호버 시) */}
-                        {!readOnly && (
-                          <div className="absolute right-0 top-0 bottom-0 flex items-center gap-0.5 pl-8 pr-2">
-                            {/* 호버 시에만 보이는 배경 그라데이션 */}
-                            <div
-                              className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
-                              style={{
-                                background: `linear-gradient(to left, ${isBacklog ? '#f3f4f6' : '#ffffff'} 55%, ${isBacklog ? 'rgba(243,244,246,0)' : 'rgba(255,255,255,0)'} 100%)`,
-                              }}
-                            />
-                            {/* 삭제 — 호버 시에만 */}
-                            <button
-                              onClick={e => { e.stopPropagation(); onDeleteProject(project.id) }}
-                              className="relative shrink-0 p-1 rounded text-gray-300 hover:text-red-400 opacity-0 group-hover:opacity-100 transition-opacity"
-                              title="삭제 (휴지통으로 이동)"
-                            >
-                              <Trash2 size={11} />
-                            </button>
-                            {/* 메모 — 있으면 상시, 없으면 호버 시 */}
-                            <button
-                              onClick={() => onOpenMemo(project)}
-                              onMouseEnter={project.memo ? e => setMemoHover({ text: project.memo!, x: e.clientX, y: e.clientY }) : undefined}
-                              onMouseLeave={project.memo ? () => setMemoHover(null) : undefined}
-                              className={`relative shrink-0 p-1 rounded transition-opacity ${
-                                project.memo
-                                  ? 'text-indigo-500 hover:text-indigo-700'
-                                  : 'text-gray-300 hover:text-indigo-400 opacity-0 group-hover:opacity-100'
-                              }`}
-                              title="메모"
-                            >
-                              <StickyNote size={11} />
-                            </button>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-                  )}
-                </SortableProjRow>
-              )
-            })}
-          </SortableContext>
-
-          {/* 프로젝트 추가 행 — 왼쪽 */}
-          {!readOnly && (
-            <div className="border-b border-gray-50" style={{ height: PROJ_ROW_H }}>
-              <button
-                onClick={() => onAddProject(cat.id)}
-                className="h-full flex items-center gap-0.5 pl-3 text-xs text-gray-300 hover:text-gray-500"
-              >
-                <Plus size={10} /> 프로젝트
-              </button>
-            </div>
-          )}
-        </div>
-          )}
-        </SortableCatRow>
-      )
-    }
-
-    // 오른쪽 패널
-    return (
-      <div key={cat.id}>
-        {/* 카테고리 헤더 — 오른쪽 */}
-        <div
-          className="border-b"
-          style={{ height: CAT_ROW_H, backgroundColor: '#f8f9fa' }}
-        />
-
-        {/* 프로젝트 바 행 — 오른쪽 */}
-        {catProjs.map(project => {
-          const cols      = barCols(project)
-          const isBacklog = project.status === 'backlog'
-
-          const BAR_H   = 20
-          const curTop  = (PROJ_ROW_H - BAR_H) / 2
-          const barWidth = (cols ? cols.end - cols.start : 0) * colW - 8
-
-          // 날짜 텍스트가 바 안에 들어가는지 정확히 판단 (글자수 × 평균 폭 + padding)
-          const dateText = (project.start_date && project.end_date) ? formatBarDate(project.start_date, project.end_date) : ''
-          const dateFitsInside = dateText.length > 0 && barWidth >= dateText.length * 5.5 + 14
-
-          return (
-            <div
-              key={project.id}
-              className="relative border-b"
-              style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'transparent' }}
-            >
-              {cols && (
-                <>
-                  {/* 현재 바 */}
-                  <div
-                    data-bar-id={project.id}
-                    className="absolute rounded overflow-hidden flex items-center"
-                    style={{
-                      top: curTop,
-                      left: cols.start * colW + 4,
-                      width: barWidth,
-                      height: BAR_H,
-                      backgroundColor: barColor + 'bb',
-                      border: `1.5px solid ${barColor}`,
-                      paddingLeft: 5,
-                      paddingRight: 4,
-                      cursor: readOnly ? 'default' : 'grab',
-                    }}
-                    onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
-                  >
-                    {!readOnly && <div className="absolute left-0 top-0 bottom-0 w-2 rounded-l cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }} />}
-                    {dateFitsInside && (
-                      <span
-                        className="text-[10px] font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
-                        style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
-                      >
-                        {dateText}
-                      </span>
-                    )}
-                    {!readOnly && <div className="absolute right-0 top-0 bottom-0 w-2 rounded-r cursor-ew-resize" onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-right')(e) }} />}
-                  </div>
-
-                  {/* 바 오른쪽: 날짜(못 들어갈 때) + 팀/PM 메타 */}
-                  {((!dateFitsInside && dateText) || project.team || project.pm) && (
-                    <div
-                      data-bar-meta-id={project.id}
-                      className="absolute flex items-center gap-3 pointer-events-none"
-                      style={{
-                        left: cols.end * colW + 12,
-                        top: curTop + BAR_H / 2,
-                        transform: 'translateY(-50%)',
-                      }}
-                    >
-                      {!dateFitsInside && dateText && (
-                        <span className="text-[10px] font-medium tabular-nums whitespace-nowrap text-gray-500">
-                          {dateText}
-                        </span>
-                      )}
-                      {project.team && (
-                        <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-gray-600">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: barColor }} />
-                          {project.team}
-                        </span>
-                      )}
-                      {project.pm && (
-                        <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-gray-600">
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: pmColorMap.get(project.pm) ?? '#9ca3af' }} />
-                          {project.pm}
-                        </span>
-                      )}
-                    </div>
-                  )}
-                </>
-              )}
-            </div>
-          )
-        })}
-
-        {/* 프로젝트 추가 행 — 오른쪽 */}
-        <div className="border-b border-gray-50" style={{ height: PROJ_ROW_H }} />
-      </div>
-    )
-  }
-
   // DragOverlay 내용: 드래그 중인 행 미리보기
   const activeCatForOverlay  = activeId && isCatDrag(activeId) ? categories.find(c => c.id === activeId) : null
   const activeProjForOverlay = activeId && !isCatDrag(activeId) ? projects.find(p => p.id === activeId) : null
 
   return (
-    <div className="flex flex-col h-full bg-white">
+    <div className="flex flex-col h-full bg-background">
       {/* 툴바 */}
       <GanttToolbar
         boardName={boardName}
@@ -988,12 +606,12 @@ export function GanttChart({
           className="shrink-0 flex flex-col shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
           style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
         >
-          <div className="shrink-0 border-b bg-white flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
-            <span className="text-[11px] font-semibold text-gray-400 px-3 pb-2">프로젝트</span>
+          <div className="shrink-0 border-b bg-card flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
+            <span className="text-[11px] font-semibold text-muted-foreground px-3 pb-2">프로젝트</span>
             {!readOnly && (
               <button
                 onClick={() => setAddingCat(true)}
-                className="flex items-center gap-0.5 text-[11px] text-gray-400 hover:text-gray-900 pb-2 transition-colors"
+                className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground pb-2 transition-colors"
                 title="카테고리 추가"
               >
                 <Plus size={11} /> 카테고리
@@ -1019,15 +637,37 @@ export function GanttChart({
               }}>
                 {categories.length === 0 && !addingCat && (
                   <div
-                    className="flex flex-col items-center justify-center h-28 text-gray-400 text-xs gap-1 cursor-pointer select-none"
+                    className="flex flex-col items-center justify-center h-28 text-muted-foreground text-xs gap-1 cursor-pointer select-none"
                     onDoubleClick={() => setAddingCat(true)}
                   >
                     <span>카테고리를 추가해 보세요</span>
-                    <span className="text-[10px] text-gray-300">우측 상단 버튼 또는 더블클릭</span>
+                    <span className="text-[10px] text-ink-300">우측 상단 버튼 또는 더블클릭</span>
                   </div>
                 )}
                 <SortableContext items={sortedCats.map(c => c.id)} strategy={verticalListSortingStrategy}>
-                  {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'left'))}
+                  {sortedCats.map(cat => (
+                    <GanttCategoryLeft
+                      key={cat.id}
+                      cat={cat}
+                      catProjs={projectsOf(cat.id)}
+                      readOnly={readOnly}
+                      editCatId={editCatId}
+                      editCatVal={editCatVal}
+                      onEditCatValChange={setEditCatVal}
+                      onCommitEditCat={commitEditCat}
+                      onCancelEditCat={() => setEditCatId(null)}
+                      onStartEditCat={startEditCat}
+                      onDeleteCategory={onDeleteCategory}
+                      onUpdateCategory={onUpdateCategory}
+                      onAddProject={onAddProject}
+                      onDeleteProject={onDeleteProject}
+                      onEditProject={onEditProject}
+                      onOpenMemo={onOpenMemo}
+                      onSetMemoHover={setMemoHover}
+                      onCycleStatus={cycleStatus}
+                      todayStr={todayStr}
+                    />
+                  ))}
                 </SortableContext>
 
               </div>
@@ -1036,11 +676,11 @@ export function GanttChart({
               <DragOverlay dropAnimation={null}>
                 {activeCatForOverlay ? (
                   <div
-                    className="flex items-center gap-1.5 border border-indigo-300 bg-gray-50 shadow-xl rounded px-2 cursor-grabbing"
+                    className="flex items-center gap-1.5 border border-lilac-300 bg-muted shadow-xl rounded px-2 cursor-grabbing"
                     style={{ height: CAT_ROW_H, width: leftWidth - 4, opacity: 0.95, borderLeft: `3px solid ${activeCatForOverlay.color}` }}
                   >
-                    <GripVertical size={13} className="text-gray-400 shrink-0" />
-                    <span className="text-xs font-bold text-gray-700 truncate flex-1">
+                    <GripVertical size={13} className="text-ink-400 shrink-0" />
+                    <span className="text-xs font-bold text-foreground truncate flex-1">
                       {activeCatForOverlay.name}
                     </span>
                   </div>
@@ -1048,10 +688,10 @@ export function GanttChart({
                   const sm = STATUS_META[activeProjForOverlay.status]
                   return (
                     <div
-                      className="flex items-center gap-1.5 border border-indigo-300 bg-white shadow-xl rounded px-2 cursor-grabbing"
+                      className="flex items-center gap-1.5 border border-lilac-300 bg-card shadow-xl rounded px-2 cursor-grabbing"
                       style={{ height: PROJ_ROW_H, width: leftWidth - 4, opacity: 0.95 }}
                     >
-                      <GripVertical size={13} className="text-gray-400 shrink-0" />
+                      <GripVertical size={13} className="text-ink-400 shrink-0" />
                       <span
                         className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
                         style={{ backgroundColor: sm.dot }}
@@ -1059,7 +699,7 @@ export function GanttChart({
                       >
                         {sm.abbr}
                       </span>
-                      <span className="text-xs font-medium text-gray-800 truncate flex-1">
+                      <span className="text-xs font-medium text-foreground truncate flex-1">
                         {activeProjForOverlay.name}
                       </span>
                     </div>
@@ -1075,7 +715,7 @@ export function GanttChart({
         {/* ── 리사이즈 핸들 ───────────────────────────────── */}
         <div
           onMouseDown={onResizeMouseDown}
-          className="shrink-0 w-1 cursor-col-resize bg-transparent hover:bg-indigo-300 active:bg-indigo-400 transition-colors z-20 border-r border-gray-200"
+          className="shrink-0 w-1 cursor-col-resize bg-transparent hover:bg-lilac-300 active:bg-lilac-400 transition-colors z-20 border-r border-border"
           title="드래그하여 너비 조절"
         />
 
@@ -1085,14 +725,14 @@ export function GanttChart({
           {/* 달력 헤더 — 수평 스크롤만, 항상 고정 표시 */}
           <div
             ref={headerRef}
-            className="shrink-0 overflow-hidden bg-white border-b"
+            className="shrink-0 overflow-hidden bg-card border-b"
             style={{ height: HEADER_H }}
           >
             <div style={{ width: totalWidth }}>
               {/* 연도 행 */}
               <div className="flex border-b" style={{ height: YEAR_H }}>
                 {yearGroups.map(({ year, count }) => (
-                  <div key={year} className="text-sm font-bold text-gray-700 px-3 flex items-center border-r bg-gray-50" style={{ width: colW * count }}>
+                  <div key={year} className="text-sm font-bold text-foreground px-3 flex items-center border-r bg-muted" style={{ width: colW * count }}>
                     {year}
                   </div>
                 ))}
@@ -1104,7 +744,7 @@ export function GanttChart({
                   months.map(ym => (
                     <div
                       key={ym}
-                      className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-red-400' : 'text-gray-400'}`}
+                      className={`text-center text-xs border-r shrink-0 font-medium flex items-center justify-center ${ym === todayYM ? 'text-status-late' : 'text-muted-foreground'}`}
                       style={{ width: colW }}
                     >
                       {MONTH_LABELS[parseInt(ym.split('-')[1]) - 1]}
@@ -1114,7 +754,7 @@ export function GanttChart({
                   monthGroups.map(({ ym, label, count }) => (
                     <div
                       key={ym}
-                      className="text-xs border-r shrink-0 font-semibold flex items-center px-2 text-gray-500 bg-gray-50"
+                      className="text-xs border-r shrink-0 font-semibold flex items-center px-2 text-muted-foreground bg-muted"
                       style={{ width: colW * count }}
                     >
                       {label}
@@ -1128,7 +768,7 @@ export function GanttChart({
                 {viewMode === 'month' ? (
                   <div className="relative w-full">
                     {todayX !== null && (
-                      <div className="absolute text-[9px] font-bold text-red-400 tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
+                      <div className="absolute text-[9px] font-bold text-status-late tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
                         TODAY
                       </div>
                     )}
@@ -1139,7 +779,7 @@ export function GanttChart({
                     return (
                       <div
                         key={w.key}
-                        className={`text-center border-r shrink-0 flex items-center justify-center text-[10px] font-medium ${isToday ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-gray-400'}`}
+                        className={`text-center border-r shrink-0 flex items-center justify-center text-[10px] font-medium ${isToday ? 'bg-lilac-100 text-lilac-600 font-semibold' : 'text-muted-foreground'}`}
                         style={{ width: colW }}
                       >
                         {w.weekStart.getDate()}
@@ -1153,7 +793,7 @@ export function GanttChart({
                       <div
                         key={d.key}
                         className={`text-center border-r shrink-0 flex flex-col items-center justify-center ${
-                          isToday ? 'text-red-400' : d.isWeekend ? 'text-gray-300 bg-gray-50/50' : 'text-gray-400'
+                          isToday ? 'text-status-late' : d.isWeekend ? 'text-ink-300 bg-muted/50' : 'text-muted-foreground'
                         }`}
                         style={{ width: colW }}
                       >
@@ -1174,19 +814,30 @@ export function GanttChart({
             className="flex-1 overflow-auto"
             style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
-            <div style={{ width: totalWidth }} className="relative bg-white">
+            <div style={{ width: totalWidth }} className="relative bg-background">
               {/* 그리드 세로선 */}
               {gridLinePositions.map((x, i) => (
                 <div
                   key={`gl-${i}`}
-                  className="absolute top-0 bottom-0 w-px bg-gray-200 pointer-events-none"
+                  className="absolute top-0 bottom-0 w-px bg-border pointer-events-none"
                   style={{ left: x }}
                 />
               ))}
               {todayX !== null && (
-                <div className="absolute top-0 bottom-0 w-px bg-indigo-400 opacity-70 z-10 pointer-events-none" style={{ left: todayX }} />
+                <div className="absolute top-0 bottom-0 w-px bg-lilac-400 opacity-70 z-10 pointer-events-none" style={{ left: todayX }} />
               )}
-              {sortedCats.map((cat, catIdx) => renderCategoryRows(cat, catIdx, 'right'))}
+              {sortedCats.map(cat => (
+                <GanttCategoryRight
+                  key={cat.id}
+                  cat={cat}
+                  catProjs={projectsOf(cat.id)}
+                  readOnly={readOnly}
+                  colW={colW}
+                  barCols={barCols}
+                  makeDragHandlers={makeDragHandlers}
+                  pmColorMap={pmColorMap}
+                />
+              ))}
             </div>
           </div>
         </div>
@@ -1195,7 +846,7 @@ export function GanttChart({
       {/* 고정 스크롤바 */}
       <div
         ref={stickyScrollRef}
-        className="shrink-0 overflow-x-auto overflow-y-hidden border-t bg-white"
+        className="shrink-0 overflow-x-auto overflow-y-hidden border-t bg-card"
         style={{ height: 14, marginLeft: leftWidth + 4 }}
         onScroll={onStickyScroll}
       >
@@ -1210,10 +861,10 @@ export function GanttChart({
             className="fixed z-[9999] pointer-events-none max-w-xs"
             style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
           >
-            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
               {memoHover.text}
             </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
+            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
           </div>
         )
       })()}
@@ -1226,10 +877,10 @@ export function GanttChart({
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">이름</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
               <input
                 autoFocus
-                className="mt-1.5 w-full text-sm border border-gray-200 rounded px-3 py-2 outline-none focus:border-indigo-300 placeholder:text-gray-300"
+                className="mt-1.5 w-full text-sm border border-border rounded px-3 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300"
                 placeholder="카테고리명"
                 value={newCatName}
                 onChange={e => setNewCatName(e.target.value)}
@@ -1237,14 +888,14 @@ export function GanttChart({
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">색상</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">색상</label>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {CAT_COLORS.map(c => (
                   <button
                     key={c}
                     type="button"
                     onClick={() => setNewCatColor(c)}
-                    className={`w-6 h-6 rounded-full hover:scale-110 transition-transform border border-black/5 ${newCatColor === c ? 'ring-2 ring-gray-800 ring-offset-1' : ''}`}
+                    className={`w-6 h-6 rounded-full hover:scale-110 transition-transform border border-black/5 ${newCatColor === c ? 'ring-2 ring-foreground ring-offset-1' : ''}`}
                     style={{ backgroundColor: c }}
                     title={c}
                   />

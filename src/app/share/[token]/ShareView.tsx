@@ -17,11 +17,11 @@ interface Props {
 export function ShareView({ board, categories, projects }: Props) {
   return (
     <div className="h-screen flex flex-col overflow-hidden">
-      <header className="h-12 bg-white border-b flex items-center px-4 gap-3 shrink-0 z-20">
-        <span className="text-base font-bold text-gray-900">Waldlust Gantt Manager</span>
-        <span className="ml-auto text-xs text-gray-400 bg-gray-100 px-2 py-1 rounded">읽기 전용</span>
+      <header className="h-12 bg-card border-b flex items-center px-4 gap-3 shrink-0 z-20">
+        <span className="text-base font-bold text-foreground">Waldlust Gantt Manager</span>
+        <span className="ml-auto text-xs text-muted-foreground bg-muted px-2 py-1 rounded">읽기 전용</span>
       </header>
-      <main className="flex-1 overflow-hidden bg-white">
+      <main className="flex-1 overflow-hidden bg-background">
         <GanttChart
           categories={categories}
           projects={projects}

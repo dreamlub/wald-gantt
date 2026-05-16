@@ -319,10 +319,11 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
     .order('sort_order')
   if (error) throw error
 
+  type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((row: any) => ({
     ...row,
-    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',
@@ -355,10 +356,11 @@ export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]>
     .order('deleted_at', { ascending: false })
   if (error) throw error
 
+  type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((row: any) => ({
     ...row,
-    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',
@@ -445,6 +447,39 @@ export async function emptyTaskTrash(workspaceId: string): Promise<void> {
     .delete()
     .eq('workspace_id', workspaceId)
     .not('deleted_at', 'is', null)
+  if (error) throw error
+}
+
+export async function duplicateTask(workspaceId: string, task: GanttTask): Promise<GanttTask> {
+  return addTask(workspaceId, {
+    title: task.title + ' (복사)',
+    status: task.status,
+    type: task.type,
+    assignee: task.assignee,
+    start_date: task.start_date,
+    due_date: task.due_date,
+    memo: task.memo,
+    labels: task.labels,
+    priority: task.priority,
+    parent_id: task.parent_id,
+  }, task.projects?.map(p => p.id) ?? [])
+}
+
+export async function bulkSoftDeleteTasks(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids)
+  if (error) throw error
+}
+
+export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ status, updated_at: new Date().toISOString() })
+    .in('id', ids)
   if (error) throw error
 }
 

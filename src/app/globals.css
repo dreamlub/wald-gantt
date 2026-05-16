@@ -4,6 +4,77 @@
 
 @custom-variant dark (&:is(.dark *));
 
+/* ── Wald 팔레트 토큰 ──────────────────────────────────────── */
+@theme {
+  /* Neutrals */
+  --color-ink-50:  #FAFAFC;
+  --color-ink-100: #F4F4F7;
+  --color-ink-150: #ECECF0;
+  --color-ink-200: #E4E4EA;
+  --color-ink-300: #B8B8C2;
+  --color-ink-400: #8A8A94;
+  --color-ink-500: #5C5C66;
+  --color-ink-700: #2A2A33;
+  --color-ink-800: #1F1F26;
+  --color-ink-900: #15151A;
+
+  /* Lilac — primary accent */
+  --color-lilac-100: #ECE8FC;
+  --color-lilac-200: #DCD6FA;
+  --color-lilac-300: #C7BFF7;
+  --color-lilac-400: #A89DF2;
+  --color-lilac-500: #8275ED;
+  --color-lilac-600: #6B5BE6;
+
+  /* Coral */
+  --color-coral-100: #FDEADB;
+  --color-coral-200: #FBD6BB;
+  --color-coral-300: #F8BF99;
+  --color-coral-400: #F5A878;
+  --color-coral-500: #F0915C;
+
+  /* Mint */
+  --color-mint-100: #DDF2EA;
+  --color-mint-300: #A4DFCC;
+  --color-mint-500: #5BC9A6;
+
+  /* Status */
+  --color-status-late:   #E5484D;
+  --color-status-warn:   #F2A33C;
+  --color-status-soon:   #F0C24B;
+  --color-status-future: #3D8AF7;
+  --color-status-ok:     #5BC9A6;
+
+  /* Identifier palette — projects, assignees, categories */
+  --color-id-indigo: #6366f1;
+  --color-id-amber:  #f59e0b;
+  --color-id-orange: #f97316;
+  --color-id-violet: #8b5cf6;
+  --color-id-green:  #22c55e;
+  --color-id-blue:   #3b82f6;
+  --color-id-pink:   #ec4899;
+  --color-id-teal:   #14b8a6;
+  --color-id-purple: #a855f7;
+  /* vivid */
+  --color-cat-indigo:        #818cf8;
+  --color-cat-blue:          #60a5fa;
+  --color-cat-green:         #4ade80;
+  --color-cat-yellow:        #facc15;
+  --color-cat-orange:        #fb923c;
+  --color-cat-red:           #f87171;
+  --color-cat-pink:          #f472b6;
+  --color-cat-purple:        #c084fc;
+  /* pastel */
+  --color-cat-indigo-light:  #c7d2fe;
+  --color-cat-blue-light:    #bfdbfe;
+  --color-cat-green-light:   #bbf7d0;
+  --color-cat-yellow-light:  #fef08a;
+  --color-cat-orange-light:  #fed7aa;
+  --color-cat-red-light:     #fecaca;
+  --color-cat-pink-light:    #fbcfe8;
+  --color-cat-purple-light:  #ddd6fe;
+}
+
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
@@ -81,6 +152,19 @@
   --sidebar-accent-foreground: oklch(0.205 0 0);
   --sidebar-border: oklch(0.922 0 0);
   --sidebar-ring: oklch(0.708 0 0);
+
+  /* 태스크/프로젝트 상태 색상 (inline style용) */
+  --task-status-backlog:           var(--color-ink-300);
+  --task-status-todo:              var(--color-lilac-500);
+  --task-status-in-progress:       var(--color-status-warn);
+  --task-status-done:              var(--color-mint-500);
+  --task-status-pending:           var(--color-lilac-300);
+  --task-status-backlog-bg:        color-mix(in srgb, var(--color-ink-300) 12%, transparent);
+  --task-status-todo-bg:           color-mix(in srgb, var(--color-lilac-500) 12%, transparent);
+  --task-status-in-progress-bg:    color-mix(in srgb, var(--color-status-warn) 12%, transparent);
+  --task-status-done-bg:           color-mix(in srgb, var(--color-mint-500) 12%, transparent);
+  --task-status-pending-bg:        color-mix(in srgb, var(--color-lilac-300) 12%, transparent);
+  --task-status-overdue-bg:        color-mix(in srgb, var(--color-status-late) 12%, transparent);
 }
 
 .dark {
@@ -120,6 +204,8 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
+    scrollbar-width: thin;
+    scrollbar-color: oklch(0.82 0 0) transparent;
   }
   body {
     @apply bg-background text-foreground;
@@ -131,6 +217,45 @@
     -webkit-font-smoothing: inherit;
     -moz-osx-font-smoothing: inherit;
   }
+}
+
+.sidebar-btn {
+  display: flex;
+  width: 100%;
+  align-items: center;
+  gap: 0.5rem;
+  padding: 0.375rem 0.5rem;
+  border-radius: 0.25rem;
+  font-size: 0.75rem;
+  line-height: 1rem;
+  text-align: left;
+  transition: background-color 0.15s, color 0.15s;
+  color: var(--muted-foreground);
+  border-left: 2px solid transparent;
+}
+.sidebar-btn:not(.sidebar-btn-active):hover {
+  background-color: var(--muted);
+}
+.sidebar-btn-active {
+  border-left-color: var(--color-ink-700);
+  background-color: var(--card);
+  color: var(--foreground);
+  font-weight: 500;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+  height: 6px;
+}
+::-webkit-scrollbar-track {
+  background: transparent;
+}
+::-webkit-scrollbar-thumb {
+  background: oklch(0.82 0 0);
+  border-radius: 3px;
+}
+::-webkit-scrollbar-thumb:hover {
+  background: oklch(0.65 0 0);
 }
 
 [data-sonner-toaster],

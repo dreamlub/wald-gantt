@@ -46,21 +46,6 @@ export function clampTooltipPos(x: number, y: number, tw = 320, margin = 8) {
   }
 }
 
-/** KST 기준 몇 일 전/후 — 타임스탬프를 KST 날짜로 변환 후 비교 */
-export function relativeTime(d: string | null) {
-  if (!d) return '—'
-  const todayStr  = todayStrKST()
-  // ISO 타임스탬프는 KST 날짜 문자열로 변환
-  const targetStr = d.length === 10 ? d : toKSTDateStr(d)
-  if (targetStr === todayStr) return '오늘'
-  const todayMid  = parseDateStr(todayStr).getTime()
-  const targetMid = parseDateStr(targetStr).getTime()
-  const diff = Math.floor((todayMid - targetMid) / 864e5)
-  if (diff === 1) return '어제'
-  if (diff < 0) return `${Math.abs(diff)}일 후`
-  return `${diff}일 전`
-}
-
 /** KST 기준 몇 일 경과 */
 export function daysDiff(d: string | null): number {
   if (!d) return 0
@@ -117,19 +102,3 @@ export function isDueNextWeek(due: string | null) {
   return due >= ymd(nextSun) && due <= ymd(nextSat)
 }
 
-/** UTC 타임스탬프 → KST "YYYY-MM-DD" */
-export function toKSTDateStr(iso: string): string {
-  const kst = new Date(new Date(iso).getTime() + 9 * 60 * 60 * 1000)
-  return `${kst.getUTCFullYear()}-${String(kst.getUTCMonth() + 1).padStart(2, '0')}-${String(kst.getUTCDate()).padStart(2, '0')}`
-}
-
-/** KST 기준 이번 주 일요일 자정 */
-export function weekStart(): Date {
-  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
-  const dayOfWeek = kstNow.getUTCDay()
-  const sunKST = new Date(kstNow.getTime() - dayOfWeek * 864e5)
-  sunKST.setUTCHours(0, 0, 0, 0)
-  return new Date(sunKST.getTime() - 9 * 60 * 60 * 1000)
-}
-
-export function abbrev(name: string) { return name.slice(0, 2) }
