@@ -27,6 +27,30 @@ interface Props {
 
 const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 }
 
+function SortBtn({
+  col, label, align = 'left', sortKey, sortDir, onToggle,
+}: {
+  col: SortKey
+  label: string
+  align?: 'left' | 'right'
+  sortKey: SortKey
+  sortDir: SortDir
+  onToggle: (k: SortKey) => void
+}) {
+  const active = sortKey === col
+  return (
+    <button
+      onClick={() => onToggle(col)}
+      className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+        ${align === 'right' ? 'justify-end w-full' : ''}
+        ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
+    >
+      {label}
+      <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </button>
+  )
+}
+
 export function TableView({
   items, clients, selectedTags, searchQuery, hasFilters,
   onToggleTag, onSelectBrand, onSelectPriority, onSelectAuthor, onOpenItem, onClearFilters,
@@ -86,31 +110,16 @@ export function TableView({
     )
   }
 
-  function SortBtn({ col, label, align = 'left' }: { col: SortKey; label: string; align?: 'left' | 'right' }) {
-    const active = sortKey === col
-    return (
-      <button
-        onClick={() => toggleSort(col)}
-        className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
-          ${align === 'right' ? 'justify-end w-full' : ''}
-          ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
-      >
-        {label}
-        <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
-      </button>
-    )
-  }
-
   return (
     <div className="flex flex-col">
       {/* 헤더 */}
       <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted shrink-0">
         <div className="flex-1 min-w-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">내용</div>
-        <div className="w-24 shrink-0"><SortBtn col="brand" label="브랜드" /></div>
+        <div className="w-24 shrink-0"><SortBtn col="brand" label="브랜드" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-32 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">태그</div>
-        <div className="w-16 shrink-0"><SortBtn col="priority" label="중요도" /></div>
-        <div className="w-20 shrink-0"><SortBtn col="author" label="작성자" /></div>
-        <div className="w-14 shrink-0"><SortBtn col="date" label="등록일" align="right" /></div>
+        <div className="w-16 shrink-0"><SortBtn col="priority" label="중요도" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-20 shrink-0"><SortBtn col="author" label="작성자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-14 shrink-0"><SortBtn col="date" label="등록일" align="right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
 
       {/* 행 */}
@@ -172,8 +181,8 @@ export function TableView({
               {item.priority ? (
                 <button
                   onClick={e => { e.stopPropagation(); onSelectPriority(item.priority!) }}
-                  className="hover:opacity-70 transition-opacity"
-                  title={`중요도로 필터`}
+                  className="flex items-center hover:opacity-70 transition-opacity"
+                  title="중요도로 필터"
                 >
                   <PriorityBars priority={item.priority} showLabel />
                 </button>

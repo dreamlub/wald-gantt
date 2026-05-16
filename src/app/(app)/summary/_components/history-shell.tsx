@@ -124,7 +124,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
   const filtered = useMemo(() => {
     const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : 0
-    const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59').getTime() : Date.now()
+    // dateTo가 없으면 사실상 무제한 (Date.now()는 render 중 impure → 불가)
+    const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER
     let list = initialHistory.filter(h => {
       const t = new Date(h.occurred_at).getTime()
       return t >= fromMs && t <= toMs
@@ -283,7 +284,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         </div>
 
         {/* 본문 */}
-        <div className="flex-1 overflow-y-auto bg-card">
+        <div data-scrolltop className="flex-1 overflow-y-auto bg-card">
           <div className="sticky top-0 z-10 bg-card px-6 pt-5">
             <BrandSelector
               clients={initialClients}

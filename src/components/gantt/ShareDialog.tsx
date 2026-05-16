@@ -21,8 +21,10 @@ export function ShareDialog({ open, onClose, boardId, boardName }: Props) {
   const [loading, setLoading] = useState(false)
   const [copied, setCopied]   = useState(false)
 
+  // 다이얼로그 열릴 때 공유 토큰 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getShareToken(boardId)
       .then(setToken)

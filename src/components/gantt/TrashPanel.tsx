@@ -25,8 +25,10 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
   const [deleted, setDeleted] = useState<GanttProject[]>([])
   const [loading, setLoading] = useState(false)
 
+  // 패널 열릴 때 휴지통 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getDeletedProjects(boardId)
       .then(setDeleted)

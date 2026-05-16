@@ -319,10 +319,11 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
     .order('sort_order')
   if (error) throw error
 
+  type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((row: any) => ({
     ...row,
-    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',
@@ -355,10 +356,11 @@ export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]>
     .order('deleted_at', { ascending: false })
   if (error) throw error
 
+  type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
   // eslint-disable-next-line @typescript-eslint/no-explicit-any
   return (data ?? []).map((row: any) => ({
     ...row,
-    projects: (row.gantt_task_projects ?? []).map((tp: any) => ({
+    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',

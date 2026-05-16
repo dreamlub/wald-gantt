@@ -63,11 +63,19 @@ export default function GanttPage() {
     }
   }, [])
 
-  useEffect(() => { loadWorkspace() }, [loadWorkspace])
-
-  // 2단계: 선택된 보드의 카테고리 + 프로젝트 로드
+  // 초기 1회: 워크스페이스/보드 로드 (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
-    if (!selectedBoardId) { setLoading(false); return }
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadWorkspace()
+  }, [loadWorkspace])
+
+  // 2단계: 선택된 보드의 카테고리 + 프로젝트 로드 (외부 fetch → setState 의도된 패턴)
+  useEffect(() => {
+    if (!selectedBoardId) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setLoading(false)
+      return
+    }
     setLoading(true)
     resetStacks()
     setTrashOpen(false)

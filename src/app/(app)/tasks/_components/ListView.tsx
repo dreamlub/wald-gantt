@@ -11,6 +11,28 @@ export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' 
 
 const STATUS_ORDER: Record<TaskStatus, number> = { backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
 
+function SortBtn({
+  col, label, sortKey, sortDir, onToggle,
+}: {
+  col: SortKey
+  label: string
+  sortKey: SortKey
+  sortDir: 'asc' | 'desc'
+  onToggle: (k: SortKey) => void
+}) {
+  const active = sortKey === col
+  return (
+    <button
+      onClick={() => onToggle(col)}
+      className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+        ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
+    >
+      {label}
+      <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+    </button>
+  )
+}
+
 interface Props {
   tasks: GanttTask[]
   assigneeColorMap: Map<string, string>
@@ -137,20 +159,6 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     if (cur) groups.push(cur)
   }
 
-  function SortBtn({ col, label }: { col: SortKey; label: string }) {
-    const active = sortKey === col
-    return (
-      <button
-        onClick={() => toggleSort(col)}
-        className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
-          ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
-      >
-        {label}
-        <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
-      </button>
-    )
-  }
-
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* 헤더 */}
@@ -177,14 +185,14 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             </button>
           )}
         </div>
-        <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" /></div>
+        <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-8 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">메모</div>
-        <div className="w-28 shrink-0"><SortBtn col="status" label="상태" /></div>
-        <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" /></div>
-        <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" /></div>
+        <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
 
-      <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
+      <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
       {renderList.length === 0 ? (
         <div className="flex items-center justify-center h-40 text-ink-400 text-xs">{emptyMessage}</div>
       ) : groups.flatMap(({ parent, subs }) => {

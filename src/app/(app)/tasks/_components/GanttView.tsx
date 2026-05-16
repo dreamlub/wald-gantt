@@ -177,9 +177,9 @@ export function GanttView({ tasks, onEdit }: Props) {
         />
 
         {/* ── 헤더 ── */}
-        <div className="flex sticky top-0 z-10 bg-card border-b shadow-sm select-none">
+        <div className="flex sticky top-0 z-20 bg-card border-b shadow-sm select-none">
           {/* 좌측 고정 */}
-          <div className="shrink-0 border-r bg-muted" style={{ width: LEFT_W, height: headerH }} />
+          <div className="shrink-0 sticky left-0 z-10 border-r bg-muted" style={{ width: LEFT_W, height: headerH }} />
 
           {/* 날짜 헤더 영역 */}
           <div className="flex flex-col" style={{ width: totalWidth }}>
@@ -236,9 +236,10 @@ export function GanttView({ tasks, onEdit }: Props) {
           const overdue  = isOverdue(task.due_date, task.status)
           const startDelayed = !overdue && isStartDelayed(task.start_date, task.status)
           const statusColor = STATUS_COLOR[task.status]
-          // 마감 지난 미완료는 빨강, 시작 지연은 앰버
-          const barBg     = overdue ? '#fca5a5' : startDelayed ? '#fcd34d' : statusColor + 'bb'
-          const barBorder = overdue ? '#ef4444' : startDelayed ? '#f59e0b' : statusColor
+          // Schedule(GanttChart) 동일 패턴: 73% 알파 배경 + 솔리드 보더
+          const borderC   = overdue ? 'var(--color-status-late)' : startDelayed ? 'var(--color-status-warn)' : statusColor
+          const barBg     = `color-mix(in srgb, ${borderC} 73%, transparent)`
+          const barBorder = borderC
 
           const sx = task.start_date ? dayOffsetInWeeks(weeks, task.start_date, 'start') * WEEK_W : null
           const ex = task.due_date   ? dayOffsetInWeeks(weeks, task.due_date,   'end')   * WEEK_W : null
@@ -250,12 +251,12 @@ export function GanttView({ tasks, onEdit }: Props) {
           return (
             <div
               key={task.id}
-              className={`flex border-b hover:bg-muted group ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''}`}
+              className={`flex border-b hover:bg-muted group ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : 'bg-card'}`}
               style={{ height: ROW_H }}
             >
               {/* 태스크 이름 */}
               <div
-                className="shrink-0 flex items-center gap-1.5 px-3 border-r"
+                className="shrink-0 sticky left-0 z-10 flex items-center gap-1.5 px-3 border-r bg-inherit"
                 style={{ width: LEFT_W }}
               >
                 {isSub && <CornerDownRight size={11} className="text-ink-300 shrink-0" />}
@@ -374,7 +375,7 @@ export function GanttView({ tasks, onEdit }: Props) {
         {/* ── 날짜 없는 태스크 ── */}
         {undatedTasks.length > 0 && (
           <>
-            <div className="px-3 py-1.5 text-[10px] font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider">
+            <div className="sticky left-0 z-10 px-3 py-1.5 text-[10px] font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
               날짜 미설정 — {undatedTasks.length}개
             </div>
             {undatedTasks.map(task => {
@@ -382,10 +383,10 @@ export function GanttView({ tasks, onEdit }: Props) {
               return (
                 <div
                   key={task.id}
-                  className={`flex border-b hover:bg-muted ${isDone ? 'opacity-55' : ''}`}
+                  className={`flex border-b hover:bg-muted bg-card ${isDone ? 'opacity-55' : ''}`}
                   style={{ height: ROW_H }}
                 >
-                  <div className="shrink-0 flex items-center gap-1.5 px-3 border-r" style={{ width: LEFT_W }}>
+                  <div className="shrink-0 sticky left-0 z-10 flex items-center gap-1.5 px-3 border-r bg-inherit" style={{ width: LEFT_W }}>
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
                     <button
                       onClick={() => onEdit(task)}

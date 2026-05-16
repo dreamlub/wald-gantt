@@ -12,6 +12,8 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // 로컬 도구 디렉터리
+    ".claude/**",
   ]),
 ]);
 

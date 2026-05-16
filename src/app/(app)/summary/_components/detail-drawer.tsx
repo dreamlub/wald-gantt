@@ -26,6 +26,8 @@ export function HistoryDetailDrawer({ open, item, client, onClose }: Props) {
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose])
 
+  // 드로어가 열리거나 item이 바뀌면 copied 토글 리셋 (외부 트리거 기반 → 의도된 setState)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { if (open) setCopied(false) }, [open, item?.id])
 
   async function copyBody() {

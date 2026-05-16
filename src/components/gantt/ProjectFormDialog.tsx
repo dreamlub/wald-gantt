@@ -47,7 +47,9 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
   const [entries, setEntries] = useState<ProjectHistoryEntry[]>([])
   const [loading, setLoading] = useState(false)
 
+  // projectId 변경 시 히스토리 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getProjectHistory(projectId).then(setEntries).catch(console.error).finally(() => setLoading(false))
   }, [projectId])
@@ -146,7 +148,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   )
 }
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', onDelete, allTeams = [], allPMs = [] }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [] }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -161,8 +163,10 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const nameRef = useRef<HTMLInputElement>(null)
   const memoRef = useRef<HTMLTextAreaElement>(null)
 
+  // open 시 초기 탭 설정 + 포커스 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
     if (open) {
+      // eslint-disable-next-line react-hooks/set-state-in-effect
       setTab(initialTab)
       setTimeout(() => {
         if (initialTab === 'memo') memoRef.current?.focus()
@@ -171,7 +175,9 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
     }
   }, [open, initialTab])
 
+  // editProject prop 동기화 (props 기반 폼 초기화 → 의도된 setState)
   useEffect(() => {
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (editProject) {
       setCategoryId(editProject.category_id)
       setName(editProject.name)
@@ -188,6 +194,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setStartDate(undefined); setEndDate(undefined)
       setTeam(''); setPm(''); setMemo('')
     }
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [editProject, open, defaultCategoryId, categories])
 
   const dateError = startDate && endDate && startDate > endDate

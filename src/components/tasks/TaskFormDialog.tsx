@@ -100,8 +100,10 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
     }
   }, [open])
 
+  // open/editTask 변경 시 폼 상태 동기화 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
     if (!open) return
+    /* eslint-disable react-hooks/set-state-in-effect */
     if (editTask) {
       setTitle(editTask.title)
       setStatus(editTask.status)
@@ -117,7 +119,8 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
       setLinkedProjects(defaultProjects ?? [])
     }
     setProjSearch(''); setProjResults([]); setShowProjDrop(false)
-  }, [open, editTask])
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [open, editTask, defaultStatus, defaultProjects])
 
   useEffect(() => {
     if (!showProjDrop) return

@@ -55,7 +55,9 @@ function groupHistByTime(entries: TaskHistoryEntry[]): TaskHistoryEntry[][] {
 function TaskHistorySection({ taskId }: { taskId: string }) {
   const [entries, setEntries] = useState<TaskHistoryEntry[]>([])
   const [loading, setLoading] = useState(false)
+  // taskId가 바뀔 때 히스토리 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getTaskHistory(taskId).then(setEntries).catch(console.error).finally(() => setLoading(false))
   }, [taskId])
@@ -192,8 +194,10 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     }
   }, [open])
 
+  // 드로어가 열리거나 task prop이 바뀌면 폼 상태를 task로 동기화 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
     if (!open || !task) return
+    /* eslint-disable react-hooks/set-state-in-effect */
     setTitle(task.title)
     setStatus(task.status)
     setPriority(task.priority ?? 0)
@@ -205,6 +209,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     setLinkedProjects(task.projects ?? [])
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput('')
     setTab('info')
+    /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, task])
 
   useEffect(() => {

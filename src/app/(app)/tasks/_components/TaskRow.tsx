@@ -27,7 +27,7 @@ interface TaskRowProps {
   onSelect?: (id: string) => void
 }
 
-export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
+export function TaskRow({ task, onEdit, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 

@@ -25,8 +25,10 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
   const [deleted, setDeleted] = useState<GanttTask[]>([])
   const [loading, setLoading] = useState(false)
 
+  // 패널 열릴 때 휴지통 fetch (외부 fetch → setState 의도된 패턴)
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getDeletedTasks(workspaceId)
       .then(setDeleted)

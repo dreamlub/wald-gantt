@@ -27,7 +27,7 @@ interface Props {
   onBrandChange: (id: string | 'all') => void
   onToggleTag: (t: Tag) => void
   onPriorityChange: (p: PriorityKey) => void
-  onReset: () => void
+  onReset?: () => void
 }
 
 const PRESETS: { key: 'today' | 'week' | 'month' | 'all'; label: string }[] = [
@@ -60,7 +60,6 @@ export function HistorySidebar({
   brandId, selectedTags, priorityKey,
   onDateFromChange, onDateToChange, onPresetClick,
   onBrandChange, onToggleTag, onPriorityChange,
-  onReset,
 }: Props) {
   // tag counts
   const tagCounts: Record<string, number> = {}
@@ -314,23 +313,3 @@ function DateField({ label, value, onChange }: { label: string; value: string; o
   )
 }
 
-function Item({
-  active, onClick, label, count, dotColor,
-}: {
-  active: boolean
-  onClick: () => void
-  label: string
-  count?: number
-  dotColor?: string
-}) {
-  return (
-    <button
-      onClick={onClick}
-      className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
-    >
-      {dotColor && <span className="w-2 h-2 rounded-full shrink-0" style={{ background: dotColor }} />}
-      <span className="flex-1 truncate text-left">{label}</span>
-      {count !== undefined && <span className="text-xs text-ink-400">{count}</span>}
-    </button>
-  )
-}

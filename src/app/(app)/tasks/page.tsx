@@ -84,6 +84,8 @@ export default function TasksPage() {
     finally { setLoading(false) }
   }, [])
 
+  // 초기 워크스페이스/태스크 로드 (외부 fetch → setState 의도된 패턴)
+  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => { load() }, [load])
 
   useEffect(() => {
@@ -303,6 +305,8 @@ export default function TasksPage() {
     } catch (e) { toast.error(errMsg(e)) }
   }
 
+  // _status 인자는 호출부(TaskDetailDrawer 등)의 콜백 시그니처 호환을 위해 유지
+  // eslint-disable-next-line @typescript-eslint/no-unused-vars
   function openAddSubTask(parentId: string, _status: TaskStatus) {
     // 인라인 퀵 등록으로 전환 — 부모를 펼치고 입력창 노출
     setExpandedParents(prev => new Set([...prev, parentId]))
@@ -356,8 +360,6 @@ export default function TasksPage() {
   const dueTodayCount      = tasks.filter(t => t.due_date === todayStr && t.status !== 'done').length
   const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
   const dueNextWeekCount   = tasks.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done').length
-  const inProgressCount    = tasks.filter(t => t.status === 'in-progress').length
-  const todoCount          = tasks.filter(t => t.status === 'to-do').length
 
   // ── 사이드바 데이터 ──────────────────────────────────────────
   const projectMap = new Map<string, { name: string; count: number; colorIdx: number }>()
@@ -779,7 +781,7 @@ export default function TasksPage() {
               <div className="w-28 shrink-0">담당자</div>
               <div className="w-24 shrink-0">일정</div>
             </div>
-          <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
+          <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
 
             {filtered.length === 0 ? (() => {
               const hasFilter = quickFilter !== 'all' || !!filterProject || !!filterAssignee || !!filterLabel || !!searchQuery.trim()

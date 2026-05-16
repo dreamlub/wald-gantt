@@ -358,8 +358,10 @@ src/
 │   └── login/page.tsx
 ├── components/
 │   ├── AppNav.tsx                  # 좌측 56px 다크(ink-900) 아이콘 레일
+│   ├── ScrollToTopButton.tsx       # 전역 플로팅 Top 버튼 (data-scrolltop 컨테이너 감지)
 │   ├── gantt/
-│   │   ├── GanttChart.tsx          # ⚠️ ~1,200줄 (분리 예정)
+│   │   ├── GanttChart.tsx          # ~840줄
+│   │   ├── _GanttRows.tsx          # 행 컴포넌트 분리 (GanttCategoryLeft/Right 등)
 │   │   ├── GanttToolbar.tsx
 │   │   ├── BoardSidebar.tsx
 │   │   ├── ProjectFormDialog.tsx   # 정보/메모/이력 3탭
@@ -405,6 +407,74 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 ---
 
 ## 최근 변경
+
+### 2026-05-16 — 테스트 인프라 셋업 + Lint 50 issues 베이스라인 정리
+
+**Vitest 도입**
+- `vitest` + `@vitejs/plugin-react` + `jsdom` + `@testing-library/react` + `@testing-library/jest-dom` 설치
+- `vitest.config.ts` (jsdom 환경, `src/**/*.test.{ts,tsx}` 수집, `@` alias)
+- `vitest.setup.ts` (jest-dom matcher 등록)
+- npm scripts: `test`, `test:watch`, `test:ui`, `typecheck`, `check` (typecheck + lint + test 일괄)
+
+**첫 회귀 테스트** — `src/app/(app)/tasks/_constants.test.tsx` (6 cases)
+- 오늘 Gantt 색 회귀 (2026-05-16) 직접 방지용
+- `STATUS_COLOR` / `STATUS_BG_COLOR` 모든 값이 `var(--` 시작 보장 — 호출부 hex+alpha 가정 차단
+- `STATUS_GROUPS` color/bgColor 두 맵과 일치 보장
+- `PROJECT_COLORS`, `ASSIGNEE_COLORS`도 CSS var 강제
+
+**Lint 50 errors+warnings 일괄 정리**
+- `.claude/worktrees/**` eslint ignore 추가 (잔재 worktree가 결과 부풀림)
+- `@typescript-eslint/no-unused-vars` (11) — 미사용 import/destructure 제거
+- `@typescript-eslint/no-explicit-any` (2) — `gantt-service.ts` `TaskProjectJoin` 타입 정의
+- `react-hooks/refs` (3) — `use-undo-redo.ts` render 중 ref 할당 → useEffect로 이동
+- `react-hooks/exhaustive-deps` (1) — `TaskFormDialog.tsx` deps 보강
+- `react-hooks/purity` (1) — `history-shell.tsx` render 중 `Date.now()` → `Number.MAX_SAFE_INTEGER`
+- `react-hooks/static-components` (8) — `SortBtn` 두 곳(`table-view.tsx`, `ListView.tsx`) 파일 최상단으로 호이스팅
+- `react-hooks/set-state-in-effect` (14) — 전부 fetch/props 동기화 의도된 패턴 → `eslint-disable-next-line` + 사유 코멘트
+
+**메모리**
+- `feedback-regression-test` 신규: "회귀 픽스 = vitest 테스트 1개 추가" 룰
+
+**최종**: typecheck ✅ / lint 0 errors ✅ / 6 tests pass ✅
+
+---
+
+### 2026-05-16 — Summary 테이블 중요도 컬럼 정렬 픽스
+
+**`src/app/(app)/summary/_components/table-view.tsx`**
+- 중요도 필터 버튼 `className`에 `flex items-center` 추가
+- 기존: `className="hover:opacity-70 transition-opacity"` → 기본 `inline-block` 렌더링으로 다른 컬럼과 수직 위치 불일치
+- 수정: `className="flex items-center hover:opacity-70 transition-opacity"` → 명시적 flex로 셀 내 수직 정렬 통일
+
+---
+
+### 2026-05-16 — 스크롤 Top 플로팅 버튼 추가
+
+**`ScrollToTopButton` 컴포넌트** (`src/components/ScrollToTopButton.tsx`)
+- `document` 캡처 스크롤 리스너로 `data-scrolltop` 속성이 붙은 컨테이너의 스크롤만 감지
+- `scrollTop > 300px` 이상 내려가면 페이드인, 클릭 시 `smooth` 스크롤 복귀
+- 페이지 전환(`usePathname`) 시 자동 리셋
+- `(app)/layout.tsx`에 전역 삽입 (Server Component에 Client Component import)
+
+**`data-scrolltop` 마킹 (3곳)**
+- `tasks/page.tsx` — 일반 뷰 메인 스크롤 컨테이너
+- `tasks/_components/ListView.tsx` — 리스트 뷰 메인 스크롤 컨테이너
+- `summary/_components/history-shell.tsx` — Summary 테이블 메인 스크롤 컨테이너
+- Gantt 뷰·캘린더 뷰·칸반 뷰는 제외 (별도 스크롤 구조)
+- `npx tsc --noEmit` 통과
+
+### 2026-05-16 — GanttChart.tsx 분리 리팩토링 (1,000줄 제한 준수)
+
+**`_GanttRows.tsx` 신규 생성 (402줄)**
+- 이동한 상수: `CAT_ROW_H`, `PROJ_ROW_H`, `CAT_COLORS`, `STATUS_META`, `STATUS_ORDER`
+- 이동한 헬퍼: `randomCatColor`, `isProjectOverdue`, `isStartDelayed`, `formatBarDate`, `daysBetween`
+- 이동한 컴포넌트: `SortableProjRow`, `SortableCatRow` (내부 전용, 비공개)
+- 신규 컴포넌트: `GanttCategoryLeft` (왼쪽 패널 카테고리·프로젝트 행), `GanttCategoryRight` (오른쪽 타임라인 바 행)
+
+**`GanttChart.tsx` 1,262줄 → 840줄**
+- `renderCategoryRows` 함수(293줄) 제거 → `GanttCategoryLeft` / `GanttCategoryRight` 컴포넌트 호출로 대체
+- 불필요한 import 정리: `useSortable`, `CSS`, `Trash2`, `StickyNote`, `Palette`, `Popover` 계열
+- `npx tsc --noEmit` 통과
 
 ### 2026-05-16 — Summary 테이블뷰 UX 전면 개선
 
@@ -582,9 +652,6 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 
 ## 알려진 이슈
 
-### ⚠️ GanttChart.tsx 라인 수 초과
-현재 약 1,200줄. 자체 규칙(1,000줄) 위반 — 분리 리팩토링 필요.
-
 ### ⚠️ `searchProjects` 와일드카드 이스케이프 누락
 `gantt-service.ts`의 `ilike '%query%'`에서 사용자 입력의 `%`, `_`가 패턴 문자로 그대로 작동. SQL 인젝션은 아니지만 검색 결과가 의도와 다를 수 있음.
 
@@ -595,7 +662,7 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 - **협업 기능 배제**: 1인용 개인 업무 도구. 외부 공유는 읽기 전용 토큰 URL로만.
 - **반응형(모바일) 미지원**: 간트 차트 특성상 데스크탑 전용.
 - **태스크 undo/redo 미구현**: 삭제는 토스트 "되돌리기"로 보완, 다른 액션은 명시적이라 불필요 판단.
-- **GanttChart.tsx 분리 보류**: 기능 추가 안정화 후 분리 예정.
+- **GanttChart.tsx 분리 완료**: `_GanttRows.tsx`로 분리, 840줄로 감소.
 - **빌드 검증**: 코드 변경 후 `npx tsc --noEmit`로 타입 체크.
 
 ---
@@ -608,7 +675,6 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 - **간트 바 날짜 드래그**: 태스크 간트 뷰의 바를 좌우 드래그해 날짜 변경 — 현재 읽기 전용
 - **캘린더 퀵 등록**: 날짜 셀 클릭으로 해당 마감일로 태스크 빠른 생성
 - **태스크 parent 재지정**: 드로어에서 하위 태스크를 다른 부모 아래로 이동하거나 최상위로 승격하는 UI 없음
-- **GanttChart.tsx 분리 리팩토링**: ~1,200줄 → 1,000줄 제한 준수
 - **History 자동 수집 (보류)**: Make.com 시나리오로 Slack→Claude→Supabase 흐름 시도했으나 안정화 미완. 자세한 내용은 History 페이지 섹션 참조. 재시도 시점에 옵션 A/B 중 택일
 
 ---
