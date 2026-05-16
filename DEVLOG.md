@@ -406,6 +406,45 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 
 ## 최근 변경
 
+### 2026-05-16 — Summary 테이블뷰 UX 전면 개선
+
+**상세 drawer (신규 `detail-drawer.tsx`)**
+- 행 클릭 시 우측 슬라이드 drawer 오픈. 480px, 어둠 backdrop, Esc 닫기
+- 표시: 제목, 메타 그리드(브랜드/중요도/작성자/채널/등록일 풀 타임스탬프), 태그(컬러 뱃지), 본문 전체(whitespace-pre-wrap)
+- 액션: 슬랙 원본 링크(`source_ref`) 열기, 제목+본문 클립보드 복사
+
+**기능 보완**
+- 검색어 하이라이트: 본문/제목 매치 위치를 `<mark>` (amber)로 강조
+- 등록일 호버 풀 타임스탬프 툴팁 (`yyyy.MM.dd (eee) HH:mm`)
+- 빈 상태 메시지: 필터 유무에 따라 다른 안내 + "필터 초기화" 버튼 노출 (사이드바 초기화 버튼은 제거)
+- URL 쿼리스트링 필터 persist: view/from/to/brand/tags/priority/author/q 새로고침 시 복원
+- 활성 필터 뱃지 행 `h-7` 고정 + `flex-nowrap overflow-x-auto` → 뱃지 추가/제거에도 테이블 위치 흔들리지 않음
+- 활성 필터 뱃지 스타일: 점선 border + 흰 배경 + X 클릭 개별 해제
+- 작성자 칼럼 폭 축소 `w-28` → `w-20`
+- 태그 칼럼 클릭 → 다중 필터 토글 (활성 시 `font-semibold` 강조), 기본 룰 [[filter-toggle]]
+- 셀 클릭(브랜드/중요도/작성자/태그) → 행 drawer 열기 방지 위해 `e.stopPropagation()`
+
+**테이블 칼럼 정렬**
+- 브랜드/중요도/작성자/등록일 헤더 클릭으로 asc↔desc 토글. 정렬 미적용 `↕`, 적용 `↑/↓` (텍스트 마커, Tasks 동일)
+- 한국어 `localeCompare('ko')`, 동률 시 등록일 desc 2차 정렬
+
+**스타일/일관성**
+- `PriorityBars` Tasks 원본 그대로 복원 (text-[10px], w-[2px], 막대 h=5/7/9). 라벨 노출 옵션 활용
+- 사이드바 필터 버튼 `sidebar-btn` / `sidebar-btn-active` 글로벌 클래스로 Tasks와 통일
+- 사이드바 '전체' 항목에 `LayoutList` 아이콘 (중요도·브랜드 콤보박스)
+- 사이드바 프리셋(오늘/이번주/한달/전체) 활성 스타일을 역상 pill (`bg-foreground text-background`)
+- 테이블 row `items-start` 상단 정렬 유지
+
+**태그 라벨**
+- `mention`: '멘션' → '나를 멘션'
+
+**메모리**
+- `feedback-component-style-consistency`: "차이가 필요하면 명시적으로 알리고 진행, 묵시적 변형 금지" 룰 추가
+- `feedback-filter-toggle` 신규: 단일 선택 필터 reclick → 'all' 해제 기본 룰
+- `project-slack-summary-sop` 표준 정렬 후 불일치 경고 라인 제거
+
+- `npx tsc --noEmit` 통과
+
 ### 2026-05-16 — Summary 페이지 태그 시스템 + 실데이터 수집 + 표준 정렬
 
 **태그 시스템 전환 (단일 type → 다중 tags TEXT[])**

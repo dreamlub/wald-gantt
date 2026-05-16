@@ -74,12 +74,7 @@ export function HistorySidebar({
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
-      <div className="flex items-center justify-between px-2 mb-1">
-        <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">필터</div>
-        <button onClick={onReset} className="text-[10px] text-lilac-500 hover:text-lilac-600 font-medium transition-colors">
-          초기화
-        </button>
-      </div>
+      <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">필터</div>
 
       {/* 기간 — from~to */}
       <div className="px-2 pt-0.5 pb-1 flex flex-col gap-1.5">
@@ -91,15 +86,17 @@ export function HistorySidebar({
       {(() => {
         const active = activePreset(dateFrom, dateTo)
         return (
-          <div className="px-2 pt-1 pb-0.5 flex flex-wrap gap-x-3 gap-y-1">
+          <div className="px-2 pt-1 pb-0.5 flex flex-wrap gap-1">
             {PRESETS.map(({ key, label }) => {
               const isActive = active === key
               return (
                 <button
                   key={key}
                   onClick={() => onPresetClick(key)}
-                  className={`text-[11px] transition-colors ${
-                    isActive ? 'text-lilac-600 font-semibold' : 'text-muted-foreground hover:text-lilac-600'
+                  className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
+                    isActive
+                      ? 'bg-foreground text-background font-medium'
+                      : 'text-muted-foreground hover:bg-muted hover:text-foreground'
                   }`}
                 >
                   {label}

@@ -1,11 +1,12 @@
 'use client'
 
 import { useMemo, useState } from 'react'
-import { ArrowUp, ArrowDown, ChevronsUpDown } from 'lucide-react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
 
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META, fmtMonthDay } from '../_lib/mock-data'
-import { PriorityBadge, AuthorCell } from './badges'
+import { PriorityBars } from './badges'
 
 type SortKey = 'brand' | 'priority' | 'author' | 'date'
 type SortDir = 'asc' | 'desc'
@@ -13,14 +14,25 @@ type SortDir = 'asc' | 'desc'
 interface Props {
   items: HistoryItem[]
   clients: Client[]
+  selectedTags:     Set<Tag>
+  searchQuery?:     string
+  hasFilters:       boolean
+  onToggleTag:      (t: Tag) => void
+  onSelectBrand:    (id: string) => void
+  onSelectPriority: (p: Priority) => void
+  onSelectAuthor:   (a: string) => void
+  onOpenItem:       (item: HistoryItem) => void
+  onClearFilters:   () => void
 }
 
 const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 }
 
-export function TableView({ items, clients }: Props) {
+export function TableView({
+  items, clients, selectedTags, searchQuery, hasFilters,
+  onToggleTag, onSelectBrand, onSelectPriority, onSelectAuthor, onOpenItem, onClearFilters,
+}: Props) {
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
 
-  // 기본: 등록일 내림차순
   const [sortKey, setSortKey] = useState<SortKey>('date')
   const [sortDir, setSortDir] = useState<SortDir>('desc')
 
@@ -39,13 +51,9 @@ export function TableView({ items, clients }: Props) {
     arr.sort((a, b) => {
       let cmp = 0
       if (sortKey === 'brand') {
-        const an = clientMap.get(a.client_id)?.name ?? ''
-        const bn = clientMap.get(b.client_id)?.name ?? ''
-        cmp = an.localeCompare(bn, 'ko')
+        cmp = (clientMap.get(a.client_id)?.name ?? '').localeCompare(clientMap.get(b.client_id)?.name ?? '', 'ko')
       } else if (sortKey === 'priority') {
-        const ar = a.priority ? PRIORITY_RANK[a.priority] : 0
-        const br = b.priority ? PRIORITY_RANK[b.priority] : 0
-        cmp = ar - br
+        cmp = (a.priority ? PRIORITY_RANK[a.priority] : 0) - (b.priority ? PRIORITY_RANK[b.priority] : 0)
       } else if (sortKey === 'author') {
         cmp = (a.author ?? '').localeCompare(b.author ?? '', 'ko')
       } else if (sortKey === 'date') {
@@ -58,114 +66,165 @@ export function TableView({ items, clients }: Props) {
   }, [items, sortKey, sortDir, clientMap])
 
   if (items.length === 0) {
-    return <div className="text-center py-12 text-ink-400 text-sm">필터에 해당하는 항목이 없어요</div>
+    return (
+      <div className="flex flex-col items-center justify-center py-16 text-center">
+        <div className="text-sm text-muted-foreground mb-1">
+          {hasFilters ? '조건에 맞는 항목이 없어요' : '수집된 히스토리가 없어요'}
+        </div>
+        <div className="text-[11px] text-ink-400 mb-4">
+          {hasFilters ? '필터를 조정하거나 초기화해보세요' : 'MCP로 슬랙 메시지가 들어오면 여기 표시됩니다'}
+        </div>
+        {hasFilters && (
+          <button
+            onClick={onClearFilters}
+            className="text-xs px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
+          >
+            필터 초기화
+          </button>
+        )}
+      </div>
+    )
+  }
+
+  function SortBtn({ col, label, align = 'left' }: { col: SortKey; label: string; align?: 'left' | 'right' }) {
+    const active = sortKey === col
+    return (
+      <button
+        onClick={() => toggleSort(col)}
+        className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+          ${align === 'right' ? 'justify-end w-full' : ''}
+          ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
+      >
+        {label}
+        <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+      </button>
+    )
   }
 
   return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      <table className="w-full border-separate border-spacing-0 text-[13px]">
-        <thead>
-          <tr>
-            <Th>내용</Th>
-            <Th className="w-[120px]" sortable sortDir={sortKey === 'brand'    ? sortDir : null} onClick={() => toggleSort('brand')}>브랜드</Th>
-            <Th className="w-[180px]">태그</Th>
-            <Th className="w-[80px]"  sortable sortDir={sortKey === 'priority' ? sortDir : null} onClick={() => toggleSort('priority')}>중요도</Th>
-            <Th className="w-[100px]" sortable sortDir={sortKey === 'author'   ? sortDir : null} onClick={() => toggleSort('author')}>작성자</Th>
-            <Th className="w-[80px] text-right" sortable sortDir={sortKey === 'date' ? sortDir : null} onClick={() => toggleSort('date')} align="right">등록일</Th>
-          </tr>
-        </thead>
-        <tbody>
-          {sorted.map((item, idx) => {
-            const client = clientMap.get(item.client_id)
-            const isLast = idx === sorted.length - 1
-            return (
-              <tr key={item.id} className="hover:bg-muted/40 transition-colors">
-                <Td last={isLast}>
-                  <div className="text-[13px] font-medium text-foreground mb-[3px]">{item.title}</div>
-                  {item.body && (
-                    <div className="text-[11.5px] text-ink-700 leading-[1.5] line-clamp-2">{item.body}</div>
-                  )}
-                </Td>
-                <Td last={isLast}>{client && <BrandPlain client={client} />}</Td>
-                <Td last={isLast}><TagPlain tags={item.tags} /></Td>
-                <Td last={isLast}><PriorityBadge priority={item.priority} /></Td>
-                <Td last={isLast}>
-                  <AuthorCell name={item.author} />
-                </Td>
-                <Td last={isLast} className="text-right text-[12px] text-ink-400">
-                  {fmtMonthDay(item.occurred_at)}
-                </Td>
-              </tr>
-            )
-          })}
-        </tbody>
-      </table>
-    </div>
-  )
-}
+    <div className="flex flex-col">
+      {/* 헤더 */}
+      <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted shrink-0">
+        <div className="flex-1 min-w-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">내용</div>
+        <div className="w-24 shrink-0"><SortBtn col="brand" label="브랜드" /></div>
+        <div className="w-32 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">태그</div>
+        <div className="w-16 shrink-0"><SortBtn col="priority" label="중요도" /></div>
+        <div className="w-20 shrink-0"><SortBtn col="author" label="작성자" /></div>
+        <div className="w-14 shrink-0"><SortBtn col="date" label="등록일" align="right" /></div>
+      </div>
 
-function BrandPlain({ client }: { client: Client }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-[12px] text-ink-700 whitespace-nowrap">
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: client.color }} />
-      {client.name}
-    </span>
-  )
-}
-
-function TagPlain({ tags }: { tags: Tag[] }) {
-  if (!tags || tags.length === 0) {
-    return <span className="text-[12px] text-ink-300">—</span>
-  }
-  return (
-    <div className="flex flex-col gap-0.5 text-[12px]">
-      {tags.map(t => {
-        const meta = TAG_META[t]
+      {/* 행 */}
+      {sorted.map(item => {
+        const client = clientMap.get(item.client_id)
         return (
-          <span key={t} className="inline-flex items-center gap-1 whitespace-nowrap" style={{ color: meta.color }}>
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.dot }} />
-            {meta.label}
-          </span>
+          <div
+            key={item.id}
+            onClick={() => onOpenItem(item)}
+            className="flex items-start gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer"
+          >
+            <div className="flex-1 min-w-0">
+              <div className="text-xs font-medium text-foreground leading-[1.45]">
+                <Highlight text={item.title} query={searchQuery} />
+              </div>
+              {item.body && (
+                <div className="text-[11px] text-muted-foreground leading-[1.5] line-clamp-2 mt-0.5">
+                  <Highlight text={item.body} query={searchQuery} />
+                </div>
+              )}
+            </div>
+            <div className="w-24 shrink-0">
+              {client && (
+                <button
+                  onClick={e => { e.stopPropagation(); onSelectBrand(client.id) }}
+                  className="flex items-center gap-1.5 max-w-full hover:opacity-70 transition-opacity"
+                  title={`${client.name}로 필터`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
+                  <span className="text-[11px] text-muted-foreground truncate text-left">{client.name}</span>
+                </button>
+              )}
+            </div>
+            <div className="w-32 shrink-0">
+              {item.tags && item.tags.length > 0 ? (
+                <div className="flex flex-col gap-0.5">
+                  {item.tags.map(t => {
+                    const meta = TAG_META[t]
+                    const active = selectedTags.has(t)
+                    return (
+                      <button
+                        key={t}
+                        onClick={e => { e.stopPropagation(); onToggleTag(t) }}
+                        className={`inline-flex items-center gap-1 text-[11px] whitespace-nowrap text-left max-w-fit transition-opacity hover:opacity-70 ${active ? 'font-semibold' : ''}`}
+                        style={{ color: meta.color }}
+                        title={`${meta.label}${active ? ' 필터 해제' : ' 필터 적용'}`}
+                      >
+                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.dot }} />
+                        {meta.label}
+                      </button>
+                    )
+                  })}
+                </div>
+              ) : (
+                <span className="text-[11px] text-ink-300">—</span>
+              )}
+            </div>
+            <div className="w-16 shrink-0">
+              {item.priority ? (
+                <button
+                  onClick={e => { e.stopPropagation(); onSelectPriority(item.priority!) }}
+                  className="hover:opacity-70 transition-opacity"
+                  title={`중요도로 필터`}
+                >
+                  <PriorityBars priority={item.priority} showLabel />
+                </button>
+              ) : (
+                <span className="text-[11px] text-ink-300">—</span>
+              )}
+            </div>
+            <div className="w-20 shrink-0 min-w-0">
+              {item.author ? (
+                <button
+                  onClick={e => { e.stopPropagation(); onSelectAuthor(item.author!) }}
+                  className="block text-[11px] text-muted-foreground truncate text-left max-w-full hover:opacity-70 transition-opacity"
+                  title={`${item.author}로 필터`}
+                >
+                  {item.author}
+                </button>
+              ) : (
+                <span className="text-[11px] text-ink-300">—</span>
+              )}
+            </div>
+            <div
+              className="w-14 shrink-0 text-right text-[11px] tabular-nums text-ink-400"
+              title={format(new Date(item.occurred_at), 'yyyy.MM.dd (eee) HH:mm', { locale: ko })}
+            >
+              {fmtMonthDay(item.occurred_at)}
+            </div>
+          </div>
         )
       })}
     </div>
   )
 }
 
-function Th({
-  children, className = '', sortable, sortDir, onClick, align = 'left',
-}: {
-  children: React.ReactNode
-  className?: string
-  sortable?: boolean
-  sortDir?: SortDir | null
-  onClick?: () => void
-  align?: 'left' | 'right'
-}) {
-  const base = `px-3 py-2.5 text-[11px] font-semibold text-ink-400 uppercase tracking-wider bg-muted border-b border-border whitespace-nowrap ${className}`
-  if (!sortable) {
-    return <th className={`${base} text-left`}>{children}</th>
+function Highlight({ text, query }: { text: string; query?: string }) {
+  const q = query?.trim()
+  if (!q) return <>{text}</>
+  const lower = text.toLowerCase()
+  const needle = q.toLowerCase()
+  const idx = lower.indexOf(needle)
+  if (idx < 0) return <>{text}</>
+  // 첫 매치만 강조 (간단)
+  const parts: React.ReactNode[] = []
+  let last = 0
+  let pos = lower.indexOf(needle, 0)
+  let k = 0
+  while (pos >= 0) {
+    if (pos > last) parts.push(text.slice(last, pos))
+    parts.push(<mark key={k++} className="bg-amber-100 text-foreground rounded-sm px-0.5">{text.slice(pos, pos + needle.length)}</mark>)
+    last = pos + needle.length
+    pos = lower.indexOf(needle, last)
   }
-  return (
-    <th className={base}>
-      <button
-        type="button"
-        onClick={onClick}
-        className={`w-full inline-flex items-center gap-1 hover:text-ink-700 transition-colors ${align === 'right' ? 'justify-end' : 'justify-start'}`}
-      >
-        {children}
-        {sortDir === 'asc'  ? <ArrowUp size={11} className="text-ink-700" />
-         : sortDir === 'desc' ? <ArrowDown size={11} className="text-ink-700" />
-         : <ChevronsUpDown size={11} className="text-ink-300" />}
-      </button>
-    </th>
-  )
-}
-
-function Td({ children, className = '', last = false }: { children: React.ReactNode; className?: string; last?: boolean }) {
-  return (
-    <td className={`px-3 py-3 align-top ${last ? '' : 'border-b border-border'} ${className}`}>
-      {children}
-    </td>
-  )
+  if (last < text.length) parts.push(text.slice(last))
+  return <>{parts}</>
 }

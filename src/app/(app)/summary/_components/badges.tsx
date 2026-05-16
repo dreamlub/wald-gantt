@@ -10,7 +10,7 @@ export function PriorityBars({ priority, showLabel }: { priority: Priority | nul
   const p = PRIORITY_LEVEL[priority]
   const meta = PRIORITY_META[priority]
   return (
-    <span className="inline-flex items-center gap-1">
+    <span className="inline-flex items-center gap-1" title={meta.label}>
       <span className="inline-flex items-end gap-[1px]">
         {[1, 2, 3].map(i => (
           <span

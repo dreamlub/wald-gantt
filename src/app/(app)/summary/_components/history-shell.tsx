@@ -1,7 +1,7 @@
 'use client'
 
-import { useMemo, useState, useTransition, useEffect, useRef } from 'react'
-import { useRouter } from 'next/navigation'
+import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from 'react'
+import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, RefreshCw, X, PanelLeftClose, PanelLeftOpen,
   Table2, ScrollText, Sparkles,
@@ -9,10 +9,13 @@ import {
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
+import type { Priority } from '../_lib/types'
+import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey } from './history-sidebar'
 import { TableView } from './table-view'
 import { TimelineView } from './timeline-view'
 import { SummaryView } from './summary-view'
+import { HistoryDetailDrawer } from './detail-drawer'
 
 type ViewKey = 'table' | 'timeline' | 'summary'
 
@@ -52,20 +55,42 @@ function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string
 }
 
 export function HistoryShell({ initialClients, initialHistory }: Props) {
-  const router = useRouter()
+  const router        = useRouter()
+  const pathname      = usePathname()
+  const searchParams  = useSearchParams()
   const [isRefreshing, startTransition] = useTransition()
 
-  const [view,         setView]         = useState<ViewKey>('table')
-  const [dateFrom,     setDateFrom]     = useState<string>('')
-  const [dateTo,       setDateTo]       = useState<string>('')
-  const [brandId,      setBrandId]      = useState<string | 'all'>('all')
-  const [selectedTags, setSelectedTags] = useState<Set<Tag>>(new Set())
-  const [priorityKey,  setPriorityKey]  = useState<PriorityKey>('all')
+  // URL → 초기 state
+  const [view,         setView]         = useState<ViewKey>(((searchParams.get('view') ?? 'table') as ViewKey))
+  const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
+  const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
+  const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
+  const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => {
+    const t = searchParams.get('tags'); return new Set(t ? t.split(',').filter(Boolean) as Tag[] : [])
+  })
+  const [priorityKey,  setPriorityKey]  = useState<PriorityKey>((searchParams.get('priority') ?? 'all') as PriorityKey)
+  const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
-  const [searchQuery,  setSearchQuery]  = useState('')
+  const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
+  const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
+
+  // state → URL 동기화
+  useEffect(() => {
+    const p = new URLSearchParams()
+    if (view !== 'table')     p.set('view', view)
+    if (dateFrom)             p.set('from', dateFrom)
+    if (dateTo)               p.set('to', dateTo)
+    if (brandId !== 'all')    p.set('brand', brandId)
+    if (selectedTags.size > 0) p.set('tags', [...selectedTags].join(','))
+    if (priorityKey !== 'all') p.set('priority', priorityKey)
+    if (authorKey !== 'all')   p.set('author', authorKey)
+    if (searchQuery.trim())   p.set('q', searchQuery)
+    const qs = p.toString()
+    router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
+  }, [view, dateFrom, dateTo, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
 
   useEffect(() => { if (searchOpen) searchInputRef.current?.focus() }, [searchOpen])
   useEffect(() => {
@@ -76,10 +101,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [searchOpen, searchQuery])
 
-  function resetFilters() {
+  const resetFilters = useCallback(() => {
     setDateFrom(''); setDateTo(''); setBrandId('all'); setSelectedTags(new Set())
-    setPriorityKey('all'); setSearchQuery('')
-  }
+    setPriorityKey('all'); setAuthorKey('all'); setSearchQuery('')
+  }, [])
+
+  const hasFilters = brandId !== 'all' || selectedTags.size > 0 || priorityKey !== 'all'
+                  || authorKey !== 'all' || !!dateFrom || !!dateTo || !!searchQuery.trim()
 
   function applyPreset(preset: 'today' | 'week' | 'month' | 'all') {
     const { from, to } = presetDates(preset)
@@ -111,6 +139,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
     if (brandId !== 'all')     list = list.filter(h => h.client_id === brandId)
     if (priorityKey !== 'all') list = list.filter(h => h.priority === priorityKey)
+    if (authorKey !== 'all')   list = list.filter(h => h.author === authorKey)
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       list = list.filter(h =>
@@ -121,7 +150,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       )
     }
     return list.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
-  }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, searchQuery])
+  }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
   const lastCollected = useMemo(() => {
     if (initialHistory.length === 0) return null
@@ -262,22 +291,87 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               history={initialHistory}
               onBrandChange={setBrandId}
             />
+            {view !== 'summary' && (
+              <div className="mb-3 h-7 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400">
+                <span className="shrink-0">
+                  전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
+                </span>
+                {brandId !== 'all' && (() => {
+                  const c = initialClients.find(x => x.id === brandId)
+                  if (!c) return null
+                  return (
+                    <FilterChip onClear={() => setBrandId('all')}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
+                      브랜드: {c.name}
+                    </FilterChip>
+                  )
+                })()}
+                {priorityKey !== 'all' && (
+                  <FilterChip onClear={() => setPriorityKey('all')}>
+                    중요도: {PRIORITY_META[priorityKey as Priority].label}
+                  </FilterChip>
+                )}
+                {authorKey !== 'all' && (
+                  <FilterChip onClear={() => setAuthorKey('all')}>
+                    작성자: {authorKey}
+                  </FilterChip>
+                )}
+                {[...selectedTags].map(t => (
+                  <FilterChip key={t} onClear={() => toggleTag(t)}>
+                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
+                    {TAG_META[t].label}
+                  </FilterChip>
+                ))}
+              </div>
+            )}
           </div>
 
           <div className="px-6 pb-5">
-            {view !== 'summary' && (
-              <div className="mb-3 text-xs text-ink-400">
-                전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
-              </div>
+            {view === 'table' && (
+              <TableView
+                items={filtered}
+                clients={initialClients}
+                selectedTags={selectedTags}
+                searchQuery={searchQuery}
+                hasFilters={hasFilters}
+                onToggleTag={toggleTag}
+                onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                onSelectPriority={p => setPriorityKey(priorityKey === p ? 'all' : p)}
+                onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
+                onOpenItem={setActiveItem}
+                onClearFilters={resetFilters}
+              />
             )}
-            {view === 'table'    && <TableView    items={filtered} clients={initialClients} />}
             {view === 'timeline' && <TimelineView items={filtered} clients={initialClients} />}
             {view === 'summary'  && <SummaryView  items={filtered} clients={initialClients} />}
             <div className="h-10" />
           </div>
         </div>
       </div>
+
+      {/* 상세 drawer */}
+      <HistoryDetailDrawer
+        open={!!activeItem}
+        item={activeItem}
+        client={activeItem ? initialClients.find(c => c.id === activeItem.client_id) : undefined}
+        onClose={() => setActiveItem(null)}
+      />
     </div>
+  )
+}
+
+function FilterChip({ children, onClear }: { children: React.ReactNode; onClear: () => void }) {
+  return (
+    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-[2px] rounded-full bg-card text-foreground border border-dashed border-border whitespace-nowrap shrink-0">
+      {children}
+      <button
+        onClick={onClear}
+        className="ml-0.5 -mr-0.5 text-ink-400 hover:text-foreground transition-colors"
+        title="필터 해제"
+      >
+        <X size={10} />
+      </button>
+    </span>
   )
 }
 
