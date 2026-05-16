@@ -23,6 +23,7 @@ Next.js 16 + Supabase 기반 1인용 간트 차트·태스크 관리 웹앱.
 | 토스트 | sonner |
 | 모션 | framer-motion |
 | 아이콘 | lucide-react |
+| AI | @anthropic-ai/sdk (Claude Haiku — Summary 인사이트) |
 | 브라우저 탭 | "Wald Task Manager" |
 
 ---
@@ -39,7 +40,7 @@ workspace_members
 gantt_boards
   id, workspace_id, name, sort_order, created_at, updated_at
 
-board_share_tokens                       ← 공개 공유 토큰
+board_share_tokens
   board_id, token, created_at
 
 gantt_categories
@@ -49,7 +50,7 @@ gantt_projects
   id, workspace_id, board_id, category_id, parent_id
   name, status, start_date(YYYY-MM-DD), end_date(YYYY-MM-DD)
   sort_order, team, pm, memo, priority, created_at, updated_at
-  deleted_at TIMESTAMPTZ                 ← 소프트 삭제
+  deleted_at TIMESTAMPTZ
 
 gantt_project_history                    ← DB 트리거 자동 기록 (SECURITY DEFINER)
   id, project_id, field_name, old_value, new_value, changed_at
@@ -57,35 +58,50 @@ gantt_project_history                    ← DB 트리거 자동 기록 (SECURIT
 gantt_tasks
   id, workspace_id, title
   status: 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
-  type: 'mine' | 'delegated'
   assignee TEXT, start_date DATE, due_date DATE, memo TEXT
-  labels TEXT[], parent_id (자기참조 — 하위 태스크), priority SMALLINT NOT NULL DEFAULT 0
-  sort_order, created_at, updated_at
-  deleted_at TIMESTAMPTZ                 ← 소프트 삭제
+  labels TEXT[], parent_id, priority SMALLINT DEFAULT 0
+  sort_order, created_at, updated_at, deleted_at
 
 gantt_task_history                       ← DB 트리거 자동 기록 (SECURITY DEFINER)
   id, task_id, field_name, old_value, new_value, changed_at
 
-gantt_task_projects                      ← M:N 연결 테이블
+gantt_task_projects                      ← M:N 연결
   task_id, project_id
 
-clients                                  ← Client History
+clients
   id, workspace_id, name, name_en, color, keywords TEXT[], sort_order, created_at, updated_at
 
-client_history                           ← AI 수집 히스토리
+client_history                           ← Slack 수집 이력 (Claude Code MCP 수동 INSERT)
   id, workspace_id, client_id
-  type: 'issue' | 'decision' | 'task' | 'doc' | 'slack'
-  channel, source_ref, source_id (dedupe), title, body, occurred_at
-  status, status_kind: 'late' | 'warn' | 'ok' | 'future'
-  created_at, updated_at, deleted_at
-  ⚠️ 초기엔 workspace_id + source_id 부분 UNIQUE 인덱스 있었으나 Make 자동 수집 호환성 위해 제거 (2026-05-16). 중복 방지는 INSERT 클라이언트 측에서 처리 예정
+  tags TEXT[]                            ← 6종: issue/decision/mention/in_progress/done/schedule
+  channel, source_ref, source_id, title, body
+  occurred_at, priority, author, created_at, deleted_at
+  ⚠️ source_id unique 인덱스: 초기 추가 → Make.com 호환성으로 제거. 중복 방지는 INSERT 측에서 처리
+
+insights                                 ← AI 주간 분석 캐시
+  id, workspace_id, week_start DATE
+  content JSONB, analyzed_at, source_count INT
+  created_at, updated_at
+  UNIQUE (workspace_id, week_start)
+```
+
+**insights.content JSONB 구조**
+```ts
+{
+  headline: string
+  action_items: [{ id, severity: 'urgent'|'watch'|'info', title, brand, related_count, summary, action }]
+  upcoming:     [{ date, title, brand, priority: 'high'|'medium'|'low' }]
+  pending:      [{ brand, count, items }]
+  decisions:    [{ id, title, desc, brand }]
+}
+// brand 필드는 client_id(UUID) 저장 — 이름 변경에 강건
 ```
 
 ### Supabase RPC / 트리거
 - `create_workspace_for_user(workspace_name)` — RLS 우회용 SECURITY DEFINER
-- `get_shared_board(p_token)` — 공유 페이지에서 비인증 접근용, board + categories + projects를 한 번에 반환
+- `get_shared_board(p_token)` — 비인증 접근용, board + categories + projects 한 번에 반환
 - `log_gantt_project_changes()` — AFTER UPDATE 트리거 (SECURITY DEFINER)
-- `log_gantt_task_changes()` — AFTER UPDATE 트리거 (SECURITY DEFINER) ⚠️ 반드시 SECURITY DEFINER여야 RLS 통과
+- `log_gantt_task_changes()` — AFTER UPDATE 트리거 ⚠️ 반드시 SECURITY DEFINER여야 RLS 통과
 
 ---
 
@@ -96,180 +112,120 @@ client_history                           ← AI 수집 히스토리
 | 경로 | 라벨 | 설명 |
 |------|------|------|
 | `/` | Schedule | 간트 차트 메인 |
-| `/tasks` | Task | 태스크 관리 (5뷰) |
+| `/tasks` | Tasks | 태스크 관리 (5뷰) |
 | `/weekly` | Weekly | 주간보고 (플레이스홀더) |
-| `/history` | History | 클라이언트별 히스토리 — Make.com Slack 수집 + Supabase 저장 |
+| `/notes` | Notes | Obsidian Daily Note — File System Access API (Chrome/Edge) |
+| `/summary` | Summary | Slack 수집 이력 + AI 인사이트 |
 | `/settings` | Settings | 설정 (플레이스홀더) |
 | `/settings/keywords` | — | 클라이언트별 슬랙 탐색 키워드 관리 |
 | `/share/[token]` | — | 외부 공개 읽기 전용 보드 (인증 우회) |
 | `/login` | — | 로그인 |
-| `/timeline` | — | (구) Timeline mock — AppNav에서 제거, 파일만 보존 |
-
-`(app)` route group으로 `AppNav` 공유 레이아웃. `usePathname`으로 활성 표시.
 
 ---
 
 ## 주요 기능
 
-### 간트 페이지 (`/` Schedule)
+### 간트 페이지 (`/`)
 
 **보드 사이드바 (BoardSidebar)**
-- 워크스페이스 내 여러 보드 생성·전환
-- `@dnd-kit`으로 보드 순서 드래그 재정렬
-- 더블클릭 → 이름 인라인 편집
-- 사이드바 열기/닫기 토글
-- 하단 휴지통 버튼 (삭제 건수 배지)
+- 워크스페이스 내 여러 보드 생성·전환, @dnd-kit 순서 드래그
+- 더블클릭 인라인 이름 편집, 사이드바 토글, 하단 휴지통 배지
 
-**간트 차트 (GanttChart)**
-- **월/주/일 3개 뷰**: 컬럼 너비 72px / 36px / 28px
-- 바 드래그(이동) + 좌우 리사이즈
-- 뷰 전환 시 today 위치로 자동 스크롤
-- 카테고리 드래그 재정렬, 프로젝트는 카테고리 내·간 이동 지원 (`liveItems` 실시간 미리보기)
-- 상태 배지 클릭으로 사이클 변경: `to-do → in-progress → pending → backlog → done → to-do`
-- **좌측 컬러 막대 = 상태** (4px, hover 6px), 클릭으로 사이클 변경
-- 제목 **우선순위 폰트 강조** (0=`text-ink-400 normal`, 1=`text-muted-foreground normal`, 2=`text-foreground medium`, 3=`text-rose-500 semibold`)
-- 우측 호버 액션(메모/삭제) + 그라데이션 페이드 — 평소 행은 깔끔, 호버 시에만 등장
-- 메모 인디케이터 + hover 풍선말 (`clampTooltipPos` — 화면 하단에서는 위로 자람)
-- **Undo/Redo**: 툴바 버튼 + Ctrl+Z / Ctrl+Y, 20단계 (`useUndoRedo` 훅)
-- **휴지통 패널 (TrashPanel)**: 복원 / 영구 삭제 / 전체 비우기
-- **수정 이력**: 프로젝트 폼 다이얼로그 내 탭으로 통합 (`ProjectFormDialog`의 `이력` 탭)
-- **공유 다이얼로그 (ShareDialog)**: 보드 단위 공개 토큰 발급/복사/취소
+**GanttChart**
+- 월/주/일 3뷰 (72px / 36px / 28px), 바 이동+리사이즈, 뷰 전환 시 today 스크롤
+- 카테고리·프로젝트 드래그 재정렬 (`liveItems` 실시간 미리보기)
+- 좌측 컬러 막대 = 상태 (4px, hover 6px), 클릭으로 상태 사이클
+- 우측 호버 액션 + 그라데이션 페이드, 메모 풍선말 (`clampTooltipPos`)
+- Undo/Redo (Ctrl+Z/Y, 20단계), TrashPanel, ShareDialog
 
 **GanttToolbar**
-- **검색**: 클릭으로 펼침/접힘, X 또는 외부 클릭+빈값으로 닫힘
-- **필터 드롭다운**: 팀/PM 체크박스 (활성 개수 배지)
-- **정렬 드롭다운**: 기본 / 시작일↑ / 종료일↓ / 우선순위↓
-- **지연/시작 지연 배지**: `overdueCount`, `startDelayedCount` 카운트 + 토글 필터 (`status-late`/`status-warn` 토큰)
-- "+ 카테고리" / "+ 프로젝트 추가" 버튼, Undo/Redo 버튼
+- 검색 펼침, 필터(팀/PM), 정렬(4종), 지연 배지 토글
+- 버튼 순서: undo/redo → 지연 배지 (undo/redo가 고정 기준점)
 
-### 태스크 페이지 (`/tasks` Task)
+### 태스크 페이지 (`/tasks`)
 
-**5개 뷰 전환** (액션바 탭)
-| 뷰 | 설명 |
-|----|------|
-| 일반 | 지연 묶음 + 상태 그룹(접기/펼치기) + 인라인 퀵 등록 |
-| 목록 | 부모-자식 들여쓰기 + 정렬 + 인라인 퀵 등록 |
-| 칸반 | 상태 컬럼, dnd-kit으로 컬럼 간 이동(=상태 변경) + 인라인 퀵 등록 |
-| 간트 | 시작/마감 기준 간트 — 정렬: 시작일→마감일→sort_order |
-| 캘린더 | **마감일 기준** 캘린더 (시작일은 표시 안 함) |
+**5개 뷰**
+| 뷰 | 특이사항 |
+|----|---------|
+| 일반 | 지연 묶음 + 상태 그룹 + 인라인 퀵 등록 |
+| 목록 | 부모-자식 들여쓰기 + 헤더 정렬 + 인라인 퀵 등록 |
+| 칸반 | 컬럼 간 이동(상태변경) + 컬럼 내 순서 드래그 (`useSortable`) |
+| 간트 | 바 드래그로 날짜 변경 (좌우 핸들 리사이즈 + 중앙 이동) |
+| 캘린더 | 마감일 기준, `+N개 더` viewport-flip popover |
 
 **사이드바 (240px)**
-- 퀵 필터: **전체 / 지연 / 시작 지연 / 오늘 마감 / 이번 주 마감 / 다음 주 마감** — 활성 상태에서 다시 누르면 해제
-- 프로젝트별 카운트 — 컬러 도트 + 클릭 필터(토글)
-- 담당자별 카운트 — 상위 7명 + "+N명 더보기" 토글, 이름 검색 시 전체 노출
-- 라벨 해시태그 필터 — 라벨별 카운트, 클릭 필터
-- 하단 휴지통 버튼 (TaskTrashPanel)
+- 퀵필터 6종 (활성 reclick → 해제), 프로젝트·담당자·라벨 클릭 필터
+- 담당자: 상위 7명 + "+N명 더보기", 이름 검색 시 전체 노출
 
-**메인 액션바 (h-12)**
-- 뷰 탭 / 검색(제목·담당자·메모·라벨) / `+ 태스크 추가` / 선택 모드 토글
-- 담당자 필터 바: 사이드바 닫혔을 때만 표시
+**TaskRow**
+- 우선순위 폰트 강조, Done `line-through opacity-55`
+- 배지: 지연 / 시작 지연 / 무응답(7일+) / 연결 프로젝트 / 라벨 / 하위 진행
+- 호버 `sub +` 버튼 → 인라인 하위 태스크 등록
 
-**TaskRow (일반 뷰 행)**
-- 좌측: 그립 핸들 (선택 모드 시 체크박스로 전환)
-- 제목 — 우선순위 폰트 강조, Done이면 `line-through text-ink-400` + 행 `opacity-55`
-- 배지: 지연(`status-late`) / 시작 지연(`status-warn`) / 무응답(7일+ 미수정) / 연결 프로젝트 / 라벨 / 하위 진행
-- `sub +` 호버 버튼 (부모 행에서만) — 인라인 하위 태스크 등록 트리거
-- 컬럼: 메모(w-10, hover 풍선말) | 담당자(w-28) | 일정(w-24)
+**벌크 액션** — `selectionMode` → 체크박스 + floating 액션 바 (상태변경/삭제/취소)
 
-**벌크 액션 (일반·목록 뷰)**
-- `selectionMode` 토글 시 체크박스 노출, DnD 비활성
-- floating 액션 바: N개 선택됨 / 상태 변경 드롭다운 / 삭제(undo 토스트) / 취소
-- `bulkSoftDeleteTasks`, `bulkUpdateTaskStatus` 서비스 함수
+**TaskDetailDrawer** — 정보/메모/이력 3탭, Copy+Trash 헤더 버튼
 
-**태스크 복제**
-- `TaskDetailDrawer` 헤더 Copy 버튼 → 제목+"(복사)", 동일 필드+프로젝트 링크 복사
-- `duplicateTask` 서비스 함수
+**TaskFormDialog** — `initialTitle`/`initialMemo` prop (Summary 연동 pre-fill 지원)
 
-**ListView (목록 뷰)**
-- 헤더 정렬: 비활성 시에도 `↕` 표시, 마감일 없는 항목은 항상 뒤로
-- 부모-자식 들여쓰기 (`CornerDownRight ↳` + `bg-muted/40`)
-- 상태 컬럼은 블릿+텍스트 (pill 대신)
-- 부모 행 hover 시 `sub +` 버튼, 클릭 시 sub 행 아래 들여쓰기 입력창
+**인라인 퀵 등록** — Enter 연속 등록, Esc/빈값 blur 취소, sub는 부모 프로젝트 자동 상속
 
-**KanbanView (칸반 뷰)**
-- 미니멀 카드: `ring-1 ring-ink-150`, hover `ring-ink-200`
-- 우선순위 폰트 강조, Done opacity, 인라인 배지(지연/무응답/프로젝트/라벨)
-- 메모 hover 풍선말, 컬럼 하단 인라인 퀵 등록
+**필터링** — 하위 태스크 부모 조건 미충족 시 `baseFiltered`에서 복원 → 트리 렌더링 유지
 
-**GanttView (태스크 간트 뷰)**
-- 좌측 컬럼 폭 드래그 리사이즈 (기본 300px, min 120 / max 560)
-- 하위 태스크 들여쓰기 (`CornerDownRight ↳`)
-- 마감 초과 바 빨강, 시작 지연 바 앰버
-- 정렬: 시작일 → 마감일 → sort_order
+### Summary 페이지 (`/summary`)
 
-**CalendarView (캘린더 뷰)**
-- 마감일 기준 칩 (시작일 표시 안 함)
-- 좌측 컬러 막대 3px + 라운드 우측 (status color, overdue 빨강)
-- 셀당 3개 + `+N개 더` 텍스트
+**3개 뷰**: 테이블 / 타임라인 / 인사이트
 
-**TaskDetailDrawer** (편집)
-- 우측 슬라이드 패널, 행 클릭으로 오픈
-- **탭 구조**: 정보 / 메모 / 이력
-- 필드: 제목 → 상태+담당자 → 시작/마감일 → 우선순위 → 연결 프로젝트 → 라벨 → 하위 태스크
-- 헤더: 복제(Copy) + 삭제(Trash2) 버튼
+**사이드바**
+- 테이블·타임라인: 기간 프리셋 4종 + DatePicker / 브랜드 콤보박스 / 태그 다중(AND) / 중요도
+- 인사이트: 최근 4주 목록 + 상단 `< W주 NOW >` 네비게이터 / 브랜드 콤보박스 (태그·중요도 숨김)
 
-**TaskFormDialog** (새 태스크)
-- 필드: 제목 → 상태+담당자 → 시작/마감일 → 우선순위 → 연결 프로젝트 → 메모
-- 라벨은 드로어에서만 (새 태스크 다이얼로그엔 없음)
+**테이블 뷰**
+- 행 클릭 → 우측 drawer (480px): 제목·메타·태그·본문 전체, Slack 원본 링크·클립보드
+- 본문 `\n` 분리 → 배경/현상/액션 별도 줄 표시
+- 컬럼 정렬 asc↔desc (브랜드/중요도/작성자/등록일)
+- 브랜드·작성자·태그·중요도 클릭 필터, reclick → 'all' 해제
+- URL 쿼리스트링 필터 persist (view/from/to/brand/tags/priority/author/q)
+- 행 hover 시 태스크(`ListTodo`) / 프로젝트(`CalendarRange`) 연동 생성 버튼
+- 제목·본문: 브랜드명 컬러 볼드(`HighlightAll`) + 검색어 amber `<mark>` 중첩
 
-**인라인 퀵 등록 UX**
-- 트리거: 상태 그룹 하단(일반) / sub+ 버튼(일반·목록) / 컬럼 하단(칸반) / 리스트 최하단(목록)
-- Enter 저장 + 연속 등록, Esc 또는 빈값 blur로 취소
-- sub의 경우 부모의 연결 프로젝트 자동 상속
+**인사이트 탭 (AI)**
+- `POST /api/insights/generate` SSE → Claude Haiku (`claude-haiku-4-5-20251001`) → `insights` upsert
+- 증분 분석: `created_at > analyzed_at` 신규 항목만 전달 (비용 절감)
+- brand 필드 = client_id(UUID) 저장 (이름 변경에 강건)
+- 헤드라인 / 액션아이템(urgent·watch·info) / 일정 / 미결 / 결정 카드
+- 프로그레스 바: SSE 이벤트 직접 구동, AI 단계 CSS transition 18s
 
-**필터링**
-- 퀵필터/검색 적용 시 하위 태스크의 부모가 조건 미충족이어도 `baseFiltered`에서 복원 → 트리 렌더링 정상 유지
+**수집** — Make.com 취소 확정. Claude Code MCP로 수동 수집·INSERT (waldlust-product.slack.com)
 
-### History 페이지 (`/history`)
+### Notes 페이지 (`/notes`)
 
-**앱 측 (완성)**
-- 좌측 사이드바: 클라이언트 리스트, 카운트 + name_en
-- 상단: 검색 / 필터 chip 5종 / 새로고침 + "마지막 수집 X분 전"
-- 메인: 통계 4-up(미해결 이슈/결정/태스크/문서) + 월별 그룹 타임라인 카드
-- DB: `clients` 시드 6건(tony 워크스페이스), `client_history` 비어 있음
-- 앱은 **읽기 전용** — Insert는 외부 시스템 담당
-
-**자동 수집 (보류, 2026-05-16 시점)**
-- Make.com 시나리오로 Slack Webhook → Claude Haiku 분류 → Supabase Insert 흐름을 시도했음
-- 6 모듈(Slack Watch / Slack Get Channel / Supabase Search Rows / Anthropic Claude / JSON Parse / Supabase Upsert) 완성. 데이터 흐름까지는 검증됨 (Supabase에 실제 메시지 INSERT 1건 확인)
-- **남은 문제**:
-  - Search Rows가 클라이언트별 N bundle 출력 → 1 메시지당 Claude N회 호출되는 구조 (낭비)
-  - 비용 최적화 위해 Search Rows → Anthropic 사이 IML 필터 추가 시도 (`length(match(lower(channel + text); lower(join(keywords; "|")))) > 0`) 했으나 안정화 미완
-  - Slack 큐 재전송 / 동일 source_id 처리 시 unique constraint 충돌 → Make 자동 비활성화 패턴
-  - `idx_client_history_source_dedupe` UNIQUE 인덱스 제거 후에는 Make 멈춤은 사라졌지만 중복 row 가능성 남음
-- **현재 상태**: 시나리오 삭제됨. Make 잔여물(webhook 2315528, data structure 371441, connections 3종)도 Make UI에서 정리 예정
-- **재시도 시 메모**:
-  - 단순화 옵션 A: 6 클라이언트 모두 한 번에 Claude로 보내고 매칭 + 분류 같이 시키기 (1 메시지 = 1 Claude 호출). 단, Search Rows의 N bundle을 단일 prompt에 합치는 데 IML `map()`이 string concat을 지원하지 않아 별도 모듈 필요
-  - 단순화 옵션 B: 채널 ID ↔ client_id 매핑 테이블을 별도로 둬서 Search Rows 자체에서 1건만 가져오게 만들기 (가장 깔끔, 시드 비용 약간)
-  - 중복 처리: Make의 모듈에 "Ignore error" 핸들러 추가하거나, `idx_client_history_source_dedupe` 복원 후 INSERT 전에 `searchRows`로 사전 체크
-
-**환경**
-- Slack OAuth 연결됨 (waldlust-product.slack.com / tony@waldlust.co.kr)
-- Anthropic 크레딧 $50 충전됨
-- Supabase service_role 키 Make에 등록됨
-- Make 조직: My Organization `7277872` / Team `2146547`
+- File System Access API로 로컬 Obsidian vault 연결 (Chrome/Edge 전용)
+- `use-vault-handle.ts`: IndexedDB에 `FileSystemDirectoryHandle` 영속 저장
+- 경로 패턴 localStorage 저장 (기본값 `Daily Notes/YYYY-MM-DD`)
+- 뷰(ReactMarkdown) ↔ 편집(textarea) 전환, Ctrl+S 저장
 
 ### 보드 공유 (`/share/[token]`)
-- `ShareDialog`에서 토큰 생성 → 비인증 접근 가능 (`proxy.ts`에서 `/share/*` 가드 제외)
-- 서버 컴포넌트가 `get_shared_board` RPC로 데이터 페치 → `ShareView`에서 읽기 전용 간트 표시
+- `ShareDialog`에서 토큰 생성 → 비인증 접근 (`proxy.ts`에서 `/share/*` 가드 제외)
+- 서버 컴포넌트 → `get_shared_board` RPC → `ShareView` 읽기 전용 간트
 
 ---
 
 ## 디자인 시스템
 
-### 팔레트 토큰 (`globals.css` `@theme` 블록)
-| 그룹 | 토큰 예시 |
-|------|-----------|
+### 팔레트 토큰 (`globals.css @theme`)
+| 그룹 | 토큰 |
+|------|------|
 | Neutral | `ink-50` ~ `ink-900` |
 | Primary accent | `lilac-100` ~ `lilac-600` |
-| Status | `status-late` (#E5484D) / `status-warn` (#F2A33C) / `status-soon` / `status-future` / `status-ok` |
+| Status | `status-late`(#E5484D) / `status-warn`(#F2A33C) / `status-soon` / `status-future` / `status-ok` |
 | Coral | `coral-100` ~ `coral-500` |
 | Mint | `mint-100` / `mint-300` / `mint-500` |
-| Identifier | `id-{indigo,amber,orange,violet,green,blue,pink,teal,purple}` — 프로젝트/담당자 식별색 |
-| Cat picker (vivid) | `cat-{indigo,blue,green,yellow,orange,red,pink,purple}` |
-| Cat picker (pastel) | `cat-{...}-light` |
+| Identifier | `id-{indigo,amber,orange,violet,green,blue,pink,teal,purple}` |
+| Cat picker | `cat-{8종}` (vivid) / `cat-{8종}-light` (pastel) |
+| Summary 태그 | `tag-{issue,decision,mention,in_progress,done,schedule}-{text,dot,bg}` |
 
-### 태스크 상태 CSS 변수 (`:root`, inline style용)
+### 태스크 상태 CSS 변수 (`:root`)
 | 변수 | 값 |
 |------|----|
 | `--task-status-backlog` | `var(--color-ink-300)` |
@@ -278,49 +234,53 @@ client_history                           ← AI 수집 히스토리
 | `--task-status-done` | `var(--color-mint-500)` |
 | `--task-status-pending` | `var(--color-lilac-300)` |
 | `--task-status-*-bg` | `color-mix(in srgb, ... 12%, transparent)` |
-| `--task-status-overdue-bg` | `color-mix(in srgb, var(--color-status-late) 12%, transparent)` |
 
 ### 시맨틱 토큰 (shadcn 브릿지)
 - `bg-background` / `bg-card` — 흰 배경
-- `bg-muted` — 헤더·사이드바 등 약한 회색 배경
-- `text-foreground` — 주 텍스트
-- `text-muted-foreground` — 보조 텍스트
-- `border-border` — 기본 구분선
+- `bg-muted` — 헤더·사이드바 약한 회색
+- `text-foreground` / `text-muted-foreground` / `border-border`
 - `bg-accent` / `text-accent-foreground` — lilac 틴트 hover/selected
 
-### 폰트 톤 (전 컴포넌트 공통)
-- 본문 / 행 제목: `text-xs`
-- 보조 / 날짜 / 상태: `text-[11px]`
-- 메타 / 컬럼 헤더 / 배지: `text-[10px]`
-- 라벨 칩 / `+N`: `text-[9px] leading-none px-1 py-[3px] rounded font-medium`
+### 폰트 (Noto Sans KR)
+- 앱 전체: Noto Sans KR (400/500/700), `lang="ko"`
+- `font-mono`: Notes 편집기·코드블록에만 유지
 
-### 우선순위 폰트 강조 (모든 뷰 공통)
-| Priority | 라벨 | 클래스 |
-|----------|------|--------|
-| 0 | 없음 | `font-normal text-ink-400` |
-| 1 | 낮음 | `font-normal text-muted-foreground` |
-| 2 | 보통 | `font-medium text-foreground` |
-| 3 | 높음 | `font-semibold text-rose-500` |
+### 폰트 크기 4단계
+| 용도 | 크기 |
+|------|------|
+| 본문·행 제목 | `text-xs` (12px) |
+| 보조·날짜·상태 | `text-[11px]` |
+| 메타·헤더·배지 | `text-[10px]` |
+| 라벨 칩·+N | `text-[9px] leading-none px-1 py-[3px] rounded font-medium` |
 
-### 버튼 톤
-- 주요 버튼: `bg-foreground text-background hover:bg-ink-800`
-- 인라인 "+ 추가": `text-ink-400 hover:text-foreground`
-- 점선 보더 sub+ 버튼: `border-dashed border-ink-300 hover:border-ink-400 hover:bg-muted`
+### 우선순위 폰트 강조 (전 뷰)
+| 레벨 | 클래스 |
+|------|--------|
+| 0 (없음) | `font-normal text-ink-400` |
+| 1 (낮음) | `font-normal text-muted-foreground` |
+| 2 (보통) | `font-medium text-foreground` |
+| 3 (높음) | `font-semibold text-rose-500` |
 
-### 지연 배지 (전 뷰 공통)
+### 사이드바 필터 버튼
+- `.sidebar-btn`: `border-l-2 transparent` 기본
+- `.sidebar-btn-active`: `border-left-color: var(--color-ink-700)` + `bg-card font-medium`
+- 적용: Tasks / Weekly / BoardSidebar
+
+### 지연 배지 (전 뷰)
 - 마감 지연: `bg-status-late/10 text-status-late border border-status-late/15`
 - 시작 지연: `bg-status-warn/10 text-status-warn border border-status-warn/15`
 - 무응답(7일+): `bg-coral-100 text-coral-500 border border-coral-100`
 
-### 메모 풍선말 (`clampTooltipPos` 헬퍼)
-- `text-[11px]`, `bg-foreground text-background`, `max-h-[60vh] overflow-hidden`
-- 가로: 우측 넘침 → 좌측 플립 / 세로: 화면 하단(>50%) → `bottom` 앵커로 위로 자람
+### 버튼 톤
+- 주요: `bg-foreground text-background hover:bg-ink-800`
+- 인라인 "+ 추가": `text-ink-400 hover:text-foreground`
+- sub+ 버튼: `border-dashed border-ink-300 hover:border-ink-400 hover:bg-muted`
 
-### Helper 유틸 (`_utils.ts`)
+### Helper 유틸 (`tasks/_utils.ts`)
 - 날짜: `fmtDate`, `fmtRange`, `daysDiff`, `overdueDays`, `isOverdue`, `isDueThisWeek`, `isDueNextWeek`
-- 시작 지연: `isStartDelayed`, `startDelayedDays` (to-do/backlog + start_date < today)
+- 시작 지연: `isStartDelayed`, `startDelayedDays`
 - 톤: `isLightColor` (sRGB 휘도 > 170 → light)
-- 툴팁: `clampTooltipPos`
+- 툴팁: `clampTooltipPos` (화면 하단 > 50% → bottom 앵커)
 
 ---
 
@@ -330,12 +290,12 @@ client_history                           ← AI 수집 히스토리
 src/
 ├── app/
 │   ├── (app)/
-│   │   ├── layout.tsx              # AppNav 공유 레이아웃
+│   │   ├── layout.tsx              # AppNav + ScrollToTopButton 공유 레이아웃
 │   │   ├── page.tsx                # 간트 메인
 │   │   ├── tasks/
 │   │   │   ├── page.tsx
-│   │   │   ├── _constants.tsx      # STATUS_GROUPS, ASSIGNEE_COLORS, VIEW_TABS, PRIORITY_META, PriorityBars
-│   │   │   ├── _utils.ts           # 날짜·툴팁·색 유틸
+│   │   │   ├── _constants.tsx      # STATUS_GROUPS, ASSIGNEE_COLORS, PRIORITY_META, PriorityBars
+│   │   │   ├── _utils.ts
 │   │   │   └── _components/
 │   │   │       ├── TaskRow.tsx
 │   │   │       ├── TaskDetailDrawer.tsx
@@ -343,45 +303,68 @@ src/
 │   │   │       ├── KanbanView.tsx
 │   │   │       ├── GanttView.tsx
 │   │   │       └── CalendarView.tsx
-│   │   ├── history/
+│   │   ├── summary/
 │   │   │   ├── page.tsx
-│   │   │   ├── _components/        # history-shell, timeline, client-list, stat-tile 등
-│   │   │   └── _lib/               # types, mock-data
-│   │   ├── timeline/page.tsx       # (구) mock — AppNav에서 제거, 파일만 보존
-│   │   ├── weekly/page.tsx         # 사이드바(기간 프리셋+DatePicker) + 메인 영역(콘텐츠 TBD)
-│   │   └── settings/page.tsx       # 플레이스홀더
+│   │   │   ├── _components/
+│   │   │   │   ├── history-shell.tsx       # 오케스트레이터 (뷰/필터 상태, 연동 다이얼로그)
+│   │   │   │   ├── history-sidebar.tsx     # 기간/브랜드/태그/중요도/주 네비게이터
+│   │   │   │   ├── table-view.tsx          # 테이블 뷰 + HighlightAll
+│   │   │   │   ├── timeline-view.tsx
+│   │   │   │   ├── summary-view.tsx        # 브랜드별 요약 뷰
+│   │   │   │   ├── insight-view.tsx        # AI 인사이트 뷰
+│   │   │   │   ├── detail-drawer.tsx       # 항목 상세 drawer
+│   │   │   │   └── badges.tsx              # PriorityBars, BrandBadge 등
+│   │   │   └── _lib/
+│   │   │       ├── types.ts
+│   │   │       ├── mock-data.ts            # TAG_META, PRIORITY_META, fmtMonthDay
+│   │   │       └── history-service.ts
+│   │   ├── weekly/page.tsx
+│   │   ├── notes/
+│   │   │   ├── page.tsx
+│   │   │   └── _components/
+│   │   │       ├── VaultSetup.tsx
+│   │   │       └── DailyNoteView.tsx
+│   │   └── settings/
+│   │       ├── page.tsx
+│   │       └── keywords/keywords-client.tsx
+│   ├── api/
+│   │   └── insights/generate/route.ts      # SSE 스트리밍 분석 API
 │   ├── share/[token]/
-│   │   ├── page.tsx                # 서버 컴포넌트, RPC 호출
+│   │   ├── page.tsx
 │   │   └── ShareView.tsx
-│   ├── globals.css                 # 팔레트 @theme + 시맨틱 :root + 스크롤바 커스텀
+│   ├── globals.css
 │   ├── layout.tsx
 │   └── login/page.tsx
 ├── components/
-│   ├── AppNav.tsx                  # 좌측 56px 다크(ink-900) 아이콘 레일
-│   ├── ScrollToTopButton.tsx       # 전역 플로팅 Top 버튼 (data-scrolltop 컨테이너 감지)
+│   ├── AppNav.tsx
+│   ├── ScrollToTopButton.tsx               # data-scrolltop 컨테이너 감지 플로팅 Top 버튼
+│   ├── AutocompleteInput.tsx               # 공용 자동완성 (TaskDetailDrawer·ProjectFormDialog)
 │   ├── gantt/
-│   │   ├── GanttChart.tsx          # ~840줄
-│   │   ├── _GanttRows.tsx          # 행 컴포넌트 분리 (GanttCategoryLeft/Right 등)
+│   │   ├── GanttChart.tsx                  # ~840줄
+│   │   ├── _GanttRows.tsx                  # GanttCategoryLeft/Right, SortableRow 등 (402줄)
 │   │   ├── GanttToolbar.tsx
 │   │   ├── BoardSidebar.tsx
-│   │   ├── ProjectFormDialog.tsx   # 정보/메모/이력 3탭
-│   │   ├── CategoryFormDialog.tsx
-│   │   ├── StatusBadge.tsx
+│   │   ├── ProjectFormDialog.tsx           # 정보/메모/이력 3탭
 │   │   ├── TrashPanel.tsx
 │   │   └── ShareDialog.tsx
 │   ├── tasks/
 │   │   ├── TaskFormDialog.tsx
 │   │   └── TaskTrashPanel.tsx
-│   └── ui/                         # shadcn 컴포넌트
+│   └── ui/
 ├── hooks/
 │   ├── use-confirm.tsx
-│   └── use-undo-redo.ts
+│   ├── use-undo-redo.ts
+│   └── use-vault-handle.ts                 # IndexedDB FileSystemDirectoryHandle 영속 관리
 ├── lib/
-│   ├── gantt-service.ts            # CRUD + bulkSoftDelete/bulkUpdateStatus/duplicateTask
-│   ├── gantt-utils.ts
+│   ├── gantt-service.ts                    # CRUD + bulkSoftDelete/bulkUpdateStatus/duplicateTask
+│   ├── gantt-utils.ts                      # toDate, toDateStr, isLightColor 등
+│   ├── daily-note.ts                       # 경로 패턴 + readNote/writeNote
+│   ├── insight-service.ts                  # getInsight / generateInsight SSE 클라이언트
 │   └── supabase/
-├── proxy.ts                         # 인증 가드
-└── types/index.ts
+├── types/
+│   ├── index.ts
+│   └── file-system-access.d.ts             # FileSystemHandle.queryPermission 등 타입
+└── proxy.ts
 ```
 
 ---
@@ -389,293 +372,259 @@ src/
 ## 주요 상수
 
 ```ts
-// GanttChart (간트 메인)
+// GanttChart
 COL_WIDTH       = 72   // 월 뷰
 WEEK_COL_WIDTH  = 36   // 주 뷰
 DAY_COL_WIDTH   = 28   // 일 뷰
-LEFT_WIDTH      = 260  // 좌측 패널 기본 너비
-HEADER_H        = 80   // 헤더 높이 (연도 34 + 월 28 + today 18)
+LEFT_WIDTH      = 260
+HEADER_H        = 80   // 연도 34 + 월 28 + today 18
 CAT_ROW_H       = 32
 PROJ_ROW_H      = 36
 
 // GanttView (태스크 간트)
-LEFT_W_DEFAULT  = 300  // 드래그 리사이즈 기본
+LEFT_W_DEFAULT  = 300
 LEFT_W_MIN      = 120
-LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확인 필요)
+LEFT_W_MAX      = 560
 ```
 
 ---
 
-## 최근 변경
+## 최근 변경 (2026-05-17)
 
-### 2026-05-16 — 테스트 인프라 셋업 + Lint 50 issues 베이스라인 정리
+### 데이터 일관성 버그 수정 (P1×3)
 
-**Vitest 도입**
-- `vitest` + `@vitejs/plugin-react` + `jsdom` + `@testing-library/react` + `@testing-library/jest-dom` 설치
-- `vitest.config.ts` (jsdom 환경, `src/**/*.test.{ts,tsx}` 수집, `@` alias)
-- `vitest.setup.ts` (jest-dom matcher 등록)
-- npm scripts: `test`, `test:watch`, `test:ui`, `typecheck`, `check` (typecheck + lint + test 일괄)
+- **addTask**: `gantt_task_projects` insert 에러 무시 → `throw` 처리
+- **updateTask**: 연결 delete/insert 에러 무시 → `throw` 처리 (연결 유실 방지)
+- **softDeleteTask**: 부모 삭제 시 자식(`parent_id = id`) 동시 soft delete
+- **restoreTask**: 부모 복구 시 자식도 같이 복구
+- **addProject 시그니처 + 호출부**: `memo` 필드 추가 (생성 시 메모 누락 버그 수정)
 
-**첫 회귀 테스트** — `src/app/(app)/tasks/_constants.test.tsx` (6 cases)
-- 오늘 Gantt 색 회귀 (2026-05-16) 직접 방지용
-- `STATUS_COLOR` / `STATUS_BG_COLOR` 모든 값이 `var(--` 시작 보장 — 호출부 hex+alpha 가정 차단
-- `STATUS_GROUPS` color/bgColor 두 맵과 일치 보장
-- `PROJECT_COLORS`, `ASSIGNEE_COLORS`도 CSS var 강제
+### Calendar 드롭존 개선
 
-**Lint 50 errors+warnings 일괄 정리**
-- `.claude/worktrees/**` eslint ignore 추가 (잔재 worktree가 결과 부풀림)
-- `@typescript-eslint/no-unused-vars` (11) — 미사용 import/destructure 제거
-- `@typescript-eslint/no-explicit-any` (2) — `gantt-service.ts` `TaskProjectJoin` 타입 정의
-- `react-hooks/refs` (3) — `use-undo-redo.ts` render 중 ref 할당 → useEffect로 이동
-- `react-hooks/exhaustive-deps` (1) — `TaskFormDialog.tsx` deps 보강
-- `react-hooks/purity` (1) — `history-shell.tsx` render 중 `Date.now()` → `Number.MAX_SAFE_INTEGER`
-- `react-hooks/static-components` (8) — `SortBtn` 두 곳(`table-view.tsx`, `ListView.tsx`) 파일 최상단으로 호이스팅
-- `react-hooks/set-state-in-effect` (14) — 전부 fetch/props 동기화 의도된 패턴 → `eslint-disable-next-line` + 사유 코멘트
+- `time-grid.tsx` 드래그 이벤트를 최외곽 div로 이동 (중첩 스크롤 문제 해소)
+- `dragOver` 상태 시 배경 `bg-lilac-100/30` + "여기에 놓으면 블록 생성" 힌트
+- `handleDragLeave`: 자식 요소 이동 시 flicker 방지
 
-**메모리**
-- `feedback-regression-test` 신규: "회귀 픽스 = vitest 테스트 1개 추가" 룰
+### Calendar 페이지 신규 (`/calendar`)
 
-**최종**: typecheck ✅ / lint 0 errors ✅ / 6 tests pass ✅
+**Time Blocking 기능**
+- AppNav에 `CalendarDays` 아이콘 + `/calendar` 항목 추가
+- `gantt_tasks`: `scheduled_at TIMESTAMPTZ`, `duration_minutes SMALLINT DEFAULT 60` 컬럼 추가
+  - `idx_gantt_tasks_scheduled_at` 인덱스 (workspace_id + scheduled_at, WHERE NOT NULL)
+- `GanttTask` 타입에 `scheduled_at`, `duration_minutes` 필드 추가
+- `CalendarEvent` 타입 신규 (`src/types/index.ts`)
+- `gantt-service.ts`: `getScheduledTasks`, `updateTaskSchedule` 함수 추가
+- `/api/calendar/events` 라우트: `provider_token`으로 Google Calendar API 호출, 날짜별 이벤트 반환
+  - `NO_PROVIDER_TOKEN` / `TOKEN_EXPIRED` 에러 코드 구분
+- `CalendarShell`: 날짜 네비게이터 + 종일 이벤트 바 + 캘린더 오류 안내
+- `TimeGrid`: 07~23시 그리드, 30분 점선, 현재 시각 표시, 드래그앤드롭 드롭 타겟
+- `TaskBlock`: 블록 이동(중앙 드래그) + 리사이즈(하단 핸들) + 스케줄 해제(×), 15분 스냅
+- `EventBlock`: Google Calendar 이벤트 읽기 전용 표시 (colorId → hex)
+- `TaskPanel`: 미배치 태스크 목록 (검색 + 드래그 소스), 상태 dot 표시
 
----
-
-### 2026-05-16 — Summary 테이블 중요도 컬럼 정렬 픽스
-
-**`src/app/(app)/summary/_components/table-view.tsx`**
-- 중요도 필터 버튼 `className`에 `flex items-center` 추가
-- 기존: `className="hover:opacity-70 transition-opacity"` → 기본 `inline-block` 렌더링으로 다른 컬럼과 수직 위치 불일치
-- 수정: `className="flex items-center hover:opacity-70 transition-opacity"` → 명시적 flex로 셀 내 수직 정렬 통일
+**Google OAuth 스코프**
+- Supabase Google Provider에 `https://www.googleapis.com/auth/calendar.readonly` 추가 필요 (대시보드 수동)
 
 ---
 
-### 2026-05-16 — 스크롤 Top 플로팅 버튼 추가
+## 최근 변경 (2026-05-16)
 
-**`ScrollToTopButton` 컴포넌트** (`src/components/ScrollToTopButton.tsx`)
-- `document` 캡처 스크롤 리스너로 `data-scrolltop` 속성이 붙은 컨테이너의 스크롤만 감지
-- `scrollTop > 300px` 이상 내려가면 페이드인, 클릭 시 `smooth` 스크롤 복귀
-- 페이지 전환(`usePathname`) 시 자동 리셋
-- `(app)/layout.tsx`에 전역 삽입 (Server Component에 Client Component import)
+### 디자인 시스템 & 공통 기반
 
-**`data-scrolltop` 마킹 (3곳)**
-- `tasks/page.tsx` — 일반 뷰 메인 스크롤 컨테이너
-- `tasks/_components/ListView.tsx` — 리스트 뷰 메인 스크롤 컨테이너
-- `summary/_components/history-shell.tsx` — Summary 테이블 메인 스크롤 컨테이너
-- Gantt 뷰·캘린더 뷰·칸반 뷰는 제외 (별도 스크롤 구조)
-- `npx tsc --noEmit` 통과
+**폰트: Geist → Noto Sans KR**
+- `layout.tsx`: `Noto_Sans_KR` (400/500/700), `lang="ko"`
+- `globals.css`: `--font-sans/heading` → `var(--font-noto-sans-kr)`, `--font-mono` → `ui-monospace`
 
-### 2026-05-16 — GanttChart.tsx 분리 리팩토링 (1,000줄 제한 준수)
+**전체 폰트 크기 정규화 (20개 파일)**
+- `text-sm`/`text-base`/`text-[13~15px]` → `text-xs`, `text-[11.5px]` → `text-[11px]`, `text-[10.5px]` → `text-[10px]`
+- `font-mono` 전체 제거 (Notes 편집기·코드블록·`/login`·`/share` 제외)
 
-**`_GanttRows.tsx` 신규 생성 (402줄)**
-- 이동한 상수: `CAT_ROW_H`, `PROJ_ROW_H`, `CAT_COLORS`, `STATUS_META`, `STATUS_ORDER`
-- 이동한 헬퍼: `randomCatColor`, `isProjectOverdue`, `isStartDelayed`, `formatBarDate`, `daysBetween`
-- 이동한 컴포넌트: `SortableProjRow`, `SortableCatRow` (내부 전용, 비공개)
-- 신규 컴포넌트: `GanttCategoryLeft` (왼쪽 패널 카테고리·프로젝트 행), `GanttCategoryRight` (오른쪽 타임라인 바 행)
+**하드코딩 색상 → CSS 변수 (대규모)**
+- `globals.css :root`: `--task-status-*`, `--task-status-*-bg` 추가
+- `globals.css @theme`: `--color-id-*` (식별자 팔레트), `--color-cat-*` (카테고리 컬러피커) 추가
+- `_constants.tsx`: STATUS_GROUPS / STATUS_COLOR / STATUS_BG_COLOR / PRIORITY_META / PROJECT_COLORS / ASSIGNEE_COLORS 모두 CSS var
+- `KanbanView`, `CalendarView`, `TaskTrashPanel`, `GanttChart`, `TaskRow`, `ListView` 일괄 교체
 
-**`GanttChart.tsx` 1,262줄 → 840줄**
-- `renderCategoryRows` 함수(293줄) 제거 → `GanttCategoryLeft` / `GanttCategoryRight` 컴포넌트 호출로 대체
-- 불필요한 import 정리: `useSortable`, `CSS`, `Trash2`, `StickyNote`, `Palette`, `Popover` 계열
-- `npx tsc --noEmit` 통과
+**`.sidebar-btn` / `.sidebar-btn-active` 글로벌 유틸리티**
+- 기본: `border-l-2 transparent` / 활성: `border-left-color: var(--color-ink-700)` + `bg-card font-medium`
+- Tasks / Weekly / BoardSidebar 적용
 
-### 2026-05-16 — Summary 테이블뷰 UX 전면 개선
-
-**상세 drawer (신규 `detail-drawer.tsx`)**
-- 행 클릭 시 우측 슬라이드 drawer 오픈. 480px, 어둠 backdrop, Esc 닫기
-- 표시: 제목, 메타 그리드(브랜드/중요도/작성자/채널/등록일 풀 타임스탬프), 태그(컬러 뱃지), 본문 전체(whitespace-pre-wrap)
-- 액션: 슬랙 원본 링크(`source_ref`) 열기, 제목+본문 클립보드 복사
-
-**기능 보완**
-- 검색어 하이라이트: 본문/제목 매치 위치를 `<mark>` (amber)로 강조
-- 등록일 호버 풀 타임스탬프 툴팁 (`yyyy.MM.dd (eee) HH:mm`)
-- 빈 상태 메시지: 필터 유무에 따라 다른 안내 + "필터 초기화" 버튼 노출 (사이드바 초기화 버튼은 제거)
-- URL 쿼리스트링 필터 persist: view/from/to/brand/tags/priority/author/q 새로고침 시 복원
-- 활성 필터 뱃지 행 `h-7` 고정 + `flex-nowrap overflow-x-auto` → 뱃지 추가/제거에도 테이블 위치 흔들리지 않음
-- 활성 필터 뱃지 스타일: 점선 border + 흰 배경 + X 클릭 개별 해제
-- 작성자 칼럼 폭 축소 `w-28` → `w-20`
-- 태그 칼럼 클릭 → 다중 필터 토글 (활성 시 `font-semibold` 강조), 기본 룰 [[filter-toggle]]
-- 셀 클릭(브랜드/중요도/작성자/태그) → 행 drawer 열기 방지 위해 `e.stopPropagation()`
-
-**테이블 칼럼 정렬**
-- 브랜드/중요도/작성자/등록일 헤더 클릭으로 asc↔desc 토글. 정렬 미적용 `↕`, 적용 `↑/↓` (텍스트 마커, Tasks 동일)
-- 한국어 `localeCompare('ko')`, 동률 시 등록일 desc 2차 정렬
-
-**스타일/일관성**
-- `PriorityBars` Tasks 원본 그대로 복원 (text-[10px], w-[2px], 막대 h=5/7/9). 라벨 노출 옵션 활용
-- 사이드바 필터 버튼 `sidebar-btn` / `sidebar-btn-active` 글로벌 클래스로 Tasks와 통일
-- 사이드바 '전체' 항목에 `LayoutList` 아이콘 (중요도·브랜드 콤보박스)
-- 사이드바 프리셋(오늘/이번주/한달/전체) 활성 스타일을 역상 pill (`bg-foreground text-background`)
-- 테이블 row `items-start` 상단 정렬 유지
-
-**태그 라벨**
-- `mention`: '멘션' → '나를 멘션'
-
-**메모리**
-- `feedback-component-style-consistency`: "차이가 필요하면 명시적으로 알리고 진행, 묵시적 변형 금지" 룰 추가
-- `feedback-filter-toggle` 신규: 단일 선택 필터 reclick → 'all' 해제 기본 룰
-- `project-slack-summary-sop` 표준 정렬 후 불일치 경고 라인 제거
-
-- `npx tsc --noEmit` 통과
-
-### 2026-05-16 — Summary 페이지 태그 시스템 + 실데이터 수집 + 표준 정렬
-
-**태그 시스템 전환 (단일 type → 다중 tags TEXT[])**
-- DB: `client_history.tags TEXT[]` + GIN 인덱스 추가, 기존 `type` 컬럼은 deprecated
-- 6종 태그: `issue` 🔴 / `decision` 🟡 / `mention` 🔵 / `in_progress` 🟢 / `done` ✅ / `schedule` 📅
-- 사이드바 태그 다중 선택(AND), 본문에서 `TagList` 다중 뱃지
-
-**Slack 실데이터 수집 (MCP)**
-- 8개 채널에서 93건 수집·분류·INSERT (매머드 30 / 빽다방 7 / 텐퍼 19 / 더리터 9 / 몬스터 8 / SNBI 10 외)
-- 태그 분포: issue 42 · decision 18 · mention 20 · in_progress 38 · done 12 · schedule 14
-
-**Slack Summary SOP v1.0 표준화**
-- 메모리: `project_slack_summary_sop.md` — 태그 6종/중요도/작성자 prefix/제외 기준
-- 태그명 표준 정렬: `in-progress`→`in_progress`, `scheduled`→`schedule` (코드 + DB 동시)
-- 외부 작성자 prefix: `MMTH_김형종`→`[매머드] 김형종` 등 정규화
-- `client_history.source_id text` 컬럼 + `(workspace_id, source_id)` 유니크 인덱스 추가 (중복 SKIP)
-
-**페이지 리네이밍 `/history` → `/summary`** — 라우트/네비/SUMMARY 헤더 일괄 변경
-
-**사이드바 정비**
-- 브랜드: 검색 가능 콤보박스(Popover + input), 40~60개 브랜드 대응
-- 채널 필터 제거, 작성자 섹션 제거
-- 기간: from/to DatePicker + 프리셋 4종(오늘/이번 주/한 달/전체) 텍스트 버튼, 활성 프리셋 하이라이트
-- 선택 하이라이트: `sidebar-btn` / `sidebar-btn-active` 글로벌 클래스로 태스크와 통일
-
-**본문 뷰**
-- 카드 뷰 삭제, 3뷰(테이블/타임라인/요약)
-- 테이블 칼럼 순서: 내용 / 브랜드 / 태그 / 중요도 / 작성자 / 등록일 (채널 제거)
-- 테이블 브랜드·태그는 배경 뱃지 → 점+텍스트만 (단순 표기)
-- 작성자 셀에서 Avatar 제거 → 이름만 표시
-- 중요도: 태스크 동일 3단 막대 그래프(`PriorityBars`), 색상 토큰 `status-future`(낮음·파랑) / `status-warn`(보통·주황) / `status-late`(높음·빨강)
-
-**캘린더 더보기 팝오버**
-- "+N개 더" 인라인 확장 → 버튼 클릭 시 viewport-flip 지원 floating popover로 전환
-
-**칸반 뷰 잔여 수정**
-- `KanbanView.tsx`에서 `STATUS_GROUPS` destructure `bgColor` 누락 보강
-
-**추가 보완 (사용자 피드백 반영)**
-- 테이블 태그 칼럼: 가로 wrap → 세로 개행 (`flex-col`) — 다수 태그 가독성
-- 중요도 reclick → `'all'` 해제 (toggle off) 적용. **기본 룰**로 메모리화: [[filter-toggle]]
-- 본문 상단 브랜드 칩 행 `sticky top-0 z-10 bg-card` — 스크롤 시 고정
-- 테이블 컬럼 정렬: 브랜드 / 중요도 / 작성자 / 등록일 헤더 클릭으로 asc↔desc 토글. 정렬 미적용 `↕`, 적용 `↑/↓`. 기본 등록일 desc, 한국어 `localeCompare('ko')`
-- 사이드바 '전체' 항목에 `LayoutList` 아이콘 추가 (중요도·브랜드 콤보박스 popover) — Tasks 사이드바와 통일
-
-- `npx tsc --noEmit` 통과
-
-### 2026-05-16 — 하드코딩 색상 → 디자인 토큰 교체 (대규모)
-
-**globals.css `:root`에 태스크 상태 CSS 변수 추가**
-- `--task-status-{backlog,todo,in-progress,done,pending}` — 상태별 대표색
-- `--task-status-{..}-bg` — `color-mix(in srgb, ... 12%, transparent)` 배경색
-- `--task-status-overdue-bg` — 마감 초과 배경
-
-**globals.css `@theme`에 식별자 팔레트 추가**
-- `--color-id-{indigo,amber,orange,violet,green,blue,pink,teal,purple}` — 프로젝트/담당자 식별색
-- `--color-cat-{*}` (vivid 8종) / `--color-cat-{*}-light` (pastel 8종) — 카테고리 컬러피커 팔레트
-
-**`_constants.tsx`**
-- `STATUS_GROUPS`: `bgColor` 필드 추가, hex → CSS var
-- `STATUS_COLOR`: hex → CSS var
-- `STATUS_BG_COLOR` 신규 export (상태별 배경색)
-- `PRIORITY_META`: hex → `var(--color-ink-300)` / `status-*` CSS var
-- `PriorityBars` inactive bar: `#e5e7eb` → `var(--color-ink-150)`
-- `PROJECT_COLORS` / `ASSIGNEE_COLORS`: hex → `var(--color-id-*)` CSS var
-
-**`GanttChart.tsx`**
-- `STATUS_META` dot 색상: hex → `var(--task-status-*)`
-- `backgroundColor: '#f8f9fa'` → `var(--muted)` (2곳)
-- PM 색상 폴백 `#9ca3af` → `var(--color-ink-300)`
-- `CAT_COLORS` hex 배열 유지 (DB 저장값과 비교해야 하므로 문자열 hex 필요) — globals.css `@theme`에 동일 값으로 `--color-cat-*` 토큰 등록해 참조 명세 유지
-
-**`KanbanView.tsx`**
-- `color + '20'` hex-alpha → `bgColor` prop (STATUS_GROUPS에서 전달)
-- 담당자 색상 폴백 `#9ca3af` → `var(--color-ink-300)`
-
-**`TaskTrashPanel.tsx`**
-- `(STATUS_COLOR[...] ?? ...) + '20'` → `STATUS_BG_COLOR[...] ?? 'var(--task-status-backlog-bg)'`
-
-**`CalendarView.tsx`**
-- `#ef4444` → `var(--color-status-late)`, `#fef2f2` → `var(--task-status-overdue-bg)`
-- `STATUS_COLOR[...] + '20'` → `STATUS_BG_COLOR[...]`
-
-**`TaskRow.tsx`, `ListView.tsx`, `tasks/page.tsx`**
-- 담당자 색상 폴백 `#9ca3af` → `var(--color-ink-300)`
-
-- `npx tsc --noEmit` 통과
-
-### 2026-05-16 — 사이드바 필터 버튼 선택 상태 통일
-
-**globals.css에 `.sidebar-btn` / `.sidebar-btn-active` 유틸리티 클래스 추가**
-- `.sidebar-btn`: 공통 기본 스타일 (flex, w-full, gap, padding, border-l-2 transparent)
-- `.sidebar-btn-active`: 선택 상태 — `border-left-color: var(--color-ink-700)` 어두운 바 + `bg-card` + `text-foreground font-medium`
-- hover는 `.sidebar-btn:not(.sidebar-btn-active):hover`로 active 상태 덮어쓰기 방지
-- 적용 범위: Tasks 사이드바(퀵필터/프로젝트/담당자) + Weekly 프리셋 버튼 + BoardSidebar 보드 항목
-
-### 2026-05-16 — 타이틀 정리 + Weekly 페이지 기초 작업
-
-**타이틀 일관성 수정**
-- `BoardSidebar.tsx`: 사이드바 헤더 "보드" → "Schedule"
-- `GanttToolbar.tsx`: 보드명 h1 대신 "Schedule" 고정 타이틀로 변경, boardName은 옆에 `text-[11px] text-muted-foreground` subtitle로 유지
-- `AppNav.tsx`: 네비게이션 메뉴명 "Task" → "Tasks"
-- `tasks/page.tsx`: 사이드바 h1 "태스크" → "Tasks"
-
-**Weekly 페이지 (`/weekly`) 기초 작업**
-- 좌측 사이드바 (200px): Tasks 페이지와 동일한 구조/스타일
-  - 기간 프리셋 버튼 4종: 오늘 / 이번 주 / 이번 달 / 전체
-  - 선택 시 `bg-accent text-accent-foreground font-medium` 하이라이트, 기본값 "이번 달"
-  - 시작일/마감일 DatePickerButton — 직접 변경 시 프리셋 해제
-  - 사이드바 토글 (PanelLeftClose / PanelLeftOpen)
-- 메인 영역은 콘텐츠 기획 확정 후 채울 예정
-
-### 2026-05-16 — 태스크 영역 데드코드 정리
-- `tasks/_utils.ts` 미사용 함수 4개 제거: `relativeTime`, `toKSTDateStr`, `weekStart`, `abbrev`
-- `tasks/_components/SummaryCard.tsx` 파일 삭제 (어디서도 import 안 됨)
-- `npx tsc --noEmit` 통과
-
-### 2026-05-16 — 죽은 컴포넌트/페이지 제거
-- `src/app/(app)/timeline/page.tsx` + 디렉터리 삭제 (구 mock, AppNav에서 이미 빠진 상태였음)
-- `src/components/gantt/StatusBadge.tsx` 삭제 (어디서도 import 0건)
-- `src/components/gantt/ProjectHistoryPanel.tsx` 삭제 (`ProjectFormDialog`의 이력 탭으로 통합 후 잔재)
-- `src/components/gantt/CategoryFormDialog.tsx` 삭제 (어디서도 import 0건)
-- `gantt-utils.ts`의 `STATUS_LABELS` / `STATUS_COLORS` 제거 (`StatusBadge` 외 사용처 없었음, 동반 사망)
-- `npx tsc --noEmit` 통과
-
-### 2026-05-16 — 폼 헬퍼/컴포넌트 중복 제거
-- `toDate` / `toDateStr` → `src/lib/gantt-utils.ts`로 이동 (3곳 중복 → 단일 정의)
-- `AutocompleteInput` → `src/components/AutocompleteInput.tsx`로 추출 (3곳 중복 → 단일 컴포넌트)
-  - TaskDetailDrawer 버전이 쓰던 `text-ink-700` → `text-foreground`로 통일 ([[feedback-font-consistency]])
-- `TaskFormDialog`, `TaskDetailDrawer`, `ProjectFormDialog`에서 중복 정의 제거 + import로 대체
-- `TaskTrashPanel`의 `STATUS_LABEL`/`STATUS_COLOR` 중복 정의 제거 → `_constants`에서 import
-- `npx tsc --noEmit` 통과
+**shadcn Calendar 리디자인**
+- 셀 28px → 24px, 날짜 폰트 12px → 11px, 요일 헤더 10px
+- 토요일 `text-blue-500`, 일요일 `text-red-500`, focused ring 제거
+- 오늘(미선택) `bg-lilac-100/50`, 오늘+선택 `bg-lilac-500 text-white`
 
 ---
 
-## 알려진 이슈
+### 앱 공통 기능
 
-### ⚠️ `searchProjects` 와일드카드 이스케이프 누락
-`gantt-service.ts`의 `ilike '%query%'`에서 사용자 입력의 `%`, `_`가 패턴 문자로 그대로 작동. SQL 인젝션은 아니지만 검색 결과가 의도와 다를 수 있음.
+**Notes 페이지 신규**
+- `use-vault-handle.ts`: IndexedDB `FileSystemDirectoryHandle` 영속 (`VaultStatus` 4종)
+- `daily-note.ts`: 경로 패턴 localStorage, `readNote`/`writeNote` (폴더 자동 생성)
+- `VaultSetup.tsx`: 연결 전·권한 만료 안내
+- `DailyNoteView.tsx`: 뷰(ReactMarkdown+remarkGfm) ↔ 편집(textarea), Ctrl+S
+- `types/file-system-access.d.ts`: `FileSystemHandle.queryPermission/requestPermission`, `Window.showDirectoryPicker` 타입
+
+**스크롤 Top 플로팅 버튼**
+- `ScrollToTopButton.tsx`: `data-scrolltop` 컨테이너 캡처 리스너, `scrollTop > 300px` 페이드인
+- `(app)/layout.tsx` 전역 삽입
+- `data-scrolltop` 마킹: `tasks/page.tsx` / `ListView.tsx` / `history-shell.tsx`
+
+**Vitest 테스트 인프라 + Lint 정리**
+- vitest + @vitejs/plugin-react + jsdom + @testing-library 설치
+- `npm run check`: typecheck + lint + test 일괄
+- 회귀 테스트: `_constants.test.tsx` — STATUS_COLOR/PROJECT_COLORS 등 모두 `var(--` 시작 강제
+- Lint 50건 정리: unused vars, no-explicit-any, refs, exhaustive-deps, static-components 등
+
+**데드코드 제거**
+- `timeline/` 디렉터리, `StatusBadge.tsx`, `ProjectHistoryPanel.tsx`, `CategoryFormDialog.tsx` 삭제
+- `tasks/_utils.ts` 미사용 4함수, `SummaryCard.tsx` 삭제
+- `gantt-utils.ts` `STATUS_LABELS`/`STATUS_COLORS` 제거
+
+**중복 제거 / 추출**
+- `toDate`/`toDateStr` → `gantt-utils.ts` 단일화 (3곳 중복 해소)
+- `AutocompleteInput` → `src/components/AutocompleteInput.tsx` 추출 (3곳 중복 해소)
+
+**타이틀 정리 / Weekly 기초**
+- GanttToolbar: "Schedule" 고정 타이틀 + 보드명 subtitle
+- AppNav: "Tasks" 라벨, Notes 항목 추가
+- Weekly: 사이드바(프리셋 4종 + DatePicker) + 메인 영역 플레이스홀더
+
+---
+
+### Tasks / 간트 / 칸반 / 캘린더
+
+**CalendarView 전면 리디자인**
+- 헤더: 텍스트 버튼 → Chevron 아이콘, "오늘" 버튼은 다른 달일 때만 노출
+- 오늘 `bg-lilac-500` 원 강조, 일요일 `text-status-late/80`, 토요일 `text-lilac-400`
+- 빈 셀 `bg-muted/20`, 마지막 행·열 border 제거
+- 행 높이 자동 조정 (rows ≤ 5: 100px / rows > 5: 84px)
+- `+N개 더` → viewport-flip floating popover
+
+**칸반 내 순서 드래그 (`KanbanView.tsx`)**
+- `useDraggable` → `useSortable`, 컬럼별 `SortableContext`
+- `columnOrder` 상태로 드래그 중 실시간 피드백 (`handleDragOver`)
+- 같은 컬럼 드롭 → `sort_order × 100` 단위 DB persist
+- `latestColOrder` ref: stale closure 방지
+
+**태스크 간트 바 날짜 드래그 (`GanttView.tsx`)**
+- 바 구조: 좌측 핸들(resize start) + 중앙(move) + 우측 핸들(resize end)
+- `localDates` 상태로 드래그 중 즉시 반영
+- 3px 미만 이동 → 클릭으로 처리 (drawer 오픈 유지)
+- 픽셀→일수: `Math.round(dx * 7 / WEEK_W)`
+
+**GanttChart.tsx 분리**
+- 1,262줄 → 840줄, `_GanttRows.tsx` (402줄) 신규
+- 이동: `CAT_ROW_H`, `PROJ_ROW_H`, `STATUS_META`, `SortableProjRow`, `SortableCatRow`, `GanttCategoryLeft`, `GanttCategoryRight`
+
+**Summary → Tasks/Schedule 연동 생성**
+- `TaskFormDialog`: `initialTitle`, `initialMemo` prop
+- `ProjectFormDialog`: `initialName`, `initialMemo` prop
+- `table-view.tsx`: 행 hover 시 `ListTodo`/`CalendarRange` 아이콘 버튼 (opacity-0 → group-hover:opacity-100)
+- `detail-drawer.tsx`: 헤더에 태스크/프로젝트 버튼
+
+**기타**
+- `searchProjects`: `ilike` 패턴에서 `%`, `_`, `\` 이스케이프
+- Tasks "+ 태스크 추가" 인덴트: `px-4` → `pl-10 pr-4` (TaskRow 제목과 정렬)
+- 중요도 컬럼 정렬 버튼 `flex items-center` 추가 (수직 정렬 통일)
+- Projects 행 hover: `hover:text-lilac-600` → `hover:bg-muted` (Tasks 동일 패턴)
+
+---
+
+### Summary 테이블·사이드바
+
+**태그 시스템 전환**
+- DB: `client_history.type` deprecated → `tags TEXT[]` + GIN 인덱스
+- 6종: `issue`/`decision`/`mention`/`in_progress`/`done`/`schedule`
+- `TAG_META` hex → `var(--color-tag-*)` CSS 변수
+- 작성자 prefix 표준화: `MMTH_김형종` → `[매머드] 김형종` 등
+
+**페이지 리네이밍 `/history` → `/summary`**
+
+**테이블뷰 UX 전면 개선 (`detail-drawer.tsx` 신규)**
+- 행 클릭 → 480px 슬라이드 drawer, 어둠 backdrop, Esc 닫기
+- 메타 그리드: 브랜드/중요도/작성자/채널/등록일(풀 타임스탬프), Slack 원본 링크·클립보드
+- URL 쿼리스트링 필터 persist, 활성 필터 뱃지 행 `h-7` 고정 + `overflow-x-auto`
+- 태그 클릭 → 다중 토글, reclick → 'all' 해제
+
+**브랜드명 볼드 하이라이트 (`HighlightAll`)**
+- 제목·본문에서 브랜드 `name`/`name_en`/keywords 탐색 → 브랜드 color `font-semibold`
+- 검색어 amber `<mark>`와 중첩 (브랜드 구간 내에서도 검색어 마킹 유지)
+
+**본문 개행 렌더링**
+- `item.body.split('\n').filter(Boolean)` → 각 줄 `<div>` (배경/현상/액션 구분)
+- `line-clamp-2` 제거
+
+**레이아웃 재편**
+- `flex flex-col overflow-hidden` 구조 (Tasks `ListView`와 동일)
+- 헤더 `shrink-0`, 행 영역 `flex-1 overflow-y-auto [scrollbar-gutter:stable]`
+- `TableView` 내부: 칼럼 헤더 `shrink-0` + 행 `flex-1 overflow-y-auto` + `data-scrolltop`
+
+**버그 수정**
+- 증분 분석 필터: `occurred_at > analyzed_at` → `created_at > analyzed_at`
+  (MCP로 늦게 INSERT된 과거 날짜 메시지가 누락되던 문제)
+- `UpcomingList`/`PendingList`: `border-divider` 미정의 → `border-border`
+- `summary-view.tsx`: `#dc2626` → `var(--color-status-late)`, `#d97706` → `var(--color-status-warn)`
+- `TAG_META[t]` 미정의 태그 → `return null` null 가드
+
+**컨벤션 / 타입 정리**
+- `globals.css`: `--color-tag-*-{text|dot|bg}` 6종, `--color-priority-*-bg` 3종 추가
+- `badges.tsx`: `${color}1a` hex 알파 → `color-mix(in srgb, ${color} 10%, transparent)`
+- `types.ts`: `HistoryItem.source_id: string | null` 추가
+
+**코드 품질**
+- `filterByBrand`: 모듈 수준 유틸 함수, clients 파라미터 제거 (직접 ID 비교)
+- `ProgressBar` 컴포넌트 추출 (EmptyState·업데이트 중복 JSX 단일화)
+- `counts`/`sortedClients`/`filteredX` 4개 `useMemo` 메모이제이션
+- `ActionGrid`/`UpcomingList`/`PendingList`/`DecisionGrid`: `brandId` prop 제거, 이중 필터링 해소
+- `history-sidebar.tsx`: `dateStrUtil` 제거, `BrandCombobox` 인사이트 탭에서 숨김
+
+---
+
+### Summary 인사이트 탭
+
+**신규 구축**
+- DB: `insights` 테이블 (UNIQUE `workspace_id, week_start`, RLS 활성화)
+- `insight-service.ts`: `getInsight` / `generateInsight` (SSE 파싱, `onStatus` 콜백)
+- `api/insights/generate/route.ts`: ReadableStream SSE
+  - 단계: 슬랙 조회 → AI 분석 → 저장
+  - 증분: `created_at > analyzed_at` 신규 항목만 Claude에 전달
+  - `normalizeBrands`: Claude 응답 brand 이름 → client_id UUID 변환 (폴백: 원문 유지)
+- `insight-view.tsx`: 헤드라인·액션아이템·일정·미결·결정 카드
+  - SSE 이벤트가 프로그레스 바 직접 구동 (가짜 타이머 없음)
+  - `slowPhase`: AI 단계 CSS transition 18s / 나머지 0.5s
+
+**개선**
+- HeadlineCard: "HEADLINE" 레이블(orange-500) + "AI 분석" 뱃지(Sparkles + lilac), 날짜 범위 표시
+- ActionGrid 버튼: urgent→`status-late`, watch→`status-warn`, info→`status-future` 계열
+- 브랜드 필터: 각 섹션 건수 필터 후 기준, 0건 섹션 완전 숨김
+- 주 네비게이션: "이번 주/지난 주" 2버튼 → 최근 4주 목록 (주 레이블 + `MM/DD ~ MM/DD`)
+- 주 번호 계산: `Math.ceil(date / 7)` → 월 1일 요일 기준 정확한 산출
+- 인사이트 탭 사이드바: 태그·중요도 섹션 숨김 (`view !== 'insight'`)
+
+**브랜드 이름 → client_id 저장 방식 전환**
+- `route.ts`: Claude 응답 파싱 직후 `normalizeBrands`로 이름 → UUID (미매칭 시 원문 폴백)
+- `insight-view.tsx`: `BrandBadge(clientId)`, `filterByBrand`(ID 직접 비교), `PendingList`/`counts` 모두 `c.id` 기준
+- DB 마이그레이션 (Supabase MCP): 기존 JSONB brand 이름 → client_id 일괄 변환
 
 ---
 
 ## 결정 사항 / 보류
 
-- **협업 기능 배제**: 1인용 개인 업무 도구. 외부 공유는 읽기 전용 토큰 URL로만.
-- **반응형(모바일) 미지원**: 간트 차트 특성상 데스크탑 전용.
-- **태스크 undo/redo 미구현**: 삭제는 토스트 "되돌리기"로 보완, 다른 액션은 명시적이라 불필요 판단.
-- **GanttChart.tsx 분리 완료**: `_GanttRows.tsx`로 분리, 840줄로 감소.
-- **빌드 검증**: 코드 변경 후 `npx tsc --noEmit`로 타입 체크.
+- **협업 배제**: 1인용 도구. 외부 공유는 읽기 전용 토큰 URL만.
+- **모바일 미지원**: 간트 특성상 데스크탑 전용.
+- **태스크 undo/redo**: 삭제는 토스트 "되돌리기"로 보완. 다른 액션은 명시적이라 미구현.
+- **Summary 자동 수집 취소**: Make.com 연동 중단. Claude Code MCP 수동 수집으로 운영.
+- **빌드 검증**: `npx tsc --noEmit` 타입 체크, `npm run check` 일괄 검증.
 
 ---
 
 ## 미구현 / 예정
 
-- **주간보고** (`/weekly`): 주간 태스크 자동 요약 — 플레이스홀더만 있음
+- **주간보고** (`/weekly`): 플레이스홀더만 있음
 - **설정** (`/settings`): 플레이스홀더만 있음
-- **태스크 드래그 정렬**: 칸반 컬럼 간 상태 변경은 되지만, 같은 그룹/컬럼 내 순서 변경 미구현
-- **간트 바 날짜 드래그**: 태스크 간트 뷰의 바를 좌우 드래그해 날짜 변경 — 현재 읽기 전용
-- **캘린더 퀵 등록**: 날짜 셀 클릭으로 해당 마감일로 태스크 빠른 생성
-- **태스크 parent 재지정**: 드로어에서 하위 태스크를 다른 부모 아래로 이동하거나 최상위로 승격하는 UI 없음
-- **History 자동 수집 (보류)**: Make.com 시나리오로 Slack→Claude→Supabase 흐름 시도했으나 안정화 미완. 자세한 내용은 History 페이지 섹션 참조. 재시도 시점에 옵션 A/B 중 택일
+- **캘린더 퀵 등록**: 날짜 셀 클릭으로 해당 마감일 태스크 빠른 생성
+- **태스크 parent 재지정**: 드로어에서 하위 → 다른 부모 이동 또는 최상위 승격 UI 없음
 
 ---
 
@@ -684,6 +633,37 @@ LEFT_W_MAX      = 560  // (tasks/_components/GanttView.tsx 상수는 다름, 확
 - Project ID: `eytonzxeogdfeuvxtuwh`
 - Region: ap-northeast-2 (서울)
 - Auth: 이메일/비밀번호, Google OAuth
+
+## 최근 변경 (2026-05-17)
+
+### Summary 페이지 UI 개선
+
+**detail-drawer.tsx**
+- "+ New Task" / "+ New Project" → "+ 태스크 추가" / "+ 프로젝트 추가" (한국어)
+- 버튼 스타일: `border-dashed border-border text-ink-400 hover:text-foreground hover:border-ink-400` (dashed 아웃라인)
+- `ListTodo`/`CalendarRange` 아이콘 → `Plus`, 버튼 배치 `flex-row` → `flex-col`
+
+**history-shell.tsx**
+- FilterChip 컨테이너: `h-7 pb-3` → `py-1.5` (클리핑 수정)
+- FilterChip 스타일: `bg-card border-dashed` → `bg-foreground text-background` (선택 상태)
+
+**table-view.tsx**
+- 등록일 열: 레이블 `등록일` → `등록일시`, 너비 `w-14` → `w-28`
+- 날짜 포맷: `M/D` → `M/d HH:mm` (시간 포함), `fmtMonthDay` 임포트 제거
+
+**api/history/[id]/route.ts**
+- 401/403 응답: plain text → JSON `{ error: '...' }` (저장 실패 구체적 메시지)
+- `console.error` 로깅 추가
+
+**proxy.ts (Next.js 16 미들웨어)**
+- `/api` 경로 최상단 early return 추가 — PATCH 요청이 307로 리디렉트되던 버그 수정
+- Next.js 16에서 `middleware.ts` 대신 `proxy.ts`가 미들웨어 파일임 확인
+
+**detail-drawer.tsx (버튼 레이아웃)**
+- 태스크 추가/프로젝트 추가 버튼: `flex-col` → `flex` (가로 병렬 배치)
+- 스타일: `border-dashed border-border` → `bg-muted border-border hover:bg-card hover:border-ink-300`
+
+---
 
 ## Vercel 배포
 

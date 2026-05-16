@@ -3,9 +3,10 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
+import { ListTodo, CalendarRange } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
-import { TAG_META, fmtMonthDay } from '../_lib/mock-data'
+import { TAG_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 
 type SortKey = 'brand' | 'priority' | 'author' | 'date'
@@ -23,9 +24,12 @@ interface Props {
   onSelectAuthor:   (a: string) => void
   onOpenItem:       (item: HistoryItem) => void
   onClearFilters:   () => void
+  onCreateTask?:    (item: HistoryItem) => void
+  onCreateProject?: (item: HistoryItem) => void
 }
 
 const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 }
+const TAG_ORDER: Tag[] = ['issue', 'mention', 'in_progress', 'decision', 'schedule', 'done']
 
 function SortBtn({
   col, label, align = 'left', sortKey, sortDir, onToggle,
@@ -41,7 +45,7 @@ function SortBtn({
   return (
     <button
       onClick={() => onToggle(col)}
-      className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+      className={`flex items-center gap-0.5 text-[11px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
         ${align === 'right' ? 'justify-end w-full' : ''}
         ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
     >
@@ -54,6 +58,7 @@ function SortBtn({
 export function TableView({
   items, clients, selectedTags, searchQuery, hasFilters,
   onToggleTag, onSelectBrand, onSelectPriority, onSelectAuthor, onOpenItem, onClearFilters,
+  onCreateTask, onCreateProject,
 }: Props) {
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
 
@@ -83,98 +88,124 @@ export function TableView({
       } else if (sortKey === 'date') {
         cmp = a.occurred_at.localeCompare(b.occurred_at)
       }
-      if (cmp === 0) cmp = a.occurred_at.localeCompare(b.occurred_at)
+      if (sortKey !== 'date' && cmp === 0) cmp = b.occurred_at.localeCompare(a.occurred_at)
       return cmp * mult
     })
     return arr
   }, [items, sortKey, sortDir, clientMap])
 
-  if (items.length === 0) {
-    return (
-      <div className="flex flex-col items-center justify-center py-16 text-center">
-        <div className="text-sm text-muted-foreground mb-1">
-          {hasFilters ? '조건에 맞는 항목이 없어요' : '수집된 히스토리가 없어요'}
-        </div>
-        <div className="text-[11px] text-ink-400 mb-4">
-          {hasFilters ? '필터를 조정하거나 초기화해보세요' : 'MCP로 슬랙 메시지가 들어오면 여기 표시됩니다'}
-        </div>
-        {hasFilters && (
-          <button
-            onClick={onClearFilters}
-            className="text-xs px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
-          >
-            필터 초기화
-          </button>
-        )}
-      </div>
-    )
-  }
-
   return (
-    <div className="flex flex-col">
-      {/* 헤더 */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted shrink-0">
-        <div className="flex-1 min-w-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">내용</div>
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* 헤더 — 고정 */}
+      <div className="flex items-center gap-4 px-6 py-2 border-b bg-muted shrink-0">
+        <div className="flex-1 min-w-0 text-[11px] font-semibold text-ink-400 uppercase tracking-wider">내용</div>
         <div className="w-24 shrink-0"><SortBtn col="brand" label="브랜드" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-32 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">태그</div>
+        <div className="w-20 shrink-0 text-[11px] font-semibold text-ink-400 uppercase tracking-wider">태그</div>
         <div className="w-16 shrink-0"><SortBtn col="priority" label="중요도" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-20 shrink-0"><SortBtn col="author" label="작성자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-14 shrink-0"><SortBtn col="date" label="등록일" align="right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-28 shrink-0"><SortBtn col="date" label="등록일시" align="right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
 
-      {/* 행 */}
+      {/* 행 — 스크롤 */}
+      {items.length === 0 ? (
+        <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
+          <div className="text-xs text-muted-foreground mb-1">
+            {hasFilters ? '조건에 맞는 항목이 없어요' : '수집된 히스토리가 없어요'}
+          </div>
+          <div className="text-[11px] text-ink-400 mb-4">
+            {hasFilters ? '필터를 조정하거나 초기화해보세요' : 'MCP로 슬랙 메시지가 들어오면 여기 표시됩니다'}
+          </div>
+          {hasFilters && (
+            <button
+              onClick={onClearFilters}
+              className="text-xs px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
+            >
+              필터 초기화
+            </button>
+          )}
+        </div>
+      ) : (
+      <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
       {sorted.map(item => {
         const client = clientMap.get(item.client_id)
         return (
           <div
             key={item.id}
             onClick={() => onOpenItem(item)}
-            className="flex items-start gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer"
+            className="group flex items-start gap-4 px-6 py-3 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer"
           >
-            <div className="flex-1 min-w-0">
-              <div className="text-xs font-medium text-foreground leading-[1.45]">
-                <Highlight text={item.title} query={searchQuery} />
+            <div className="flex-1 min-w-0 flex items-start gap-2">
+              <div className="flex-1 min-w-0">
+                <div className="text-xs font-semibold text-ink-800 leading-[1.45]">
+                  <HighlightAll text={item.title} query={searchQuery} brands={clients} />
+                </div>
+                {item.body && (
+                  <div className="text-xs text-muted-foreground leading-[1.5] mt-1.5">
+                    {item.body.split('\n').filter(Boolean).map((line, i) => (
+                      <div key={i}><HighlightAll text={line} query={searchQuery} brands={clients} /></div>
+                    ))}
+                  </div>
+                )}
               </div>
-              {item.body && (
-                <div className="text-[11px] text-muted-foreground leading-[1.5] line-clamp-2 mt-0.5">
-                  <Highlight text={item.body} query={searchQuery} />
+              {(onCreateTask || onCreateProject) && (
+                <div className="shrink-0 flex items-center gap-0.5 opacity-0 group-hover:opacity-100 transition-opacity">
+                  {onCreateTask && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onCreateTask(item) }}
+                      className="p-1 rounded text-ink-400 hover:text-foreground hover:bg-card transition-colors"
+                      title="태스크로 생성"
+                    >
+                      <ListTodo size={13} />
+                    </button>
+                  )}
+                  {onCreateProject && (
+                    <button
+                      onClick={e => { e.stopPropagation(); onCreateProject(item) }}
+                      className="p-1 rounded text-ink-400 hover:text-foreground hover:bg-card transition-colors"
+                      title="스케줄 프로젝트로 생성"
+                    >
+                      <CalendarRange size={13} />
+                    </button>
+                  )}
                 </div>
               )}
             </div>
             <div className="w-24 shrink-0">
-              {client && (
+              {client ? (
                 <button
                   onClick={e => { e.stopPropagation(); onSelectBrand(client.id) }}
                   className="flex items-center gap-1.5 max-w-full hover:opacity-70 transition-opacity"
                   title={`${client.name}로 필터`}
                 >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
-                  <span className="text-[11px] text-muted-foreground truncate text-left">{client.name}</span>
+                  <span className="text-xs text-muted-foreground truncate text-left">{client.name}</span>
                 </button>
+              ) : (
+                <span className="text-xs text-ink-300">—</span>
               )}
             </div>
-            <div className="w-32 shrink-0">
+            <div className="w-20 shrink-0">
               {item.tags && item.tags.length > 0 ? (
                 <div className="flex flex-col gap-0.5">
-                  {item.tags.map(t => {
+                  {[...item.tags].sort((a, b) => TAG_ORDER.indexOf(a) - TAG_ORDER.indexOf(b)).map(t => {
                     const meta = TAG_META[t]
+                    if (!meta) return null
                     const active = selectedTags.has(t)
                     return (
                       <button
                         key={t}
                         onClick={e => { e.stopPropagation(); onToggleTag(t) }}
-                        className={`inline-flex items-center gap-1 text-[11px] whitespace-nowrap text-left max-w-fit transition-opacity hover:opacity-70 ${active ? 'font-semibold' : ''}`}
+                        className={`inline-flex items-center text-xs transition-opacity hover:opacity-70 ${active ? 'font-semibold' : 'font-normal'}`}
                         style={{ color: meta.color }}
                         title={`${meta.label}${active ? ' 필터 해제' : ' 필터 적용'}`}
                       >
-                        <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.dot }} />
-                        {meta.label}
+                        #{meta.label}
                       </button>
                     )
                   })}
                 </div>
               ) : (
-                <span className="text-[11px] text-ink-300">—</span>
+                <span className="text-xs text-ink-300">—</span>
               )}
             </div>
             <div className="w-16 shrink-0">
@@ -187,33 +218,84 @@ export function TableView({
                   <PriorityBars priority={item.priority} showLabel />
                 </button>
               ) : (
-                <span className="text-[11px] text-ink-300">—</span>
+                <span className="text-xs text-ink-300">—</span>
               )}
             </div>
             <div className="w-20 shrink-0 min-w-0">
               {item.author ? (
                 <button
                   onClick={e => { e.stopPropagation(); onSelectAuthor(item.author!) }}
-                  className="block text-[11px] text-muted-foreground truncate text-left max-w-full hover:opacity-70 transition-opacity"
+                  className="block text-xs text-muted-foreground truncate text-left max-w-full hover:opacity-70 transition-opacity"
                   title={`${item.author}로 필터`}
                 >
                   {item.author}
                 </button>
               ) : (
-                <span className="text-[11px] text-ink-300">—</span>
+                <span className="text-xs text-ink-300">—</span>
               )}
             </div>
             <div
-              className="w-14 shrink-0 text-right text-[11px] tabular-nums text-ink-400"
+              className="w-28 shrink-0 text-right text-xs tabular-nums text-ink-400"
               title={format(new Date(item.occurred_at), 'yyyy.MM.dd (eee) HH:mm', { locale: ko })}
             >
-              {fmtMonthDay(item.occurred_at)}
+              {format(new Date(item.occurred_at), 'M/d HH:mm', { locale: ko })}
             </div>
           </div>
         )
       })}
+      </div>
+      )}
     </div>
   )
+}
+
+function HighlightAll({
+  text, query, brands,
+}: {
+  text: string
+  query?: string
+  brands: Array<{ name: string; name_en: string; keywords: string[]; color: string }>
+}) {
+  const lower = text.toLowerCase()
+  type Span = { start: number; end: number; color: string }
+  const spans: Span[] = []
+
+  for (const brand of brands) {
+    for (const pattern of [brand.name, brand.name_en, ...brand.keywords].filter(Boolean)) {
+      const needle = pattern.toLowerCase()
+      let pos = 0
+      while (true) {
+        const idx = lower.indexOf(needle, pos)
+        if (idx < 0) break
+        spans.push({ start: idx, end: idx + needle.length, color: brand.color })
+        pos = idx + needle.length
+      }
+    }
+  }
+
+  if (spans.length === 0) return <Highlight text={text} query={query} />
+
+  // 시작 위치 기준 정렬, 같은 위치면 긴 것 우선
+  spans.sort((a, b) => a.start - b.start || b.end - a.end)
+  const merged: Span[] = []
+  for (const s of spans) {
+    if (!merged.length || s.start >= merged[merged.length - 1].end) merged.push(s)
+  }
+
+  const parts: React.ReactNode[] = []
+  let cursor = 0
+  let k = 0
+  for (const s of merged) {
+    if (s.start > cursor) parts.push(<Highlight key={k++} text={text.slice(cursor, s.start)} query={query} />)
+    parts.push(
+      <span key={k++} className="font-semibold" style={{ color: s.color }}>
+        <Highlight text={text.slice(s.start, s.end)} query={query} />
+      </span>
+    )
+    cursor = s.end
+  }
+  if (cursor < text.length) parts.push(<Highlight key={k++} text={text.slice(cursor)} query={query} />)
+  return <>{parts}</>
 }
 
 function Highlight({ text, query }: { text: string; query?: string }) {
@@ -223,10 +305,9 @@ function Highlight({ text, query }: { text: string; query?: string }) {
   const needle = q.toLowerCase()
   const idx = lower.indexOf(needle)
   if (idx < 0) return <>{text}</>
-  // 첫 매치만 강조 (간단)
   const parts: React.ReactNode[] = []
   let last = 0
-  let pos = lower.indexOf(needle, 0)
+  let pos = idx
   let k = 0
   while (pos >= 0) {
     if (pos > last) parts.push(text.slice(last, pos))

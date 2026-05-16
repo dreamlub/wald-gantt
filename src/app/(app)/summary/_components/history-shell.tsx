@@ -4,20 +4,27 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, RefreshCw, X, PanelLeftClose, PanelLeftOpen,
-  Table2, ScrollText, Sparkles,
+  Table2, Sparkles, BarChart2,
 } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
 import type { Priority } from '../_lib/types'
+import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey } from './history-sidebar'
+import { HistorySidebar, type PriorityKey, getCurrentWeekStart, dateStr, isCurrentWeek } from './history-sidebar'
 import { TableView } from './table-view'
-import { TimelineView } from './timeline-view'
+import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
 import { HistoryDetailDrawer } from './detail-drawer'
+import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
+import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
+import {
+  getOrCreateWorkspace, getBoards, getCategories,
+  addTask, addProject, searchProjects,
+} from '@/lib/gantt-service'
 
-type ViewKey = 'table' | 'timeline' | 'summary'
+type ViewKey = 'table' | 'insight' | 'summary'
 
 interface Props {
   initialClients: Client[]
@@ -25,9 +32,9 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Table2 }[] = [
-  { key: 'table',    label: '테이블',   icon: Table2 },
-  { key: 'timeline', label: '타임라인', icon: ScrollText },
-  { key: 'summary',  label: '요약',     icon: Sparkles },
+  { key: 'table',   label: '테이블',   icon: Table2 },
+  { key: 'insight', label: '인사이트', icon: Sparkles },
+  { key: 'summary', label: '요약',     icon: BarChart2 },
 ]
 
 function relativeFromNow(iso: string): string {
@@ -41,17 +48,22 @@ function relativeFromNow(iso: string): string {
   return `${d}일 전`
 }
 
-function dateStr(d: Date): string {
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
 function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
-  if (preset === 'all') return { from: '', to: '' }
   const now = new Date()
-  const today = dateStr(now)
+  function fmt(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const today = fmt(now)
   if (preset === 'today') return { from: today, to: today }
-  if (preset === 'week')  return { from: dateStr(new Date(now.getTime() - 6  * 24 * 60 * 60 * 1000)), to: today }
-  /* month */              return { from: dateStr(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)), to: today }
+  if (preset === 'week') {
+    const week = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
+    return { from: fmt(week), to: today }
+  }
+  if (preset === 'month') {
+    const month = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)
+    return { from: fmt(month), to: today }
+  }
+  return { from: '', to: '' }
 }
 
 export function HistoryShell({ initialClients, initialHistory }: Props) {
@@ -64,6 +76,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [view,         setView]         = useState<ViewKey>(((searchParams.get('view') ?? 'table') as ViewKey))
   const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
   const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
+  const [weekStart,    setWeekStart]    = useState<string>(searchParams.get('week') ?? getCurrentWeekStart())
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => {
     const t = searchParams.get('tags'); return new Set(t ? t.split(',').filter(Boolean) as Tag[] : [])
@@ -77,12 +90,58 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
 
+  // ── 생성 다이얼로그 ────────────────────────────────────────────
+  const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
+  const [createProjectOpen, setCreateProjectOpen] = useState(false)
+  const [createSource,      setCreateSource]      = useState<HistoryItem | null>(null)
+  const [workspaceId,       setWorkspaceId]       = useState<string | null>(null)
+  const [allCategories,     setAllCategories]     = useState<GanttCategory[]>([])
+
+  async function loadWorkspace() {
+    if (workspaceId) return workspaceId
+    const ws = await getOrCreateWorkspace()
+    setWorkspaceId(ws.id)
+    return ws.id
+  }
+
+  async function handleOpenCreateTask(item: HistoryItem) {
+    setCreateSource(item)
+    await loadWorkspace()
+    setCreateTaskOpen(true)
+  }
+
+  async function handleSaveItem(id: string, updates: { client_id?: string; author?: string | null; priority?: string | null; tags?: string[] }) {
+    const res = await fetch(`/api/history/${id}`, {
+      method: 'PATCH',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(updates),
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => '')
+      let msg = `저장 실패 (${res.status})`
+      try { msg = JSON.parse(text).error ?? msg } catch { /* non-JSON */ }
+      throw new Error(msg)
+    }
+    setActiveItem(prev => prev?.id === id ? { ...prev, ...updates } as HistoryItem : prev)
+    startTransition(() => router.refresh())
+  }
+
+  async function handleOpenCreateProject(item: HistoryItem) {
+    setCreateSource(item)
+    const wsId = await loadWorkspace()
+    const boards = await getBoards(wsId)
+    const cats = (await Promise.all(boards.map(b => getCategories(b.id)))).flat()
+    setAllCategories(cats)
+    setCreateProjectOpen(true)
+  }
+
   // state → URL 동기화
   useEffect(() => {
     const p = new URLSearchParams()
     if (view !== 'table')     p.set('view', view)
     if (dateFrom)             p.set('from', dateFrom)
     if (dateTo)               p.set('to', dateTo)
+    if (weekStart !== getCurrentWeekStart()) p.set('week', weekStart)
     if (brandId !== 'all')    p.set('brand', brandId)
     if (selectedTags.size > 0) p.set('tags', [...selectedTags].join(','))
     if (priorityKey !== 'all') p.set('priority', priorityKey)
@@ -90,7 +149,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (searchQuery.trim())   p.set('q', searchQuery)
     const qs = p.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [view, dateFrom, dateTo, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
+  }, [view, dateFrom, dateTo, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
 
   useEffect(() => { if (searchOpen) searchInputRef.current?.focus() }, [searchOpen])
   useEffect(() => {
@@ -180,20 +239,22 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         </div>
 
         <HistorySidebar
+          view={view}
           clients={initialClients}
           history={initialHistory}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          weekStart={weekStart}
           brandId={brandId}
           selectedTags={selectedTags}
           priorityKey={priorityKey}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
           onPresetClick={applyPreset}
+          onWeekChange={setWeekStart}
           onBrandChange={setBrandId}
           onToggleTag={toggleTag}
           onPriorityChange={setPriorityKey}
-          onReset={resetFilters}
         />
       </div>
 
@@ -268,7 +329,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
           <div className="ml-auto flex items-center gap-3">
             {lastCollected && (
-              <span className="text-[11px] text-ink-400 font-mono">
+              <span className="text-[11px] text-ink-400">
                 마지막 수집 {relativeFromNow(lastCollected)}
               </span>
             )}
@@ -284,69 +345,93 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         </div>
 
         {/* 본문 */}
-        <div data-scrolltop className="flex-1 overflow-y-auto bg-card">
-          <div className="sticky top-0 z-10 bg-card px-6 pt-5">
-            <BrandSelector
-              clients={initialClients}
-              brandId={brandId}
-              history={initialHistory}
-              onBrandChange={setBrandId}
-            />
-            {view !== 'summary' && (
-              <div className="mb-3 h-7 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400">
-                <span className="shrink-0">
-                  전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
-                </span>
-                {brandId !== 'all' && (() => {
-                  const c = initialClients.find(x => x.id === brandId)
-                  if (!c) return null
-                  return (
-                    <FilterChip onClear={() => setBrandId('all')}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
-                      브랜드: {c.name}
-                    </FilterChip>
-                  )
-                })()}
-                {priorityKey !== 'all' && (
-                  <FilterChip onClear={() => setPriorityKey('all')}>
-                    중요도: {PRIORITY_META[priorityKey as Priority].label}
-                  </FilterChip>
-                )}
-                {authorKey !== 'all' && (
-                  <FilterChip onClear={() => setAuthorKey('all')}>
-                    작성자: {authorKey}
-                  </FilterChip>
-                )}
-                {[...selectedTags].map(t => (
-                  <FilterChip key={t} onClear={() => toggleTag(t)}>
-                    <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
-                    {TAG_META[t].label}
-                  </FilterChip>
-                ))}
+        <div className="flex-1 flex flex-col overflow-hidden bg-card">
+          {view === 'insight' ? (
+            <div className="flex-1 overflow-y-auto">
+              <div className="px-6 py-5">
+                <InsightView
+                  weekStart={weekStart}
+                  clients={initialClients}
+                  brandId={brandId}
+                  onBrandChange={setBrandId}
+                />
               </div>
-            )}
-          </div>
+            </div>
+          ) : (
+            <>
+              {/* 브랜드 셀렉터 — 스크롤 밖 고정 */}
+              <div className="shrink-0 px-6 pt-5 bg-card">
+                <BrandSelector
+                  clients={initialClients}
+                  brandId={brandId}
+                  history={initialHistory}
+                  onBrandChange={setBrandId}
+                />
+              </div>
 
-          <div className="px-6 pb-5">
-            {view === 'table' && (
-              <TableView
-                items={filtered}
-                clients={initialClients}
-                selectedTags={selectedTags}
-                searchQuery={searchQuery}
-                hasFilters={hasFilters}
-                onToggleTag={toggleTag}
-                onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                onSelectPriority={p => setPriorityKey(priorityKey === p ? 'all' : p)}
-                onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
-                onOpenItem={setActiveItem}
-                onClearFilters={resetFilters}
-              />
-            )}
-            {view === 'timeline' && <TimelineView items={filtered} clients={initialClients} />}
-            {view === 'summary'  && <SummaryView  items={filtered} clients={initialClients} />}
-            <div className="h-10" />
-          </div>
+              {/* 필터 칩 바 — 스크롤 밖 고정 */}
+              {view !== 'summary' && (
+                <div className="shrink-0 px-6 bg-card border-b border-ink-150">
+                  <div className="py-1.5 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+                    <span className="shrink-0">
+                      전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
+                    </span>
+                    {brandId !== 'all' && (() => {
+                      const c = initialClients.find(x => x.id === brandId)
+                      if (!c) return null
+                      return (
+                        <FilterChip onClear={() => setBrandId('all')}>
+                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
+                          브랜드: {c.name}
+                        </FilterChip>
+                      )
+                    })()}
+                    {priorityKey !== 'all' && (
+                      <FilterChip onClear={() => setPriorityKey('all')}>
+                        중요도: {PRIORITY_META[priorityKey as Priority].label}
+                      </FilterChip>
+                    )}
+                    {authorKey !== 'all' && (
+                      <FilterChip onClear={() => setAuthorKey('all')}>
+                        작성자: {authorKey}
+                      </FilterChip>
+                    )}
+                    {[...selectedTags].map(t => (
+                      <FilterChip key={t} onClear={() => toggleTag(t)}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
+                        {TAG_META[t].label}
+                      </FilterChip>
+                    ))}
+                  </div>
+                </div>
+              )}
+
+              {view === 'table' && (
+                <TableView
+                  items={filtered}
+                  clients={initialClients}
+                  selectedTags={selectedTags}
+                  searchQuery={searchQuery}
+                  hasFilters={hasFilters}
+                  onToggleTag={toggleTag}
+                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  onSelectPriority={p => setPriorityKey(priorityKey === p ? 'all' : p)}
+                  onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
+                  onOpenItem={setActiveItem}
+                  onClearFilters={resetFilters}
+                  onCreateTask={handleOpenCreateTask}
+                  onCreateProject={handleOpenCreateProject}
+                />
+              )}
+              {view === 'summary' && (
+                <div data-scrolltop className="flex-1 overflow-y-auto">
+                  <div className="px-6 pb-5">
+                    <SummaryView items={filtered} clients={initialClients} />
+                  </div>
+                </div>
+              )}
+            </>
+          )}
         </div>
       </div>
 
@@ -354,8 +439,51 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       <HistoryDetailDrawer
         open={!!activeItem}
         item={activeItem}
-        client={activeItem ? initialClients.find(c => c.id === activeItem.client_id) : undefined}
+        clients={initialClients}
         onClose={() => setActiveItem(null)}
+        onCreateTask={handleOpenCreateTask}
+        onCreateProject={handleOpenCreateProject}
+        onSaveItem={handleSaveItem}
+      />
+
+      {/* 태스크 생성 다이얼로그 */}
+      <TaskFormDialog
+        open={createTaskOpen}
+        onClose={() => { setCreateTaskOpen(false); setCreateSource(null) }}
+        initialTitle={createSource?.title ?? ''}
+        initialMemo={createSource?.body ?? ''}
+        onSearchProjects={q => workspaceId ? searchProjects(workspaceId, q) : Promise.resolve([])}
+        onSave={async (fields, projectIds) => {
+          if (!workspaceId) return
+          await addTask(workspaceId, { ...fields, type: 'mine' }, projectIds)
+          setCreateTaskOpen(false)
+          setCreateSource(null)
+        }}
+      />
+
+      {/* 프로젝트 생성 다이얼로그 */}
+      <ProjectFormDialog
+        open={createProjectOpen}
+        onClose={() => { setCreateProjectOpen(false); setCreateSource(null) }}
+        categories={allCategories}
+        initialName={createSource?.title ?? ''}
+        initialMemo={createSource?.body ?? ''}
+        onSave={async (fields) => {
+          if (!workspaceId) return
+          const cat = allCategories.find(c => c.id === fields.categoryId)
+          if (!cat) return
+          await addProject(cat.board_id, workspaceId, fields.categoryId, fields.parentId, {
+            name: fields.name,
+            status: fields.status,
+            start_date: fields.start_date,
+            end_date: fields.end_date,
+            team: fields.team,
+            pm: fields.pm,
+            priority: fields.priority,
+          })
+          setCreateProjectOpen(false)
+          setCreateSource(null)
+        }}
       />
     </div>
   )
@@ -363,11 +491,11 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
 function FilterChip({ children, onClear }: { children: React.ReactNode; onClear: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-[2px] rounded-full bg-card text-foreground border border-dashed border-border whitespace-nowrap shrink-0">
+    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-[3px] rounded-full bg-foreground text-background whitespace-nowrap shrink-0">
       {children}
       <button
         onClick={onClear}
-        className="ml-0.5 -mr-0.5 text-ink-400 hover:text-foreground transition-colors"
+        className="ml-0.5 -mr-0.5 opacity-60 hover:opacity-100 transition-opacity"
         title="필터 해제"
       >
         <X size={10} />
@@ -390,7 +518,7 @@ function BrandSelector({ clients, history, brandId, onBrandChange }: BrandSelect
   const sorted = [...clients].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
 
   return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-4 border-b border-border">
+    <div className="flex flex-wrap items-center gap-1.5 mb-2 pb-2">
       <button
         onClick={() => onBrandChange('all')}
         className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
