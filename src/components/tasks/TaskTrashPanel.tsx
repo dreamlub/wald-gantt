@@ -71,7 +71,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
         {/* 헤더 */}
         <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
           <Trash2 size={14} className="text-muted-foreground shrink-0" />
-          <span className="text-sm font-semibold text-foreground flex-1">휴지통</span>
+          <span className="text-xs font-semibold text-foreground flex-1">휴지통</span>
           {deleted.length > 0 && (
             <button
               onClick={handleEmptyTrash}

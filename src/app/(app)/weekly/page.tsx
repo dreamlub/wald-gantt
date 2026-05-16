@@ -152,13 +152,13 @@ export default function WeeklyPage() {
               <PanelLeftOpen size={15} />
             </button>
           )}
-          <span className="text-sm font-semibold text-foreground">Weekly</span>
+          <span className="text-xs font-semibold text-foreground">Weekly</span>
         </div>
 
         <div className="flex-1 flex flex-col items-center justify-center gap-3 bg-muted">
           <FileText size={40} strokeWidth={1.5} className="opacity-20 text-muted-foreground" />
           <div className="text-center">
-            <p className="text-sm font-medium text-muted-foreground">주간보고 준비 중</p>
+            <p className="text-xs font-medium text-muted-foreground">주간보고 준비 중</p>
             <p className="text-xs mt-1 text-muted-foreground">내용을 채워 넣을게요</p>
           </div>
         </div>

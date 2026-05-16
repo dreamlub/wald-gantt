@@ -1,3 +1,53 @@
+// ── 인사이트 ─────────────────────────────────────────────────
+export interface ActionItem {
+  id: string
+  severity: 'urgent' | 'watch' | 'info'
+  title: string
+  brand: string
+  related_count: number
+  summary: string
+  action: string
+}
+
+export interface UpcomingItem {
+  date: string
+  title: string
+  brand: string
+  priority: Priority
+}
+
+export interface PendingItem {
+  brand: string
+  count: number
+  items: string
+}
+
+export interface DecisionItem {
+  id: string
+  title: string
+  desc: string
+  brand: string
+}
+
+export interface InsightContent {
+  headline: string
+  action_items: ActionItem[]
+  upcoming: UpcomingItem[]
+  pending: PendingItem[]
+  decisions: DecisionItem[]
+}
+
+export interface Insight {
+  id: string
+  workspace_id: string
+  week_start: string
+  content: InsightContent
+  analyzed_at: string
+  source_count: number
+  created_at: string
+  updated_at: string
+}
+
 // 신규 태그 시스템 (단일 type → 다중 tags)
 export type Tag =
   | 'issue'        // 🔴 이슈
@@ -28,6 +78,7 @@ export interface HistoryItem {
   type: HistoryType            // deprecated
   tags: Tag[]                  // 신규
   channel: string
+  source_id: string | null
   source_ref: string | null
   title: string
   body: string | null

@@ -211,7 +211,7 @@ export async function addProject(
   workspaceId: string,
   categoryId: string,
   parentId: string | null,
-  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null; priority?: Priority | null }
+  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null; memo?: string | null; priority?: Priority | null }
 ): Promise<GanttProject> {
   const { data: existing } = await db()
     .from('gantt_projects')
@@ -391,9 +391,10 @@ export async function addTask(
   if (error) throw error
 
   if (projectIds.length > 0) {
-    await db()
+    const { error: linkError } = await db()
       .from('gantt_task_projects')
       .insert(projectIds.map(project_id => ({ task_id: task.id, project_id })))
+    if (linkError) throw linkError
   }
 
   return { ...task, projects: [] }
@@ -411,19 +412,24 @@ export async function updateTask(
   if (error) throw error
 
   if (projectIds !== undefined) {
-    await db().from('gantt_task_projects').delete().eq('task_id', id)
+    const { error: delError } = await db().from('gantt_task_projects').delete().eq('task_id', id)
+    if (delError) throw delError
     if (projectIds.length > 0) {
-      await db()
+      const { error: linkError } = await db()
         .from('gantt_task_projects')
         .insert(projectIds.map(project_id => ({ task_id: id, project_id })))
+      if (linkError) throw linkError
     }
   }
 }
 
 export async function softDeleteTask(id: string): Promise<void> {
+  const now = new Date().toISOString()
+  // 자식 태스크도 같이 soft delete
+  await db().from('gantt_tasks').update({ deleted_at: now }).eq('parent_id', id)
   const { error } = await db()
     .from('gantt_tasks')
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: now })
     .eq('id', id)
   if (error) throw error
 }
@@ -434,6 +440,8 @@ export async function restoreTask(id: string): Promise<void> {
     .update({ deleted_at: null })
     .eq('id', id)
   if (error) throw error
+  // 같이 삭제된 자식도 복구
+  await db().from('gantt_tasks').update({ deleted_at: null }).eq('parent_id', id)
 }
 
 export async function permanentDeleteTask(id: string): Promise<void> {
@@ -483,6 +491,35 @@ export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): P
   if (error) throw error
 }
 
+// ── Time Blocking ──────────────────────────────────────────
+
+export async function getScheduledTasks(workspaceId: string, dateStr: string): Promise<GanttTask[]> {
+  const dayStart = `${dateStr}T00:00:00.000Z`
+  const dayEnd   = `${dateStr}T23:59:59.999Z`
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
+    .gte('scheduled_at', dayStart)
+    .lte('scheduled_at', dayEnd)
+    .order('scheduled_at')
+  if (error) throw error
+  return (data ?? []).map(row => ({ ...row, projects: [] }))
+}
+
+export async function updateTaskSchedule(
+  id: string,
+  scheduled_at: string | null,
+  duration_minutes: number | null
+): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ scheduled_at, duration_minutes, updated_at: new Date().toISOString() })
+    .eq('id', id)
+  if (error) throw error
+}
+
 /** 전체 보드 통합 프로젝트 검색 */
 export async function searchProjects(workspaceId: string, query: string): Promise<{ id: string; name: string; board_name: string }[]> {
   const { data, error } = await db()
@@ -490,7 +527,7 @@ export async function searchProjects(workspaceId: string, query: string): Promis
     .select('id, name, gantt_boards(name)')
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
-    .ilike('name', `%${query}%`)
+    .ilike('name', `%${query.replace(/[%_\\]/g, '\\$&')}%`)
     .limit(20)
   if (error) throw error
   // eslint-disable-next-line @typescript-eslint/no-explicit-any

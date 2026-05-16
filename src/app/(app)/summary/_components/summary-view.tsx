@@ -54,14 +54,14 @@ export function SummaryView({ items, clients }: Props) {
   const channelMax = topChannels[0]?.count ?? 1
 
   if (total === 0) {
-    return <div className="text-center py-12 text-ink-400 text-sm">필터에 해당하는 항목이 없어요</div>
+    return <div className="text-center py-12 text-ink-400 text-xs">필터에 해당하는 항목이 없어요</div>
   }
 
   return (
     <div>
       {/* Hero */}
       <div className="bg-gradient-to-br from-lilac-100 to-rose-100 border border-lilac-200/60 rounded-xl px-6 py-5 mb-6">
-        <div className="text-sm leading-[1.85] text-foreground">
+        <div className="text-xs leading-[1.85] text-foreground">
           현재 필터 기준 <b className="text-lilac-600 font-semibold">총 {total}건</b> 수집됐어요.
           {tagCounts.issue > 0 && <> 그 중 <b className="text-lilac-600 font-semibold">이슈 {tagCounts.issue}건</b></>}
           {tagCounts.decision > 0 && <>, <b className="text-lilac-600 font-semibold">의사결정 {tagCounts.decision}건</b></>}
@@ -130,13 +130,13 @@ export function SummaryView({ items, clients }: Props) {
             {brandStats.map(b => (
               <div key={b.client.id} className="bg-card border border-border rounded-lg px-4 py-3.5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-[13.5px] font-semibold">
+                  <div className="flex items-center gap-2 text-xs font-semibold">
                     <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.client.color }} />
                     {b.client.name}
                   </div>
-                  <div className="flex gap-3.5 text-[11.5px] text-ink-700">
-                    {b.issue > 0 && <span className="inline-flex items-center gap-1" style={{ color: '#dc2626' }}>● 이슈 {b.issue}</span>}
-                    {b.decision > 0 && <span className="inline-flex items-center gap-1" style={{ color: '#d97706' }}>● 의사결정 {b.decision}</span>}
+                  <div className="flex gap-3.5 text-[11px] text-ink-700">
+                    {b.issue > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-late)' }}>● 이슈 {b.issue}</span>}
+                    {b.decision > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-warn)' }}>● 의사결정 {b.decision}</span>}
                     <span className="text-ink-400">총 {b.total}건</span>
                   </div>
                 </div>
@@ -154,7 +154,7 @@ export function SummaryView({ items, clients }: Props) {
               <div className="px-4 py-6 text-center text-ink-400 text-xs">작성자 정보 없음</div>
             ) : (
               topAuthors.map((a, i) => (
-                <div key={a.name} className={`flex items-center px-3.5 py-2 text-[12.5px] ${i < topAuthors.length - 1 ? 'border-b border-border' : ''}`}>
+                <div key={a.name} className={`flex items-center px-3.5 py-2 text-xs ${i < topAuthors.length - 1 ? 'border-b border-border' : ''}`}>
                   <div className="flex items-center gap-2 w-[110px] text-ink-700">
                     <Avatar name={a.name} size={18} />
                     {a.name}
@@ -175,8 +175,8 @@ export function SummaryView({ items, clients }: Props) {
               <div className="px-4 py-6 text-center text-ink-400 text-xs">채널 정보 없음</div>
             ) : (
               topChannels.map((c, i) => (
-                <div key={c.name} className={`flex items-center px-3.5 py-2 text-[12.5px] ${i < topChannels.length - 1 ? 'border-b border-border' : ''}`}>
-                  <span className="font-mono text-[11.5px] text-ink-700 truncate min-w-[110px]">{c.name}</span>
+                <div key={c.name} className={`flex items-center px-3.5 py-2 text-xs ${i < topChannels.length - 1 ? 'border-b border-border' : ''}`}>
+                  <span className="text-[11px] text-ink-700 truncate min-w-[110px]">{c.name}</span>
                   <div className="flex-1 h-[5px] bg-muted rounded-[3px] mx-3 overflow-hidden">
                     <div className="h-full bg-lilac-500 rounded-[3px]" style={{ width: `${(c.count / channelMax) * 100}%` }} />
                   </div>

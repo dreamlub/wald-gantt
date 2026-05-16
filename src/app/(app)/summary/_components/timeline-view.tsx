@@ -21,7 +21,7 @@ export function TimelineView({ items, clients }: Props) {
   const months = Object.entries(grouped)
 
   if (months.length === 0) {
-    return <div className="text-center py-12 text-ink-400 text-sm">필터에 해당하는 항목이 없어요</div>
+    return <div className="text-center py-12 text-ink-400 text-xs">필터에 해당하는 항목이 없어요</div>
   }
 
   return (
@@ -29,7 +29,7 @@ export function TimelineView({ items, clients }: Props) {
       <div className="absolute left-[5px] top-0 bottom-0 w-px bg-border" />
       {months.map(([month, list]) => (
         <div key={month} className="mb-[22px]">
-          <div className="flex items-center gap-2 mb-2 font-mono text-[10px] uppercase tracking-[0.06em] text-ink-400 font-semibold">
+          <div className="flex items-center gap-2 mb-2 text-[10px] uppercase tracking-[0.06em] text-ink-400 font-semibold">
             <span>{month}</span>
             <div className="flex-1 h-px bg-border" />
             <span>{list.length}건</span>
@@ -56,9 +56,9 @@ export function TimelineView({ items, clients }: Props) {
                       {fmtMonthDay(item.occurred_at)}{item.author ? ` · ${item.author}` : ''}
                     </span>
                   </div>
-                  <div className="text-[13.5px] font-medium text-foreground leading-[1.4]">{item.title}</div>
+                  <div className="text-xs font-medium text-foreground leading-[1.4]">{item.title}</div>
                   {item.body && (
-                    <div className="text-[11.5px] text-ink-700 leading-[1.6] mt-1">{item.body}</div>
+                    <div className="text-[11px] text-ink-700 leading-[1.6] mt-1">{item.body}</div>
                   )}
                 </div>
               </div>

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useRef } from 'react'
 import { CornerDownRight, StickyNote } from 'lucide-react'
 import {
   buildWeekRange, dayOffsetInWeeks, formatYearMonth, todayStrKST,
@@ -13,6 +13,7 @@ import { isOverdue, isStartDelayed, clampTooltipPos } from '../_utils'
 interface Props {
   tasks: GanttTask[]
   onEdit: (t: GanttTask) => void
+  onDateChange?: (id: string, start_date: string | null, due_date: string | null) => void
 }
 
 const WEEK_W   = 36   // px per week column
@@ -23,6 +24,13 @@ const YEAR_H   = 26
 const MONTH_H  = 24
 const WEEK_H   = 22
 const ROW_H    = 36
+
+function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + days)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
 
 /** "YYYY-MM-DD" → "YYYY-MM" */
 function toYM(dateStr: string) { return dateStr.slice(0, 7) }
@@ -105,9 +113,11 @@ function gantSortCompare(a: GanttTask, b: GanttTask): number {
   return (a.sort_order ?? 0) - (b.sort_order ?? 0)
 }
 
-export function GanttView({ tasks, onEdit }: Props) {
+export function GanttView({ tasks, onEdit, onDateChange }: Props) {
   const [leftWidth, setLeftWidth] = useState(LEFT_W_DEFAULT)
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
+  const [localDates, setLocalDates] = useState<Map<string, { start_date: string | null; due_date: string | null }>>(new Map())
+  const draggedRef = useRef(false)
   const LEFT_W = leftWidth
 
   function onResizeStart(e: React.MouseEvent) {
@@ -126,6 +136,57 @@ export function GanttView({ tasks, onEdit }: Props) {
     }
     document.body.style.cursor = 'col-resize'
     document.body.style.userSelect = 'none'
+    document.addEventListener('mousemove', onMove)
+    document.addEventListener('mouseup', onUp)
+  }
+
+  function onBarMouseDown(
+    task: GanttTask,
+    mode: 'move' | 'resize-start' | 'resize-end',
+    e: React.MouseEvent,
+  ) {
+    if (!onDateChange) return
+    e.preventDefault()
+    e.stopPropagation()
+    draggedRef.current = false
+    const startX = e.clientX
+    const origStart = task.start_date
+    const origEnd   = task.due_date
+    let current = { start_date: origStart, due_date: origEnd }
+
+    function onMove(ev: MouseEvent) {
+      const dx = ev.clientX - startX
+      if (Math.abs(dx) > 3) draggedRef.current = true
+      const days = Math.round(dx * 7 / WEEK_W)
+      let ns = origStart
+      let ne = origEnd
+      if (mode === 'move') {
+        if (ns) ns = addDays(ns, days)
+        if (ne) ne = addDays(ne, days)
+      } else if (mode === 'resize-start' && ns) {
+        ns = addDays(ns, days)
+        if (ne && ns > ne) ns = ne
+      } else if (mode === 'resize-end' && ne) {
+        ne = addDays(ne, days)
+        if (ns && ne < ns) ne = ns
+      }
+      current = { start_date: ns, due_date: ne }
+      setLocalDates(prev => new Map(prev).set(task.id, current))
+    }
+
+    function onUp() {
+      document.removeEventListener('mousemove', onMove)
+      document.removeEventListener('mouseup', onUp)
+      document.body.style.cursor = ''
+      document.body.style.userSelect = ''
+      if (draggedRef.current && onDateChange) {
+        onDateChange(task.id, current.start_date, current.due_date)
+      }
+      setLocalDates(prev => { const n = new Map(prev); n.delete(task.id); return n })
+    }
+
+    document.body.style.userSelect = 'none'
+    document.body.style.cursor = mode === 'move' ? 'grabbing' : 'ew-resize'
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)
   }
@@ -241,13 +302,6 @@ export function GanttView({ tasks, onEdit }: Props) {
           const barBg     = `color-mix(in srgb, ${borderC} 73%, transparent)`
           const barBorder = borderC
 
-          const sx = task.start_date ? dayOffsetInWeeks(weeks, task.start_date, 'start') * WEEK_W : null
-          const ex = task.due_date   ? dayOffsetInWeeks(weeks, task.due_date,   'end')   * WEEK_W : null
-
-          const barLeft  = sx ?? ex ?? 0
-          const barRight = ex ?? sx ?? WEEK_W
-          const barWidth = Math.max(barRight - barLeft, WEEK_W * 0.4)
-
           return (
             <div
               key={task.id}
@@ -305,6 +359,14 @@ export function GanttView({ tasks, onEdit }: Props) {
 
                 {/* 바 */}
                 {(() => {
+                  const effStart = localDates.get(task.id)?.start_date ?? task.start_date
+                  const effEnd   = localDates.get(task.id)?.due_date   ?? task.due_date
+                  const esx = effStart ? dayOffsetInWeeks(weeks, effStart, 'start') * WEEK_W : null
+                  const eex = effEnd   ? dayOffsetInWeeks(weeks, effEnd,   'end')   * WEEK_W : null
+                  const eBarLeft  = esx ?? eex ?? 0
+                  const eBarRight = eex ?? esx ?? WEEK_W
+                  const eBarWidth = Math.max(eBarRight - eBarLeft, WEEK_W * 0.4)
+
                   const fmt = (d: string) => {
                     const [, m, day] = d.split('-').map(Number)
                     return `${m}/${day}`
@@ -315,49 +377,67 @@ export function GanttView({ tasks, onEdit }: Props) {
                     if (sm === em) return `${sm}/${sd} ~ ${ed}`
                     return `${sm}/${sd} ~ ${em}/${ed}`
                   }
-                  const label = task.start_date && task.due_date && task.start_date !== task.due_date
-                    ? fmtRange(task.start_date, task.due_date)
-                    : task.start_date
-                      ? fmt(task.start_date)
-                      : task.due_date
-                        ? fmt(task.due_date)
-                        : ''
-                  const showFull  = barWidth >= 100
-                  const showShort = barWidth >= 52
+                  const label = effStart && effEnd && effStart !== effEnd
+                    ? fmtRange(effStart, effEnd)
+                    : effStart ? fmt(effStart) : effEnd ? fmt(effEnd) : ''
+                  const showFull  = eBarWidth >= 100
+                  const showShort = eBarWidth >= 52
                   const displayLabel = showFull
                     ? label
-                    : showShort
-                      ? (task.start_date ? fmt(task.start_date) : task.due_date ? fmt(task.due_date) : '')
-                      : ''
+                    : showShort ? (effStart ? fmt(effStart) : effEnd ? fmt(effEnd) : '') : ''
+
+                  const titleTip = `${task.title}${overdue ? '\n⚠ 마감 초과' : ''}${effStart ? `\n시작: ${effStart}` : ''}${effEnd ? `\n마감: ${effEnd}` : ''}`
+                  const HANDLE_W = 7
+
                   return (
                     <>
                       <div
-                        className="absolute top-2 rounded cursor-pointer hover:opacity-80 transition-opacity flex items-center overflow-hidden"
-                        style={{
-                          left: barLeft,
-                          width: barWidth,
-                          height: ROW_H - 16,
-                          backgroundColor: barBg,
-                          border: `1.5px solid ${barBorder}`,
-                          paddingLeft: 5,
-                          paddingRight: 4,
-                        }}
-                        onClick={() => onEdit(task)}
-                        title={`${task.title}${overdue ? '\n⚠ 마감 초과' : ''}${task.start_date ? `\n시작: ${task.start_date}` : ''}${task.due_date ? `\n마감: ${task.due_date}` : ''}`}
+                        className="absolute top-2 select-none"
+                        style={{ left: eBarLeft, width: eBarWidth, height: ROW_H - 16 }}
                       >
-                        {displayLabel && (
-                          <span
-                            className="text-[10px] font-medium truncate leading-none whitespace-nowrap"
-                            style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
-                          >
-                            {displayLabel}
-                          </span>
+                        {/* 바 배경 */}
+                        <div
+                          className="absolute inset-0 rounded pointer-events-none"
+                          style={{ backgroundColor: barBg, border: `1.5px solid ${barBorder}` }}
+                        />
+                        {/* 왼쪽 리사이즈 핸들 (start_date 있을 때만) */}
+                        {effStart && onDateChange && (
+                          <div
+                            className="absolute left-0 top-0 bottom-0 z-10 cursor-ew-resize rounded-l hover:bg-white/20"
+                            style={{ width: HANDLE_W }}
+                            onMouseDown={e => onBarMouseDown(task, 'resize-start', e)}
+                          />
                         )}
+                        {/* 오른쪽 리사이즈 핸들 (due_date 있을 때만) */}
+                        {effEnd && onDateChange && (
+                          <div
+                            className="absolute right-0 top-0 bottom-0 z-10 cursor-ew-resize rounded-r hover:bg-white/20"
+                            style={{ width: HANDLE_W }}
+                            onMouseDown={e => onBarMouseDown(task, 'resize-end', e)}
+                          />
+                        )}
+                        {/* 중앙 — 이동 드래그 + 클릭 편집 */}
+                        <div
+                          className={`absolute inset-0 flex items-center overflow-hidden z-0 ${onDateChange ? 'cursor-grab hover:opacity-90' : 'cursor-pointer hover:opacity-80'} transition-opacity`}
+                          style={{ paddingLeft: effStart && onDateChange ? HANDLE_W + 2 : 5, paddingRight: effEnd && onDateChange ? HANDLE_W + 2 : 4 }}
+                          onMouseDown={onDateChange ? e => onBarMouseDown(task, 'move', e) : undefined}
+                          onClick={() => { if (!draggedRef.current) onEdit(task) }}
+                          title={titleTip}
+                        >
+                          {displayLabel && (
+                            <span
+                              className="text-[10px] font-medium truncate leading-none whitespace-nowrap"
+                              style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
+                            >
+                              {displayLabel}
+                            </span>
+                          )}
+                        </div>
                       </div>
                       {!showShort && label && (
                         <div
                           className="absolute top-2 flex items-center pointer-events-none"
-                          style={{ left: barLeft + barWidth + 4, height: ROW_H - 16 }}
+                          style={{ left: eBarLeft + eBarWidth + 4, height: ROW_H - 16 }}
                         >
                           <span className={`text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
                             {label}

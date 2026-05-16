@@ -156,7 +156,7 @@ export function BoardSidebar({
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Schedule</span>
+        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Projects</span>
         <button
           onClick={onToggle}
           className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"

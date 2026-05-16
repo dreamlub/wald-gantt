@@ -228,6 +228,23 @@ export default function TasksPage() {
     } catch (e) { toast.error(errMsg(e)) }
   }
 
+  async function handleKanbanReorder(updates: { id: string; sort_order: number }[]) {
+    setTasks(prev => prev.map(t => {
+      const upd = updates.find(u => u.id === t.id)
+      return upd ? { ...t, sort_order: upd.sort_order } : t
+    }))
+    try {
+      await Promise.all(updates.map(u => updateTask(u.id, { sort_order: u.sort_order })))
+    } catch (e) { toast.error(errMsg(e)); await load() }
+  }
+
+  async function handleTaskDateChange(id: string, start_date: string | null, due_date: string | null) {
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, start_date, due_date } : t))
+    try {
+      await updateTask(id, { start_date, due_date })
+    } catch (e) { toast.error(errMsg(e)); await load() }
+  }
+
   async function handleDuplicate(task: GanttTask) {
     if (!workspace) return
     try {
@@ -767,10 +784,11 @@ export default function TasksPage() {
             getAssigneeKey={getAssigneeKey}
             onEdit={editHandler}
             onStatusChange={handleStatusChange}
+            onKanbanReorder={handleKanbanReorder}
             onQuickCreate={listQuickCreate}
           />
         ) : view === 'gantt' ? (
-          <GanttView tasks={filtered} onEdit={editHandler} />
+          <GanttView tasks={filtered} onEdit={editHandler} onDateChange={handleTaskDateChange} />
         ) : (
           /* 일반 뷰 */
           <div className="flex-1 flex flex-col overflow-hidden">
@@ -947,7 +965,7 @@ export default function TasksPage() {
                             )
                           })}
                           {quickAddStatus === status ? (
-                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-ink-150 bg-accent/30">
+                            <div className="flex items-center gap-1.5 pl-10 pr-4 py-2 border-b border-ink-150 bg-accent/30">
                               <Plus size={11} className="text-lilac-400 shrink-0" />
                               <input
                                 autoFocus
@@ -966,7 +984,7 @@ export default function TasksPage() {
                           ) : (
                             <button
                               onClick={() => { setQuickAddStatus(status); setQuickAddTitle('') }}
-                              className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
+                              className="flex items-center gap-1.5 pl-10 pr-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
                             >
                               <Plus size={11} /> 태스크 추가
                             </button>

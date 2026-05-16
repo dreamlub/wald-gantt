@@ -60,7 +60,7 @@ export function BrandBadge({ client }: { client: Client }) {
   return (
     <span
       className="inline-flex items-center gap-1.5 text-[11px] px-2 py-[3px] rounded font-medium whitespace-nowrap"
-      style={{ background: `${client.color}1a`, color: client.color }}
+      style={{ background: `color-mix(in srgb, ${client.color} 10%, transparent)`, color: client.color }}
     >
       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: client.color }} />
       {client.name}
@@ -69,7 +69,7 @@ export function BrandBadge({ client }: { client: Client }) {
 }
 
 export function ChannelBadge({ channel, href }: { channel: string; href?: string | null }) {
-  const className = 'inline-flex items-center gap-1 text-[10.5px] font-mono px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
+  const className = 'inline-flex items-center gap-1 text-[10px] px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" className={className}>
@@ -103,6 +103,6 @@ export function Avatar({ name, color, size = 22 }: { name: string; color?: strin
 }
 
 export function AuthorCell({ name }: { name: string | null }) {
-  if (!name) return <span className="text-[11.5px] text-ink-400">—</span>
+  if (!name) return <span className="text-[11px] text-ink-400">—</span>
   return <span className="text-xs text-ink-700 whitespace-nowrap">{name}</span>
 }

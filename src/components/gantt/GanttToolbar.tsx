@@ -121,9 +121,27 @@ export function GanttToolbar({
     <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
       {/* 왼쪽: 타이틀 + 보드명 + undo */}
       <div className="flex items-center gap-2">
-        <h1 className="text-base font-semibold text-foreground">Schedule</h1>
-        {boardName && (
-          <span className="text-[11px] text-muted-foreground">{boardName}</span>
+        {!readOnly && onUndo && (
+          <button
+            onClick={onUndo}
+            disabled={undoCount === 0}
+            title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <Undo2 size={13} />
+            {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
+          </button>
+        )}
+        {!readOnly && onRedo && (
+          <button
+            onClick={onRedo}
+            disabled={redoCount === 0}
+            title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
+            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+          >
+            <Redo2 size={13} />
+            {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
+          </button>
         )}
         {overdueCount > 0 && onToggleOverdueFilter && (
           <button
@@ -151,28 +169,6 @@ export function GanttToolbar({
           >
             <span className="w-1.5 h-1.5 rounded-full bg-current" />
             시작 지연 {startDelayedCount}건
-          </button>
-        )}
-        {!readOnly && onUndo && (
-          <button
-            onClick={onUndo}
-            disabled={undoCount === 0}
-            title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <Undo2 size={13} />
-            {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
-          </button>
-        )}
-        {!readOnly && onRedo && (
-          <button
-            onClick={onRedo}
-            disabled={redoCount === 0}
-            title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <Redo2 size={13} />
-            {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
           </button>
         )}
       </div>

@@ -73,14 +73,39 @@
   --color-cat-red-light:     #fecaca;
   --color-cat-pink-light:    #fbcfe8;
   --color-cat-purple-light:  #ddd6fe;
+
+  /* Summary 태그 팔레트 */
+  --color-tag-issue-text:          #dc2626;
+  --color-tag-issue-dot:           #ef4444;
+  --color-tag-issue-bg:            #fee2e2;
+  --color-tag-decision-text:       #d97706;
+  --color-tag-decision-dot:        #f59e0b;
+  --color-tag-decision-bg:         #fef3c7;
+  --color-tag-mention-text:        #2563eb;
+  --color-tag-mention-dot:         #3b82f6;
+  --color-tag-mention-bg:          #dbeafe;
+  --color-tag-in-progress-text:    #059669;
+  --color-tag-in-progress-dot:     #10b981;
+  --color-tag-in-progress-bg:      #d1fae5;
+  --color-tag-done-text:           #4338ca;
+  --color-tag-done-dot:            #6366f1;
+  --color-tag-done-bg:             #e0e7ff;
+  --color-tag-schedule-text:       #db2777;
+  --color-tag-schedule-dot:        #ec4899;
+  --color-tag-schedule-bg:         #fce7f3;
+
+  /* Summary 우선순위 배경 */
+  --color-priority-high-bg:        #fee2e2;
+  --color-priority-medium-bg:      #fef3c7;
+  --color-priority-low-bg:         #dbeafe;
 }
 
 @theme inline {
   --color-background: var(--background);
   --color-foreground: var(--foreground);
-  --font-sans: var(--font-sans);
-  --font-mono: var(--font-geist-mono);
-  --font-heading: var(--font-sans);
+  --font-sans: var(--font-noto-sans-kr), 'Noto Sans KR', sans-serif;
+  --font-mono: ui-monospace, monospace;
+  --font-heading: var(--font-noto-sans-kr), 'Noto Sans KR', sans-serif;
   --color-sidebar-ring: var(--sidebar-ring);
   --color-sidebar-border: var(--sidebar-border);
   --color-sidebar-accent-foreground: var(--sidebar-accent-foreground);
@@ -261,5 +286,5 @@
 [data-sonner-toaster],
 [data-sonner-toast],
 [data-sonner-toast] * {
-  font-family: var(--font-geist-sans), system-ui, sans-serif !important;
+  font-family: var(--font-noto-sans-kr), 'Noto Sans KR', system-ui, sans-serif !important;
 }

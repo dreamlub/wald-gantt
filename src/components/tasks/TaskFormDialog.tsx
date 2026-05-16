@@ -29,6 +29,8 @@ interface Props {
   defaultProjects?: ProjectOption[]
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
   assigneeSuggestions?: string[]
+  initialTitle?: string
+  initialMemo?: string
 }
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
@@ -71,7 +73,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 }
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [] }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo }: Props) {
   const [title,     setTitle]     = useState('')
   const [status,    setStatus]    = useState<TaskStatus>('to-do')
   const [priority,  setPriority]  = useState<Priority>(2)
@@ -114,8 +116,10 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
       setMemo(editTask.memo ?? '')
       setLinkedProjects(editTask.projects ?? [])
     } else {
-      setTitle(''); setStatus(defaultStatus); setPriority(2)
-      setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo('')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
       setLinkedProjects(defaultProjects ?? [])
     }
     setProjSearch(''); setProjResults([]); setShowProjDrop(false)
@@ -186,7 +190,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
       >
         {/* Header */}
         <div className="flex items-center px-5 py-4 border-b shrink-0">
-          <h2 className="text-sm font-semibold text-foreground flex-1">
+          <h2 className="text-xs font-semibold text-foreground flex-1">
             {editTask ? '태스크 수정' : '새 태스크'}
           </h2>
           <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -199,7 +203,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
           {/* 제목 */}
           <input
             ref={titleRef}
-            className="w-full text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
+            className="w-full text-xs font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
             placeholder="태스크 제목"
             value={title}
             onChange={e => setTitle(e.target.value)}

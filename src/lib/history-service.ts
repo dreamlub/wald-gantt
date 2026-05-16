@@ -50,6 +50,7 @@ function toHistory(r: DbHistory): HistoryItem {
     type: r.type,
     tags: r.tags ?? [],
     channel: r.channel,
+    source_id: r.source_id,
     source_ref: r.source_ref,
     title: r.title,
     body: r.body,

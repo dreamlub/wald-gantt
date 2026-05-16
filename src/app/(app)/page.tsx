@@ -195,6 +195,7 @@ export default function GanttPage() {
           end_date: fields.end_date,
           team: fields.team,
           pm: fields.pm,
+          memo: fields.memo,
           priority: fields.priority,
         })
         setProjects(prev => [...prev, created])
@@ -281,7 +282,7 @@ export default function GanttPage() {
   if (loading && boards.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center bg-muted">
-        <div className="text-muted-foreground text-sm">로딩 중...</div>
+        <div className="text-muted-foreground text-xs">로딩 중...</div>
       </div>
     )
   }
@@ -314,6 +315,9 @@ export default function GanttPage() {
               <PanelLeftOpen size={15} />
             </button>
           )}
+          {selectedBoard?.name && (
+            <h1 className="text-base font-semibold text-foreground">{selectedBoard.name}</h1>
+          )}
           <div className="flex-1" />
           <button
             onClick={() => setDialog({ type: 'share' })}
@@ -328,7 +332,7 @@ export default function GanttPage() {
         <main className="flex-1 overflow-hidden bg-background">
           {loading ? (
             <div className="h-full flex items-center justify-center">
-              <div className="text-muted-foreground text-sm">로딩 중...</div>
+              <div className="text-muted-foreground text-xs">로딩 중...</div>
             </div>
           ) : selectedBoardId ? (
             <GanttChart
@@ -356,7 +360,7 @@ export default function GanttPage() {
               onMoveCategory={handleMoveCategory}
             />
           ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground text-sm">
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
               사이드바에서 보드를 선택하거나 새로 만들어 보세요
             </div>
           )}

@@ -732,7 +732,7 @@ export function GanttChart({
               {/* 연도 행 */}
               <div className="flex border-b" style={{ height: YEAR_H }}>
                 {yearGroups.map(({ year, count }) => (
-                  <div key={year} className="text-sm font-bold text-foreground px-3 flex items-center border-r bg-muted" style={{ width: colW * count }}>
+                  <div key={year} className="text-xs font-bold text-foreground px-3 flex items-center border-r bg-muted" style={{ width: colW * count }}>
                     {year}
                   </div>
                 ))}
@@ -880,7 +880,7 @@ export function GanttChart({
               <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
               <input
                 autoFocus
-                className="mt-1.5 w-full text-sm border border-border rounded px-3 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300"
+                className="mt-1.5 w-full text-xs border border-border rounded px-3 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300"
                 placeholder="카테고리명"
                 value={newCatName}
                 onChange={e => setNewCatName(e.target.value)}

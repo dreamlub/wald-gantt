@@ -279,7 +279,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
         {/* 헤더 + 탭 */}
         <div className="shrink-0 border-b">
           <div className="flex items-center px-5 pt-4 pb-2">
-            <h2 className="text-sm font-semibold text-foreground flex-1">태스크 수정</h2>
+            <h2 className="text-xs font-semibold text-foreground flex-1">태스크 수정</h2>
             <div className="flex items-center gap-1">
               {onDuplicate && task && (
                 <button
@@ -349,7 +349,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
             </button>
             <input
               ref={titleRef}
-              className="flex-1 text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
+              className="flex-1 text-xs font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
               placeholder="태스크 제목"
               value={title}
               onChange={e => setTitle(e.target.value)}

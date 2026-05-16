@@ -1,12 +1,15 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { Plus, Paperclip, StickyNote } from 'lucide-react'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCenter, useDroppable, useDraggable,
-  type DragStartEvent, type DragEndEvent,
+  closestCenter, useDroppable,
+  type DragStartEvent, type DragEndEvent, type DragOverEvent,
 } from '@dnd-kit/core'
+import {
+  SortableContext, useSortable, verticalListSortingStrategy, arrayMove,
+} from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS } from '../_constants'
@@ -19,7 +22,22 @@ interface Props {
   getAssigneeKey: (t: GanttTask) => string
   onEdit: (t: GanttTask) => void
   onStatusChange: (id: string, s: TaskStatus) => void
+  onKanbanReorder?: (updates: { id: string; sort_order: number }[]) => void
   onQuickCreate?: (title: string, status: TaskStatus) => Promise<void>
+}
+
+function computeColumnOrder(tasks: GanttTask[]): Map<TaskStatus, string[]> {
+  const map = new Map<TaskStatus, string[]>()
+  for (const { status } of STATUS_GROUPS) {
+    map.set(
+      status,
+      tasks
+        .filter(t => t.status === status && !t.parent_id)
+        .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        .map(t => t.id)
+    )
+  }
+  return map
 }
 
 // ── 카드 ──────────────────────────────────────────────────────
@@ -48,7 +66,6 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         ${isDragging ? 'opacity-0' : ''}`}
       onClick={() => onEdit(task)}
     >
-      {/* 제목 — 우선순위 강조 */}
       <div className={`text-xs leading-snug mb-2 break-words ${
         isDone ? 'line-through font-medium text-ink-400' :
         task.priority === 3 ? 'font-semibold text-rose-500' :
@@ -59,7 +76,6 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         {task.title}
       </div>
 
-      {/* 지연 / 시작 지연 / 무응답 / 라벨 / 프로젝트 */}
       {(overdue || startDelayed || noUpdate || labels.length > 0 || (task.projects && task.projects.length > 0)) && (
         <div className="flex flex-wrap items-center gap-1 mb-2.5">
           {overdue && (
@@ -101,7 +117,6 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         </div>
       )}
 
-      {/* 하단: 담당자 아바타 + 메모 + 하위 + 마감일 */}
       <div className="flex items-center gap-1.5">
         {assigneeName ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
@@ -141,30 +156,29 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
   )
 }
 
-// ── 드래그 가능한 카드 ────────────────────────────────────────
-function DraggableCard({ task, isDraggingId, ...props }: {
+// ── 정렬 가능한 카드 ──────────────────────────────────────────
+function DraggableCard({ task, ...props }: {
   task: GanttTask
-  isDraggingId?: string
   assigneeColor?: string
   subTaskStats?: { total: number; done: number }
   onEdit: (t: GanttTask) => void
   onMemoHover?: (e: React.MouseEvent) => void
   onMemoLeave?: () => void
 }) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id })
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: task.id })
+  const style = { transform: CSS.Transform.toString(transform), transition }
 
   return (
     <div ref={setNodeRef} style={style} {...attributes} {...listeners}>
-      <KanbanCard task={task} isDragging={isDraggingId === task.id} {...props} />
+      <KanbanCard task={task} isDragging={isDragging} {...props} />
     </div>
   )
 }
 
-// ── 드롭 가능한 컬럼 ─────────────────────────────────────────
+// ── 컬럼 ─────────────────────────────────────────────────────
 function KanbanColumn({
-  status, label, color, bgColor, tasks, allTasks, assigneeColorMap, getAssigneeKey, isDraggingId,
-  onEdit, onMemoHover, onMemoLeave,
+  status, label, color, bgColor, tasks, allTasks, assigneeColorMap, getAssigneeKey,
+  orderedIds, onEdit, onMemoHover, onMemoLeave,
   quickAddOpen, quickAddTitle, onQuickAddStart, onQuickAddChange, onQuickAddCommit, onQuickAddCancel,
 }: {
   status: TaskStatus
@@ -175,7 +189,7 @@ function KanbanColumn({
   allTasks: GanttTask[]
   assigneeColorMap: Map<string, string>
   getAssigneeKey: (t: GanttTask) => string
-  isDraggingId?: string
+  orderedIds: string[]
   onEdit: (t: GanttTask) => void
   onMemoHover: (task: GanttTask, e: React.MouseEvent) => void
   onMemoLeave: () => void
@@ -190,7 +204,6 @@ function KanbanColumn({
 
   return (
     <div className="flex flex-col shrink-0 w-64">
-      {/* 컬럼 헤더 */}
       <div className="flex items-center gap-2 px-3 py-2.5 sticky top-0 bg-muted z-10">
         <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
         <span className="text-xs font-semibold text-ink-700">{label}</span>
@@ -202,82 +215,141 @@ function KanbanColumn({
         </span>
       </div>
 
-      {/* 카드 목록 */}
-      <div
-        ref={setNodeRef}
-        className={`flex-1 flex flex-col gap-2 px-2 py-2 rounded-lg min-h-[120px] transition-colors
-          ${isOver ? 'bg-accent/60 ring-1 ring-lilac-200 ring-inset' : ''}`}
-      >
-        {tasks.map(task => {
-          const subs = allTasks.filter(t => t.parent_id === task.id)
-          const subTaskStats = subs.length > 0
-            ? { total: subs.length, done: subs.filter(t => t.status === 'done').length }
-            : undefined
-          return (
-            <DraggableCard
-              key={task.id}
-              task={task}
-              isDraggingId={isDraggingId}
-              assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
-              subTaskStats={subTaskStats}
-              onEdit={onEdit}
-              onMemoHover={task.memo ? e => onMemoHover(task, e) : undefined}
-              onMemoLeave={task.memo ? onMemoLeave : undefined}
-            />
-          )
-        })}
+      <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
+        <div
+          ref={setNodeRef}
+          className={`flex-1 flex flex-col gap-2 px-2 py-2 rounded-lg min-h-[120px] transition-colors
+            ${isOver ? 'bg-accent/60 ring-1 ring-lilac-200 ring-inset' : ''}`}
+        >
+          {tasks.map(task => {
+            const subs = allTasks.filter(t => t.parent_id === task.id)
+            const subTaskStats = subs.length > 0
+              ? { total: subs.length, done: subs.filter(t => t.status === 'done').length }
+              : undefined
+            return (
+              <DraggableCard
+                key={task.id}
+                task={task}
+                assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
+                subTaskStats={subTaskStats}
+                onEdit={onEdit}
+                onMemoHover={task.memo ? e => onMemoHover(task, e) : undefined}
+                onMemoLeave={task.memo ? onMemoLeave : undefined}
+              />
+            )
+          })}
 
-        {/* 인라인 퀵 추가 */}
-        {quickAddOpen ? (
-          <div className="bg-card rounded-lg border border-lilac-200 shadow-sm px-3 py-2.5">
-            <input
-              autoFocus
-              value={quickAddTitle}
-              onChange={e => onQuickAddChange(e.target.value)}
-              onKeyDown={e => {
-                if (e.key === 'Enter') { e.preventDefault(); onQuickAddCommit(status) }
-                if (e.key === 'Escape') onQuickAddCancel()
-              }}
-              onBlur={() => { if (!quickAddTitle.trim()) onQuickAddCancel() }}
-              placeholder="제목 후 Enter, Esc 취소"
-              className="w-full text-xs outline-none placeholder:text-ink-300 text-foreground"
-            />
-          </div>
-        ) : (
-          <button
-            onClick={() => onQuickAddStart(status)}
-            className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-ink-400 hover:text-foreground hover:bg-card rounded-md border border-dashed border-border hover:border-ink-400 transition-colors mt-0.5"
-          >
-            <Plus size={11} /> 태스크 추가
-          </button>
-        )}
-      </div>
+          {quickAddOpen ? (
+            <div className="bg-card rounded-lg border border-lilac-200 shadow-sm px-3 py-2.5">
+              <input
+                autoFocus
+                value={quickAddTitle}
+                onChange={e => onQuickAddChange(e.target.value)}
+                onKeyDown={e => {
+                  if (e.key === 'Enter') { e.preventDefault(); onQuickAddCommit(status) }
+                  if (e.key === 'Escape') onQuickAddCancel()
+                }}
+                onBlur={() => { if (!quickAddTitle.trim()) onQuickAddCancel() }}
+                placeholder="제목 후 Enter, Esc 취소"
+                className="w-full text-xs outline-none placeholder:text-ink-300 text-foreground"
+              />
+            </div>
+          ) : (
+            <button
+              onClick={() => onQuickAddStart(status)}
+              className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-ink-400 hover:text-foreground hover:bg-card rounded-md border border-dashed border-border hover:border-ink-400 transition-colors mt-0.5"
+            >
+              <Plus size={11} /> 태스크 추가
+            </button>
+          )}
+        </div>
+      </SortableContext>
     </div>
   )
 }
 
 // ── KanbanView ────────────────────────────────────────────────
-export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, onQuickCreate }: Props) {
-  const [draggingTask,    setDraggingTask]    = useState<GanttTask | null>(null)
-  const [quickAddStatus,  setQuickAddStatus]  = useState<TaskStatus | null>(null)
-  const [quickAddTitle,   setQuickAddTitle]   = useState('')
+export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, onKanbanReorder, onQuickCreate }: Props) {
+  const [draggingTask,   setDraggingTask]   = useState<GanttTask | null>(null)
+  const [quickAddStatus, setQuickAddStatus] = useState<TaskStatus | null>(null)
+  const [quickAddTitle,  setQuickAddTitle]  = useState('')
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
 
+  const [columnOrder, setColumnOrder] = useState<Map<TaskStatus, string[]>>(() => computeColumnOrder(tasks))
+  // ref always mirrors latest state — safe to read in event handlers without stale closure risk
+  const latestColOrder = useRef(columnOrder)
+  latestColOrder.current = columnOrder
+
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+
+  // Sync from props when not dragging (e.g. after server reload)
+  useEffect(() => {
+    if (!draggingTask) setColumnOrder(computeColumnOrder(tasks))
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [tasks])
 
   function handleDragStart(e: DragStartEvent) {
     const task = tasks.find(t => t.id === e.active.id)
     if (task) setDraggingTask(task)
   }
 
-  function handleDragEnd(e: DragEndEvent) {
-    setDraggingTask(null)
+  function handleDragOver(e: DragOverEvent) {
     const { active, over } = e
+    if (!over || active.id === over.id) return
+    const activeId = active.id as string
+    const overId   = over.id as string
+    const STATUS_SET = new Set(STATUS_GROUPS.map(g => g.status as string))
+    // Only handle same-column visual reorder — cross-column handled in handleDragEnd
+    if (STATUS_SET.has(overId)) return
+
+    const order = latestColOrder.current
+    let activeStatus: TaskStatus | undefined
+    let overStatus: TaskStatus | undefined
+    for (const [status, ids] of order) {
+      if (ids.includes(activeId)) activeStatus = status
+      if (ids.includes(overId))   overStatus   = status
+    }
+    if (!activeStatus || !overStatus || activeStatus !== overStatus) return
+
+    const colOrder = order.get(activeStatus) ?? []
+    const oldIdx = colOrder.indexOf(activeId)
+    const newIdx = colOrder.indexOf(overId)
+    if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return
+
+    setColumnOrder(new Map(order).set(activeStatus, arrayMove(colOrder, oldIdx, newIdx)))
+  }
+
+  function handleDragEnd(e: DragEndEvent) {
+    const { active, over } = e
+    setDraggingTask(null)
     if (!over) return
-    const newStatus = over.id as TaskStatus
-    const task = tasks.find(t => t.id === active.id)
-    if (!task || task.status === newStatus) return
-    onStatusChange(task.id, newStatus)
+
+    const activeId = active.id as string
+    const overId   = over.id as string
+    const STATUS_SET = new Set(STATUS_GROUPS.map(g => g.status))
+    const activeTask = tasks.find(t => t.id === activeId)
+    if (!activeTask) return
+
+    let overStatus: TaskStatus
+    if (STATUS_SET.has(overId as TaskStatus)) {
+      overStatus = overId as TaskStatus
+    } else {
+      let found: TaskStatus | undefined
+      for (const [status, ids] of latestColOrder.current) {
+        if (ids.includes(overId)) { found = status; break }
+      }
+      if (!found) return
+      overStatus = found
+    }
+
+    if (activeTask.status === overStatus) {
+      // 같은 컬럼 — 현재 columnOrder를 sort_order로 persist
+      const colOrder = latestColOrder.current.get(overStatus) ?? []
+      onKanbanReorder?.(colOrder.map((id, i) => ({ id, sort_order: i * 100 })))
+    } else {
+      // 다른 컬럼 — 상태 변경
+      onStatusChange(activeTask.id, overStatus)
+    }
   }
 
   async function commitQuickAdd(status: TaskStatus) {
@@ -286,7 +358,6 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
     if (!title) { setQuickAddStatus(null); setQuickAddTitle(''); return }
     await onQuickCreate(title, status)
     setQuickAddTitle('')
-    // 입력창 유지 — 연속 등록
   }
   function cancelQuickAdd() { setQuickAddStatus(null); setQuickAddTitle('') }
 
@@ -295,33 +366,39 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
       sensors={sensors}
       collisionDetection={closestCenter}
       onDragStart={handleDragStart}
+      onDragOver={handleDragOver}
       onDragEnd={handleDragEnd}
     >
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
         <div className="flex gap-3 px-4 py-3 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 272 }}>
-          {STATUS_GROUPS.map(({ status, label, color, bgColor }) => (
-            <KanbanColumn
-              key={status}
-              status={status}
-              label={label}
-              color={color}
-              bgColor={bgColor}
-              tasks={tasks.filter(t => t.status === status && !t.parent_id)}
-              allTasks={tasks}
-              assigneeColorMap={assigneeColorMap}
-              getAssigneeKey={getAssigneeKey}
-              isDraggingId={draggingTask?.id}
-              onEdit={onEdit}
-              onMemoHover={(task, e) => setMemoHover({ taskId: task.id, x: e.clientX, y: e.clientY })}
-              onMemoLeave={() => setMemoHover(null)}
-              quickAddOpen={quickAddStatus === status}
-              quickAddTitle={quickAddTitle}
-              onQuickAddStart={s => { setQuickAddStatus(s); setQuickAddTitle('') }}
-              onQuickAddChange={setQuickAddTitle}
-              onQuickAddCommit={commitQuickAdd}
-              onQuickAddCancel={cancelQuickAdd}
-            />
-          ))}
+          {STATUS_GROUPS.map(({ status, label, color, bgColor }) => {
+            const orderedIds  = columnOrder.get(status) ?? []
+            const taskMap     = new Map(tasks.filter(t => t.status === status && !t.parent_id).map(t => [t.id, t]))
+            const columnTasks = orderedIds.map(id => taskMap.get(id)).filter(Boolean) as GanttTask[]
+            return (
+              <KanbanColumn
+                key={status}
+                status={status}
+                label={label}
+                color={color}
+                bgColor={bgColor}
+                tasks={columnTasks}
+                allTasks={tasks}
+                orderedIds={orderedIds}
+                assigneeColorMap={assigneeColorMap}
+                getAssigneeKey={getAssigneeKey}
+                onEdit={onEdit}
+                onMemoHover={(task, e) => setMemoHover({ taskId: task.id, x: e.clientX, y: e.clientY })}
+                onMemoLeave={() => setMemoHover(null)}
+                quickAddOpen={quickAddStatus === status}
+                quickAddTitle={quickAddTitle}
+                onQuickAddStart={s => { setQuickAddStatus(s); setQuickAddTitle('') }}
+                onQuickAddChange={setQuickAddTitle}
+                onQuickAddCommit={commitQuickAdd}
+                onQuickAddCancel={cancelQuickAdd}
+              />
+            )
+          })}
         </div>
       </div>
 
@@ -333,7 +410,6 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
         )}
       </DragOverlay>
 
-      {/* 메모 hover 툴팁 — clampTooltipPos */}
       {memoHover && (() => {
         const t = tasks.find(x => x.id === memoHover.taskId)
         if (!t?.memo) return null

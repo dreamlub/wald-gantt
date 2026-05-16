@@ -47,7 +47,7 @@ export function useConfirm() {
             </span>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-sm font-semibold text-foreground">{state.opts.title}</h3>
+            <h3 className="text-xs font-semibold text-foreground">{state.opts.title}</h3>
             {state.opts.description && (
               <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{state.opts.description}</p>
             )}

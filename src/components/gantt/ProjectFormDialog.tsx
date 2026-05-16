@@ -116,6 +116,8 @@ interface Props {
   onDelete?: (id: string) => void
   allTeams?: string[]
   allPMs?: string[]
+  initialName?: string
+  initialMemo?: string
 }
 
 function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
@@ -148,7 +150,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   )
 }
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [] }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -190,9 +192,11 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setPriority(editProject.priority ?? 0)
     } else {
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
-      setName(''); setStatus('to-do'); setPriority(2)
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setName(initialName ?? ''); setStatus('to-do'); setPriority(2)
       setStartDate(undefined); setEndDate(undefined)
-      setTeam(''); setPm(''); setMemo('')
+      // eslint-disable-next-line react-hooks/exhaustive-deps
+      setTeam(''); setPm(''); setMemo(initialMemo ?? '')
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [editProject, open, defaultCategoryId, categories])
@@ -238,7 +242,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         {/* Header */}
         <div className="shrink-0 border-b">
           <div className="flex items-center px-5 py-4">
-            <h2 className="text-sm font-semibold text-foreground flex-1">
+            <h2 className="text-xs font-semibold text-foreground flex-1">
               {editProject ? '프로젝트 수정' : '프로젝트 추가'}
             </h2>
             <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -290,7 +294,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             ref={nameRef}
             name="project-name"
             autoComplete="off"
-            className="w-full text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
+            className="w-full text-xs font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
             placeholder="프로젝트 이름"
             value={name}
             onChange={e => setName(e.target.value)}

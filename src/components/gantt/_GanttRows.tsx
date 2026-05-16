@@ -206,10 +206,9 @@ export function GanttCategoryLeft({
                   {({ listeners, isDragging }) => (
                     <div className="relative" style={{ opacity: isDragging ? 0 : 1 }}>
                       <div
-                        className="flex items-center gap-1.5 group border-b pl-3 pr-2 relative"
+                        className={`flex items-center gap-1.5 group border-b pl-3 pr-2 relative hover:bg-muted transition-colors ${isBacklog ? 'bg-[#f3f4f6]' : 'bg-card'}`}
                         style={{
                           height: PROJ_ROW_H,
-                          backgroundColor: isBacklog ? '#f3f4f6' : 'white',
                           ...(readOnly && { paddingLeft: 14 }),
                         }}
                       >
@@ -234,7 +233,7 @@ export function GanttCategoryLeft({
                           {sm.abbr}
                         </button>
                         <span
-                          className={`text-xs truncate min-w-0 cursor-pointer hover:text-lilac-600 ${
+                          className={`text-xs truncate min-w-0 cursor-pointer ${
                             project.priority === 3 ? 'font-semibold text-coral-500' :
                             project.priority === 2 ? 'font-medium text-foreground' :
                             project.priority === 1 ? 'font-normal text-muted-foreground' :
@@ -260,7 +259,7 @@ export function GanttCategoryLeft({
                             <div
                               className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
                               style={{
-                                background: `linear-gradient(to left, ${isBacklog ? '#f3f4f6' : '#ffffff'} 55%, ${isBacklog ? 'rgba(243,244,246,0)' : 'rgba(255,255,255,0)'} 100%)`,
+                                background: 'linear-gradient(to left, var(--color-muted) 55%, transparent 100%)',
                               }}
                             />
                             <button

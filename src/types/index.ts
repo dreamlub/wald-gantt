@@ -73,8 +73,21 @@ export interface GanttTask {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  scheduled_at: string | null   // ISO 8601, time blocking 시작 시각
+  duration_minutes: number | null
   // 연결된 프로젝트 (join 후 포함)
   projects?: { id: string; name: string; board_name: string }[]
+}
+
+export interface CalendarEvent {
+  id: string
+  title: string
+  start: string   // ISO 8601
+  end: string     // ISO 8601
+  color: string | null
+  isAllDay: boolean
+  location: string | null
+  description: string | null
 }
 
 export interface GanttProject {
