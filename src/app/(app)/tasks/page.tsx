@@ -3,7 +3,7 @@
 import React, { useCallback, useEffect, useRef, useState } from 'react'
 import {
   Plus, ChevronDown, ChevronRight, LayoutList, Search, X,
-  PanelLeftClose, PanelLeftOpen, Trash2,
+  PanelLeftClose, PanelLeftOpen, Trash2, CheckSquare,
 } from 'lucide-react'
 import { toast } from 'sonner'
 import {
@@ -15,6 +15,7 @@ import { TaskTrashPanel } from '@/components/tasks/TaskTrashPanel'
 import {
   getOrCreateWorkspace, getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, searchProjects,
+  duplicateTask, bulkSoftDeleteTasks, bulkUpdateTaskStatus,
 } from '@/lib/gantt-service'
 import type { GanttTask, TaskStatus, TaskType, Priority, Workspace } from '@/types'
 import { todayStrKST } from '@/lib/gantt-utils'
@@ -59,6 +60,9 @@ export default function TasksPage() {
   const [quickAddStatus,   setQuickAddStatus]   = useState<TaskStatus | null>(null)
   const [quickAddParentId, setQuickAddParentId] = useState<string | null>(null)
   const [quickAddTitle,    setQuickAddTitle]    = useState('')
+  const [selectionMode,    setSelectionMode]    = useState(false)
+  const [selectedIds,      setSelectedIds]      = useState<Set<string>>(new Set())
+  const [bulkStatusOpen,   setBulkStatusOpen]   = useState(false)
 
   const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
 
@@ -174,6 +178,61 @@ export default function TasksPage() {
     const task = tasks.find(t => t.id === active.id)
     if (!task || task.status === newStatus) return
     handleStatusChange(task.id, newStatus)
+  }
+
+  function handleSelect(id: string) {
+    setSelectedIds(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id); else next.add(id)
+      return next
+    })
+  }
+
+  function exitSelectionMode() {
+    setSelectionMode(false)
+    setSelectedIds(new Set())
+    setBulkStatusOpen(false)
+  }
+
+  async function handleBulkDelete() {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    try {
+      await bulkSoftDeleteTasks(ids)
+      setTasks(prev => prev.filter(t => !selectedIds.has(t.id)))
+      setTrashCount(prev => prev + ids.length)
+      exitSelectionMode()
+      toast(`${ids.length}개 태스크를 휴지통으로 이동했어요`, {
+        action: {
+          label: '되돌리기',
+          onClick: async () => {
+            await Promise.all(ids.map(id => restoreTask(id)))
+            setTrashCount(prev => Math.max(0, prev - ids.length))
+            await load()
+          },
+        },
+      })
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  async function handleBulkStatusChange(status: TaskStatus) {
+    const ids = [...selectedIds]
+    if (ids.length === 0) return
+    try {
+      await bulkUpdateTaskStatus(ids, status)
+      setTasks(prev => prev.map(t => selectedIds.has(t.id) ? { ...t, status } : t))
+      exitSelectionMode()
+      toast(`${ids.length}개 태스크 상태를 변경했어요`)
+    } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  async function handleDuplicate(task: GanttTask) {
+    if (!workspace) return
+    try {
+      await duplicateTask(workspace.id, task)
+      await load()
+      toast(`"${task.title}" 복제했어요`)
+    } catch (e) { toast.error(errMsg(e)) }
   }
 
   function toggleCollapse(key: string) {
@@ -349,6 +408,7 @@ export default function TasksPage() {
     else filtered = filtered.filter(t => t.assignee === filterAssignee)
   }
   if (filterLabel)     filtered = filtered.filter(t => (t.labels ?? []).includes(filterLabel))
+  const baseFiltered = filtered
   if (quickFilter === 'overdue')       filtered = filtered.filter(t => isOverdue(t.due_date, t.status))
   if (quickFilter === 'start-delayed') filtered = filtered.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status))
   if (quickFilter === 'due-today')     filtered = filtered.filter(t => t.due_date === todayStr && t.status !== 'done')
@@ -362,6 +422,20 @@ export default function TasksPage() {
       (t.memo ?? '').toLowerCase().includes(q) ||
       (t.labels ?? []).some(l => l.toLowerCase().includes(q))
     )
+  }
+  // 퀵필터/검색으로 하위 태스크만 남고 부모가 걸러진 경우: 부모도 포함시켜 트리 렌더링이 깨지지 않도록
+  if (quickFilter !== 'all' || searchQuery.trim()) {
+    const filteredIds = new Set(filtered.map(t => t.id))
+    const baseIds = new Set(baseFiltered.map(t => t.id))
+    const missingParentIds = new Set<string>()
+    for (const t of filtered) {
+      if (t.parent_id && !filteredIds.has(t.parent_id) && baseIds.has(t.parent_id)) {
+        missingParentIds.add(t.parent_id)
+      }
+    }
+    if (missingParentIds.size > 0) {
+      filtered = [...filtered, ...baseFiltered.filter(t => missingParentIds.has(t.id))]
+    }
   }
 
   const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status) && !t.parent_id)
@@ -385,15 +459,15 @@ export default function TasksPage() {
 
   const quickItems = [
     { key: 'all',           label: '전체',         count: tasks.length,        icon: <LayoutList size={12} className="shrink-0" /> },
-    { key: 'overdue',       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-red-400 shrink-0" /> },
-    { key: 'start-delayed', label: '시작 지연',     count: startDelayedCount,  icon: <span className="w-2 h-2 rounded-full bg-amber-500 shrink-0" /> },
+    { key: 'overdue',       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-status-late shrink-0" /> },
+    { key: 'start-delayed', label: '시작 지연',     count: startDelayedCount,  icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" /> },
     { key: 'due-today',     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" /> },
-    { key: 'due-this-week', label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-amber-400 shrink-0" /> },
+    { key: 'due-this-week', label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" /> },
     { key: 'due-next-week', label: '다음 주 마감',  count: dueNextWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" /> },
   ] as const
 
   if (loading) return (
-    <div className="flex-1 flex items-center justify-center text-gray-400 text-xs">로딩 중...</div>
+    <div className="flex-1 flex items-center justify-center text-ink-400 text-xs">로딩 중...</div>
   )
 
   const editHandler = (t: GanttTask) => { setDrawerTask(t); setDrawerOpen(true) }
@@ -403,14 +477,14 @@ export default function TasksPage() {
 
       {/* ── 사이드바 ─────────────────────────────────────────── */}
       <div
-        className="shrink-0 border-r bg-stone-50 flex flex-col overflow-hidden transition-all duration-200"
+        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
         style={{ width: sidebarOpen ? 240 : 0 }}
       >
-        <div className="h-12 flex items-center px-4 border-b bg-white shrink-0 gap-2">
-          <h1 className="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">태스크</h1>
+        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
+          <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
           <button
             onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
             title="사이드바 닫기"
           >
             <PanelLeftClose size={14} />
@@ -423,14 +497,11 @@ export default function TasksPage() {
             <button
               key={item.key}
               onClick={() => setQuickFilter(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key as typeof quickFilter)}
-              className={`flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors
-                ${quickFilter === item.key
-                  ? 'bg-indigo-50 text-indigo-700 font-medium'
-                  : 'text-gray-600 hover:bg-gray-100'}`}
+              className={`sidebar-btn ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
             >
               {item.icon}
               <span className="flex-1 text-left truncate">{item.label}</span>
-              <span className={`text-xs ${item.count > 0 && item.key !== 'all' ? 'text-red-400 font-medium' : 'text-gray-400'}`}>
+              <span className={`text-xs ${item.count > 0 && item.key !== 'all' ? 'text-status-late font-medium' : 'text-ink-400'}`}>
                 {item.count}
               </span>
             </button>
@@ -439,17 +510,16 @@ export default function TasksPage() {
           {/* 프로젝트 */}
           {sidebarProjects.length > 0 && (
             <div className="mt-3">
-              <div className="px-2 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">프로젝트</div>
+              <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
               {sidebarProjects.map(p => (
                 <button
                   key={p.id}
                   onClick={() => { setFilterProject(filterProject === p.id ? null : p.id); setFilterAssignee(null) }}
-                  className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors
-                    ${filterProject === p.id ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                  className={`sidebar-btn ${filterProject === p.id ? 'sidebar-btn-active' : ''}`}
                 >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PROJECT_COLORS[p.colorIdx % PROJECT_COLORS.length] }} />
                   <span className="flex-1 truncate text-left">{p.name}</span>
-                  <span className="text-xs text-gray-400">{p.count}</span>
+                  <span className="text-xs text-ink-400">{p.count}</span>
                 </button>
               ))}
             </div>
@@ -457,36 +527,35 @@ export default function TasksPage() {
 
           {/* 담당자 */}
           <div className="mt-3">
-            <div className="px-2 mb-1 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당자</div>
+            <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
             <div className="relative mx-2 mb-1.5">
-              <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-gray-300" />
+              <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
               <input
                 type="text"
                 placeholder="이름 검색"
                 value={assigneeSearch}
                 onChange={e => setAssigneeSearch(e.target.value)}
-                className="w-full text-[11px] pl-5 pr-2 py-1 border border-gray-200 rounded bg-white text-gray-600 placeholder:text-gray-300 focus:outline-none focus:border-indigo-300"
+                className="w-full text-[11px] pl-5 pr-2 py-1 border border-border rounded bg-card text-muted-foreground placeholder:text-ink-300 focus:outline-none focus:border-lilac-300"
               />
             </div>
             {sidebarAssignees.map(a => (
               <button
                 key={a.key}
                 onClick={() => { setFilterAssignee(filterAssignee === a.key ? null : a.key); setFilterProject(null) }}
-                className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs transition-colors
-                  ${filterAssignee === a.key ? 'bg-indigo-50 text-indigo-700 font-medium' : 'text-gray-700 hover:bg-gray-100'}`}
+                className={`sidebar-btn ${filterAssignee === a.key ? 'sidebar-btn-active' : ''}`}
               >
                 <span
                   className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: assigneeColorMap.get(a.key) ?? '#9ca3af' }}
+                  style={{ backgroundColor: assigneeColorMap.get(a.key) ?? 'var(--color-ink-300)' }}
                 />
                 <span className="flex-1 truncate text-left">{a.label}</span>
-                <span className="text-xs text-gray-400">{a.count}</span>
+                <span className="text-xs text-ink-400">{a.count}</span>
               </button>
             ))}
             {!isSearching && (assigneesHidden > 0 || assigneesExpanded) && (
               <button
                 onClick={() => setAssigneesExpanded(v => !v)}
-                className="w-full text-left px-2 py-1 text-[11px] text-gray-400 hover:text-indigo-500 transition-colors"
+                className="w-full text-left px-2 py-1 text-[11px] text-ink-400 hover:text-lilac-500 transition-colors"
               >
                 {assigneesExpanded ? '접기' : `+ ${assigneesHidden}명 더보기`}
               </button>
@@ -496,7 +565,7 @@ export default function TasksPage() {
           {/* 라벨 */}
           {sidebarLabels.length > 0 && (
             <div className="mt-3">
-              <div className="px-2 mb-1.5 text-[10px] font-semibold text-gray-400 uppercase tracking-wider">라벨</div>
+              <div className="px-2 mb-1.5 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
               <div className="flex flex-wrap gap-1 px-2">
                 {sidebarLabels.map(l => {
                   const active = filterLabel === l.name
@@ -525,12 +594,12 @@ export default function TasksPage() {
         <div className="shrink-0 border-t px-1.5 py-1.5">
           <button
             onClick={() => setTrashOpen(true)}
-            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
           >
             <Trash2 size={13} className="shrink-0" />
             <span className="whitespace-nowrap">휴지통</span>
             {trashCount > 0 && (
-              <span className="ml-auto text-[10px] bg-red-100 text-red-400 font-semibold px-1.5 py-0.5 rounded-full">
+              <span className="ml-auto text-[10px] bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
                 {trashCount}
               </span>
             )}
@@ -542,11 +611,11 @@ export default function TasksPage() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         {/* 액션 바 */}
-        <div className="flex items-center border-b bg-white shrink-0 px-4 py-2 gap-2">
+        <div className="h-12 flex items-center border-b bg-card shrink-0 px-4 gap-2">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+              className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
               title="사이드바 열기"
             >
               <PanelLeftOpen size={14} />
@@ -554,15 +623,15 @@ export default function TasksPage() {
           )}
 
           {/* 뷰 탭 */}
-          <div className="flex items-center gap-0.5 bg-gray-100 rounded-lg p-0.5">
+          <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
             {VIEW_TABS.map(tab => (
               <button
                 key={tab.key}
                 onClick={() => setView(tab.key)}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
                   ${view === tab.key
-                    ? 'bg-white text-gray-700 shadow-sm'
-                    : 'text-gray-500 hover:text-gray-700'}`}
+                    ? 'bg-card text-ink-700 shadow-sm'
+                    : 'text-muted-foreground hover:text-ink-700'}`}
               >
                 {tab.icon}
                 {tab.label}
@@ -574,7 +643,7 @@ export default function TasksPage() {
           <div ref={searchRef} className="relative flex items-center ml-2">
             {searchOpen || searchQuery ? (
               <div className="relative flex items-center">
-                <Search size={12} className="absolute left-2 text-gray-300 pointer-events-none" />
+                <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
                 <input
                   ref={searchInputRef}
                   type="text"
@@ -582,12 +651,12 @@ export default function TasksPage() {
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
                   placeholder="태스크 검색"
-                  className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-indigo-300 text-gray-600 placeholder:text-gray-300"
+                  className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
                 />
                 {searchQuery && (
                   <button
                     onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
-                    className="absolute right-1 text-gray-300 hover:text-gray-500"
+                    className="absolute right-1 text-ink-300 hover:text-muted-foreground"
                     title="지우기"
                   >
                     <X size={12} />
@@ -598,17 +667,31 @@ export default function TasksPage() {
               <button
                 onClick={() => setSearchOpen(true)}
                 title="태스크 검색"
-                className="p-1.5 rounded text-gray-400 hover:text-gray-600 hover:bg-gray-100 transition-colors"
+                className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
               >
                 <Search size={13} />
               </button>
             )}
           </div>
 
-          <div className="ml-auto">
+          <div className="ml-auto flex items-center gap-2">
+            {(view === 'normal' || view === 'list') && (
+              <button
+                onClick={() => { if (selectionMode) exitSelectionMode(); else setSelectionMode(true) }}
+                className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded transition-colors ${
+                  selectionMode
+                    ? 'bg-lilac-100 text-lilac-700 font-medium'
+                    : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                }`}
+                title="선택 모드"
+              >
+                <CheckSquare size={13} />
+                {selectionMode ? '선택 중' : '선택'}
+              </button>
+            )}
             <button
               onClick={() => openAdd('to-do')}
-              className="flex items-center gap-1 text-xs font-medium text-white bg-gray-900 hover:bg-black px-3 py-1.5 rounded transition-colors"
+              className="flex items-center gap-1 text-xs font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
             >
               <Plus size={13} /> 태스크 추가
             </button>
@@ -617,11 +700,11 @@ export default function TasksPage() {
 
         {/* 담당자 필터 바 — 사이드바 닫혔을 때만 표시 (사이드바 "담당자" 섹션과 중복 회피) */}
         {!sidebarOpen && (view === 'normal' || view === 'list' || view === 'kanban') && allAssignees.length > 0 && (
-          <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-white shrink-0 overflow-x-auto">
+          <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-card shrink-0 overflow-x-auto">
             <button
               onClick={() => setFilterAssignee(null)}
               className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-                ${!filterAssignee ? 'bg-gray-800 border-gray-800 text-white' : 'border-gray-200 text-gray-500 hover:border-gray-400'}`}
+                ${!filterAssignee ? 'bg-foreground border-foreground text-white' : 'border-border text-muted-foreground hover:border-ink-400'}`}
             >
               전체
             </button>
@@ -633,7 +716,7 @@ export default function TasksPage() {
                   key={key}
                   onClick={() => setFilterAssignee(active ? null : key)}
                   className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-                    ${active ? 'text-white border-transparent' : 'border-gray-200 text-gray-600 hover:border-gray-400'}`}
+                    ${active ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
                   style={active ? { backgroundColor: color, borderColor: color } : {}}
                 >
                   <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'white' : color }} />
@@ -664,6 +747,9 @@ export default function TasksPage() {
               emptyMessage={emptyMsg}
               onQuickCreate={listQuickCreate}
               onSubQuickCreate={listSubQuickCreate}
+              selectionMode={selectionMode}
+              selectedIds={selectedIds}
+              onSelect={handleSelect}
             />
           )
         })() : view === 'calendar' ? (
@@ -685,14 +771,15 @@ export default function TasksPage() {
           <GanttView tasks={filtered} onEdit={editHandler} />
         ) : (
           /* 일반 뷰 */
-          <div className="flex-1 overflow-y-auto">
-            <div className="flex items-center px-4 py-2 border-b bg-gray-50 shrink-0 text-[10px] font-semibold text-gray-400 uppercase tracking-wider sticky top-0 z-10">
+          <div className="flex-1 flex flex-col overflow-hidden">
+            <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
               <div className="w-5 shrink-0 mr-3" />
               <div className="flex-1 mr-4">태스크</div>
               <div className="w-10 shrink-0">메모</div>
               <div className="w-28 shrink-0">담당자</div>
               <div className="w-24 shrink-0">일정</div>
             </div>
+          <div className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
 
             {filtered.length === 0 ? (() => {
               const hasFilter = quickFilter !== 'all' || !!filterProject || !!filterAssignee || !!filterLabel || !!searchQuery.trim()
@@ -704,10 +791,10 @@ export default function TasksPage() {
                              : hasFilter                       ? '조건에 맞는 태스크가 없어요'
                              : '태스크가 없어요'
               return (
-                <div className="flex flex-col items-center justify-center h-40 text-gray-400 gap-2">
+                <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
                   <p className="text-xs">{emptyMsg}</p>
                   {!hasFilter && (
-                    <button onClick={() => openAdd('to-do')} className="text-xs text-gray-900 hover:text-black">+ 첫 번째 태스크 추가</button>
+                    <button onClick={() => openAdd('to-do')} className="text-xs text-foreground hover:text-black">+ 첫 번째 태스크 추가</button>
                   )}
                 </div>
               )
@@ -717,16 +804,16 @@ export default function TasksPage() {
                   <div>
                     <button
                       onClick={() => toggleCollapse('__overdue__')}
-                      className="w-full flex items-center gap-2 px-4 py-2 bg-white border-b hover:bg-gray-50 transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-2 bg-card border-b hover:bg-muted transition-colors"
                     >
                       {collapsed.has('__overdue__')
-                        ? <ChevronRight size={12} className="text-gray-400 shrink-0" />
-                        : <ChevronDown  size={12} className="text-gray-400 shrink-0" />}
-                      <span className="w-2 h-2 rounded-full shrink-0 bg-red-400" />
-                      <span className="text-xs font-semibold text-red-500">지연</span>
-                      <span className="text-[10px] text-gray-400">{overdueGroup.length}</span>
+                        ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
+                        : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
+                      <span className="w-2 h-2 rounded-full shrink-0 bg-status-late" />
+                      <span className="text-xs font-semibold text-status-late">지연</span>
+                      <span className="text-[10px] text-ink-400">{overdueGroup.length}</span>
                       {avgOverdueDays > 0 && (
-                        <span className="ml-auto text-[10px] text-gray-400">평균 지연 {avgOverdueDays}일</span>
+                        <span className="ml-auto text-[10px] text-ink-400">평균 지연 {avgOverdueDays}일</span>
                       )}
                     </button>
                     {!collapsed.has('__overdue__') && overdueGroup.map(task => {
@@ -741,16 +828,22 @@ export default function TasksPage() {
                             subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
                             onAddSubTask={() => openAddSubTask(task.id, task.status)}
                             onToggleExpand={() => toggleExpanded(task.id)}
+                            selectionMode={selectionMode}
+                            selected={selectedIds.has(task.id)}
+                            onSelect={handleSelect}
                           />
                           {isExp && subs.map(sub => (
                             <TaskRow key={sub.id} task={sub} isSubTask
                               onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                               assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
+                              selectionMode={selectionMode}
+                              selected={selectedIds.has(sub.id)}
+                              onSelect={handleSelect}
                             />
                           ))}
                           {isExp && quickAddParentId === task.id ? (
-                            <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-gray-50 bg-indigo-50/30">
-                              <Plus size={10} className="text-indigo-400 shrink-0" />
+                            <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-ink-150 bg-accent/30">
+                              <Plus size={10} className="text-lilac-400 shrink-0" />
                               <input
                                 autoFocus
                                 value={quickAddTitle}
@@ -761,13 +854,13 @@ export default function TasksPage() {
                                 }}
                                 onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAddSub() }}
                                 placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-                                className="flex-1 text-[11px] outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                                className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                               />
                             </div>
                           ) : isExp && subs.length > 0 && (
                             <button
                               onClick={() => openAddSubTask(task.id, task.status)}
-                              className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-indigo-400 hover:bg-indigo-50/30 transition-colors border-b border-gray-50"
+                              className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-ink-300 hover:text-lilac-400 hover:bg-accent/30 transition-colors border-b border-ink-150"
                             >
                               <Plus size={10} /> 하위 태스크 추가
                             </button>
@@ -785,16 +878,16 @@ export default function TasksPage() {
                     <DroppableGroup key={status} status={status}>
                       <button
                         onClick={() => toggleCollapse(status)}
-                        className="w-full flex items-center gap-2 px-4 py-2 bg-white border-b hover:bg-gray-50 transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 bg-card border-b hover:bg-muted transition-colors"
                       >
                         {isCollapsed
-                          ? <ChevronRight size={12} className="text-gray-400 shrink-0" />
-                          : <ChevronDown  size={12} className="text-gray-400 shrink-0" />}
+                          ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
+                          : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                        <span className="text-xs font-semibold text-gray-600">{label}</span>
-                        <span className="text-[10px] text-gray-400">{group.length}</span>
+                        <span className="text-xs font-semibold text-muted-foreground">{label}</span>
+                        <span className="text-[10px] text-ink-400">{group.length}</span>
                         {status === 'in-progress' && avgIPDays > 0 && (
-                          <span className="ml-auto text-[10px] text-gray-400">평균 진행 {avgIPDays}일</span>
+                          <span className="ml-auto text-[10px] text-ink-400">평균 진행 {avgIPDays}일</span>
                         )}
                       </button>
                       {!isCollapsed && (
@@ -811,16 +904,22 @@ export default function TasksPage() {
                                   subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
                                   onAddSubTask={() => openAddSubTask(task.id, task.status)}
                                   onToggleExpand={() => toggleExpanded(task.id)}
+                                  selectionMode={selectionMode}
+                                  selected={selectedIds.has(task.id)}
+                                  onSelect={handleSelect}
                                 />
                                 {isExp && subs.map(sub => (
                                   <TaskRow key={sub.id} task={sub} isSubTask
                                     onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                                     assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
+                                    selectionMode={selectionMode}
+                                    selected={selectedIds.has(sub.id)}
+                                    onSelect={handleSelect}
                                   />
                                 ))}
                                 {isExp && quickAddParentId === task.id ? (
-                                  <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-gray-50 bg-indigo-50/30">
-                                    <Plus size={10} className="text-indigo-400 shrink-0" />
+                                  <div className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 border-b border-ink-150 bg-accent/30">
+                                    <Plus size={10} className="text-lilac-400 shrink-0" />
                                     <input
                                       autoFocus
                                       value={quickAddTitle}
@@ -831,13 +930,13 @@ export default function TasksPage() {
                                       }}
                                       onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAddSub() }}
                                       placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-                                      className="flex-1 text-[11px] outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                                      className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                                     />
                                   </div>
                                 ) : isExp && subs.length > 0 && (
                                   <button
                                     onClick={() => openAddSubTask(task.id, task.status)}
-                                    className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-gray-300 hover:text-gray-900 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                                    className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-ink-300 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
                                   >
                                     <Plus size={10} /> 하위 태스크 추가
                                   </button>
@@ -846,8 +945,8 @@ export default function TasksPage() {
                             )
                           })}
                           {quickAddStatus === status ? (
-                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-gray-50 bg-indigo-50/30">
-                              <Plus size={11} className="text-indigo-400 shrink-0" />
+                            <div className="flex items-center gap-1.5 px-4 py-2 border-b border-ink-150 bg-accent/30">
+                              <Plus size={11} className="text-lilac-400 shrink-0" />
                               <input
                                 autoFocus
                                 value={quickAddTitle}
@@ -858,14 +957,14 @@ export default function TasksPage() {
                                 }}
                                 onBlur={() => { if (!quickAddTitle.trim()) cancelQuickAdd() }}
                                 placeholder="제목 입력 후 Enter, Esc로 취소"
-                                className="flex-1 text-xs outline-none placeholder:text-gray-300 bg-transparent text-gray-800"
+                                className="flex-1 text-xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                               />
-                              <span className="text-[10px] text-gray-300 shrink-0">상세 설정은 행 클릭</span>
+                              <span className="text-[10px] text-ink-300 shrink-0">상세 설정은 행 클릭</span>
                             </div>
                           ) : (
                             <button
                               onClick={() => { setQuickAddStatus(status); setQuickAddTitle('') }}
-                              className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-gray-400 hover:text-gray-900 hover:bg-gray-50 transition-colors border-b border-gray-50"
+                              className="flex items-center gap-1.5 px-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
                             >
                               <Plus size={11} /> 태스크 추가
                             </button>
@@ -878,13 +977,14 @@ export default function TasksPage() {
 
                 <DragOverlay>
                   {draggingTask && (
-                    <div className="bg-white border border-indigo-200 rounded shadow-lg px-4 py-2 text-xs text-gray-700 font-medium opacity-95">
+                    <div className="bg-card border border-lilac-200 rounded shadow-lg px-4 py-2 text-xs text-ink-700 font-medium opacity-95">
                       {draggingTask.title}
                     </div>
                   )}
                 </DragOverlay>
               </DndContext>
             )}
+          </div>
           </div>
         )}
       </div>
@@ -907,6 +1007,7 @@ export default function TasksPage() {
         onClose={() => setDrawerOpen(false)}
         onSave={handleDrawerSave}
         onDelete={handleDelete}
+        onDuplicate={handleDuplicate}
         onAddSubTask={openAddSubTask}
         onStatusChange={handleStatusChange}
         onSearchProjects={handleSearch}
@@ -919,6 +1020,50 @@ export default function TasksPage() {
         workspaceId={workspace?.id ?? ''}
         onRestore={async () => { await load(); setTrashCount(prev => Math.max(0, prev - 1)) }}
       />
+
+      {/* ── 벌크 액션 바 ──────────────────────────────────────── */}
+      {selectionMode && selectedIds.size > 0 && (
+        <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-sidebar text-sidebar-foreground px-3 py-2 rounded-xl shadow-xl border border-sidebar-border">
+          <span className="text-xs font-medium px-1.5">{selectedIds.size}개 선택됨</span>
+          <div className="w-px h-4 bg-sidebar-border mx-0.5" />
+          {/* 상태 변경 드롭다운 */}
+          <div className="relative">
+            <button
+              onClick={() => setBulkStatusOpen(v => !v)}
+              className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg bg-sidebar-accent hover:opacity-80 transition-opacity"
+            >
+              상태 변경 <ChevronDown size={11} />
+            </button>
+            {bulkStatusOpen && (
+              <div className="absolute bottom-full mb-1.5 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[110px] z-50">
+                {STATUS_GROUPS.map(({ status, label, color }) => (
+                  <button
+                    key={status}
+                    onClick={() => handleBulkStatusChange(status)}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-foreground hover:bg-muted transition-colors"
+                  >
+                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    {label}
+                  </button>
+                ))}
+              </div>
+            )}
+          </div>
+          <button
+            onClick={handleBulkDelete}
+            className="flex items-center gap-1 text-xs px-2.5 py-1.5 rounded-lg text-status-late hover:bg-sidebar-accent transition-colors"
+          >
+            <Trash2 size={12} /> 삭제
+          </button>
+          <div className="w-px h-4 bg-sidebar-border mx-0.5" />
+          <button
+            onClick={exitSelectionMode}
+            className="p-1.5 rounded-lg hover:bg-sidebar-accent transition-colors text-sidebar-foreground/60 hover:text-sidebar-foreground"
+          >
+            <X size={13} />
+          </button>
+        </div>
+      )}
     </div>
   )
 }

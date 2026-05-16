@@ -448,6 +448,39 @@ export async function emptyTaskTrash(workspaceId: string): Promise<void> {
   if (error) throw error
 }
 
+export async function duplicateTask(workspaceId: string, task: GanttTask): Promise<GanttTask> {
+  return addTask(workspaceId, {
+    title: task.title + ' (복사)',
+    status: task.status,
+    type: task.type,
+    assignee: task.assignee,
+    start_date: task.start_date,
+    due_date: task.due_date,
+    memo: task.memo,
+    labels: task.labels,
+    priority: task.priority,
+    parent_id: task.parent_id,
+  }, task.projects?.map(p => p.id) ?? [])
+}
+
+export async function bulkSoftDeleteTasks(ids: string[]): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ deleted_at: new Date().toISOString() })
+    .in('id', ids)
+  if (error) throw error
+}
+
+export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): Promise<void> {
+  if (ids.length === 0) return
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ status, updated_at: new Date().toISOString() })
+    .in('id', ids)
+  if (error) throw error
+}
+
 /** 전체 보드 통합 프로젝트 검색 */
 export async function searchProjects(workspaceId: string, query: string): Promise<{ id: string; name: string; board_name: string }[]> {
   const { data, error } = await db()

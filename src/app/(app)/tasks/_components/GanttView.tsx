@@ -137,10 +137,10 @@ export function GanttView({ tasks, onEdit }: Props) {
   // 날짜 없는 태스크만 있으면 안내
   if (datedTasks.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center text-gray-400 gap-2">
+      <div className="flex-1 flex flex-col items-center justify-center text-ink-400 gap-2">
         <span className="text-xs">시작일 또는 마감일이 설정된 태스크가 없어요</span>
         {undatedTasks.length > 0 && (
-          <span className="text-[11px] text-gray-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
+          <span className="text-[11px] text-ink-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
         )}
       </div>
     )
@@ -165,21 +165,21 @@ export function GanttView({ tasks, onEdit }: Props) {
   const headerH = YEAR_H + MONTH_H + WEEK_H
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 overflow-auto bg-card">
       <div className="relative" style={{ minWidth: LEFT_W + totalWidth }}>
 
         {/* 좌측 컬럼 리사이즈 핸들 — 전체 높이 */}
         <div
           onMouseDown={onResizeStart}
-          className="absolute top-0 w-1 h-full cursor-col-resize hover:bg-indigo-300 active:bg-indigo-400 transition-colors z-30"
+          className="absolute top-0 w-1 h-full cursor-col-resize hover:bg-lilac-300 active:bg-lilac-400 transition-colors z-30"
           style={{ left: LEFT_W - 2 }}
           title="드래그해서 폭 조절"
         />
 
         {/* ── 헤더 ── */}
-        <div className="flex sticky top-0 z-10 bg-white border-b shadow-sm select-none">
+        <div className="flex sticky top-0 z-10 bg-card border-b shadow-sm select-none">
           {/* 좌측 고정 */}
-          <div className="shrink-0 border-r bg-gray-50" style={{ width: LEFT_W, height: headerH }} />
+          <div className="shrink-0 border-r bg-muted" style={{ width: LEFT_W, height: headerH }} />
 
           {/* 날짜 헤더 영역 */}
           <div className="flex flex-col" style={{ width: totalWidth }}>
@@ -188,7 +188,7 @@ export function GanttView({ tasks, onEdit }: Props) {
               {yGroups.map((g, i) => (
                 <div
                   key={i}
-                  className="shrink-0 flex items-center px-2 text-[11px] font-bold text-gray-600 border-r bg-gray-50"
+                  className="shrink-0 flex items-center px-2 text-[11px] font-bold text-muted-foreground border-r bg-muted"
                   style={{ width: g.count * WEEK_W }}
                 >
                   {g.year}
@@ -201,7 +201,7 @@ export function GanttView({ tasks, onEdit }: Props) {
               {mGroups.map((g, i) => (
                 <div
                   key={i}
-                  className="shrink-0 flex items-center px-1.5 text-[11px] font-semibold text-gray-500 border-r bg-white whitespace-nowrap overflow-hidden"
+                  className="shrink-0 flex items-center px-1.5 text-[11px] font-semibold text-muted-foreground border-r bg-card whitespace-nowrap overflow-hidden"
                   style={{ width: g.count * WEEK_W }}
                 >
                   {g.label}
@@ -219,7 +219,7 @@ export function GanttView({ tasks, onEdit }: Props) {
                   <div
                     key={w.key}
                     className={`shrink-0 flex items-center justify-center text-[10px] border-r
-                      ${isToday ? 'bg-indigo-50 text-indigo-600 font-semibold' : 'text-gray-400'}`}
+                      ${isToday ? 'bg-accent text-accent-foreground font-semibold' : 'text-ink-400'}`}
                     style={{ width: WEEK_W }}
                   >
                     {lbl}
@@ -250,7 +250,7 @@ export function GanttView({ tasks, onEdit }: Props) {
           return (
             <div
               key={task.id}
-              className={`flex border-b hover:bg-gray-50 group ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-gray-50/40' : ''}`}
+              className={`flex border-b hover:bg-muted group ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''}`}
               style={{ height: ROW_H }}
             >
               {/* 태스크 이름 */}
@@ -258,16 +258,16 @@ export function GanttView({ tasks, onEdit }: Props) {
                 className="shrink-0 flex items-center gap-1.5 px-3 border-r"
                 style={{ width: LEFT_W }}
               >
-                {isSub && <CornerDownRight size={11} className="text-gray-300 shrink-0" />}
+                {isSub && <CornerDownRight size={11} className="text-ink-300 shrink-0" />}
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
                 <button
                   onClick={() => onEdit(task)}
-                  className={`text-xs truncate hover:text-indigo-600 transition-colors text-left ${
-                    isDone ? 'line-through font-medium text-gray-400' :
-                    task.priority === 3 ? 'font-semibold text-rose-400' :
-                    task.priority === 2 ? 'font-medium text-gray-900' :
-                    task.priority === 1 ? 'font-normal text-gray-600' :
-                    'font-normal text-gray-400'
+                  className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${
+                    isDone ? 'line-through font-medium text-ink-400' :
+                    task.priority === 3 ? 'font-semibold text-rose-500' :
+                    task.priority === 2 ? 'font-medium text-foreground' :
+                    task.priority === 1 ? 'font-normal text-muted-foreground' :
+                    'font-normal text-ink-400'
                   }`}
                   title={task.title}
                 >
@@ -276,7 +276,7 @@ export function GanttView({ tasks, onEdit }: Props) {
                 {task.memo && (
                   <StickyNote
                     size={10}
-                    className="text-indigo-400 shrink-0"
+                    className="text-lilac-400 shrink-0"
                     onMouseEnter={(e) => setMemoHover({ taskId: task.id, x: e.clientX, y: e.clientY })}
                     onMouseLeave={() => setMemoHover(null)}
                   />
@@ -289,7 +289,7 @@ export function GanttView({ tasks, onEdit }: Props) {
                 {weeks.map((_, i) => (
                   <div
                     key={i}
-                    className="absolute inset-y-0 border-r border-gray-100"
+                    className="absolute inset-y-0 border-r border-border"
                     style={{ left: i * WEEK_W }}
                   />
                 ))}
@@ -297,7 +297,7 @@ export function GanttView({ tasks, onEdit }: Props) {
                 {/* 오늘 선 */}
                 {todayX >= 0 && todayX <= totalWidth && (
                   <div
-                    className="absolute inset-y-0 w-px bg-indigo-400 opacity-70 z-10"
+                    className="absolute inset-y-0 w-px bg-lilac-400 opacity-70 z-10"
                     style={{ left: todayX }}
                   />
                 )}
@@ -358,7 +358,7 @@ export function GanttView({ tasks, onEdit }: Props) {
                           className="absolute top-2 flex items-center pointer-events-none"
                           style={{ left: barLeft + barWidth + 4, height: ROW_H - 16 }}
                         >
-                          <span className={`text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-red-500' : 'text-gray-500'}`}>
+                          <span className={`text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
                             {label}
                           </span>
                         </div>
@@ -374,7 +374,7 @@ export function GanttView({ tasks, onEdit }: Props) {
         {/* ── 날짜 없는 태스크 ── */}
         {undatedTasks.length > 0 && (
           <>
-            <div className="px-3 py-1.5 text-[10px] font-semibold text-gray-400 uppercase bg-gray-50 border-b tracking-wider">
+            <div className="px-3 py-1.5 text-[10px] font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider">
               날짜 미설정 — {undatedTasks.length}개
             </div>
             {undatedTasks.map(task => {
@@ -382,19 +382,19 @@ export function GanttView({ tasks, onEdit }: Props) {
               return (
                 <div
                   key={task.id}
-                  className={`flex border-b hover:bg-gray-50 ${isDone ? 'opacity-55' : ''}`}
+                  className={`flex border-b hover:bg-muted ${isDone ? 'opacity-55' : ''}`}
                   style={{ height: ROW_H }}
                 >
                   <div className="shrink-0 flex items-center gap-1.5 px-3 border-r" style={{ width: LEFT_W }}>
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
                     <button
                       onClick={() => onEdit(task)}
-                      className={`text-xs truncate hover:text-indigo-600 transition-colors text-left ${
-                        isDone ? 'line-through font-medium text-gray-400' :
-                        task.priority === 3 ? 'font-semibold text-rose-400' :
-                        task.priority === 2 ? 'font-medium text-gray-900' :
-                        task.priority === 1 ? 'font-normal text-gray-600' :
-                        'font-normal text-gray-400'
+                      className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${
+                        isDone ? 'line-through font-medium text-ink-400' :
+                        task.priority === 3 ? 'font-semibold text-rose-500' :
+                        task.priority === 2 ? 'font-medium text-foreground' :
+                        task.priority === 1 ? 'font-normal text-muted-foreground' :
+                        'font-normal text-ink-400'
                       }`}
                     >
                       {task.title}
@@ -402,14 +402,14 @@ export function GanttView({ tasks, onEdit }: Props) {
                     {task.memo && (
                       <StickyNote
                         size={10}
-                        className="text-indigo-400 shrink-0"
+                        className="text-lilac-400 shrink-0"
                         onMouseEnter={(e) => setMemoHover({ taskId: task.id, x: e.clientX, y: e.clientY })}
                         onMouseLeave={() => setMemoHover(null)}
                       />
                     )}
                   </div>
                   <div className="flex-1 flex items-center px-4">
-                    <span className="text-[10px] text-gray-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
+                    <span className="text-[10px] text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
                   </div>
                 </div>
               )
@@ -425,10 +425,10 @@ export function GanttView({ tasks, onEdit }: Props) {
         const pos = clampTooltipPos(memoHover.x, memoHover.y)
         return (
           <div className="fixed z-[9999] pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
-            <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
               {t.memo}
             </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
+            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
           </div>
         )
       })()}

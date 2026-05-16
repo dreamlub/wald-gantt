@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote,
+  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check,
 } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -22,9 +22,12 @@ interface TaskRowProps {
   subTaskStats?: { total: number; done: number }
   onAddSubTask?: () => void
   onToggleExpand?: () => void
+  selectionMode?: boolean
+  selected?: boolean
+  onSelect?: (id: string) => void
 }
 
-export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand }: TaskRowProps) {
+export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -34,16 +37,37 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
   const noUpdate = daysDiff(task.updated_at) >= 7 && !isDone
   const odDays   = overdueDays(task.due_date)
   const sdDays   = startDelayedDays(task.start_date)
-  const color    = assigneeColor ?? '#9ca3af'
+  const color    = assigneeColor ?? 'var(--color-ink-300)'
   const assigneeName = task.type === 'mine' ? '내 할일' : (task.assignee ?? '')
   const labels = task.labels ?? []
 
   return (
-    <div className={`group flex items-center px-4 py-2 border-b border-gray-50 hover:bg-gray-50 transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-40' : ''} ${isSubTask ? 'bg-gray-50/40' : ''}`}>
-      {/* 들여쓰기 (하위 태스크) */}
-      {isSubTask && <div className="shrink-0 w-6 flex items-center justify-center mr-1"><div className="w-px h-4 bg-gray-200 ml-3" /></div>}
-      {!isSubTask && (
-        <div className="shrink-0 mr-1 cursor-grab text-gray-200 hover:text-gray-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
+    <div className={`group flex items-center px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-40' : ''} ${isSubTask ? 'bg-muted/40' : ''}`}>
+      {/* 들여쓰기 / 체크박스 / 그립 */}
+      {isSubTask ? (
+        selectionMode ? (
+          <div className="shrink-0 w-6 flex items-center justify-center mr-1">
+            <button
+              onClick={e => { e.stopPropagation(); onSelect?.(task.id) }}
+              className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selected ? 'bg-lilac-500 border-lilac-500' : 'border-border hover:border-lilac-400'}`}
+            >
+              {selected && <Check size={8} className="text-white" strokeWidth={3} />}
+            </button>
+          </div>
+        ) : (
+          <div className="shrink-0 w-6 flex items-center justify-center mr-1"><div className="w-px h-4 bg-ink-200 ml-3" /></div>
+        )
+      ) : selectionMode ? (
+        <div className="shrink-0 mr-1 w-[18px] flex items-center justify-center">
+          <button
+            onClick={e => { e.stopPropagation(); onSelect?.(task.id) }}
+            className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selected ? 'bg-lilac-500 border-lilac-500' : 'border-border hover:border-lilac-400'}`}
+          >
+            {selected && <Check size={8} className="text-white" strokeWidth={3} />}
+          </button>
+        </div>
+      ) : (
+        <div className="shrink-0 mr-1 cursor-grab text-ink-200 hover:text-ink-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
           <GripVertical size={13} />
         </div>
       )}
@@ -53,8 +77,8 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         title={isDone ? '완료 취소' : '완료 처리'}
       >
         {isDone
-          ? <CheckCircle2 size={16} className="text-green-400" />
-          : <Circle size={16} className="text-gray-300 hover:text-indigo-400 transition-colors" />}
+          ? <CheckCircle2 size={16} className="text-mint-500" />
+          : <Circle size={16} className="text-ink-300 hover:text-lilac-400 transition-colors" />}
       </button>
 
       {/* 제목 + 뱃지 영역 */}
@@ -62,29 +86,29 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         {/* 제목 — 클릭 시 드로어 */}
         <button
           onClick={() => onEdit(task)}
-          className={`text-xs min-w-0 truncate text-left hover:text-indigo-600 transition-colors ${
-            isDone ? 'line-through font-medium text-gray-400' :
-            task.priority === 3 ? 'font-semibold text-rose-400' :
-            task.priority === 2 ? 'font-medium text-gray-900' :
-            task.priority === 1 ? 'font-normal text-gray-600' :
-            'font-normal text-gray-400'
+          className={`text-xs min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${
+            isDone ? 'line-through font-medium text-ink-400' :
+            task.priority === 3 ? 'font-semibold text-rose-500' :
+            task.priority === 2 ? 'font-medium text-foreground' :
+            task.priority === 1 ? 'font-normal text-muted-foreground' :
+            'font-normal text-ink-400'
           }`}
         >
           {task.title}
         </button>
 
         {overdue && (
-          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-red-500 font-medium border border-red-100 whitespace-nowrap">
+          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
             지연 {odDays}일
           </span>
         )}
         {startDelayed && (
-          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-amber-50 text-amber-600 font-medium border border-amber-100 whitespace-nowrap">
+          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
             시작 지연 {sdDays}일
           </span>
         )}
         {noUpdate && !overdue && !startDelayed && (
-          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-orange-50 text-orange-500 font-medium border border-orange-100 whitespace-nowrap">
+          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
             {daysDiff(task.updated_at)}일 무응답
           </span>
         )}
@@ -92,13 +116,13 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         {/* 연결 프로젝트 */}
         {task.projects && task.projects.length > 0 && (
           <>
-            <span className="text-gray-200 text-[10px] shrink-0">·</span>
+            <span className="text-ink-200 text-[10px] shrink-0">·</span>
             {task.projects.slice(0, 2).map(p => (
-              <span key={p.id} className="flex items-center gap-0.5 text-[10px] bg-gray-100 text-gray-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+              <span key={p.id} className="flex items-center gap-0.5 text-[10px] bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                 <Paperclip size={8} className="shrink-0" />{p.name}
               </span>
             ))}
-            {task.projects.length > 2 && <span className="text-[10px] text-gray-400 shrink-0">+{task.projects.length - 2}</span>}
+            {task.projects.length > 2 && <span className="text-[10px] text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
           </>
         )}
 
@@ -115,7 +139,7 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             </span>
           )
         })}
-        {labels.length > 4 && <span className="text-[9px] text-gray-400 shrink-0">+{labels.length - 4}</span>}
+        {labels.length > 4 && <span className="text-[9px] text-ink-400 shrink-0">+{labels.length - 4}</span>}
 
         {/* 하위 태스크 진행 뱃지 */}
         {subTaskStats && subTaskStats.total > 0 && (
@@ -123,8 +147,8 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             onClick={e => { e.stopPropagation(); onToggleExpand?.() }}
             className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
               ${subTaskStats.done === subTaskStats.total
-                ? 'bg-green-50 text-green-600 border-green-100 hover:bg-green-100'
-                : 'bg-gray-50 text-gray-500 border-gray-100 hover:bg-gray-100'}`}
+                ? 'bg-mint-100 text-mint-500 border-mint-100 hover:bg-mint-100'
+                : 'bg-muted text-muted-foreground border-border hover:bg-muted'}`}
             title="하위 태스크 펼치기/접기"
           >
             {subTaskStats.done}/{subTaskStats.total}
@@ -135,7 +159,7 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
         {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-gray-300 text-gray-500 hover:text-gray-900 hover:border-gray-400 hover:bg-gray-100 transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
             title="하위 태스크 추가"
           >
             sub +
@@ -155,8 +179,8 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
             memoTimerRef.current = setTimeout(() => setMemoPos(null), 100)
           } : undefined}
           className={task.memo
-            ? 'text-indigo-400 hover:text-indigo-600 transition-colors'
-            : 'text-gray-200 opacity-0 group-hover:opacity-100 hover:text-indigo-400 transition-colors'}
+            ? 'text-lilac-400 hover:text-accent-foreground transition-colors'
+            : 'text-ink-200 opacity-0 group-hover:opacity-100 hover:text-lilac-400 transition-colors'}
         >
           <StickyNote size={12} />
         </button>
@@ -167,24 +191,24 @@ export function TaskRow({ task, onEdit, onDelete, onStatusChange, dragHandleProp
               className="fixed z-[9999] pointer-events-none max-w-xs"
               style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
             >
-              <div className="bg-gray-900 text-gray-100 text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+              <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
                 {task.memo}
               </div>
-              <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-gray-900 rotate-45`} />
+              <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
             </div>
           )
         })()}
       </div>
 
-      <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-indigo-500 transition-colors">
+      <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-lilac-500 transition-colors">
         {assigneeName && (
           <>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-[11px] text-gray-500 truncate">{assigneeName}</span>
+            <span className="text-[11px] text-muted-foreground truncate">{assigneeName}</span>
           </>
         )}
       </button>
-      <button onClick={() => onEdit(task)} className={`w-24 shrink-0 text-[11px] tabular-nums text-left hover:text-indigo-500 transition-colors ${overdue ? 'text-red-500' : 'text-gray-400'}`}>
+      <button onClick={() => onEdit(task)} className={`w-24 shrink-0 text-[11px] tabular-nums text-left hover:text-lilac-500 transition-colors ${overdue ? 'text-status-late' : 'text-ink-400'}`}>
         {fmtRange(task.start_date ?? null, task.due_date)}
       </button>
     </div>
@@ -201,21 +225,27 @@ interface DraggableTaskRowProps {
   onEdit: (t: GanttTask) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, s: TaskStatus) => void
+  selectionMode?: boolean
+  selected?: boolean
+  onSelect?: (id: string) => void
 }
 
-export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskStats, onAddSubTask, onToggleExpand, ...props }: DraggableTaskRowProps) {
+export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect, ...props }: DraggableTaskRowProps) {
   const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id })
   const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
   return (
     <div ref={setNodeRef} style={style}>
       <TaskRow
         task={task}
-        dragHandleProps={{ ...attributes, ...listeners }}
+        dragHandleProps={selectionMode ? undefined : { ...attributes, ...listeners }}
         isDragging={isDraggingId === task.id}
         assigneeColor={assigneeColor}
         subTaskStats={subTaskStats}
         onAddSubTask={onAddSubTask}
         onToggleExpand={onToggleExpand}
+        selectionMode={selectionMode}
+        selected={selected}
+        onSelect={onSelect}
         {...props}
       />
     </div>
@@ -225,7 +255,7 @@ export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskSta
 export function DroppableGroup({ status, children }: { status: TaskStatus; children: React.ReactNode }) {
   const { setNodeRef, isOver } = useDroppable({ id: status })
   return (
-    <div ref={setNodeRef} className={isOver ? 'ring-1 ring-inset ring-indigo-300 rounded bg-indigo-50/30' : ''}>
+    <div ref={setNodeRef} className={isOver ? 'ring-1 ring-inset ring-lilac-300 rounded bg-accent/30' : ''}>
       {children}
     </div>
   )

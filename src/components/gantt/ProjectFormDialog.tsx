@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useRef, useCallback } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { CalendarIcon, ChevronDown, X, Clock } from 'lucide-react'
@@ -9,58 +9,8 @@ import { Calendar } from '@/components/ui/calendar'
 import { getProjectHistory } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistoryEntry } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
-
-function AutocompleteInput({ value, onChange, suggestions, placeholder, className, name }: {
-  value: string
-  onChange: (v: string) => void
-  suggestions: string[]
-  placeholder?: string
-  className?: string
-  name?: string
-}) {
-  const [open, setOpen] = useState(false)
-  const containerRef = useRef<HTMLDivElement>(null)
-
-  const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
-
-  const close = useCallback(() => setOpen(false), [])
-
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      if (containerRef.current && !containerRef.current.contains(e.target as Node)) close()
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [close])
-
-  return (
-    <div ref={containerRef} className="relative">
-      <input
-        name={name}
-        className={className}
-        placeholder={placeholder}
-        value={value}
-        onChange={e => { onChange(e.target.value); setOpen(true) }}
-        onFocus={() => setOpen(true)}
-        onKeyDown={e => { if (e.key === 'Escape') close() }}
-        autoComplete="off"
-      />
-      {open && filtered.length > 0 && (
-        <ul className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-white border border-gray-200 rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto">
-          {filtered.map(s => (
-            <li
-              key={s}
-              onPointerDown={e => { e.preventDefault(); onChange(s); close() }}
-              className="px-2.5 py-1.5 text-xs text-gray-700 hover:bg-indigo-50 hover:text-indigo-700 cursor-pointer"
-            >
-              {s}
-            </li>
-          ))}
-        </ul>
-      )}
-    </div>
-  )
-}
+import { toDate, toDateStr } from '@/lib/gantt-utils'
+import { AutocompleteInput } from '@/components/AutocompleteInput'
 
 // ── 수정 이력 인라인 섹션 ────────────────────────────────────
 const FIELD_LABELS: Record<string, string> = {
@@ -107,22 +57,22 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
   return (
     <div className="flex flex-col h-full">
       {loading ? (
-        <div className="flex items-center justify-center h-20 text-gray-400 text-xs">로딩 중...</div>
+        <div className="flex items-center justify-center h-20 text-muted-foreground text-xs">로딩 중...</div>
       ) : groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-28 text-gray-300 text-xs gap-1">
+        <div className="flex flex-col items-center justify-center h-28 text-ink-300 text-xs gap-1">
           <Clock size={20} className="opacity-30" />
           수정 이력이 없습니다
         </div>
       ) : groups.map((group, gi) => (
-        <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-gray-50 transition-colors">
-          <div className="text-[10px] text-gray-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
+        <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-muted transition-colors">
+          <div className="text-[10px] text-muted-foreground font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
           <div className="space-y-1">
             {group.map(entry => (
               <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-gray-500 font-semibold w-12 shrink-0">{FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
-                <span className="text-[11px] text-gray-400 line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
-                <span className="text-[10px] text-gray-300">→</span>
-                <span className="text-[11px] text-gray-700 font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
+                <span className="text-[11px] text-muted-foreground font-semibold w-12 shrink-0">{FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
+                <span className="text-[11px] text-muted-foreground line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
+                <span className="text-[10px] text-ink-300">→</span>
+                <span className="text-[11px] text-foreground font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
               </div>
             ))}
           </div>
@@ -166,17 +116,6 @@ interface Props {
   allPMs?: string[]
 }
 
-function toDate(dateStr: string | null | undefined): Date | undefined {
-  if (!dateStr) return undefined
-  const d = new Date(dateStr)
-  return isNaN(d.getTime()) ? undefined : d
-}
-
-function toDateStr(d: Date | undefined): string | null {
-  if (!d) return null
-  return format(d, 'yyyy-MM-dd')
-}
-
 function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   value: Date | undefined
   onChange: (d: Date | undefined) => void
@@ -186,11 +125,11 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   const [open, setOpen] = useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-gray-200 bg-white px-2 text-xs h-8 font-normal transition-colors hover:bg-gray-50 focus:outline-none focus:border-indigo-300">
-        <CalendarIcon size={13} className="text-gray-400 shrink-0" />
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
+        <CalendarIcon size={13} className="text-muted-foreground shrink-0" />
         {value
-          ? <span className="text-gray-700">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
-          : <span className="text-gray-300">{placeholder}</span>
+          ? <span className="text-foreground">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
+          : <span className="text-ink-300">{placeholder}</span>
         }
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start">
@@ -287,15 +226,15 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       />
       {/* Drawer panel */}
       <div
-        className={`absolute right-0 top-0 h-full w-[440px] bg-white shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
+        className={`absolute right-0 top-0 h-full w-[440px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
       >
         {/* Header */}
         <div className="shrink-0 border-b">
           <div className="flex items-center px-5 py-4">
-            <h2 className="text-sm font-semibold text-gray-800 flex-1">
+            <h2 className="text-sm font-semibold text-foreground flex-1">
               {editProject ? '프로젝트 수정' : '프로젝트 추가'}
             </h2>
-            <button onClick={onClose} className="p-1 text-gray-400 hover:text-gray-600 rounded">
+            <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
               <X size={16} />
             </button>
           </div>
@@ -303,7 +242,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             <button
               onClick={() => setTab('info')}
               className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
-                tab === 'info' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                tab === 'info' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               정보
@@ -311,19 +250,19 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             <button
               onClick={() => setTab('memo')}
               className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
-                tab === 'memo' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                tab === 'memo' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
               메모
               {memo.trim() && (
-                <span className="w-1 h-1 rounded-full bg-indigo-400" />
+                <span className="w-1 h-1 rounded-full bg-lilac-400" />
               )}
             </button>
             {editProject && (
               <button
                 onClick={() => setTab('history')}
                 className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
-                  tab === 'history' ? 'border-indigo-500 text-indigo-600' : 'border-transparent text-gray-400 hover:text-gray-600'
+                  tab === 'history' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
                 이력
@@ -344,7 +283,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             ref={nameRef}
             name="project-name"
             autoComplete="off"
-            className="w-full text-sm font-medium text-gray-800 border-b border-gray-200 focus:border-indigo-400 outline-none pb-1 placeholder:text-gray-300"
+            className="w-full text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
             placeholder="프로젝트 이름"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -354,34 +293,34 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           {/* 카테고리 + 상태 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">카테고리</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">카테고리</label>
               <div className="relative mt-1.5">
                 <select
                   value={categoryId}
                   onChange={e => setCategoryId(e.target.value)}
-                  className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-indigo-300 appearance-none bg-white text-gray-700"
+                  className="w-full text-xs border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
                 >
                   {categories.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
 
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">상태</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <select
                   value={status}
                   onChange={e => setStatus(e.target.value as GanttStatus)}
-                  className="w-full text-xs border border-gray-200 rounded px-2 py-1.5 outline-none focus:border-indigo-300 appearance-none bg-white text-gray-700"
+                  className="w-full text-xs border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
                 >
                   {STATUSES.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
                   ))}
                 </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-gray-400 pointer-events-none" />
+                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
               </div>
             </div>
           </div>
@@ -390,7 +329,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">시작일</label>
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -401,7 +340,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">종료일</label>
+                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={endDate}
@@ -413,17 +352,17 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               </div>
             </div>
             {dateError && (
-              <p className="text-[11px] text-red-500">{dateError}</p>
+              <p className="text-[11px] text-status-late">{dateError}</p>
             )}
           </div>
 
           {/* 담당팀 / PM */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">담당팀</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
               <AutocompleteInput
                 name="project-team"
-                className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
+                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="예: 개발팀"
                 value={team}
                 onChange={setTeam}
@@ -431,10 +370,10 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               />
             </div>
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">PM</label>
+              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
               <AutocompleteInput
                 name="project-pm"
-                className="mt-1.5 w-full text-xs border border-gray-200 rounded px-2.5 py-1.5 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700"
+                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="예: 홍길동"
                 value={pm}
                 onChange={setPm}
@@ -445,7 +384,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
 
           {/* 우선순위 */}
           <div>
-            <label className="text-[10px] font-semibold text-gray-400 uppercase tracking-wider">우선순위</label>
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -458,7 +397,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                     className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
-                        : 'border-gray-200 text-gray-400 hover:border-gray-300'}`}
+                        : 'border-border text-muted-foreground hover:border-ink-300'}`}
                     style={active && opt.value > 0 ? { color: meta.color, borderColor: meta.color, backgroundColor: meta.color + '14' } : {}}
                   >
                     {opt.value > 0 && <PriorityBars priority={opt.value} />}
@@ -476,7 +415,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             ref={memoRef}
             name="project-memo"
             autoComplete="off"
-            className="w-full h-full text-xs border border-gray-200 rounded p-3 outline-none focus:border-indigo-300 placeholder:text-gray-300 text-gray-700 resize-none leading-relaxed"
+            className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground resize-none leading-relaxed"
             placeholder="메모를 입력하세요"
             value={memo}
             onChange={e => setMemo(e.target.value)}
@@ -493,14 +432,14 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <div className="flex-1" />
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-gray-500 hover:text-gray-700 hover:bg-gray-100 rounded transition-colors"
+            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleSave}
             disabled={!isValid || loading}
-            className="px-4 py-1.5 text-xs bg-indigo-600 text-white rounded font-medium hover:bg-indigo-700 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 text-xs bg-foreground text-background rounded font-medium hover:bg-ink-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? '저장 중...' : editProject ? '수정' : '저장'}
           </button>

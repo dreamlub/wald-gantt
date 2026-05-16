@@ -40,10 +40,10 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gray-50">
-      <div className="bg-white rounded-xl shadow-sm border p-8 w-full max-w-sm">
-        <h1 className="text-2xl font-bold text-gray-900 mb-1">Wald Task Manager</h1>
-        <p className="text-sm text-gray-500 mb-6">프로젝트 일정 관리</p>
+    <div className="min-h-screen flex items-center justify-center bg-muted">
+      <div className="bg-card rounded-xl shadow-sm border p-8 w-full max-w-sm">
+        <h1 className="text-2xl font-bold text-foreground mb-1">Wald Task Manager</h1>
+        <p className="text-sm text-muted-foreground mb-6">프로젝트 일정 관리</p>
 
         <form onSubmit={handleSubmit} className="space-y-4">
           <div className="space-y-1.5">
@@ -70,7 +70,7 @@ export default function LoginPage() {
           </div>
 
           {error && (
-            <p className="text-sm text-red-500">{error}</p>
+            <p className="text-sm text-status-late">{error}</p>
           )}
 
           <Button type="submit" className="w-full" disabled={loading}>
@@ -80,7 +80,7 @@ export default function LoginPage() {
 
         <button
           onClick={() => { setIsSignUp(!isSignUp); setError('') }}
-          className="mt-4 text-sm text-gray-500 hover:text-gray-700 w-full text-center"
+          className="mt-4 text-sm text-muted-foreground hover:text-foreground w-full text-center"
         >
           {isSignUp ? '이미 계정이 있으신가요? 로그인' : '계정이 없으신가요? 회원가입'}
         </button>

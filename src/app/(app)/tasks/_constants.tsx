@@ -2,16 +2,28 @@ import React from 'react'
 import { LayoutGrid, List, GanttChartSquare, CalendarDays, Columns3 } from 'lucide-react'
 import type { TaskStatus, Priority } from '@/types'
 
-export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string }[] = [
-  { status: 'backlog',     label: 'Backlog',     color: '#9ca3af' },
-  { status: 'to-do',       label: 'To-Do',       color: '#6366f1' },
-  { status: 'in-progress', label: 'In Progress', color: '#f59e0b' },
-  { status: 'done',        label: 'Done',         color: '#22c55e' },
-  { status: 'pending',     label: 'Pending',      color: '#a78bfa' },
+export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string; bgColor: string }[] = [
+  { status: 'backlog',     label: 'Backlog',     color: 'var(--task-status-backlog)',     bgColor: 'var(--task-status-backlog-bg)' },
+  { status: 'to-do',       label: 'To-Do',       color: 'var(--task-status-todo)',        bgColor: 'var(--task-status-todo-bg)' },
+  { status: 'in-progress', label: 'In Progress', color: 'var(--task-status-in-progress)', bgColor: 'var(--task-status-in-progress-bg)' },
+  { status: 'done',        label: 'Done',        color: 'var(--task-status-done)',        bgColor: 'var(--task-status-done-bg)' },
+  { status: 'pending',     label: 'Pending',     color: 'var(--task-status-pending)',     bgColor: 'var(--task-status-pending-bg)' },
 ]
 
 export const STATUS_COLOR: Record<TaskStatus, string> = {
-  backlog: '#9ca3af', 'to-do': '#6366f1', 'in-progress': '#f59e0b', done: '#22c55e', pending: '#a78bfa',
+  backlog:       'var(--task-status-backlog)',
+  'to-do':       'var(--task-status-todo)',
+  'in-progress': 'var(--task-status-in-progress)',
+  done:          'var(--task-status-done)',
+  pending:       'var(--task-status-pending)',
+}
+
+export const STATUS_BG_COLOR: Record<TaskStatus, string> = {
+  backlog:       'var(--task-status-backlog-bg)',
+  'to-do':       'var(--task-status-todo-bg)',
+  'in-progress': 'var(--task-status-in-progress-bg)',
+  done:          'var(--task-status-done-bg)',
+  pending:       'var(--task-status-pending-bg)',
 }
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
@@ -19,13 +31,13 @@ export const STATUS_LABEL: Record<TaskStatus, string> = {
 }
 
 export const PROJECT_COLORS = [
-  '#f59e0b', '#f97316', '#8b5cf6', '#22c55e',
-  '#3b82f6', '#ec4899', '#14b8a6', '#a855f7',
+  'var(--color-id-amber)',  'var(--color-id-orange)', 'var(--color-id-violet)', 'var(--color-id-green)',
+  'var(--color-id-blue)',   'var(--color-id-pink)',   'var(--color-id-teal)',   'var(--color-id-purple)',
 ]
 
 export const ASSIGNEE_COLORS = [
-  '#6366f1', '#f59e0b', '#22c55e', '#ec4899',
-  '#3b82f6', '#a855f7', '#14b8a6', '#f97316',
+  'var(--color-id-indigo)', 'var(--color-id-amber)',  'var(--color-id-green)',  'var(--color-id-pink)',
+  'var(--color-id-blue)',   'var(--color-id-purple)', 'var(--color-id-teal)',   'var(--color-id-orange)',
 ]
 
 export type ViewType = 'normal' | 'list' | 'kanban' | 'calendar' | 'gantt'
@@ -41,10 +53,10 @@ export const VIEW_TABS: { key: ViewType; label: string; icon: React.ReactNode }[
 // ── 우선순위 ─────────────────────────────────────────────────
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string }> = {
-  0: { label: '없음', color: '#9ca3af' },
-  1: { label: '낮음', color: '#60a5fa' },
-  2: { label: '보통', color: '#f59e0b' },
-  3: { label: '높음', color: '#ef4444' },
+  0: { label: '없음', color: 'var(--color-ink-300)' },
+  1: { label: '낮음', color: 'var(--color-status-future)' },
+  2: { label: '보통', color: 'var(--color-status-warn)' },
+  3: { label: '높음', color: 'var(--color-status-late)' },
 }
 
 export const PRIORITY_OPTIONS: { value: Priority; label: string }[] = [
@@ -60,7 +72,7 @@ export function PriorityBars({ priority, showLabel }: {
 }) {
   const p = (priority ?? 0) as Priority
   if (p === 0) {
-    return showLabel ? <span className="text-[10px] text-gray-300">—</span> : null
+    return showLabel ? <span className="text-[10px] text-ink-300">—</span> : null
   }
   const meta = PRIORITY_META[p]
   return (
@@ -72,7 +84,7 @@ export function PriorityBars({ priority, showLabel }: {
             className="w-[2px] rounded-sm"
             style={{
               height: `${3 + i * 2}px`,
-              backgroundColor: i <= p ? meta.color : '#e5e7eb',
+              backgroundColor: i <= p ? meta.color : 'var(--color-ink-150)',
             }}
           />
         ))}

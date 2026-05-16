@@ -52,9 +52,7 @@ function SortableBoardItem(props: ItemProps) {
     >
       <div
         onClick={() => onSelect(board.id)}
-        className={`group flex items-center gap-1.5 px-1.5 py-2 cursor-pointer rounded-md mb-0.5 transition-colors ${
-          selectedId === board.id ? 'bg-indigo-50 text-indigo-700' : 'text-gray-600 hover:bg-gray-100'
-        }`}
+        className={`group sidebar-btn cursor-pointer mb-0.5 ${selectedId === board.id ? 'sidebar-btn-active' : ''}`}
       >
         <button
           {...attributes}
@@ -64,14 +62,14 @@ function SortableBoardItem(props: ItemProps) {
           tabIndex={-1}
           aria-label="드래그 핸들"
         >
-          <GripVertical size={12} className="text-gray-300 group-hover:text-gray-400" />
+          <GripVertical size={12} className="text-ink-300 group-hover:text-ink-400" />
         </button>
         <LayoutDashboard size={13} className="shrink-0 opacity-50" />
 
         {editId === board.id ? (
           <input
             autoFocus
-            className="flex-1 text-xs bg-transparent border-b border-indigo-400 outline-none min-w-0"
+            className="flex-1 text-xs bg-transparent border-b border-lilac-400 outline-none min-w-0"
             value={editVal}
             onChange={e => setEditVal(e.target.value)}
             onBlur={() => onCommitEdit(board.id)}
@@ -94,7 +92,7 @@ function SortableBoardItem(props: ItemProps) {
         {editId !== board.id && (
           <button
             onClick={e => { e.stopPropagation(); onDelete(board.id) }}
-            className="opacity-0 group-hover:opacity-100 p-0.5 text-gray-300 hover:text-red-400 shrink-0 transition-opacity"
+            className="opacity-0 group-hover:opacity-100 p-0.5 text-ink-300 hover:text-status-late shrink-0 transition-opacity"
           >
             <Trash2 size={11} />
           </button>
@@ -153,15 +151,15 @@ export function BoardSidebar({
 
   return (
     <div
-      className="shrink-0 flex flex-col border-r bg-gray-50 overflow-hidden transition-all duration-200"
+      className="shrink-0 flex flex-col border-r bg-muted overflow-hidden transition-all duration-200"
       style={{ width: open ? 240 : 0 }}
     >
       {/* 헤더 */}
-      <div className="h-12 flex items-center px-4 border-b bg-white shrink-0 gap-2">
-        <span className="flex-1 text-xs font-semibold text-gray-400 uppercase tracking-wider whitespace-nowrap">보드</span>
+      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
+        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Schedule</span>
         <button
           onClick={onToggle}
-          className="p-1 rounded text-gray-300 hover:text-gray-500 hover:bg-gray-100 transition-colors"
+          className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
           title="사이드바 닫기"
         >
           <PanelLeftClose size={14} />
@@ -196,10 +194,10 @@ export function BoardSidebar({
 
           <DragOverlay dropAnimation={null}>
             {activeBoard ? (
-              <div className="flex items-center gap-1.5 px-1.5 py-2 rounded-md shadow-xl bg-white ring-1 ring-indigo-300 cursor-grabbing">
-                <GripVertical size={12} className="text-gray-400 shrink-0" />
+              <div className="flex items-center gap-1.5 px-1.5 py-2 rounded-md shadow-xl bg-card ring-1 ring-ink-200 cursor-grabbing">
+                <GripVertical size={12} className="text-ink-400 shrink-0" />
                 <LayoutDashboard size={13} className="shrink-0 opacity-50" />
-                <span className="flex-1 text-xs truncate text-gray-700">{activeBoard.name}</span>
+                <span className="flex-1 text-xs truncate text-foreground">{activeBoard.name}</span>
               </div>
             ) : null}
           </DragOverlay>
@@ -208,10 +206,10 @@ export function BoardSidebar({
         {/* 새 보드 추가 */}
         {adding ? (
           <div className="flex items-center gap-1 px-2.5 py-1.5 rounded-md">
-            <LayoutDashboard size={13} className="shrink-0 text-gray-400" />
+            <LayoutDashboard size={13} className="shrink-0 text-ink-400" />
             <input
               autoFocus
-              className="flex-1 text-xs border-b border-indigo-400 outline-none bg-transparent min-w-0"
+              className="flex-1 text-xs border-b border-lilac-400 outline-none bg-transparent min-w-0"
               placeholder="보드명"
               value={newName}
               onChange={e => setNewName(e.target.value)}
@@ -220,17 +218,17 @@ export function BoardSidebar({
                 if (e.key === 'Escape') { setAdding(false); setNewName('') }
               }}
             />
-            <button onClick={submitAdd} className="p-0.5 text-indigo-500 hover:text-indigo-700 shrink-0">
+            <button onClick={submitAdd} className="p-0.5 text-lilac-500 hover:text-lilac-600 shrink-0">
               <Check size={12} />
             </button>
-            <button onClick={() => { setAdding(false); setNewName('') }} className="p-0.5 text-gray-400 hover:text-gray-600 shrink-0">
+            <button onClick={() => { setAdding(false); setNewName('') }} className="p-0.5 text-muted-foreground hover:text-foreground shrink-0">
               <X size={12} />
             </button>
           </div>
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md mt-0.5"
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md mt-0.5"
           >
             <Plus size={13} />
             새 보드
@@ -242,12 +240,12 @@ export function BoardSidebar({
       <div className="shrink-0 border-t px-1.5 py-1.5">
         <button
           onClick={onOpenTrash}
-          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-gray-400 hover:text-gray-600 hover:bg-gray-100 rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
         >
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>
           {trashCount > 0 && (
-            <span className="ml-auto text-[10px] bg-red-100 text-red-400 font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-[10px] bg-status-late/10 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
               {trashCount}
             </span>
           )}
