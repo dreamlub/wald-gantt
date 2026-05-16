@@ -228,7 +228,7 @@ export function GanttChart({
     const col = monthOffset(viewStart, todayYM)
     todayX = col >= 0 && col < totalCols ? col * colW + colW / 2 : null
   } else if (viewMode === 'week') {
-    const idx = weeks.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 6); return today >= w.weekStart && today <= e })
+    const idx = weeks.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 7); return today >= w.weekStart && today < e })
     todayX = idx >= 0 ? idx * colW + colW / 2 : null
   } else {
     const idx = days.findIndex(d => d.key === todayStr)
@@ -272,7 +272,7 @@ export function GanttChart({
       scrollX = Math.max(0, monthOffset(viewStart, `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}`) * cw - 200)
     } else if (viewMode === 'week') {
       const ws = buildWeekRange(viewStart, viewEnd)
-      const idx = ws.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 6); return now >= w.weekStart && now <= e })
+      const idx = ws.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 7); return now >= w.weekStart && now < e })
       scrollX = idx >= 0 ? Math.max(0, idx * cw - 200) : 0
     } else {
       const nowStr = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`

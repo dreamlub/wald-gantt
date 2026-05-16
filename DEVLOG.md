@@ -187,7 +187,8 @@ insights                                 ← AI 주간 분석 캐시
 - 브랜드·작성자·태그·중요도 클릭 필터, reclick → 'all' 해제
 - URL 쿼리스트링 필터 persist (view/from/to/brand/tags/priority/author/q)
 - 행 hover 시 태스크(`ListTodo`) / 프로젝트(`CalendarRange`) 연동 생성 버튼
-- 제목·본문: 브랜드명 컬러 볼드(`HighlightAll`) + 검색어 amber `<mark>` 중첩
+- 제목: 우선순위별 색상 강조(`PRIORITY_TITLE_CLASS`) + 검색어 amber `<mark>` (`Highlight`)
+- 본문: 검색어 amber `<mark>` 하이라이팅 (`Highlight`)
 
 **인사이트 탭 (AI)**
 - `POST /api/insights/generate` SSE → Claude Haiku (`claude-haiku-4-5-20251001`) → `insights` upsert
@@ -308,7 +309,7 @@ src/
 │   │   │   ├── _components/
 │   │   │   │   ├── history-shell.tsx       # 오케스트레이터 (뷰/필터 상태, 연동 다이얼로그)
 │   │   │   │   ├── history-sidebar.tsx     # 기간/브랜드/태그/중요도/주 네비게이터
-│   │   │   │   ├── table-view.tsx          # 테이블 뷰 + HighlightAll
+│   │   │   │   ├── table-view.tsx          # 테이블 뷰 (우선순위별 타이틀 색상, 검색어 Highlight)
 │   │   │   │   ├── timeline-view.tsx
 │   │   │   │   ├── summary-view.tsx        # 브랜드별 요약 뷰
 │   │   │   │   ├── insight-view.tsx        # AI 인사이트 뷰
@@ -390,6 +391,20 @@ LEFT_W_MAX      = 560
 ---
 
 ## 최근 변경 (2026-05-17)
+
+### 간트 주 뷰 — 일요일 today 스크롤 버그 수정
+
+- **원인**: `findIndex`에서 주의 마지막 날 판별을 `weekStart + 6일 이하(≤)`로 했는데, 비교 대상 `e`가 일요일 `00:00`(자정)이라 일요일 어느 시간에도 `now > e` → `idx = -1` → `scrollX = 0` → 2025년 1월 시작으로 포커스
+- **수정**: `+6일 ≤` → `+7일 <` (다음 월요일 exclusive)로 변경 → 일요일 전 시간대 정상 동작
+- 동일 패턴이 `todayX` 계산(오늘 표시선)에도 있어 함께 수정
+
+### Summary 테이블 뷰 타이틀 스타일 개선
+
+- **HighlightAll 제거**: 브랜드명 컬러 볼드 하이라이트 삭제, 검색어 `<mark>` 하이라이팅(`Highlight`)만 유지
+- **우선순위별 타이틀 색상 적용**: `PRIORITY_TITLE_CLASS` 맵 추가
+  - `high` → `font-semibold text-rose-500`
+  - `medium` → `font-medium text-foreground`
+  - `low` / 없음 → `font-normal text-muted-foreground`
 
 ### 데이터 일관성 버그 수정 (P1×3)
 

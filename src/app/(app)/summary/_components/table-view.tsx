@@ -29,6 +29,11 @@ interface Props {
 }
 
 const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 }
+const PRIORITY_TITLE_CLASS: Record<Priority, string> = {
+  high:   'font-semibold text-rose-500',
+  medium: 'font-medium text-foreground',
+  low:    'font-normal text-muted-foreground',
+}
 const TAG_ORDER: Tag[] = ['issue', 'mention', 'in_progress', 'decision', 'schedule', 'done']
 
 function SortBtn({
@@ -136,13 +141,13 @@ export function TableView({
           >
             <div className="flex-1 min-w-0 flex items-start gap-2">
               <div className="flex-1 min-w-0">
-                <div className="text-xs font-semibold text-ink-800 leading-[1.45]">
-                  <HighlightAll text={item.title} query={searchQuery} brands={clients} />
+                <div className={`text-xs leading-[1.45] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-normal text-muted-foreground'}`}>
+                  <Highlight text={item.title} query={searchQuery} />
                 </div>
                 {item.body && (
                   <div className="text-xs text-muted-foreground leading-[1.5] mt-1.5">
                     {item.body.split('\n').filter(Boolean).map((line, i) => (
-                      <div key={i}><HighlightAll text={line} query={searchQuery} brands={clients} /></div>
+                      <div key={i}><Highlight text={line} query={searchQuery} /></div>
                     ))}
                   </div>
                 )}
@@ -249,54 +254,6 @@ export function TableView({
   )
 }
 
-function HighlightAll({
-  text, query, brands,
-}: {
-  text: string
-  query?: string
-  brands: Array<{ name: string; name_en: string; keywords: string[]; color: string }>
-}) {
-  const lower = text.toLowerCase()
-  type Span = { start: number; end: number; color: string }
-  const spans: Span[] = []
-
-  for (const brand of brands) {
-    for (const pattern of [brand.name, brand.name_en, ...brand.keywords].filter(Boolean)) {
-      const needle = pattern.toLowerCase()
-      let pos = 0
-      while (true) {
-        const idx = lower.indexOf(needle, pos)
-        if (idx < 0) break
-        spans.push({ start: idx, end: idx + needle.length, color: brand.color })
-        pos = idx + needle.length
-      }
-    }
-  }
-
-  if (spans.length === 0) return <Highlight text={text} query={query} />
-
-  // 시작 위치 기준 정렬, 같은 위치면 긴 것 우선
-  spans.sort((a, b) => a.start - b.start || b.end - a.end)
-  const merged: Span[] = []
-  for (const s of spans) {
-    if (!merged.length || s.start >= merged[merged.length - 1].end) merged.push(s)
-  }
-
-  const parts: React.ReactNode[] = []
-  let cursor = 0
-  let k = 0
-  for (const s of merged) {
-    if (s.start > cursor) parts.push(<Highlight key={k++} text={text.slice(cursor, s.start)} query={query} />)
-    parts.push(
-      <span key={k++} className="font-semibold" style={{ color: s.color }}>
-        <Highlight text={text.slice(s.start, s.end)} query={query} />
-      </span>
-    )
-    cursor = s.end
-  }
-  if (cursor < text.length) parts.push(<Highlight key={k++} text={text.slice(cursor)} query={query} />)
-  return <>{parts}</>
-}
 
 function Highlight({ text, query }: { text: string; query?: string }) {
   const q = query?.trim()
