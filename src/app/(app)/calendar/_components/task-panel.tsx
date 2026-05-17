@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Search, PanelLeftClose, Check, GripVertical } from 'lucide-react'
+import { Search, PanelLeftClose, GripVertical, CalendarDays } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import type { GanttTask } from '@/types'
 
@@ -44,20 +44,26 @@ function fmtDate(d: string | null | undefined): string {
   try { return format(parseISO(d), 'M/d') } catch { return '' }
 }
 
+function fmtScheduledAt(iso: string): string {
+  try {
+    const d = new Date(iso)
+    const base = `${d.getMonth() + 1}/${d.getDate()}`
+    if (d.getHours() === 0 && d.getMinutes() === 0) return `${base} 종일`
+    return `${base} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+  } catch { return '' }
+}
+
 interface Props {
   tasks: GanttTask[]
   onClose?: () => void
-  onStatusChange?: (taskId: string, status: string) => void
   onTaskClick?: (task: GanttTask) => void
 }
 
-export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props) {
+export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
   const [q, setQ]       = useState('')
   const [sort, setSort] = useState<SortKey>('deadline')
-  // done 토글 시 직전 상태 기억
-  const [prevStatusMap, setPrevStatusMap] = useState<Record<string, string>>({})
 
-  const candidates = tasks.filter(t => !t.scheduled_at && !t.deleted_at)
+  const candidates = tasks.filter(t => !t.deleted_at)
 
   const ql = q.toLowerCase()
   const filtered = candidates.filter(t =>
@@ -74,7 +80,6 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
       return a.due_date.localeCompare(b.due_date)
     }
     if (sort === 'priority') return (b.priority ?? 0) - (a.priority ?? 0)
-    // 진행상황: in-progress → to-do → pending → backlog → done
     return (STATUS_ORDER[a.status] ?? 99) - (STATUS_ORDER[b.status] ?? 99)
   })
 
@@ -90,19 +95,7 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
     setSort(SORT_CYCLE[(idx + 1) % SORT_CYCLE.length])
   }
 
-  const handleToggleDone = (e: React.MouseEvent, task: GanttTask) => {
-    e.stopPropagation()
-    if (task.status === 'done') {
-      const prev = prevStatusMap[task.id] ?? 'to-do'
-      onStatusChange?.(task.id, prev)
-      setPrevStatusMap(m => { const n = { ...m }; delete n[task.id]; return n })
-    } else {
-      setPrevStatusMap(m => ({ ...m, [task.id]: task.status }))
-      onStatusChange?.(task.id, 'done')
-    }
-  }
-
-  const pendingCount = candidates.filter(t => t.status !== 'done').length
+  const unscheduledPending = candidates.filter(t => !t.scheduled_at && t.status !== 'done').length
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -145,12 +138,38 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
       <div className="flex-1 overflow-y-auto py-1">
         {sorted.length === 0 ? (
           <p className="text-[11px] text-ink-400 text-center py-10">
-            {q ? '검색 결과 없음' : '미배치 태스크 없음'}
+            {q ? '검색 결과 없음' : '태스크 없음'}
           </p>
         ) : (
           sorted.map(task => {
-            const isDone  = task.status === 'done'
-            const color   = STATUS_COLOR[task.status]
+            const isScheduled = !!task.scheduled_at
+            const isDone      = task.status === 'done'
+            const color       = STATUS_COLOR[task.status]
+
+            if (isScheduled) {
+              return (
+                <div
+                  key={task.id}
+                  className={`flex items-center gap-1.5 mx-1 my-0.5 pr-2.5 py-1.5 rounded select-none transition-colors hover:bg-card ${
+                    isDone ? 'opacity-40' : 'opacity-70'
+                  }`}
+                >
+                  <div className="shrink-0 px-1.5 py-2 text-ink-300">
+                    <CalendarDays size={12} />
+                  </div>
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onClick={() => onTaskClick?.(task)}
+                  >
+                    <p className={`text-[11px] leading-snug truncate ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                      {task.title}
+                    </p>
+                    <span className="text-[10px] text-ink-400">{fmtScheduledAt(task.scheduled_at!)}</span>
+                  </div>
+                </div>
+              )
+            }
+
             return (
               <div
                 key={task.id}
@@ -160,7 +179,6 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
                   isDone ? 'opacity-50' : ''
                 }`}
               >
-                {/* 핸들 — 이 영역에서만 드래그 가능 */}
                 <div
                   className={`shrink-0 px-1.5 py-2 text-ink-200 hover:text-ink-400 transition-colors ${
                     isDone ? 'invisible' : 'cursor-grab active:cursor-grabbing'
@@ -168,22 +186,6 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
                 >
                   <GripVertical size={12} />
                 </div>
-
-                {/* 체크 원 */}
-                <button
-                  onClick={e => handleToggleDone(e, task)}
-                  onMouseDown={e => e.stopPropagation()}
-                  className="shrink-0 w-4 h-4 rounded-full border-2 flex items-center justify-center transition-colors hover:opacity-80"
-                  style={{
-                    borderColor: color,
-                    backgroundColor: isDone ? color : 'transparent',
-                  }}
-                  title={isDone ? '완료 취소' : '완료로 표시'}
-                >
-                  {isDone && <Check size={9} className="text-white stroke-[3]" />}
-                </button>
-
-                {/* 태스크명 — 클릭 시 드로어 */}
                 <div
                   className="flex-1 min-w-0 cursor-pointer"
                   onMouseDown={e => e.stopPropagation()}
@@ -217,7 +219,7 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
       </div>
 
       <div className="shrink-0 px-3 py-2 border-t border-border">
-        <p className="text-[10px] text-ink-400">{pendingCount}개 미배치</p>
+        <p className="text-[10px] text-ink-400">미배치 {unscheduledPending}개</p>
       </div>
     </div>
   )

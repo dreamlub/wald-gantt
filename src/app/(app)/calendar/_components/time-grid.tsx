@@ -85,10 +85,11 @@ interface DayColumnProps {
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
+  onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
 }
 
-function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMove, onResize, onUnschedule, onTaskClick }: DayColumnProps) {
+function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -237,6 +238,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
                   onMove={onMove}
                   onResize={onResize}
                   onUnschedule={onUnschedule}
+                  onStatusChange={onStatusChange}
                   onClick={() => onTaskClick(task)}
                 />
               )
@@ -256,10 +258,11 @@ interface Props {
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
+  onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
 }
 
-export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUnschedule, onTaskClick }: Props) {
+export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
 
   const getMinutesFromY = useCallback((clientY: number): number => {
@@ -271,7 +274,7 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
   }, [])
 
   const hours = Array.from({ length: TOTAL_H + 1 }, (_, i) => START_H + i)
-  const today = new Date().toISOString().slice(0, 10)
+  const today = localDateStr(new Date().toISOString())
 
   return (
     <div ref={gridRef} className="flex w-full">
@@ -293,7 +296,7 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
         <DayColumn
           key={date}
           date={date}
-          events={events.filter(e => new Date(e.start).toISOString().slice(0, 10) === date)}
+          events={events.filter(e => localDateStr(e.start) === date)}
           tasks={tasks.filter(t => !!t.scheduled_at && localDateStr(t.scheduled_at) === date)}
           getMinutesFromY={getMinutesFromY}
           isToday={date === today}
@@ -301,6 +304,7 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
           onMove={onMove}
           onResize={onResize}
           onUnschedule={onUnschedule}
+          onStatusChange={onStatusChange}
           onTaskClick={onTaskClick}
         />
       ))}

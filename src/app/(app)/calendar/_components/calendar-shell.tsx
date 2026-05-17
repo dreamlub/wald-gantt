@@ -37,7 +37,7 @@ function getWeekDates(mondayStr: string): string[] {
 
 function calcDayHours(date: string, events: CalendarEvent[]): number {
   return events
-    .filter(e => !e.isAllDay && new Date(e.start).toISOString().slice(0, 10) === date)
+    .filter(e => !e.isAllDay && toDateStr(new Date(e.start)) === date)
     .reduce((sum, e) => {
       const ms = new Date(e.end).getTime() - new Date(e.start).getTime()
       return sum + ms / 3_600_000
@@ -246,7 +246,6 @@ export function CalendarShell() {
         <TaskPanel
           tasks={tasks}
           onClose={() => setPanelOpen(false)}
-          onStatusChange={handleStatusChange}
           onTaskClick={setDrawerTask}
         />
       </div>
@@ -448,6 +447,7 @@ export function CalendarShell() {
             onMove={handleMove}
             onResize={handleResize}
             onUnschedule={handleUnschedule}
+            onStatusChange={handleStatusChange}
             onTaskClick={setDrawerTask}
           />
         </div>

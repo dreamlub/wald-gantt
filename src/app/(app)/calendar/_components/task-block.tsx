@@ -1,7 +1,7 @@
 'use client'
 
-import { useRef } from 'react'
-import { X } from 'lucide-react'
+import { useRef, useState } from 'react'
+import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
 
 const SNAP_MIN  = 15
@@ -47,6 +47,7 @@ interface Props {
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
+  onStatusChange: (taskId: string, status: string) => void
   onClick: () => void
 }
 
@@ -60,16 +61,29 @@ function buildIso(date: string, totalMinutes: number): string {
 export function TaskBlock({
   task, top, height, getMinutesFromY, date,
   colIndex = 0, totalCols = 1,
-  onMove, onResize, onUnschedule, onClick,
+  onMove, onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
+  const [prevStatus, setPrevStatus] = useState<string | null>(null)
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
   const startHeight  = useRef(0)
   const isDragging   = useRef(false)
   const blockRef     = useRef<HTMLDivElement>(null)
 
-  const color = STATUS_COLOR[task.status] ?? 'var(--color-ink-400)'
-  const bg    = STATUS_BG[task.status]    ?? 'var(--color-ink-100)'
+  const color  = STATUS_COLOR[task.status] ?? 'var(--color-ink-400)'
+  const bg     = STATUS_BG[task.status]    ?? 'var(--color-ink-100)'
+  const isDone = task.status === 'done'
+
+  const handleToggleDone = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (isDone) {
+      onStatusChange(task.id, prevStatus ?? 'to-do')
+      setPrevStatus(null)
+    } else {
+      setPrevStatus(task.status)
+      onStatusChange(task.id, 'done')
+    }
+  }
 
   /* ── 블록 중앙 드래그 (이동) ── */
   const handleDragStart = (e: React.DragEvent) => {
@@ -78,6 +92,7 @@ export function TaskBlock({
     dragOffsetY.current = e.clientY - rect.top
     e.dataTransfer.setData('taskId', task.id)
     e.dataTransfer.setData('offsetY', String(dragOffsetY.current))
+    e.dataTransfer.setData('source', 'grid')
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -154,10 +169,21 @@ export function TaskBlock({
         borderLeft: `3px solid ${color}`,
       }}
     >
-      {/* 제목 */}
-      <p className="text-[11px] font-medium text-foreground truncate leading-tight pr-5">
-        {task.title}
-      </p>
+      {/* 제목 행: 체크 원 + 제목 */}
+      <div className="flex items-start gap-1 pr-5">
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={handleToggleDone}
+          className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors hover:opacity-80"
+          style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
+          title={isDone ? '완료 취소' : '완료로 표시'}
+        >
+          {isDone && <Check size={7} className="text-white stroke-[3]" />}
+        </button>
+        <p className={`text-[11px] font-medium truncate leading-tight flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+          {task.title}
+        </p>
+      </div>
       {height >= 36 && task.scheduled_at && (
         <p className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
           {fmtTime(task.scheduled_at)}
