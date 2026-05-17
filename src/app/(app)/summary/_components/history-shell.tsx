@@ -4,13 +4,14 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, RefreshCw, X, PanelLeftClose, PanelLeftOpen,
-  Table2, Sparkles, BarChart2,
+  Table2, Sparkles, BarChart2, Inbox,
 } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
+import { toast } from 'sonner'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
@@ -84,6 +85,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [priorityKey,  setPriorityKey]  = useState<PriorityKey>((searchParams.get('priority') ?? 'all') as PriorityKey)
   const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
+  const [isCollecting, setIsCollecting] = useState(false)
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
@@ -159,6 +161,25 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (searchOpen) document.addEventListener('pointerdown', onPointerDown)
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [searchOpen, searchQuery])
+
+  async function handleCollect() {
+    setIsCollecting(true)
+    try {
+      const res = await fetch('/api/slack/collect', { method: 'POST' })
+      const data = await res.json()
+      if (!res.ok) throw new Error(data.error ?? '수집 실패')
+      if (data.inserted > 0) {
+        toast.success(`${data.inserted}건 수집됐습니다`)
+        startTransition(() => router.refresh())
+      } else {
+        toast.info('새로운 메시지가 없습니다')
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '수집 실패')
+    } finally {
+      setIsCollecting(false)
+    }
+  }
 
   const resetFilters = useCallback(() => {
     setDateFrom(''); setDateTo(''); setBrandId('all'); setSelectedTags(new Set())
@@ -333,6 +354,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 마지막 수집 {relativeFromNow(lastCollected)}
               </span>
             )}
+            <button
+              onClick={handleCollect}
+              disabled={isCollecting || isRefreshing}
+              className="flex items-center gap-1 text-xs font-medium text-foreground bg-muted border border-border hover:bg-card px-3 py-1.5 rounded transition-colors disabled:opacity-60"
+            >
+              <Inbox size={13} className={isCollecting ? 'animate-pulse' : ''} />
+              {isCollecting ? '수집 중...' : '수집'}
+            </button>
             <button
               onClick={() => startTransition(() => router.refresh())}
               disabled={isRefreshing}

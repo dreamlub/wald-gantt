@@ -455,6 +455,25 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Weekly 데이터 수집 레이어 기반 구축
+
+### DB
+- `weekly_reports` 테이블 신규 생성 (Supabase migration)
+  - `id, workspace_id, source, team, author, week_start, raw_content, summary JSONB, created_at, updated_at`
+  - UNIQUE: `(workspace_id, source, team, COALESCE(author, ''), week_start)` → unique index로 구현
+  - RLS: workspace_members 기준 (다른 테이블과 동일 패턴)
+
+### 타입 (`src/types/index.ts`)
+- `WeeklySource` 인터페이스 추가
+- `WeeklyReportSource` 타입 추가 (`'biz_lead' | 'team_doc'`)
+- `WeeklyReport` 인터페이스 추가
+
+### 서비스 (`src/lib/weekly-service.ts` 신규)
+- `getWeeklyReports(weekStart)` — 해당 주 전체 리포트 조회
+- `upsertWeeklyReport(report)` — MCP 수집 시 INSERT/UPDATE (UNIQUE 충돌 시 덮어씀)
+
+---
+
 ## 최근 변경 (2026-05-17) — Settings 브랜드 관리 섹션 추가
 
 ### 신규 파일: `settings/_components/brand-drawer.tsx`
@@ -607,6 +626,26 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Summary Slack 수집 기능
+
+### Slack 메시지 웹에서 직접 수집 (`/api/slack/collect`)
+
+- **신규 파일** `src/app/api/slack/collect/route.ts`
+  - `SLACK_USER_TOKEN` (User Token) 으로 Slack `search.messages` API 호출
+  - 클라이언트별 `keywords`를 OR 조건으로 검색 (`"키워드1" OR "키워드2"`)
+  - 마지막 `occurred_at` 기준으로 이후 메시지만 수집 (없으면 30일 전, 2일 버퍼)
+  - `(client_id, source_id)` 조합으로 중복 방지
+  - 작성자명: `users.info` API로 조회, 요청 내 캐싱
+  - 태그·중요도는 빈 값으로 삽입 → 사용자가 드로어에서 수동 편집
+- **`history-shell.tsx` 수정**
+  - `Inbox` 아이콘 + `sonner` toast import 추가
+  - `isCollecting` 상태 추가
+  - `handleCollect` 함수: POST `/api/slack/collect` → 결과 toast → 자동 새로고침
+  - 툴바에 "수집" 버튼 추가 (새로고침 버튼 왼쪽)
+- 챗창 없이 웹 UI에서 직접 수집 가능
+
+---
+
 ## 최근 변경 (2026-05-17) — Summary 버그 픽스
 
 ### Summary 페이지 소버그 4건 수정
@@ -736,6 +775,31 @@ LEFT_W_MAX      = 560
 - **원인**: `buildIso()`가 `new Date(y, mo-1, d, h, m).toISOString()` (UTC) 반환 → 한국(UTC+9) 9시 이전 드롭 시 UTC 날짜가 전날로 바뀌어 저장
 - **필터 불일치**: `t.scheduled_at?.startsWith(date)` 에서 로컬 날짜 문자열과 UTC ISO 문자열 비교 → 전날 컬럼으로 분류
 - **수정**: `localDateStr(iso)` 헬퍼 추가 (`new Date(iso)`의 로컬 `getFullYear/Month/Date` 사용), 필터를 `localDateStr(t.scheduled_at) === date` 로 교체
+
+---
+
+## 최근 변경 (2026-05-17) — Calendar 날짜 버그 재수정 + Notplan UX
+
+### Notplan 스타일 UX (`task-panel.tsx`, `task-block.tsx`, `time-grid.tsx`, `calendar-shell.tsx`)
+- **TaskPanel 전면 개편**: 체크박스 제거, 전체 태스크(미배치+배치 모두) 표시
+  - 미배치 태스크: GripVertical 핸들 + 상태 뱃지 (드래그 가능)
+  - 배치된 태스크: CalendarDays 아이콘 + "M/D HH:mm" 시각 뱃지 (드래그 불가, 클릭 시 드로어)
+  - `onStatusChange` prop 제거 (체크 기능을 캘린더 블록으로 이전)
+- **TaskBlock 완료 토글 추가**: 블록 좌측에 체크 원 버튼 → 클릭 시 done 처리, 재클릭 시 직전 상태 복구 (`prevStatus` 로컬 state)
+- **TimeGrid**: `onStatusChange` prop 체인 추가 (DayColumnProps → TaskBlock)
+
+### 헤더/통계/ALL-DAY 구조 개편 (`calendar-shell.tsx`)
+- **단일 스크롤 컨테이너**: 헤더·통계·ALL-DAY·타임그리드를 하나의 `overflow-y-auto` 안에 넣어 스크롤바 폭 차이로 인한 컬럼 밀림 완전 해소
+- **날짜 헤더**: `D (요일)` 형식 — 예: `17 (일)`, 오늘은 bg-foreground 원 강조
+- **업무/구글 통계 행**: 날짜 헤더 아래 h-7 행 — 업무 Nh / 구글 Nh 표시
+- **ALL-DAY 행**: 항상 표시, 종일 이벤트 + 종일 배치 태스크, 드래그 드롭 가능
+- **timedTasks / allDayTasks 분리**: `isAllDayScheduled` (로컬 hours/minutes = 0)로 구분
+
+### 날짜 버그 재수정 (2차)
+- **`task-block.tsx` `source` 누락**: `handleDragStart`에 `setData('source', 'grid')` 추가 → 그리드 내 이동 시 `onMove`(duration 유지) 경로 올바르게 사용
+- **이벤트 날짜 필터 UTC→로컬**: `time-grid.tsx` `DayColumn` 이벤트 필터를 `new Date(e.start).toISOString().slice(0,10)` → `localDateStr(e.start)` 교체 → KST 9시 이전 이벤트 하루 밀림 수정
+- **`today` UTC→로컬**: `time-grid.tsx`의 `today` 계산을 `new Date().toISOString().slice(0,10)` → `localDateStr(new Date().toISOString())` 교체
+- **구글 시간 통계 UTC→로컬**: `calendar-shell.tsx` `calcDayHours` 이벤트 필터도 `toDateStr(new Date(e.start)) === date` 로 교체
 
 ---
 

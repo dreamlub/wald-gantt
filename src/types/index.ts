@@ -109,3 +109,27 @@ export interface GanttProject {
   updated_at: string
   deleted_at: string | null
 }
+
+export interface WeeklySource {
+  id: string
+  workspace_id: string
+  label: string
+  collection_id: string
+  sort_order: number
+  created_at: string
+}
+
+export type WeeklyReportSource = 'biz_lead' | 'team_doc'
+
+export interface WeeklyReport {
+  id: string
+  workspace_id: string
+  source: WeeklyReportSource
+  team: string
+  author: string | null
+  week_start: string       // 'YYYY-MM-DD' 월요일 기준
+  raw_content: string | null
+  summary: Record<string, unknown> | null
+  created_at: string
+  updated_at: string
+}
