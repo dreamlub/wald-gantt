@@ -1,11 +1,34 @@
-import { Settings } from 'lucide-react'
+import { createClient } from '@/lib/supabase/server'
+import { getServerClients } from '@/lib/history-service-server'
+import { SettingsShell } from './_components/settings-shell'
 
-export default function SettingsPage() {
+export const metadata = { title: '설정 — Wald' }
+
+export default async function SettingsPage() {
+  const [sb, clients] = await Promise.all([
+    createClient(),
+    getServerClients(),
+  ])
+
+  const { data: { user } } = await sb.auth.getUser()
+  const userEmail = user?.email ?? ''
+
+  const [{ data: tokenRow }, { data: memberRow }, { data: weeklySources }] = await Promise.all([
+    sb.from('google_calendar_tokens').select('id').limit(1).maybeSingle(),
+    sb.from('workspace_members').select('workspace_id').limit(1).maybeSingle(),
+    sb.from('weekly_sources').select('*').order('sort_order'),
+  ])
+
+  const calendarConnected = !!tokenRow
+  const workspaceId = memberRow?.workspace_id ?? ''
+
   return (
-    <div className="flex-1 flex flex-col items-center justify-center text-muted-foreground gap-3">
-      <Settings size={32} className="text-ink-300" />
-      <p className="text-xs font-medium">설정</p>
-      <p className="text-xs">준비 중입니다.</p>
-    </div>
+    <SettingsShell
+      userEmail={userEmail}
+      clients={clients}
+      calendarConnected={calendarConnected}
+      initialWeeklySources={weeklySources ?? []}
+      workspaceId={workspaceId}
+    />
   )
 }

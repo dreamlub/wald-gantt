@@ -135,7 +135,7 @@ export function TableView({
           >
             <div className="flex-1 min-w-0 flex items-start gap-2">
               <div className="flex-1 min-w-0">
-                <div className={`text-sm leading-[1.45] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-medium text-muted-foreground'}`}>
+                <div className={`text-xs leading-[1.45] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-medium text-muted-foreground'}`}>
                   <Highlight text={item.title} query={searchQuery} />
                 </div>
                 {item.body && (

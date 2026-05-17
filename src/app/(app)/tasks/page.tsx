@@ -53,8 +53,9 @@ export default function TasksPage() {
   const [draggingTask,   setDraggingTask]   = useState<GanttTask | null>(null)
   const [pendingParentId, setPendingParentId] = useState<string | null>(null)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
-  const [drawerTask,      setDrawerTask]      = useState<GanttTask | null>(null)
-  const [drawerOpen,      setDrawerOpen]      = useState(false)
+  const [drawerTask,       setDrawerTask]       = useState<GanttTask | null>(null)
+  const [drawerOpen,       setDrawerOpen]       = useState(false)
+  const [drawerInitialTab, setDrawerInitialTab] = useState<'info' | 'memo' | 'history'>('info')
   const [pendingDefaultProjects, setPendingDefaultProjects] = useState<{ id: string; name: string; board_name: string }[]>([])
   const [assigneesExpanded, setAssigneesExpanded] = useState(false)
   const [quickAddStatus,   setQuickAddStatus]   = useState<TaskStatus | null>(null)
@@ -491,7 +492,8 @@ export default function TasksPage() {
     <div className="flex-1 flex items-center justify-center text-ink-400 text-xs">로딩 중...</div>
   )
 
-  const editHandler = (t: GanttTask) => { setDrawerTask(t); setDrawerOpen(true) }
+  const editHandler     = (t: GanttTask) => { setDrawerTask(t); setDrawerInitialTab('info'); setDrawerOpen(true) }
+  const editMemoHandler = (t: GanttTask) => { setDrawerTask(t); setDrawerInitialTab('memo'); setDrawerOpen(true) }
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -843,7 +845,7 @@ export default function TasksPage() {
                       return (
                         <div key={task.id}>
                           <DraggableTaskRow task={task}
-                            onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                            onEdit={editHandler} onEditMemo={editMemoHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                             isDraggingId={draggingTask?.id}
                             assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
                             subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
@@ -855,7 +857,7 @@ export default function TasksPage() {
                           />
                           {isExp && subs.map(sub => (
                             <TaskRow key={sub.id} task={sub} isSubTask
-                              onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                              onEdit={editHandler} onEditMemo={editMemoHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                               assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
                               selectionMode={selectionMode}
                               selected={selectedIds.has(sub.id)}
@@ -919,7 +921,7 @@ export default function TasksPage() {
                             return (
                               <div key={task.id}>
                                 <DraggableTaskRow task={task}
-                                  onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                                  onEdit={editHandler} onEditMemo={editMemoHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                                   isDraggingId={draggingTask?.id}
                                   assigneeColor={assigneeColorMap.get(getAssigneeKey(task))}
                                   subTaskStats={subs.length > 0 ? { total: subs.length, done: subs.filter(s => s.status === 'done').length } : undefined}
@@ -931,7 +933,7 @@ export default function TasksPage() {
                                 />
                                 {isExp && subs.map(sub => (
                                   <TaskRow key={sub.id} task={sub} isSubTask
-                                    onEdit={editHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
+                                    onEdit={editHandler} onEditMemo={editMemoHandler} onDelete={handleDelete} onStatusChange={handleStatusChange}
                                     assigneeColor={assigneeColorMap.get(getAssigneeKey(sub))}
                                     selectionMode={selectionMode}
                                     selected={selectedIds.has(sub.id)}
@@ -1015,6 +1017,7 @@ export default function TasksPage() {
         onClose={() => { setFormOpen(false); setEditTask(null); setPendingDefaultProjects([]); setPendingParentId(null) }}
         onSave={handleSave}
         editTask={editTask}
+        parentTask={pendingParentId ? (tasks.find(t => t.id === pendingParentId) ?? null) : null}
         defaultStatus={defaultStatus}
         defaultProjects={pendingDefaultProjects}
         onSearchProjects={handleSearch}
@@ -1025,6 +1028,8 @@ export default function TasksPage() {
         open={drawerOpen}
         task={drawerTask}
         subTasks={drawerTask ? tasks.filter(t => t.parent_id === drawerTask.id) : []}
+        parentTask={drawerTask?.parent_id ? (tasks.find(t => t.id === drawerTask.parent_id) ?? null) : null}
+        initialTab={drawerInitialTab}
         onClose={() => setDrawerOpen(false)}
         onSave={handleDrawerSave}
         onDelete={handleDelete}

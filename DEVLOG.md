@@ -23,7 +23,7 @@ Next.js 16 + Supabase 기반 1인용 간트 차트·태스크 관리 웹앱.
 | 토스트 | sonner |
 | 모션 | framer-motion |
 | 아이콘 | lucide-react |
-| AI | @anthropic-ai/sdk (Claude Haiku — Summary 인사이트) |
+| AI | @anthropic-ai/sdk (Claude Haiku — Summary 인사이트 + Weekly AI 요약) |
 | 브라우저 탭 | "Wald Task Manager" |
 
 ---
@@ -111,12 +111,13 @@ insights                                 ← AI 주간 분석 캐시
 
 | 경로 | 라벨 | 설명 |
 |------|------|------|
-| `/` | Schedule | 간트 차트 메인 |
+| `/` | Projects | 간트 차트 메인 |
 | `/tasks` | Tasks | 태스크 관리 (5뷰) |
-| `/weekly` | Weekly | 주간보고 (플레이스홀더) |
+| `/calendar` | Calendar | 주간 타임그리드 캘린더 |
+| `/weekly` | Weekly | 주간보고 (Outline 연동) |
 | `/notes` | Notes | Obsidian Daily Note — File System Access API (Chrome/Edge) |
 | `/summary` | Summary | Slack 수집 이력 + AI 인사이트 |
-| `/settings` | Settings | 설정 (플레이스홀더) |
+| `/settings` | Settings | 설정 (계정/연동/화면/키워드/데이터) |
 | `/settings/keywords` | — | 클라이언트별 슬랙 탐색 키워드 관리 |
 | `/share/[token]` | — | 외부 공개 읽기 전용 보드 (인증 우회) |
 | `/login` | — | 로그인 |
@@ -125,7 +126,7 @@ insights                                 ← AI 주간 분석 캐시
 
 ## 주요 기능
 
-### 간트 페이지 (`/`)
+### Projects 페이지 (`/`)
 
 **보드 사이드바 (BoardSidebar)**
 - 워크스페이스 내 여러 보드 생성·전환, @dnd-kit 순서 드래그
@@ -198,6 +199,41 @@ insights                                 ← AI 주간 분석 캐시
 - 프로그레스 바: SSE 이벤트 직접 구동, AI 단계 CSS transition 18s
 
 **수집** — Make.com 취소 확정. Claude Code MCP로 수동 수집·INSERT (waldlust-product.slack.com)
+
+### Calendar 페이지 (`/calendar`)
+
+**주간 타임그리드 + Google Calendar 연동**
+- 레이아웃: 좌측 배치 대기열 사이드바(w-64) + 우측 7일 주간 그리드
+- 주간 이동: 이전/다음 주 이동, 주 범위 헤더 (`5월 11일 - 17일 2026 · W20`), 오늘 날짜 강조
+- ALL-DAY 행: 종일 이벤트 있을 때만 표시
+- 타임그리드: 07~23시 30분 점선, 현재 시각 표시선, 15분 스냅 드래그앤드롭
+
+**시간 블로킹 (Time Blocking)**
+- `gantt_tasks.scheduled_at` + `duration_minutes` 컬럼으로 DB 저장
+- `TaskPanel` (좌측 사이드바): 미배치 태스크 목록 + 검색 + 마감일/우선순위/생성일 정렬
+- `TaskBlock`: 그리드 내 이동(중앙 드래그) + 리사이즈(하단 핸들) + 스케줄 해제(×)
+- `EventBlock`: Google Calendar 이벤트 읽기 전용 표시 (colorId → hex)
+- `source: 'panel' | 'grid'` dataTransfer 구분으로 이동 시 duration 보존
+
+**Google Calendar 연동**
+- OAuth 콜백: `/api/calendar/auth` → `/api/calendar/callback`
+- 이벤트 조회: `/api/calendar/events` (주간 범위, maxResults 200)
+- 에러 코드: `NO_PROVIDER_TOKEN` / `TOKEN_EXPIRED` / `API_DISABLED` 구분 안내
+
+### Weekly 페이지 (`/weekly`)
+
+**Outline 문서 연동 주간보고 (MVP)**
+- Outline REST API (`POST /api/documents.info`)로 Biz Lead 분기 문서 조회
+- `## YYYY.MM.DD` 형식 섹션 파싱 → 최신순 정렬, 5분 캐시 (`next: { revalidate: 300 }`)
+- 사이드바(240px): 주 목록 최신순, "NEW" 배지, 주 레이블 (`M월 N주 (M/D~)`)
+- 본문: `react-markdown` + `remark-gfm` + `rehype-raw` 렌더
+  - `fixMultilineTableCells`: Outline 멀티라인 셀 GFM 파싱 보정 (continuation → `<br>` 병합)
+  - `==text==` → `**text**` 변환
+
+**AI 요약**
+- `POST /api/weekly/ai-summary` SSE → Claude Haiku (`claude-haiku-4-5-20251001`)
+- 팀별 한국어 요약, 스트리밍 출력
+- 접을 수 있는 패널, "요약하기" 버튼 클릭 시 생성, Refresh 재생성
 
 ### Notes 페이지 (`/notes`)
 
@@ -292,7 +328,7 @@ src/
 ├── app/
 │   ├── (app)/
 │   │   ├── layout.tsx              # AppNav + ScrollToTopButton 공유 레이아웃
-│   │   ├── page.tsx                # 간트 메인
+│   │   ├── page.tsx                # Projects (간트 메인)
 │   │   ├── tasks/
 │   │   │   ├── page.tsx
 │   │   │   ├── _constants.tsx      # STATUS_GROUPS, ASSIGNEE_COLORS, PRIORITY_META, PriorityBars
@@ -300,10 +336,28 @@ src/
 │   │   │   └── _components/
 │   │   │       ├── TaskRow.tsx
 │   │   │       ├── TaskDetailDrawer.tsx
+│   │   │       ├── TaskHistorySection.tsx  # TaskDetailDrawer + TaskFormDialog 공용
 │   │   │       ├── ListView.tsx
 │   │   │       ├── KanbanView.tsx
 │   │   │       ├── GanttView.tsx
 │   │   │       └── CalendarView.tsx
+│   │   ├── calendar/
+│   │   │   ├── page.tsx
+│   │   │   └── _components/
+│   │   │       ├── calendar-shell.tsx      # 주간 캘린더 오케스트레이터
+│   │   │       ├── time-grid.tsx           # 07~23시 7일 그리드
+│   │   │       ├── task-panel.tsx          # 배치 대기열 사이드바
+│   │   │       ├── task-block.tsx          # 블로킹된 태스크 블록
+│   │   │       └── event-block.tsx         # Google Calendar 이벤트 블록
+│   │   ├── weekly/
+│   │   │   ├── page.tsx
+│   │   │   ├── _lib/
+│   │   │   │   └── types.ts               # WeekSection, WeeklyDoc
+│   │   │   └── _components/
+│   │   │       ├── weekly-shell.tsx        # 오케스트레이터 (fetch + 사이드바/콘텐츠 조합)
+│   │   │       ├── weekly-sidebar.tsx      # 주 목록 (NEW 배지, 주 레이블)
+│   │   │       ├── weekly-content.tsx      # 마크다운 렌더 (GFM 테이블 보정)
+│   │   │       └── weekly-ai-summary.tsx   # Claude Haiku SSE 요약 패널
 │   │   ├── summary/
 │   │   │   ├── page.tsx
 │   │   │   ├── _components/
@@ -319,7 +373,6 @@ src/
 │   │   │       ├── types.ts
 │   │   │       ├── mock-data.ts            # TAG_META, PRIORITY_META, fmtMonthDay
 │   │   │       └── history-service.ts
-│   │   ├── weekly/page.tsx
 │   │   ├── notes/
 │   │   │   ├── page.tsx
 │   │   │   └── _components/
@@ -327,9 +380,18 @@ src/
 │   │   │       └── DailyNoteView.tsx
 │   │   └── settings/
 │   │       ├── page.tsx
-│   │       └── keywords/keywords-client.tsx
+│   │       └── _components/
+│   │           └── settings-shell.tsx      # 5섹션 (계정/연동/화면/키워드/데이터)
 │   ├── api/
-│   │   └── insights/generate/route.ts      # SSE 스트리밍 분석 API
+│   │   ├── insights/generate/route.ts      # SSE 스트리밍 인사이트 분석 API
+│   │   ├── weekly/
+│   │   │   ├── route.ts                    # Outline 문서 파싱 + 5분 캐시
+│   │   │   └── ai-summary/route.ts         # Claude Haiku SSE 주간보고 요약
+│   │   ├── calendar/
+│   │   │   ├── events/route.ts             # Google Calendar 이벤트 조회 (주간 범위)
+│   │   │   ├── auth/route.ts               # Google OAuth 시작
+│   │   │   └── callback/route.ts           # Google OAuth 콜백
+│   │   └── history/[id]/route.ts           # 히스토리 항목 조회/수정
 │   ├── share/[token]/
 │   │   ├── page.tsx
 │   │   └── ShareView.tsx
@@ -349,9 +411,10 @@ src/
 │   │   ├── TrashPanel.tsx
 │   │   └── ShareDialog.tsx
 │   ├── tasks/
-│   │   ├── TaskFormDialog.tsx
+│   │   ├── TaskFormDialog.tsx              # 정보/메모/이력 3탭
 │   │   └── TaskTrashPanel.tsx
 │   └── ui/
+│       └── drawer.tsx                      # Drawer/DrawerHeader/DrawerBody/DrawerFooter 공통
 ├── hooks/
 │   ├── use-confirm.tsx
 │   ├── use-undo-redo.ts
@@ -361,6 +424,8 @@ src/
 │   ├── gantt-utils.ts                      # toDate, toDateStr, isLightColor 등
 │   ├── daily-note.ts                       # 경로 패턴 + readNote/writeNote
 │   ├── insight-service.ts                  # getInsight / generateInsight SSE 클라이언트
+│   ├── history-service.ts                  # client_history CRUD (클라이언트)
+│   ├── history-service-server.ts           # 서버 전용 (keywords 등)
 │   └── supabase/
 ├── types/
 │   ├── index.ts
@@ -387,6 +452,120 @@ LEFT_W_DEFAULT  = 300
 LEFT_W_MIN      = 120
 LEFT_W_MAX      = 560
 ```
+
+---
+
+## 최근 변경 (2026-05-17) — Settings 브랜드 관리 섹션 추가
+
+### 신규 파일: `settings/_components/brand-drawer.tsx`
+- `Drawer/DrawerHeader/DrawerBody/DrawerFooter` 사용
+- 필드: 이름(KR) / 이름(EN) / 색상(BRAND_COLORS 16색 그리드) / 키워드(Enter·쉼표 입력) / Slack 채널(준비 중)
+- 새 브랜드: INSERT + sort_order max+10 자동 계산
+- 삭제: client_history 건수 조회 후 확인 단계 표시 → DELETE
+- open 변경 시 useEffect로 폼 상태 리셋 (CSS transition drawer 재오픈 대응)
+
+### 수정: `settings-shell.tsx`
+- Section 타입에 `'brands'` 추가, NAV에 "브랜드" 항목 (Layers 아이콘, keywords 앞)
+- `brands` 상태 (clients prop 초기값), `drawerTarget`, `drawerOpen` 추가
+- `handleSaveBrand` / `handleDeleteBrand` — 낙관적 상태 업데이트
+- 브랜드 섹션: 2열 카드 그리드 + "+ 브랜드 추가" 버튼
+- BrandDrawer 항상 마운트 (fixed 포지셔닝, 섹션 전환에도 Drawer 애니메이션 유지)
+
+---
+
+## 최근 변경 (2026-05-17) — Settings Weekly 연동 섹션 추가
+
+### `weekly_sources` 테이블 (Supabase — 이미 존재 확인)
+- 스키마: `id UUID PK / workspace_id FK / label TEXT / collection_id TEXT / sort_order INT / created_at`
+- RLS: `workspace_members` 기준 ALL 정책 (다른 테이블과 동일 패턴)
+
+### Settings UI (`settings-shell.tsx`, `settings/page.tsx`)
+- `Section` 타입에 `'weekly'` 추가, NAV에 "Weekly 연동" 항목 (BookOpen 아이콘)
+- `SettingsShell` props에 `initialWeeklySources`, `workspaceId` 추가
+- `settings/page.tsx` — `weekly_sources` 조회 + `workspace_members`에서 `workspace_id` fetch 병렬화
+- Weekly 연동 섹션 UI:
+  - 팀 목록: label + collection_id(mono) + ▲▼ 순서변경 + 삭제
+  - 팀 추가: label 입력 + collection_id 입력 + 추가 버튼 (Enter 지원)
+  - 낙관적 업데이트 + 실패 시 롤백 + toast 피드백
+  - sort_order: 이동 시 인접 두 행만 업데이트 (index × 10)
+
+---
+
+## 최근 변경 (2026-05-17) — Settings 토큰 수정 + Keywords 중복 정리
+
+### 수정 내용 (`settings-shell.tsx`, `keywords-client.tsx`)
+
+- **토큰 오류 수정**: `text-status-done` → `text-mint-500` (존재하지 않는 토큰, 연동 연결 상태 아이콘)
+- **토큰 오류 수정**: `border-ink-150` → `border-ink-100` (`keywords-client.tsx` 헤더 하단 구분선)
+- **Keywords 중복 구현 정리**:
+  - `KeywordsInline` (settings-shell 내부) 품질을 `KeywordsClient` 수준으로 업그레이드
+    - `await import()` 동적 import → 정적 import로 교체
+    - `pending` 상태 추가 (저장 중… 표시)
+    - API 실패 시 에러 toast + 이전 상태 롤백 추가
+    - aria-label, 버튼 스타일 통일
+  - `/settings/keywords` 라우트(`keywords/page.tsx`, `keywords-client.tsx`) 삭제 — AppNav·settings-shell 어디에서도 진입 경로 없는 데드 코드였음
+
+---
+
+## 최근 변경 (2026-05-17) — Weekly Phase 2: 팀별 다중 문서 연동
+
+### API
+- `api/weekly/teams/route.ts` (신규): `weekly_sources` 목록 반환 (GET)
+- `api/weekly/route.ts` 전면 재작성
+  - `?team=id` 파라미터로 팀 선택
+  - `weekly_sources`에서 `collection_id` 조회 (Supabase server client)
+  - Outline `POST /api/documents.list` → 컬렉션 내 전체 문서 목록 조회
+  - 각 문서 병렬 fetch (`Promise.all`) → `## YYYY.MM.DD` 파싱
+  - 전체 주차 병합 + isoDate 중복 제거 + 날짜 내림차순 반환
+  - 기존 하드코딩 `DOC_ID` 제거
+
+### 컴포넌트
+- `_lib/types.ts`: `WeeklyTeam` 타입 추가
+- `weekly-shell.tsx`: `teams`·`selectedTeam` 상태 추가, mount 시 `/api/weekly/teams` fetch, 팀 없을 때 empty state + 설정 링크
+- `weekly-sidebar.tsx`: 팀 2개 이상일 때 상단에 팀 선택 탭 추가 (1개면 숨김), Props 확장
+
+### 동작 방식
+- 분기 문서가 컬렉션에 추가돼도 코드 수정 없이 자동 탐색 (collection 기반)
+- Settings의 `weekly_sources` CRUD와 연동: 팀 추가·삭제 즉시 반영
+
+---
+
+## 최근 변경 (2026-05-17) — Weekly 마크다운 렌더링 버그 수정
+
+### `fixMultilineTableCells` 2건 수정 (`weekly-content.tsx`)
+
+- **버그 1 — 빈 줄로 인한 병합 중단**: 테이블 셀 내 번호 목록 항목 사이에 빈 줄이 있으면 while 조건 `trim() !== ''`에서 병합이 중단되어 이후 항목이 테이블 밖으로 탈출, 별도 목록으로 렌더링되던 문제 수정
+  - 빈 줄을 만났을 때 다음 non-blank 줄을 look-ahead: `|`로 시작하지 않으면 빈 줄을 건너뛰고 병합 계속
+- **버그 2 — `*` 마커 리터럴 표시**: 병합된 셀 내 `<br>* 목적:` 형태가 되어 bullet이 아닌 `*`로 표시되던 문제 수정
+  - continuation 줄이 `* ` 또는 `- ` 로 시작하면 `• ` (bullet 문자)로 변환
+
+---
+
+## 최근 변경 (2026-05-17) — 태스크 드로어 UX 개선 4건
+
+### 1. 메모 아이콘 클릭 → 드로어 메모 탭 직행
+- `TaskRow`에 `onEditMemo?: (t) => void` prop 추가
+- 메모가 있는 행에서 StickyNote 아이콘 클릭 시 `onEditMemo` 호출
+- `page.tsx`에 `editMemoHandler` 추가 (`drawerInitialTab = 'memo'`로 설정) → TaskDetailDrawer가 메모 탭으로 바로 열림
+- `DraggableTaskRow`에도 `onEditMemo` prop 추가 (`...props`로 전달)
+
+### 2. 생성일/수정일 → 이력 탭으로 이동
+- `TaskDetailDrawer` info 탭 하단의 생성일/수정일 메타 정보를 이력 탭 하단으로 이동
+- 이력 내역(TaskHistorySection) 아래 `px-5 py-3 border-t` 영역에 표시
+
+### 3. 상위 태스크 명칭 표시
+- `TaskDetailDrawer`에 `parentTask?: GanttTask | null` prop 추가
+- info 탭 하단 "· 상위 태스크의 하위 항목" 텍스트 → "상위 태스크" 레이블 + 실제 부모 제목 표시
+- `page.tsx`에서 `tasks.find(t => t.id === drawerTask.parent_id)` 전달
+
+### 4. TaskFormDialog 하위 태스크 추가 시 부모 태스크 명시
+- `TaskFormDialog`에 `parentTask?: GanttTask | null` prop 추가
+- info 탭 연결 프로젝트 하단에 "상위 태스크" 레이블 + 제목 표시
+- `page.tsx`에서 `pendingParentId`로 부모 태스크 찾아 전달
+
+### 부수 리팩토링
+- `TaskDetailDrawer`에 `initialTab?: DrawerTab` prop 추가 (open 시 해당 탭으로 진입)
+- `TaskHistorySection` 공통 컴포넌트 재활용 (TaskDetailDrawer + TaskFormDialog)
 
 ---
 
@@ -433,6 +612,10 @@ LEFT_W_MAX      = 560
 ### Summary 페이지 소버그 4건 수정
 
 - **작성자 FilterChip 누락 수정** (`history-shell.tsx`): `authorKey !== 'all'`일 때 FilterChip이 없어 작성자 필터 적용 후 칩이 표시되지 않고 해제도 불가했던 문제 수정
+- **작성자 FilterChip 중복 렌더 수정** (`history-shell.tsx`): 위 수정 시 기존 블록을 제거하지 않아 칩이 2개 동시에 표시되던 버그 수정 (403~411줄 중복 제거)
+- **테이블 뷰 폰트 컨벤션 수정** (`table-view.tsx`): 행 제목 `text-sm`(14px) → `text-xs`(12px) — 프로젝트 폰트 규칙 준수
+- **미사용 import 제거** (`history-shell.tsx`): `dateStr`, `isCurrentWeek` 미사용 import 제거
+- **`timeline-view.tsx` 삭제**: VIEW_TABS에 timeline 뷰 없고 어디서도 import하지 않는 데드코드 파일 제거
 - **BrandSelector useMemo 추가** (`history-shell.tsx`): `counts`, `sorted` 계산을 렌더마다 반복 실행하던 것을 `useMemo`로 메모이제이션
 - **filteredActions 등 불필요 deps 제거** (`insight-view.tsx`): `filterByBrand`에서 사용하지 않는 `clients`가 4개 useMemo 의존성 배열에 포함되어 불필요한 재계산을 유발하던 것 제거
 - **인사이트 에러 재시도 버튼 추가** (`insight-view.tsx`): 분석 실패 시 에러 텍스트만 표시되던 것을 인라인 "다시 시도" 버튼으로 개선
@@ -694,7 +877,8 @@ LEFT_W_MAX      = 560
 
 ## 미구현 / 예정
 
-- **주간보고** (`/weekly`): 플레이스홀더만 있음
+- **주간보고 Phase 2** (`/weekly`): 각 팀 컬렉션 문서 연동 (현재 Biz Lead 문서만)
+- **주간보고 UX 개선**: 구체적 요구사항·디자인 확정 후 수정 예정
 - **설정** (`/settings`): 플레이스홀더만 있음
 - **캘린더 퀵 등록**: 날짜 셀 클릭으로 해당 마감일 태스크 빠른 생성
 - **태스크 parent 재지정**: 드로어에서 하위 → 다른 부모 이동 또는 최상위 승격 UI 없음
@@ -738,9 +922,192 @@ LEFT_W_MAX      = 560
 
 ---
 
+### 2026-05-17 — Calendar 사이드바 아이템 레이아웃 재편 + 드로어 연결
+
+**태스크 아이템 3영역 분리 (`task-panel.tsx`)**
+- 레이아웃: `[GripVertical 핸들] [체크 원] [태스크명 + 날짜 + 배지]`
+- 핸들: `cursor-grab`, stopPropagation 없음 → 이 영역에서만 드래그 시작
+- 체크 원: `onMouseDown stopPropagation` → 드래그 차단, 클릭 시 done 토글
+- 태스크명: `onMouseDown stopPropagation` + `onClick` → 드로어 열기
+- done 상태: 핸들 `invisible` (공간 유지), 제목 취소선
+- `onTaskClick` prop 추가
+
+**TaskDetailDrawer 연결 (`calendar-shell.tsx`)**
+- `drawerTask` state 추가
+- 드로어 핸들러 5종 (save / delete / duplicate / addSubTask / statusChange)
+- `TaskPanel.onTaskClick` + `TimeGrid.onTaskClick` 모두 `setDrawerTask` 연결
+- `TaskDetailDrawer` 렌더링 (정보/메모/이력 3탭)
+
+### 2026-05-17 — Calendar 겹침 레이아웃 + 체크 원 드래그 차단
+
+**겹침 레이아웃 (나란히 표시 + 중복 배지)**
+- `time-grid.tsx`: `calcLayout` 함수 추가 — 이벤트+태스크 합산, sweep 알고리즘으로 `colIndex` / `totalCols` 계산
+- `DayColumn`: timedEvents + scheduledTasks 합산 레이아웃 계산 후 각 블록에 전달
+- `task-block.tsx`: `colIndex` / `totalCols` prop으로 left/width 동적 계산 (퍼센트 기반)
+  - `totalCols > 1`이고 `height >= 36`이면 "중복" 배지 표시 (`status-warn` 계열)
+- `event-block.tsx`: 동일한 left/width 동적 계산 (배지 없음)
+
+**체크 원 드래그 차단**
+- `task-panel.tsx`: 체크 원 버튼에 `onMouseDown={e => e.stopPropagation()}` 추가
+  - mousedown이 부모 draggable div에 전파되지 않아 드래그 시작 원천 차단
+
+### 2026-05-17 — Calendar 사이드바 UX 개선 + 드래그 스냅 가이드라인
+
+**`task-panel.tsx`**
+- AI 제안 탭 완전 제거 (탭 컴포넌트 전체 삭제)
+- 정렬 변경: `생성일` → `진행상황` (STATUS_ORDER 기준: in-progress → to-do → pending → backlog → done)
+- 상태 dot(불릿) → 클릭 가능한 체크 원 버튼
+  - done 아닌 상태: 빈 원 (상태 컬러 테두리)
+  - done 상태: 채워진 원 + 흰색 체크 아이콘
+  - 클릭: not done → done (직전 상태 `prevStatusMap`에 저장) / done → 직전 상태 복원
+  - done 태스크: `opacity-50` + `line-through`, 드래그 비활성화
+- 상태 배지: done 상태에서는 숨김 (중복 방지)
+- `onStatusChange` prop 추가 → `calendar-shell.tsx`에서 `updateTask` 연결
+
+**`calendar-shell.tsx`**
+- `handleStatusChange` 추가: 낙관적 업데이트 + `updateTask` 호출
+
+**`time-grid.tsx`**
+- 드래그 중 스냅 위치 미리 표시 (가이드라인)
+  - `snapMinutes` state: `dragOver` 중 매 `onDragOver`마다 스냅 위치 계산
+  - lilac 점선 + 시간 레이블(`HH:mm`)으로 드롭 예상 위치 시각화
+  - `dragLeave` / `drop` 시 가이드라인 제거
+
+### 2026-05-17 — Calendar 사이드바 스타일 정합 + 토글
+
+- **타이틀 변경**: `배치 대기열` → `CALENDAR` (Tasks 페이지 `TASKS` 와 동일한 uppercase 컨벤션)
+- **사이드바 토글**: `panelOpen` 상태 추가 (기본 open), Tasks 페이지와 동일한 패턴
+  - 사이드바 헤더: `PanelLeftClose` 버튼으로 닫기
+  - 메인 툴바: 닫혔을 때 `PanelLeftOpen` 버튼 표시
+  - `transition-all duration-200` width 슬라이드 애니메이션
+- **아이콘 교체**: `SlidersHorizontal` → `PanelLeftClose` (`task-panel.tsx`)
+
+### 2026-05-17 — Calendar 주간 뷰 재설계
+
+**목표**: Claude 디자인 스크린샷 기준으로 캘린더 전면 재설계 (단일 날짜 뷰 → 주간 뷰 + 좌측 배치 대기열 사이드바)
+
+**`api/calendar/events/route.ts`**
+- `date` 단일 날짜 → `date` + `endDate` (주간 범위) 지원
+- `maxResults` 50 → 200
+
+**`calendar-shell.tsx`** (전면 재작성)
+- 레이아웃: 좌측 `배치 대기열` 사이드바(w-72) + 우측 메인 캘린더
+- 날짜 상태: `date: string` → `weekStart: string` (해당 주 월요일)
+- 주간 이동: `goDay` → `goWeek(±7일)`
+- 툴바: `5월 11일 - 17일 2026 · W20` 형식 주 범위 + Google Calendar 배지 + 필터 + 이벤트 추가
+- 주간 컬럼 헤더: 요일/날짜/이벤트 시간 합계(Nh) 표시, 오늘 날짜 검정 원
+- ALL-DAY 행: 종일 이벤트가 있을 때만 표시
+- Tasks 오버레이 토글 제거
+
+**`time-grid.tsx`** (전면 재작성)
+- Props: `date: string` → `dates: string[]` (7일 배열)
+- `DayColumn` 내부 컴포넌트 분리: 각 컬럼이 독립적으로 drag/drop 처리
+- `source: 'panel' | 'grid'` dataTransfer 구분으로 이동 시 duration 보존
+- 현재 시각 표시는 오늘 컬럼에만
+
+**`task-panel.tsx`** (전면 재작성)
+- 오버레이 → 고정 좌측 사이드바
+- 탭: `태스크 N` / `AI 제안(빈 상태)`
+- 정렬: 마감일 / 우선순위 / 생성일 (클릭으로 순환)
+- 태스크 카드: 상태 도트 + 제목 + 마감일 + 상태 배지
+- `source: 'panel'` 설정으로 그리드 drop과 구분
+
+**`event-block.tsx` / `task-block.tsx`**
+- `left-14` → `left-0` (각 컬럼 내부 포지셔닝으로 변경)
+- `task-block.tsx`: 미사용 `gridRef` prop 제거
+
+### 2026-05-17 — Calendar 버그 수정 및 스타일 정합성
+
+**버그 수정**
+- **타임존 버그**: `toDateStr`을 `toISOString()`(UTC) → 로컬 날짜 컴포넌트로 교체 → 한국(UTC+9)에서 주 시작일 하루 밀림 해결
+- **주 시작 요일**: `weekStartsOn: 1`(월) → `weekStartsOn: 0`(일) — 일·월·화·수·목·금·토 순서
+- **너비 문제**: CalendarShell 루트 및 TimeGrid 루트에 `w-full` 추가
+
+**스타일 정합성 (Tasks 페이지 기준)**
+- 사이드바: `bg-background` → `bg-muted`, 너비 w-72 → w-64
+- 헤더·툴바: `h-11 bg-background` → `h-12 bg-card`
+- 타이틀: `text-foreground` → `text-ink-400 uppercase tracking-wider`
+- 탭: `bg-card rounded-lg p-0.5` 컨테이너 + active `bg-muted rounded-md`
+- 주간 헤더·ALL-DAY 행: `bg-background` → `bg-card`
+
+---
+
+## 작업 현황 (2026-05-17 기준)
+
+### 완료
+
+| 영역 | 내용 |
+|------|------|
+| **공통 Drawer** | `src/components/ui/drawer.tsx` 생성, 앱 전체 6개 드로어 통일 |
+| **Tasks 드로어 탭** | 정보 / 메모 / 이력 탭 추가 (ProjectFormDialog와 동일 패턴) |
+| **Tasks UX 4건** | 메모 아이콘→드로어 메모탭, 생성일·수정일→이력탭, 상위 태스크 제목 표시, 신규 폼 부모 태스크 명시 |
+| **Calendar 주간 뷰** | 단일 날짜 뷰 → 주간 뷰 (일~토 7컬럼), 배치 대기열 좌측 사이드바, 드래그&드롭 유지 |
+| **Calendar 버그·스타일** | 타임존 날짜 밀림, 너비 미채움, 주 시작 요일(일), Tasks 페이지 스타일 정합 |
+| **Settings 페이지** | 5개 섹션 구축 (계정/연동/화면/키워드/데이터), `next-themes` ThemeProvider 연결 |
+
+### 미완료 / 예정
+
+| 영역 | 내용 | 비고 |
+|------|------|------|
+| **Tasks 아카이브** | Done 태스크 자동 아카이브 — `archived_at` 컬럼 추가 + pg_cron 30일 자동 처리 + 기본 뷰 필터 적용 | `deleted_at`과 별도 운영, 아카이브 보기 탭 추가 예정 |
+| **Settings** | Slack 채널→브랜드 매핑 DB 저장 | `clients` 테이블에 `channels` 컬럼 추가 필요 |
+| **Settings** | 다크 모드 커스텀 토큰 대응 | `globals.css` `.dark {}` 블록에 ink/lilac/status 변수 추가 필요 |
+| **Settings** | 데이터 내보내기 | 버튼 mockup만, 실제 구현 없음 |
+| **Calendar** | `+ 이벤트 추가` 기능 | 버튼만 있고 동작 없음 |
+| **Calendar** | `필터` 기능 | 버튼만 있고 동작 없음 |
+| **Calendar** | `AI 제안` 탭 내용 | 현재 "준비 중" 표시 |
+| **Calendar** | 태스크 블록 클릭 시 드로어 연동 | `onTaskClick` 빈 핸들러 |
+| **Calendar** | 배치 대기열 필터 버튼 기능 | 버튼만 있음 |
+
+---
+
 ## Vercel 배포
 
 - Project ID: `prj_YumDJtKv90Kdbsd4DRclJvWUOoQP`
 - Team ID: `team_Bz6jHioMJrz5bNuaCk1yBfaK`
 - GitHub 푸시 → Vercel 자동 배포
 - Vercel CLI 미설치 — 배포는 git push로만 진행
+
+---
+
+## 최근 변경 (2026-05-17) — Weekly 페이지 신규 구축
+
+### 완료
+
+**MVP 기능 구현 (Biz Lead 분기별 주간보고 문서 연동)**
+
+- `OUTLINE_API_URL` / `OUTLINE_API_TOKEN` 환경 변수 추가 (`.env.local`)
+- `api/weekly/route.ts`: Outline REST API로 Biz Lead 2026.2Q Weekly 문서 fetch
+  - Doc ID: `0ce8a222-694d-4133-a124-823718b8a065`
+  - `## YYYY.MM.DD` 헤더 기준으로 주차별 섹션 파싱, 날짜 내림차순 정렬
+  - Next.js `fetch` 5분 캐시 (`next: { revalidate: 300 }`)
+- `api/weekly/ai-summary/route.ts`: Claude Haiku SSE 스트리밍 요약
+  - 선택된 주차 마크다운 전체 전달 → 팀별 핵심 요약 생성
+- `weekly/_lib/types.ts`: `WeekSection` / `WeeklyDoc` 타입
+- `weekly-shell.tsx`: 좌측 사이드바(240px) + 우측 콘텐츠 레이아웃, 데이터 로딩 관리
+- `weekly-sidebar.tsx`: 주차 목록 (날짜 내림차순, NEW 뱃지), 이전/다음 네비게이터
+- `weekly-content.tsx`: `react-markdown` + `remark-gfm` + `rehype-raw` 렌더링
+  - `fixMultilineTableCells`: Outline 문서의 멀티라인 테이블 셀 GFM 파싱 버그 전처리
+  - `==text==` → `**text**` 변환
+  - 팀명 열 120px 고정 + 배경, 내용 열 overflow-x-auto
+- `weekly-ai-summary.tsx`: 접이식 AI 요약 패널 (요약하기 → SSE 응답 → 텍스트 표시, 재시도·새로고침)
+- `page.tsx`: 기존 플레이스홀더 교체
+
+**버그 수정**
+- 사이드바 너비 200px → 240px (Summary와 통일)
+- 타이틀 "Weekly" → "WEEKLY" (대문자 컨벤션 통일)
+- Outline 문서 일부 팀 행의 셀 내용이 다음 줄에 시작해 GFM 파서가 테이블 밖으로 렌더링하는 문제 수정
+
+**패키지 추가**
+- `rehype-raw`: 마크다운 테이블 내 `<br>` HTML 태그 렌더링
+
+---
+
+### 미완료 / 다음 작업 (Weekly)
+
+- **Phase 2 — 각 팀 컬렉션 문서 연동**: 현재 Biz Lead 1개 문서만. 사업개발팀·DX기획1팀 등 개별 팀 아웃라인 컬렉션 문서를 팀별로 탭 또는 필터로 보여주는 기능
+- **UX 개선**: 요구사항·디자인 확정 후 진행 예정
+  - 팀별 필터 (특정 팀만 보기)
+  - 키워드 검색
+  - 주차별 AI 요약 캐시 (DB 저장 여부 결정 필요)
+  - 날짜 표시 형식 개선 (사이드바 주차 라벨)

@@ -13,6 +13,7 @@ import { labelColor } from './TaskDetailDrawer'
 interface TaskRowProps {
   task: GanttTask
   onEdit: (t: GanttTask) => void
+  onEditMemo?: (t: GanttTask) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, s: TaskStatus) => void
   dragHandleProps?: Record<string, unknown>
@@ -27,7 +28,7 @@ interface TaskRowProps {
   onSelect?: (id: string) => void
 }
 
-export function TaskRow({ task, onEdit, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
+export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -170,7 +171,7 @@ export function TaskRow({ task, onEdit, onStatusChange, dragHandleProps, isDragg
       {/* 메모 컬럼 */}
       <div className="w-10 shrink-0 flex items-center justify-start relative">
         <button
-          onClick={() => onEdit(task)}
+          onClick={() => task.memo && onEditMemo ? onEditMemo(task) : onEdit(task)}
           onMouseEnter={task.memo ? e => {
             if (memoTimerRef.current) clearTimeout(memoTimerRef.current)
             setMemoPos({ x: e.clientX, y: e.clientY })
@@ -223,6 +224,7 @@ interface DraggableTaskRowProps {
   onAddSubTask?: () => void
   onToggleExpand?: () => void
   onEdit: (t: GanttTask) => void
+  onEditMemo?: (t: GanttTask) => void
   onDelete: (id: string) => void
   onStatusChange: (id: string, s: TaskStatus) => void
   selectionMode?: boolean

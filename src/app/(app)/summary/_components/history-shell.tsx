@@ -12,7 +12,7 @@ import type { Client, HistoryItem, Tag } from '../_lib/types'
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart, dateStr, isCurrentWeek } from './history-sidebar'
+import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
 import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
@@ -389,11 +389,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                     {priorityKey !== 'all' && (
                       <FilterChip onClear={() => setPriorityKey('all')}>
                         중요도: {PRIORITY_META[priorityKey as Priority].label}
-                      </FilterChip>
-                    )}
-                    {authorKey !== 'all' && (
-                      <FilterChip onClear={() => setAuthorKey('all')}>
-                        작성자: {authorKey}
                       </FilterChip>
                     )}
                     {authorKey !== 'all' && (

@@ -8,6 +8,7 @@ import {
 } from 'lucide-react'
 import type { Client, Insight, InsightContent, ActionItem, Priority } from '../_lib/types'
 import { getInsight, generateInsight } from '@/lib/insight-service'
+import { getCurrentWeekStart } from './history-sidebar'
 
 interface Props {
   weekStart: string
@@ -212,20 +213,21 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
 }
 
 // ── 빈 상태 ────────────────────────────────────────────────────
-function EmptyState({ onGenerate, loading, showProgress, progress, statusMessage, slowPhase }: {
+function EmptyState({ onGenerate, loading, showProgress, progress, statusMessage, slowPhase, isCurrentWeek }: {
   onGenerate: () => void
   loading: boolean
   showProgress: boolean
   progress: number
   statusMessage: string | null
   slowPhase: boolean
+  isCurrentWeek: boolean
 }) {
   return (
     <div className="flex flex-col items-center justify-center py-20 text-center">
       <div className="w-10 h-10 rounded-full bg-lilac-100 flex items-center justify-center mb-4">
         <Sparkles size={18} className="text-lilac-500" />
       </div>
-      <p className="text-xs font-medium text-foreground mb-1">이번 주 인사이트가 없어요</p>
+      <p className="text-xs font-medium text-foreground mb-1">{isCurrentWeek ? '이번 주' : '해당 주'} 인사이트가 없어요</p>
       <p className="text-[11px] text-ink-400 mb-5">슬랙 수집 데이터를 바탕으로 AI가 분석합니다</p>
       <button
         onClick={onGenerate}
@@ -405,6 +407,7 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
           progress={progress}
           statusMessage={statusMessage}
           slowPhase={slowPhase}
+          isCurrentWeek={weekStart === getCurrentWeekStart()}
         />
       ) : (
         <>

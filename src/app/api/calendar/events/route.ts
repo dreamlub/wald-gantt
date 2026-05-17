@@ -55,9 +55,13 @@ export async function GET(req: NextRequest) {
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
   const { searchParams } = req.nextUrl
-  const date = searchParams.get('date')
+  const date    = searchParams.get('date')
+  const endDate = searchParams.get('endDate') ?? date
   if (!date || !/^\d{4}-\d{2}-\d{2}$/.test(date)) {
     return NextResponse.json({ error: 'Invalid date' }, { status: 400 })
+  }
+  if (!endDate || !/^\d{4}-\d{2}-\d{2}$/.test(endDate)) {
+    return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 })
   }
 
   // 저장된 토큰 조회
@@ -89,11 +93,11 @@ export async function GET(req: NextRequest) {
   // Google Calendar API 호출
   const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')
   url.searchParams.set('timeMin',      `${date}T00:00:00+09:00`)
-  url.searchParams.set('timeMax',      `${date}T23:59:59+09:00`)
+  url.searchParams.set('timeMax',      `${endDate}T23:59:59+09:00`)
   url.searchParams.set('timeZone',     'Asia/Seoul')
   url.searchParams.set('singleEvents', 'true')
   url.searchParams.set('orderBy',      'startTime')
-  url.searchParams.set('maxResults',   '50')
+  url.searchParams.set('maxResults',   '200')
 
   const res = await fetch(url.toString(), {
     headers: { Authorization: `Bearer ${accessToken}` },

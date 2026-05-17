@@ -502,12 +502,13 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
             )}
           </div>}
 
-          {/* 메타 정보 */}
-          {task && (
-            <div className="text-[10px] text-ink-300 flex flex-col gap-0.5 pt-2 border-t border-border">
-              <span>생성일: {fmtDate(task.created_at)}</span>
-              <span>수정일: {fmtDate(task.updated_at)}</span>
-              {task.parent_id && <span className="text-lilac-300">· 상위 태스크의 하위 항목</span>}
+          {/* 상위 태스크 */}
+          {task?.parent_id && (
+            <div className="text-[10px] text-ink-300 pt-2 border-t border-border">
+              <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
+              <p className="mt-0.5 text-[11px] text-ink-500 truncate">
+                {parentTask?.title ?? '(알 수 없음)'}
+              </p>
             </div>
           )}
         </DrawerBody>
@@ -522,7 +523,15 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
         </DrawerBody>
         ) : (
         <DrawerBody>
-          {task && <TaskHistorySection taskId={task.id} />}
+          {task && (
+            <>
+              <TaskHistorySection taskId={task.id} />
+              <div className="text-[10px] text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
+                <span>생성일: {fmtDate(task.created_at)}</span>
+                <span>수정일: {fmtDate(task.updated_at)}</span>
+              </div>
+            </>
+          )}
         </DrawerBody>
         )}
 

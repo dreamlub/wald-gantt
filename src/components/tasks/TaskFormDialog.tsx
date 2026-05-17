@@ -29,6 +29,7 @@ interface Props {
     projectIds: string[]
   ) => Promise<void>
   editTask?: GanttTask | null
+  parentTask?: GanttTask | null
   defaultStatus?: TaskStatus
   defaultProjects?: ProjectOption[]
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
@@ -78,7 +79,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 }
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
   const [tab,       setTab]       = useState<FormTab>('info')
   const [title,     setTitle]     = useState('')
   const [status,    setStatus]    = useState<TaskStatus>('to-do')
@@ -403,6 +404,14 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
               )}
             </div>
           </div>
+
+          {/* 상위 태스크 */}
+          {parentTask && (
+            <div className="text-[10px] pt-2 border-t border-border">
+              <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
+              <p className="mt-0.5 text-[11px] text-ink-500 truncate">{parentTask.title}</p>
+            </div>
+          )}
         </DrawerBody>
         ) : tab === 'memo' ? (
         <DrawerBody scrollable={false} className="p-5">

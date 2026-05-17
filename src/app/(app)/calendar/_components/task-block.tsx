@@ -40,9 +40,10 @@ interface Props {
   task: GanttTask
   top: number
   height: number
-  gridRef: React.RefObject<HTMLDivElement | null>
   getMinutesFromY: (clientY: number) => number
   date: string
+  colIndex?: number
+  totalCols?: number
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
@@ -57,7 +58,8 @@ function buildIso(date: string, totalMinutes: number): string {
 }
 
 export function TaskBlock({
-  task, top, height, gridRef, getMinutesFromY, date,
+  task, top, height, getMinutesFromY, date,
+  colIndex = 0, totalCols = 1,
   onMove, onResize, onUnschedule, onClick,
 }: Props) {
   const dragOffsetY  = useRef(0)
@@ -131,6 +133,10 @@ export function TaskBlock({
     return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
 
+  const leftPct  = (colIndex / totalCols) * 100
+  const widthPct = (1 / totalCols) * 100
+  const isOverlapping = totalCols > 1
+
   return (
     <div
       ref={blockRef}
@@ -138,17 +144,29 @@ export function TaskBlock({
       onDragStart={handleDragStart}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className="absolute left-14 right-2 rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10"
-      style={{ top, height, backgroundColor: bg, borderLeft: `3px solid ${color}` }}
+      className="absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10"
+      style={{
+        top,
+        height,
+        left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+        backgroundColor: bg,
+        borderLeft: `3px solid ${color}`,
+      }}
     >
       {/* 제목 */}
       <p className="text-[11px] font-medium text-foreground truncate leading-tight pr-5">
         {task.title}
       </p>
       {height >= 36 && task.scheduled_at && (
-        <p className="text-[10px] text-muted-foreground">
+        <p className="text-[10px] text-muted-foreground flex items-center gap-1 flex-wrap">
           {fmtTime(task.scheduled_at)}
           {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
+          {isOverlapping && (
+            <span className="inline-block text-[8px] px-1 py-px rounded bg-status-warn/15 text-status-warn border border-status-warn/25 leading-none">
+              중복
+            </span>
+          )}
         </p>
       )}
 
