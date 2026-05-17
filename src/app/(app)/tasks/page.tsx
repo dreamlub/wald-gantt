@@ -105,7 +105,7 @@ export default function TasksPage() {
   }, [searchOpen, searchQuery])
 
   async function handleSave(
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[] },
     projectIds: string[]
   ) {
     if (!workspace) return
@@ -1195,6 +1195,7 @@ export default function TasksPage() {
         defaultProjects={pendingDefaultProjects}
         onSearchProjects={handleSearch}
         assigneeSuggestions={allAssignees.map(a => a.label).filter(Boolean)}
+        labelSuggestions={allLabels}
       />
 
       <TaskDetailDrawer

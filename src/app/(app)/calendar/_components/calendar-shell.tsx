@@ -234,6 +234,7 @@ export function CalendarShell() {
   }, [workspaceId])
 
   const assigneeSuggestions = [...new Set(tasks.map(t => t.assignee).filter(Boolean) as string[])]
+  const allLabels = [...new Set(tasks.flatMap(t => t.labels ?? []))].sort()
 
   const handleConnectGoogle = () => { window.location.href = '/api/calendar/auth' }
 
@@ -541,6 +542,7 @@ export function CalendarShell() {
       onSave={handleFormSave}
       onSearchProjects={handleSearchProjects}
       assigneeSuggestions={assigneeSuggestions}
+      labelSuggestions={allLabels}
     />
 
     <TaskDetailDrawer
@@ -556,6 +558,7 @@ export function CalendarShell() {
       onStatusChange={handleDrawerStatusChange}
       onSearchProjects={handleSearchProjects}
       assigneeSuggestions={assigneeSuggestions}
+      labelSuggestions={allLabels}
     />
     </>
   )

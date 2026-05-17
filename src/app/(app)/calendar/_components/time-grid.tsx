@@ -120,7 +120,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
     if (source === 'grid') {
       onMove(taskId, iso)
     } else {
-      onDrop(taskId, iso, 60)
+      onDrop(taskId, iso, 30)
     }
   }
 

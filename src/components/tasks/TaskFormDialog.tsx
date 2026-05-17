@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, ChevronDown, CalendarIcon } from 'lucide-react'
+import { X, Search, ChevronDown, CalendarIcon, Tag } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
@@ -10,6 +10,7 @@ import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
+import { labelColor } from '@/app/(app)/tasks/_components/TaskDetailDrawer'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { TaskHistorySection } from '@/app/(app)/tasks/_components/TaskHistorySection'
 
@@ -25,7 +26,7 @@ interface Props {
   open: boolean
   onClose: () => void
   onSave: (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[] },
     projectIds: string[]
   ) => Promise<void>
   editTask?: GanttTask | null
@@ -34,6 +35,7 @@ interface Props {
   defaultProjects?: ProjectOption[]
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
   assigneeSuggestions?: string[]
+  labelSuggestions?: string[]
   initialTitle?: string
   initialMemo?: string
   initialTab?: FormTab
@@ -79,7 +81,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 }
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], labelSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
   const [tab,       setTab]       = useState<FormTab>('info')
   const [title,     setTitle]     = useState('')
   const [status,    setStatus]    = useState<TaskStatus>('to-do')
@@ -88,6 +90,9 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
   const [startDate, setStartDate] = useState<Date | undefined>(undefined)
   const [dueDate,   setDueDate]   = useState<Date | undefined>(undefined)
   const [memo,      setMemo]      = useState('')
+  const [labels,    setLabels]    = useState<string[]>([])
+  const [labelInput, setLabelInput] = useState('')
+  const [labelOpen,  setLabelOpen]  = useState(false)
   const [saving,    setSaving]    = useState(false)
 
   const [linkedProjects, setLinkedProjects] = useState<ProjectOption[]>([])
@@ -95,6 +100,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
   const [projResults,    setProjResults]    = useState<ProjectOption[]>([])
   const [showProjDrop,   setShowProjDrop]   = useState(false)
   const projRef  = useRef<HTMLDivElement>(null)
+  const labelRef = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
   const memoRef  = useRef<HTMLTextAreaElement>(null)
 
@@ -128,15 +134,16 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
       setStartDate(toDate(editTask.start_date))
       setDueDate(toDate(editTask.due_date))
       setMemo(editTask.memo ?? '')
+      setLabels(editTask.labels ?? [])
       setLinkedProjects(editTask.projects ?? [])
     } else {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
-      setLinkedProjects(defaultProjects ?? [])
+      setLabels([]); setLinkedProjects(defaultProjects ?? [])
     }
-    setProjSearch(''); setProjResults([]); setShowProjDrop(false)
+    setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput(''); setLabelOpen(false)
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, editTask, defaultStatus, defaultProjects])
 
@@ -153,6 +160,8 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
     function onClick(e: MouseEvent) {
       if (projRef.current && !projRef.current.contains(e.target as Node))
         setShowProjDrop(false)
+      if (labelRef.current && !labelRef.current.contains(e.target as Node))
+        setLabelOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -173,6 +182,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           due_date: toDateStr(dueDate),
           memo: memo.trim() || null,
           priority,
+          labels,
         },
         linkedProjects.map(p => p.id)
       )
@@ -180,6 +190,13 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
     } finally {
       setSaving(false)
     }
+  }
+
+  function addLabel() {
+    const val = labelInput.trim()
+    if (!val || labels.includes(val)) { setLabelInput(''); return }
+    setLabels(prev => [...prev, val])
+    setLabelInput('')
   }
 
   function linkProject(p: ProjectOption) {
@@ -335,6 +352,64 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                   </button>
                 )
               })}
+            </div>
+          </div>
+
+          {/* 라벨 */}
+          <div ref={labelRef}>
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+              <Tag size={10} /> 라벨
+            </label>
+            <div className="flex flex-wrap gap-1.5">
+              {labels.map(l => (
+                <button
+                  key={l}
+                  onClick={() => setLabels(prev => prev.filter(x => x !== l))}
+                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
+                  style={{ backgroundColor: labelColor(l) }}
+                  title="클릭해서 삭제"
+                >
+                  {l} <X size={9} />
+                </button>
+              ))}
+              <div className="relative">
+                <input
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+                  placeholder="입력 후 Enter"
+                  value={labelInput}
+                  onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
+                  onFocus={() => setLabelOpen(true)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
+                    if (e.key === 'Escape') setLabelOpen(false)
+                  }}
+                />
+                {labelOpen && (() => {
+                  const suggestions = labelSuggestions.filter(s =>
+                    !labels.includes(s) && s.toLowerCase().includes(labelInput.toLowerCase())
+                  )
+                  if (suggestions.length === 0) return null
+                  return (
+                    <ul className="absolute z-50 left-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-40 overflow-y-auto min-w-[140px]">
+                      {suggestions.map(s => (
+                        <li
+                          key={s}
+                          onPointerDown={e => {
+                            e.preventDefault()
+                            setLabels(prev => [...prev, s])
+                            setLabelInput('')
+                            setLabelOpen(false)
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] hover:bg-accent cursor-pointer"
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                })()}
+              </div>
             </div>
           </div>
 

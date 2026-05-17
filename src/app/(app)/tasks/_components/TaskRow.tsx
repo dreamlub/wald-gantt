@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays,
+  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2,
 } from 'lucide-react'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
@@ -29,7 +29,7 @@ interface TaskRowProps {
   onSelect?: (id: string) => void
 }
 
-export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
+export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
 
@@ -44,7 +44,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
   const labels = task.labels ?? []
 
   return (
-    <div className={`group flex items-center px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-40' : ''} ${isSubTask ? 'bg-muted/40' : ''}`}>
+    <div className={`group flex items-center px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-0' : ''} ${isSubTask ? 'bg-muted/40' : ''}`}>
       {/* 들여쓰기 / 체크박스 / 그립 */}
       {isSubTask ? (
         selectionMode ? (
@@ -182,6 +182,15 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
             sub +
           </button>
         )}
+
+        {/* 삭제 — 호버 시 표시 */}
+        <button
+          onClick={e => { e.stopPropagation(); onDelete(task.id) }}
+          className="shrink-0 opacity-0 group-hover:opacity-100 text-ink-300 hover:text-status-late transition-all"
+          title="삭제"
+        >
+          <Trash2 size={11} />
+        </button>
       </div>
 
       {/* 메모 컬럼 */}
