@@ -4,7 +4,7 @@ import { useRef, useCallback, useState } from 'react'
 import type { CalendarEvent, GanttTask } from '@/types'
 import { TaskBlock } from './task-block'
 import { EventBlock } from './event-block'
-import { getActiveDragOffsetY } from './drag-state'
+import { getActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
 
 const HOUR_H   = 60
 const START_H  = 7
@@ -131,7 +131,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
 
   return (
     <div
-      className={`flex-1 relative border-l border-border transition-colors ${dragOver ? 'bg-lilac-100/30' : ''}`}
+      className={`flex-1 relative border-l border-border transition-colors ${dragOver ? DRAG_OVER_BG : ''}`}
       style={{ height: TOTAL_H * HOUR_H }}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}

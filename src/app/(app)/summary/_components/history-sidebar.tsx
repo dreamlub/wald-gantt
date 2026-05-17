@@ -221,7 +221,7 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
           <ChevronLeft size={13} />
         </button>
         <div className="flex-1 flex flex-col items-center justify-center py-1.5 px-1">
-          <div className="flex items-center gap-1.5 text-[12.5px] font-semibold text-foreground">
+          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
             {getWeekLabel(monday)}
             {isCurrent && (
               <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>

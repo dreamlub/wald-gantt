@@ -81,9 +81,21 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
   )
 }
 
+// ── 주차 제목 ─────────────────────────────────────────────────────
+
+function getWeekTitle(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  const month = d.getMonth() + 1
+  const dow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
+  const firstMon = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
+  const weekNum = Math.floor((d.getDate() - firstMon) / 7) + 1
+  return `${month}월 ${weekNum}주 전체 요약`
+}
+
 // ── AISummaryCard ─────────────────────────────────────────────────
 
 interface AISummaryCardProps {
+  weekStart: string
   insight: WeeklyInsight | null
   reportCount: number
   analyzing: boolean
@@ -95,7 +107,7 @@ interface AISummaryCardProps {
 }
 
 function AISummaryCard({
-  insight, reportCount, analyzing, progress, slowPhase, statusMessage, error, onAnalyze,
+  weekStart, insight, reportCount, analyzing, progress, slowPhase, statusMessage, error, onAnalyze,
 }: AISummaryCardProps) {
   const content = insight?.content ?? null
 
@@ -103,7 +115,7 @@ function AISummaryCard({
     <div className="bg-card border border-border rounded-lg mb-4">
       <div className="flex items-center gap-2 px-4 h-10 border-b border-border">
         <Sparkles size={12} className="text-lilac-500 shrink-0" />
-        <span className="flex-1 text-xs font-semibold text-foreground">AI 주간 요약</span>
+        <span className="flex-1 text-xs font-semibold text-foreground">{getWeekTitle(weekStart)}</span>
         <button
           onClick={onAnalyze}
           disabled={analyzing}
@@ -187,8 +199,10 @@ interface ItemRowProps {
   showTeam?: string
 }
 
+const FALLBACK_META = { label: '기타', dotCls: 'bg-ink-300', badgeCls: 'bg-ink-100 text-ink-500' }
+
 function ItemRow({ item, author, showAuthor = true, showBrand = true, showTeam }: ItemRowProps) {
-  const meta = TYPE_META[item.type]
+  const meta = TYPE_META[item.type as keyof typeof TYPE_META] ?? FALLBACK_META
   return (
     <div className="flex items-start gap-2.5 py-2.5 px-3 border-b border-border last:border-0 hover:bg-ink-50 transition-colors">
       <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-[5px] ${meta.dotCls}`} />
@@ -486,6 +500,7 @@ export function WeeklyDashboard({
 
       {/* AI 요약 카드 */}
       <AISummaryCard
+        weekStart={weekStart}
         insight={insight}
         reportCount={reports.length}
         analyzing={analyzing}

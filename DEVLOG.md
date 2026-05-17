@@ -1,5 +1,143 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-17) — 공통 컴포넌트 추출 리팩터링
+
+### 변경 내역
+
+**`MemoTooltip` 공통화** (`src/components/MemoTooltip.tsx` 신규)
+- `ListView.tsx` / `KanbanView.tsx`에 중복 존재하던 12줄 인라인 메모 툴팁 블록을 단일 컴포넌트로 추출
+- `clampTooltipPos` (`tasks/_utils.ts`) import 유지 — 화면 하단 50% 이상 시 bottom 앵커 플립
+
+**`EmptyState` 공통화** (`src/components/ui/empty-state.tsx` 신규)
+- `TrashPanel` / `TaskTrashPanel` 등에 분산된 빈 상태 UI를 단일 컴포넌트로 추출
+- Props: `icon? / title / description? / action? / className?`
+
+**`SectionLabel` 공통화** (`src/components/ui/section-label.tsx` 신규)
+- `text-[10px] font-semibold text-ink-400 uppercase tracking-wider` 패턴 컴포넌트화
+
+**`formatDateYMD` 중앙화** (`src/lib/gantt-utils.ts`)
+- `TrashPanel` / `TaskTrashPanel` 각자 정의하던 `formatDate` 로컬 함수 삭제
+- `gantt-utils.ts`에 `formatDateYMD(iso: string): string` 추가 후 두 파일 모두 참조
+
+### 수정된 파일
+- `src/app/(app)/tasks/_components/ListView.tsx` — `MemoTooltip` 적용, 인라인 블록 제거
+- `src/app/(app)/tasks/_components/KanbanView.tsx` — 동일
+- `src/components/gantt/TrashPanel.tsx` — `EmptyState` + `formatDateYMD` 적용, 로컬 `formatDate` 제거
+- `src/components/tasks/TaskTrashPanel.tsx` — 동일
+
+---
+
+## 최근 변경 (2026-05-17) — Weekly 대시보드 데이터 수집·저장 인프라 정비
+
+### 변경 내역
+
+**AISummaryCard 헤더 동적 제목** (`weekly-dashboard.tsx`)
+- `"AI 주간 요약"` 고정 텍스트 → `getWeekTitle(weekStart)` 함수로 동적 생성
+- 형식: `"N월 M주 전체 요약"` (예: "5월 2주 전체 요약")
+
+**ItemRow dotCls Runtime TypeError 수정** (`weekly-dashboard.tsx`)
+- `item.type`이 `TYPE_META`에 없는 값일 때 `undefined.dotCls` 크래시 발생 수정
+- `FALLBACK_META = { label: '기타', dotCls: 'bg-ink-300', badgeCls: 'bg-ink-100 text-ink-500' }` 추가
+- `TYPE_META[item.type]` → `TYPE_META[item.type as keyof typeof TYPE_META] ?? FALLBACK_META`
+
+**weekly_reports 테이블 UNIQUE 제약 추가** (Supabase migration)
+- `(workspace_id, source, team, week_start)` 조합에 UNIQUE 제약 `weekly_reports_unique_key` 추가
+- ON CONFLICT upsert가 동작하지 않던 문제 해결
+
+**5/11 주차 데이터 수집·저장** (Outline MCP → Supabase)
+- Outline MCP로 6개 문서 수집: Biz Lead Board, DX기획1/2팀, 핵심고객지원팀, UX디자인팀, DX담당
+- 올바른 포맷(`{type, title, detail, brand, date}`)으로 구조화 후 DB upsert 완료
+- 총 13개 레코드 저장 (biz_lead 8팀 + team_doc 5팀)
+
+---
+
+
+## 최근 변경 (2026-05-17) — Calendar 디자인시스템 정합성 개선
+
+### 변경 내역
+
+**중복 상수 제거**
+- `calendar-shell.tsx`, `task-panel.tsx`, `task-block.tsx`에 각각 로컬 정의되어 있던 `STATUS_COLOR`, `STATUS_BG` 삭제
+- `@/app/(app)/tasks/_constants`의 `STATUS_COLOR`, `STATUS_BG_COLOR`, `STATUS_LABEL` import로 통일
+
+**Google 로고 SVG 공유화** (`event-block.tsx`)
+- 로컬 `function GoogleIcon()` → `export function GoogleIcon({ size = 9 })` 로 export
+- `calendar-shell.tsx`의 인라인 SVG 중복 제거 → `<GoogleIcon size={8} />` 참조
+
+**하드코딩 색상 → CSS 변수** (`globals.css`, `calendar-shell.tsx`)
+- globals.css에 캘린더 전용 변수 추가: --color-google-primary, --color-day-sun, --color-day-sun-muted, --color-day-sat, --color-day-sat-muted
+- #4285f4 → var(--color-google-primary)
+- 일/토 날짜 색상: Tailwind 토큰 하드코딩 → style prop + CSS 변수로 교체
+
+**ALL-DAY 태스크 배경 일치** (`calendar-shell.tsx`)
+- `color-mix(in srgb, ${color} 12%)` → `STATUS_BG_COLOR[task.status]` (task-block과 동일 방식)
+
+**드롭 영역 색상 상수화** (`drag-state.ts`)
+- `DRAG_OVER_BG = 'bg-lilac-100/30'` 상수 추가
+- `time-grid.tsx`, `task-panel.tsx`, `calendar-shell.tsx` 3곳의 리터럴 → 참조로 교체
+
+**폰트 크기 수정** (`calendar-shell.tsx`)
+- ALL-DAY 시간 표시에 누락된 `text-[10px]` 추가
+- 업무가능 시간: `text-[10px]` → `text-xs`, `font-medium` → `font-semibold`
+
+**태스크 추가 버튼** (`calendar-shell.tsx`)
+- DB 사전 생성 방식 제거 → `TaskFormDialog` 컴포넌트 재사용 (태스크 페이지와 동일)
+
+---
+
+## 최근 변경 (2026-05-17) — Tasks 라벨 필터·상태 행 구분 개선
+
+### 변경 내역
+
+**라벨 필터 — 하위태스크 표시 수정** (`page.tsx`)
+- 라벨이 부모 태스크에 있을 때 → 하위태스크도 라벨 무관하게 함께 표시
+- 라벨이 하위태스크에 있을 때 → 부모 태스크도 함께 복원되어 트리 렌더링 정상 동작
+- `preLabel` 변수 추가: 라벨 필터 적용 전 풀을 저장해 부모 복원 시 참조
+- 부모 복원 조건에 `|| !!filterLabel` 추가, `parentPool` 분기로 label 케이스 처리
+
+**라벨 필터 버튼 — 활성 상태 표시 수정** (`page.tsx`)
+- 기존 `ringColor: bg` (유효하지 않은 CSS 속성)로 링이 실제로 적용되지 않던 버그 수정
+- 비선택: 투명 배경 + 라벨 색상 텍스트 + 라벨 색상 테두리
+- 선택: 라벨 색상 배경 + 역상 텍스트 (fill → 역상 방식)
+
+**상태 그룹 헤더 배경 구분** (`page.tsx`)
+- 지연·STATUS_GROUPS 헤더: `bg-card` → `bg-muted` (태스크 행과 시각적 구분)
+- hover: `hover:bg-muted` → `hover:bg-accent/40`
+
+---
+
+## 최근 변경 (2026-05-17) — Calendar 헤더·날짜·통계·드래그 개선
+
+### 변경 내역
+
+**툴바 재설계** (`calendar-shell.tsx`)
+- "CALENDAR" 텍스트 제거
+- 날짜 범위 레이블을 `< 5/17 ~ 5/23 (2026년 20W) >` 형태로 nav 버튼 사이에 배치
+- Google Calendar 버튼: 미연결(NO_TOKEN/TOKEN_EXPIRED) 시 주황 배지 "Google 연결" → `handleConnectGoogle`, 연결 시 기존 새로고침 버튼
+- 필터 버튼 제거
+- "이벤트 추가" → "태스크 추가": 클릭 시 빈 태스크 DB 생성 후 TaskDetailDrawer 오픈
+
+**날짜 헤더** (`calendar-shell.tsx`)
+- 일요일 날짜·요일: blue-500 / blue-400
+- 토요일 날짜·요일: red-500 / red-400
+- 요일 폰트 크기: `text-[10px]` → `text-sm` (날짜 숫자와 동일)
+
+**통계 행** (`calendar-shell.tsx`)
+- "업무 Xh / 구글 Xh" → "업무가능 Xh" (8h에서 업무+구글 시간 차감)
+- ALL-DAY 태스크가 있는 날은 업무가능 0h 표시 (주황색)
+- 2h 이하는 status-late 색상으로 강조
+
+**ALL-DAY → 타임그리드 드래그 수정** (`calendar-shell.tsx`)
+- ALL-DAY 셀의 `onDragOver`/`onDrop`에서 `from-all-day` 타입 드래그 차단
+- from-all-day 드래그 시 ALL-DAY 행이 drop target이 되지 않아 타임그리드까지 도달 가능
+
+**태스크 패널 정렬 UI** (`task-panel.tsx`)
+- "정렬" 레이블 텍스트 제거
+- 미선택 뱃지 배경: `bg-background` (흰색)
+- 태스크명·뱃지 간격: `mt-0.5` → `mt-1.5`
+
+---
+
 ## 프로젝트 개요
 
 Next.js 16 + Supabase 기반 1인용 간트 차트·태스크 관리 웹앱.
@@ -371,17 +509,15 @@ src/
 │   │   │   ├── _lib/
 │   │   │   │   └── types.ts               # WeekSection, WeeklyDoc
 │   │   │   └── _components/
-│   │   │       ├── weekly-shell.tsx        # 오케스트레이터 (fetch + 사이드바/콘텐츠 조합)
-│   │   │       ├── weekly-sidebar.tsx      # 주 목록 (NEW 배지, 주 레이블)
-│   │   │       ├── weekly-content.tsx      # 마크다운 렌더 (GFM 테이블 보정)
-│   │   │       └── weekly-ai-summary.tsx   # Claude Haiku SSE 요약 패널
+│   │   │       ├── weekly-shell.tsx        # 오케스트레이터 (fetch + 사이드바/대시보드 조합)
+│   │   │       ├── weekly-sidebar.tsx      # 주 목록 (NEW 배지, 주 레이블, 월별 구분선)
+│   │   │       └── weekly-dashboard.tsx    # 매니저 대시보드 (AI 요약·스탯·탭 4종)
 │   │   ├── summary/
 │   │   │   ├── page.tsx
 │   │   │   ├── _components/
 │   │   │   │   ├── history-shell.tsx       # 오케스트레이터 (뷰/필터 상태, 연동 다이얼로그)
 │   │   │   │   ├── history-sidebar.tsx     # 기간/브랜드/태그/중요도/주 네비게이터
 │   │   │   │   ├── table-view.tsx          # 테이블 뷰 (우선순위별 타이틀 색상, 검색어 Highlight)
-│   │   │   │   ├── timeline-view.tsx
 │   │   │   │   ├── summary-view.tsx        # 브랜드별 요약 뷰
 │   │   │   │   ├── insight-view.tsx        # AI 인사이트 뷰
 │   │   │   │   ├── detail-drawer.tsx       # 항목 상세 drawer
@@ -398,18 +534,19 @@ src/
 │   │   └── settings/
 │   │       ├── page.tsx
 │   │       └── _components/
-│   │           └── settings-shell.tsx      # 5섹션 (계정/연동/화면/키워드/데이터)
+│   │           ├── settings-shell.tsx      # 6섹션 (계정/연동/화면/브랜드/Weekly 연동/데이터)
+│   │           └── brand-drawer.tsx        # 브랜드 편집 Drawer (이름/색상/키워드/삭제)
 │   ├── api/
 │   │   ├── insights/generate/route.ts      # SSE 스트리밍 인사이트 분석 API
 │   │   ├── weekly/
-│   │   │   ├── route.ts                    # Outline 문서 파싱 + 5분 캐시
 │   │   │   ├── teams/route.ts              # weekly_sources 목록 반환 (GET)
 │   │   │   ├── ai-summary/route.ts         # Claude Haiku SSE 주간보고 요약 (간이)
 │   │   │   └── analyze/route.ts            # 2단계 AI 분석 SSE (weekly_reports→insights)
 │   │   ├── calendar/
 │   │   │   ├── events/route.ts             # Google Calendar 이벤트 조회 (주간 범위)
 │   │   │   ├── auth/route.ts               # Google OAuth 시작
-│   │   │   └── callback/route.ts           # Google OAuth 콜백
+│   │   │   ├── callback/route.ts           # Google OAuth 콜백
+│   │   │   └── disconnect/route.ts         # Google Calendar 연동 해제
 │   │   └── history/[id]/route.ts           # 히스토리 항목 조회/수정
 │   ├── share/[token]/
 │   │   ├── page.tsx
@@ -421,6 +558,7 @@ src/
 │   ├── AppNav.tsx
 │   ├── ScrollToTopButton.tsx               # data-scrolltop 컨테이너 감지 플로팅 Top 버튼
 │   ├── AutocompleteInput.tsx               # 공용 자동완성 (TaskDetailDrawer·ProjectFormDialog)
+│   ├── MemoTooltip.tsx                     # 메모 풍선말 (clampTooltipPos 적용, ListView/KanbanView 공용)
 │   ├── gantt/
 │   │   ├── GanttChart.tsx                  # ~840줄
 │   │   ├── _GanttRows.tsx                  # GanttCategoryLeft/Right, SortableRow 등 (402줄)
@@ -433,7 +571,9 @@ src/
 │   │   ├── TaskFormDialog.tsx              # 정보/메모/이력 3탭
 │   │   └── TaskTrashPanel.tsx
 │   └── ui/
-│       └── drawer.tsx                      # Drawer/DrawerHeader/DrawerBody/DrawerFooter 공통
+│       ├── drawer.tsx                      # Drawer/DrawerHeader/DrawerBody/DrawerFooter 공통
+│       ├── empty-state.tsx                 # 빈 상태 UI (icon/title/description/action)
+│       └── section-label.tsx              # 섹션 레이블 칩 (10px/semibold/uppercase/tracking)
 ├── hooks/
 │   ├── use-confirm.tsx
 │   ├── use-undo-redo.ts
@@ -730,7 +870,26 @@ LEFT_W_MAX      = 560
   - `isCollecting` 상태 추가
   - `handleCollect` 함수: POST `/api/slack/collect` → 결과 toast → 자동 새로고침
   - 툴바에 "수집" 버튼 추가 (새로고침 버튼 왼쪽)
-- 챗창 없이 웹 UI에서 직접 수집 가능 (17건 첫 수집 확인)
+- 챗창 없이 웹 UI에서 직접 수집 가능 (17건 첫 수집 확인 → 이후 전체 롤백)
+- 툴바 새로고침 버튼 제거 → "수집은 Claude Desktop MCP로 실행" 안내 텍스트로 대체
+
+---
+
+## 최근 변경 (2026-05-17) — 인사이트 AI 분석 JSON 파싱 오류 수정
+
+### `src/app/api/insights/generate/route.ts`
+- `max_tokens` 4096 → 8192 증가 — 56건+ 데이터 분석 시 응답이 잘려 JSON 파싱 실패하던 문제 수정
+- `JSON.parse` try-catch 추가 — 파싱 실패 시 "JSON 파싱 실패 (응답이 잘렸을 수 있음)" 메시지로 원인 명시
+
+---
+
+## 최근 변경 (2026-05-17) — Summary 디자인 시스템 정합성 수정
+
+비표준 폰트 크기 3건 수정 (`text-xs` = 12px 기준)
+
+- **`history-sidebar.tsx`** 224번줄: `text-[12.5px]` → `text-xs` (주 네비게이터 레이블)
+- **`insight-view.tsx`** 390번줄: `text-[12px]` → `text-xs` (오류 메시지)
+- **`detail-drawer.tsx`** 329·338번줄: `text-[11px]` → `text-xs` (태스크/프로젝트 추가 CTA 버튼)
 
 ---
 
@@ -866,6 +1025,45 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Calendar UX 개선 (드래그·카드·레이아웃)
+
+### 드래그 위치 버그 수정 (`drag-state.ts` 신규)
+- **문제**: 그리드 내 태스크 재이동 시 스냅 인디케이터 위치와 실제 드롭 위치 불일치 (브라우저 보안 제한으로 `dragover`에서 `getData('offsetY')` 반환 불가)
+- **수정**: `drag-state.ts` 신규 — `setActiveDragOffsetY` / `getActiveDragOffsetY` 모듈 레벨 공유
+  - `task-block.tsx` dragstart: `setActiveDragOffsetY(dragOffsetY.current)`
+  - `task-panel.tsx` / `calendar-shell.tsx` (all-day) dragstart: `setActiveDragOffsetY(0)`
+  - `time-grid.tsx` `handleDragOver`: `getActiveDragOffsetY()` 사용 → 인디케이터·드롭 위치 일치
+
+### ALL-DAY 행 개편 (`calendar-shell.tsx`)
+- **모든 소스에서 ALL-DAY 드롭 허용**: `from-grid` 포함 전 소스 허용 — 그리드 태스크를 종일로 이동 가능
+- **행 높이 확대** (`min-h-[52px]`): 체크 원 + 제목 2행 레이아웃 수용
+- **체크 원 추가**: ALL-DAY 태스크에 완료 토글 버튼 추가 (`Check` 아이콘, `handleStatusChange` 연결)
+- **레이아웃 변경**: 1행 `[체크 원] [종일]` → 2행 `[태스크명 line-clamp-2]` (task-block과 동일 패턴)
+- **구글 이벤트 로고**: ALL-DAY 구글 이벤트에 컬러 "G" SVG 아이콘 추가
+
+### 구글 이벤트 스타일 통일 (`event-block.tsx`, `calendar-shell.tsx`)
+- 구글이 제공하는 `colorId` 색상 무시 → `ink-100` 배경 + `ink-300` 좌측 바로 고정
+- 타임그리드 `EventBlock` 제목 앞에 구글 "G" SVG 로고(9px) 추가
+
+### TaskPanel 카드 스타일 전면 개편 (`task-panel.tsx`)
+- **카드 디자인**: `border border-border bg-card rounded` + 좌측 상태 컬러 3px 바 (task-block 스타일 통일)
+- **사이드바 드롭으로 배치 해제**: `from-grid` 타입 dragover 감지 → 드롭 시 `onUnschedule` 호출, "여기에 놓으면 배치 해제" 점선 힌트 표시
+- **To-Do 뱃지 소형화**: `text-[10px] px-1.5 py-0.5` → `text-[9px] px-1 py-px`
+- **담당자 표시**: 뱃지 우측에 `task.assignee` 텍스트 추가
+- **제목 line-clamp-2**: `truncate` → 2줄 표시 후 말줄임
+- **배치된 태스크도 카드**: CalendarDays 아이콘 + 날짜·시각 메타 표시
+
+### TaskBlock 레이아웃 변경 (`task-block.tsx`)
+- **2행 구조**: 1행 `[체크 원] [시각 · 분]` → 2행 `[태스크명 line-clamp-2]`
+- **패딩/간격**: `py-1` → `py-1.5`, `gap-0.5` 행 간격 추가
+- 제목 `truncate` → `line-clamp-2` (2줄 표시 후 말줄임)
+
+### Tasks 페이지 캘린더 배치 뱃지 (`TaskRow.tsx`)
+- `scheduled_at` 있는 태스크에 lilac 색 뱃지 표시: `CalendarDays` 아이콘 + `M/D HH:mm` (종일이면 `M/D 종일`)
+- 라벨 뱃지 다음, 하위 태스크 진행 뱃지 앞에 삽입
+
+---
+
 ## 최근 변경 (2026-05-17) — Calendar 날짜 버그 재수정 + Notplan UX
 
 ### Notplan 스타일 UX (`task-panel.tsx`, `task-block.tsx`, `time-grid.tsx`, `calendar-shell.tsx`)
@@ -923,7 +1121,7 @@ LEFT_W_MAX      = 560
 - `globals.css`: `--font-sans/heading` → `var(--font-noto-sans-kr)`, `--font-mono` → `ui-monospace`
 
 **전체 폰트 크기 정규화 (20개 파일)**
-- `text-sm`/`text-base`/`text-[13~15px]` → `text-xs`, `text-[11.5px]` → `text-[11px]`, `text-[10.5px]` → `text-[10px]`
+- 큰 폰트(sm/base/13~15px) → xs, 중간 폰트(11.5px) → 11px, 작은 폰트(10.5px) → 10px 로 정규화
 - `font-mono` 전체 제거 (Notes 편집기·코드블록·`/login`·`/share` 제외)
 
 **하드코딩 색상 → CSS 변수 (대규모)**
@@ -1369,3 +1567,25 @@ LEFT_W_MAX      = 560
   - 팀 목록 행의 `collection_id` span: `font-mono` 삭제
   - 팀 추가 폼의 `collection_id` input: `font-mono` 삭제
   - 일반 Noto Sans 폰트로 통일
+
+---
+
+## 최근 변경 (2026-05-17) — Settings > 연동 Obsidian Vault 블록 추가
+
+### `settings-shell.tsx`
+
+- **Obsidian Vault SettingCard 추가** (integrations 섹션, Google Calendar 아래)
+  - `useVaultHandle` 훅 import → 연결 상태(connected/disconnected/needs-permission/loading) 표시
+  - 미연결: "Vault 연결" 버튼 → `showDirectoryPicker()` + IndexedDB 저장
+  - 권한 만료: "권한 허용" 버튼 → `requestPermission()` 호출
+  - 연결됨: 폴더명 표시 + "연결 해제" 버튼
+  - 연결됨일 때 경로 패턴 입력 표시 (blur/Enter 시 localStorage 저장)
+
+### `notes/page.tsx`
+
+- 미연결(`disconnected`): VaultSetup 전체 UI 제거 → "Settings › 연동에서 연결하기" 링크 안내
+- 권한 만료(`needs-permission`): VaultSetup 제거 → 미니멀 "권한 허용" 버튼만 표시
+
+### `notes/_components/VaultSetup.tsx` 삭제
+
+- notes 페이지에서만 사용하던 전용 UI — 인라인으로 대체 후 삭제

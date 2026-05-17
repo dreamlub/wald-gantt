@@ -3,7 +3,8 @@
 import { useState } from 'react'
 import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtRange, isOverdue, overdueDays, daysDiff, clampTooltipPos, isLightColor } from '../_utils'
+import { fmtRange, isOverdue, overdueDays, daysDiff, isLightColor } from '../_utils'
+import { MemoTooltip } from '@/components/MemoTooltip'
 import { STATUS_COLOR, STATUS_LABEL } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
 
@@ -391,15 +392,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
       {memoHover && (() => {
         const t = tasks.find(x => x.id === memoHover.taskId)
         if (!t?.memo) return null
-        const pos = clampTooltipPos(memoHover.x, memoHover.y)
-        return (
-          <div className="fixed z-[9999] pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
-            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
-              {t.memo}
-            </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
-          </div>
-        )
+        return <MemoTooltip memo={t.memo} x={memoHover.x} y={memoHover.y} />
       })()}
       </div>
     </div>

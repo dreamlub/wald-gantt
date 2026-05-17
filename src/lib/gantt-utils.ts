@@ -74,6 +74,13 @@ export function getDefaultViewRange(): { startYM: string; endYM: string } {
 
 export const MONTH_LABELS = ['1월', '2월', '3월', '4월', '5월', '6월', '7월', '8월', '9월', '10월', '11월', '12월']
 
+/** ISO 타임스탬프 → "YYYY.MM.DD" (휴지통 삭제일 등 표시용) */
+export function formatDateYMD(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`
+}
+
 // ── Day-level bar positioning ──────────────────────────────
 
 function daysInMonth(year: number, month: number): number {

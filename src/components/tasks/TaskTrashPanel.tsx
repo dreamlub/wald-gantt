@@ -7,18 +7,14 @@ import { getDeletedTasks, restoreTask, permanentDeleteTask, emptyTaskTrash } fro
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
 import { Drawer } from '@/components/ui/drawer'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatDateYMD } from '@/lib/gantt-utils'
 
 interface Props {
   open: boolean
   onClose: () => void
   workspaceId: string
   onRestore: () => void
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`
 }
 
 export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props) {
@@ -91,10 +87,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
           {loading ? (
             <div className="flex items-center justify-center h-20 text-muted-foreground text-xs">로딩 중...</div>
           ) : deleted.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-28 text-muted-foreground text-xs gap-1">
-              <Trash2 size={20} className="opacity-30" />
-              휴지통이 비어 있습니다
-            </div>
+            <EmptyState icon={<Trash2 size={20} />} title="휴지통이 비어 있습니다" className="h-28" />
           ) : deleted.map(task => (
             <div key={task.id} className="px-4 py-3 border-b last:border-0 hover:bg-muted transition-colors group">
               <div className="flex items-start justify-between gap-2">
@@ -111,7 +104,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
                       <span className="text-[10px] text-muted-foreground truncate">{task.assignee}</span>
                     )}
                     {task.deleted_at && (
-                      <span className="text-[10px] text-ink-300">{formatDate(task.deleted_at)}</span>
+                      <span className="text-[10px] text-ink-300">{formatDateYMD(task.deleted_at)}</span>
                     )}
                   </div>
                 </div>

@@ -2,6 +2,9 @@
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 
+@source not "../../DEVLOG.md";
+@source not "../../**/*.md";
+
 @custom-variant dark (&:is(.dark *));
 
 /* ── Wald 팔레트 토큰 ──────────────────────────────────────── */
@@ -73,6 +76,13 @@
   --color-cat-red-light:     #fecaca;
   --color-cat-pink-light:    #fbcfe8;
   --color-cat-purple-light:  #ddd6fe;
+
+  /* Calendar */
+  --color-google-primary:    #4285f4;
+  --color-day-sun:           #3b82f6; /* 일요일 */
+  --color-day-sun-muted:     #93c5fd;
+  --color-day-sat:           #ef4444; /* 토요일 */
+  --color-day-sat-muted:     #fca5a5;
 
   /* Summary 태그 팔레트 */
   --color-tag-issue-text:          #dc2626;

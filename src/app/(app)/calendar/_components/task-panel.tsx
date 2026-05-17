@@ -4,23 +4,8 @@ import { useState } from 'react'
 import { Search, PanelLeftClose, GripVertical, CalendarDays } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import type { GanttTask } from '@/types'
-import { setActiveDragOffsetY } from './drag-state'
-
-const STATUS_COLOR: Record<string, string> = {
-  'backlog':     'var(--task-status-backlog)',
-  'to-do':       'var(--task-status-todo)',
-  'in-progress': 'var(--task-status-in-progress)',
-  'done':        'var(--task-status-done)',
-  'pending':     'var(--task-status-pending)',
-}
-
-const STATUS_LABEL: Record<string, string> = {
-  'backlog':     'Backlog',
-  'to-do':       'To-Do',
-  'in-progress': 'In Progress',
-  'done':        'Done',
-  'pending':     'Pending',
-}
+import { STATUS_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
+import { setActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
 
 const STATUS_ORDER: Record<string, number> = {
   'in-progress': 0,
@@ -114,11 +99,6 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
     if (taskId) onUnschedule?.(taskId)
   }
 
-  const cycleSort = () => {
-    const idx = SORT_CYCLE.indexOf(sort)
-    setSort(SORT_CYCLE[(idx + 1) % SORT_CYCLE.length])
-  }
-
   const unscheduledPending = candidates.filter(t => !t.scheduled_at && t.status !== 'done').length
 
   return (
@@ -149,18 +129,25 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
       </div>
 
       {/* 정렬 */}
-      <div className="shrink-0 flex items-center justify-end px-3 py-1 border-b border-border">
-        <button
-          onClick={cycleSort}
-          className="text-[10px] text-ink-400 hover:text-foreground transition-colors"
-        >
-          정렬: {SORT_LABELS[sort]}
-        </button>
+      <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border">
+        {SORT_CYCLE.map(key => (
+          <button
+            key={key}
+            onClick={() => setSort(key)}
+            className={`text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
+              sort === key
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-background text-ink-400 border-border hover:text-foreground hover:border-ink-400'
+            }`}
+          >
+            {SORT_LABELS[key]}
+          </button>
+        ))}
       </div>
 
       {/* 태스크 목록 — from-grid 드롭 시 스케줄 해제 */}
       <div
-        className={`flex-1 overflow-y-auto py-1.5 transition-colors ${dragOver ? 'bg-lilac-100/30' : ''}`}
+        className={`flex-1 overflow-y-auto py-1.5 transition-colors ${dragOver ? DRAG_OVER_BG : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
@@ -194,7 +181,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                   <div className="px-2 py-1.5 flex items-start gap-1.5">
                     <CalendarDays size={11} className="shrink-0 mt-0.5 text-ink-300" />
                     <div className="flex-1 min-w-0">
-                      <p className={`text-[11px] leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                      <p className={`text-xs leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
                         {task.title}
                       </p>
                       <p className="text-[10px] text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
@@ -228,14 +215,14 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                     onClick={() => onTaskClick?.(task)}
                   >
                     <div className="flex items-start justify-between gap-1">
-                      <p className={`text-[11px] leading-snug line-clamp-2 flex-1 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                      <p className={`text-xs leading-snug line-clamp-2 flex-1 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
                         {task.title}
                       </p>
                       {task.due_date && (
                         <span className="text-[9px] text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
                       )}
                     </div>
-                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                    <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {!isDone && (
                         <span
                           className="text-[9px] px-1 py-px rounded-full border leading-none"

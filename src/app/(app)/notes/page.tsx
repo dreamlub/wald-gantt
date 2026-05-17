@@ -1,13 +1,13 @@
 'use client'
 
 import { useState } from 'react'
-import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, FolderOpen, X, Settings2 } from 'lucide-react'
+import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, FolderOpen, X, Settings2, RefreshCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Calendar } from '@/components/ui/calendar'
+import Link from 'next/link'
 import { useVaultHandle } from '@/hooks/use-vault-handle'
 import { getPathPattern, setPathPattern } from '@/lib/daily-note'
-import { VaultSetup } from './_components/VaultSetup'
 import { DailyNoteView } from './_components/DailyNoteView'
 
 function todayLocal(): Date {
@@ -210,12 +210,31 @@ export default function NotesPage() {
           </div>
         )}
 
-        {!isLoading && (status === 'disconnected' || status === 'needs-permission') && (
-          <VaultSetup
-            status={status}
-            onConnect={connect}
-            onRequestPermission={requestPermission}
-          />
+        {!isLoading && status === 'disconnected' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <FolderOpen size={28} className="text-ink-300" />
+            <p className="text-sm font-medium text-foreground">Vault가 연결되지 않았습니다</p>
+            <Link
+              href="/settings?section=integrations"
+              className="text-[11px] text-lilac-500 hover:underline"
+            >
+              Settings › 연동에서 연결하기
+            </Link>
+          </div>
+        )}
+
+        {!isLoading && status === 'needs-permission' && (
+          <div className="flex-1 flex flex-col items-center justify-center gap-3">
+            <RefreshCw size={22} className="text-ink-300" />
+            <p className="text-sm font-medium text-foreground">폴더 접근 권한이 필요해요</p>
+            <p className="text-xs text-muted-foreground">브라우저를 새로 열면 권한 재확인이 필요합니다</p>
+            <button
+              onClick={requestPermission}
+              className="px-4 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-80 transition-opacity"
+            >
+              권한 허용
+            </button>
+          </div>
         )}
 
         {isConnected && handle && (

@@ -387,7 +387,7 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
       )}
 
       {error && (
-        <div className="mb-4 flex items-center gap-3 text-[12px] text-status-late bg-status-late/10 border border-status-late/15 px-3 py-2 rounded">
+        <div className="mb-4 flex items-center gap-3 text-xs text-status-late bg-status-late/10 border border-status-late/15 px-3 py-2 rounded">
           <span className="flex-1">오류: {error}</span>
           <button
             onClick={handleGenerate}

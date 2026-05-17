@@ -428,7 +428,15 @@ export default function TasksPage() {
     if (filterAssignee === '__mine__') filtered = filtered.filter(t => t.type === 'mine')
     else filtered = filtered.filter(t => t.assignee === filterAssignee)
   }
-  if (filterLabel)     filtered = filtered.filter(t => (t.labels ?? []).includes(filterLabel))
+  // 라벨 필터 적용 전 풀 저장 — 하위태스크가 라벨을 가질 때 부모 복원에 사용
+  const preLabel = filtered
+  if (filterLabel) {
+    const withLabel = filtered.filter(t => (t.labels ?? []).includes(filterLabel))
+    const withLabelIds = new Set(withLabel.map(t => t.id))
+    // 라벨 있는 부모의 하위태스크도 포함
+    const subsOfMatched = filtered.filter(t => t.parent_id && withLabelIds.has(t.parent_id) && !withLabelIds.has(t.id))
+    filtered = [...withLabel, ...subsOfMatched]
+  }
   const baseFiltered = filtered
   if (quickFilter === 'overdue')       filtered = filtered.filter(t => isOverdue(t.due_date, t.status))
   if (quickFilter === 'start-delayed') filtered = filtered.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status))
@@ -444,18 +452,20 @@ export default function TasksPage() {
       (t.labels ?? []).some(l => l.toLowerCase().includes(q))
     )
   }
-  // 퀵필터/검색으로 하위 태스크만 남고 부모가 걸러진 경우: 부모도 포함시켜 트리 렌더링이 깨지지 않도록
-  if (quickFilter !== 'all' || searchQuery.trim()) {
+  // 필터로 하위 태스크만 남고 부모가 걸러진 경우: 부모도 포함시켜 트리 렌더링이 깨지지 않도록
+  // filterLabel 시에는 부모가 라벨 없어도 preLabel 풀에서 복원
+  if (quickFilter !== 'all' || searchQuery.trim() || !!filterLabel) {
     const filteredIds = new Set(filtered.map(t => t.id))
-    const baseIds = new Set(baseFiltered.map(t => t.id))
+    const parentPool = filterLabel ? preLabel : baseFiltered
+    const parentPoolIds = new Set(parentPool.map(t => t.id))
     const missingParentIds = new Set<string>()
     for (const t of filtered) {
-      if (t.parent_id && !filteredIds.has(t.parent_id) && baseIds.has(t.parent_id)) {
+      if (t.parent_id && !filteredIds.has(t.parent_id) && parentPoolIds.has(t.parent_id)) {
         missingParentIds.add(t.parent_id)
       }
     }
     if (missingParentIds.size > 0) {
-      filtered = [...filtered, ...baseFiltered.filter(t => missingParentIds.has(t.id))]
+      filtered = [...filtered, ...parentPool.filter(t => missingParentIds.has(t.id))]
     }
   }
 
@@ -598,10 +608,13 @@ export default function TasksPage() {
                     <button
                       key={l.name}
                       onClick={() => { setFilterLabel(active ? null : l.name); setFilterProject(null); setFilterAssignee(null) }}
-                      className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full transition-all ${
-                        active ? 'ring-2 ring-offset-1' : 'opacity-75 hover:opacity-100'
+                      className={`inline-flex items-center gap-0.5 text-[10px] font-medium px-2 py-0.5 rounded-full transition-all border ${
+                        active ? '' : 'hover:opacity-80'
                       }`}
-                      style={{ backgroundColor: bg, color: fg, ...(active ? { ringColor: bg } : {}) }}
+                      style={active
+                        ? { backgroundColor: bg, color: fg, borderColor: bg }
+                        : { backgroundColor: 'transparent', color: bg, borderColor: bg }
+                      }
                     >
                       # {l.name}
                       <span className="text-[9px] opacity-70">{l.count}</span>
@@ -827,7 +840,7 @@ export default function TasksPage() {
                   <div>
                     <button
                       onClick={() => toggleCollapse('__overdue__')}
-                      className="w-full flex items-center gap-2 px-4 py-2 bg-card border-b hover:bg-muted transition-colors"
+                      className="w-full flex items-center gap-2 px-4 py-2 bg-muted border-b hover:bg-accent/40 transition-colors"
                     >
                       {collapsed.has('__overdue__')
                         ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
@@ -901,7 +914,7 @@ export default function TasksPage() {
                     <DroppableGroup key={status} status={status}>
                       <button
                         onClick={() => toggleCollapse(status)}
-                        className="w-full flex items-center gap-2 px-4 py-2 bg-card border-b hover:bg-muted transition-colors"
+                        className="w-full flex items-center gap-2 px-4 py-2 bg-muted border-b hover:bg-accent/40 transition-colors"
                       >
                         {isCollapsed
                           ? <ChevronRight size={12} className="text-ink-400 shrink-0" />

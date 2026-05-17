@@ -6,6 +6,8 @@ import { useConfirm } from '@/hooks/use-confirm'
 import { getDeletedProjects, restoreProject, permanentDeleteProject, emptyTrash } from '@/lib/gantt-service'
 import type { GanttProject, GanttCategory } from '@/types'
 import { Drawer } from '@/components/ui/drawer'
+import { EmptyState } from '@/components/ui/empty-state'
+import { formatDateYMD } from '@/lib/gantt-utils'
 
 interface Props {
   open: boolean
@@ -13,12 +15,6 @@ interface Props {
   boardId: string
   categories: GanttCategory[]
   onRestore: (project: GanttProject) => void
-}
-
-function formatDate(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`
 }
 
 export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Props) {
@@ -91,10 +87,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
           {loading ? (
             <div className="flex items-center justify-center h-20 text-muted-foreground text-xs">로딩 중...</div>
           ) : deleted.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-28 text-muted-foreground text-xs gap-1">
-              <Trash2 size={20} className="opacity-30" />
-              휴지통이 비어 있습니다
-            </div>
+            <EmptyState icon={<Trash2 size={20} />} title="휴지통이 비어 있습니다" className="h-28" />
           ) : (
             deleted.map(project => {
               const cat = categories.find(c => c.id === project.category_id)
@@ -111,7 +104,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
                           </span>
                         )}
                         {project.deleted_at && (
-                          <span className="text-[10px] text-ink-300">{formatDate(project.deleted_at)}</span>
+                          <span className="text-[10px] text-ink-300">{formatDateYMD(project.deleted_at)}</span>
                         )}
                       </div>
                     </div>

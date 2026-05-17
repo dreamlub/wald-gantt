@@ -13,7 +13,8 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS } from '../_constants'
-import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, clampTooltipPos, isLightColor } from '../_utils'
+import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
+import { MemoTooltip } from '@/components/MemoTooltip'
 import { labelColor } from './TaskDetailDrawer'
 
 interface Props {
@@ -415,15 +416,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
       {memoHover && (() => {
         const t = tasks.find(x => x.id === memoHover.taskId)
         if (!t?.memo) return null
-        const pos = clampTooltipPos(memoHover.x, memoHover.y)
-        return (
-          <div className="fixed z-[9999] pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
-            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
-              {t.memo}
-            </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
-          </div>
-        )
+        return <MemoTooltip memo={t.memo} x={memoHover.x} y={memoHover.y} />
       })()}
     </DndContext>
   )

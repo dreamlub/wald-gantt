@@ -326,7 +326,7 @@ export function HistoryDetailDrawer({
                     {onCreateTask && (
                       <button
                         onClick={() => onCreateTask(item)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-[11px] font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-xs font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
                       >
                         <Plus size={12} />
                         태스크 추가
@@ -335,7 +335,7 @@ export function HistoryDetailDrawer({
                     {onCreateProject && (
                       <button
                         onClick={() => onCreateProject(item)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-[11px] font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-xs font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
                       >
                         <Plus size={12} />
                         프로젝트 추가

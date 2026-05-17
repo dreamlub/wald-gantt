@@ -3,20 +3,22 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
-  CalendarDays, SlidersHorizontal, Plus, PanelLeftOpen, X, Check,
+  CalendarDays, Plus, PanelLeftOpen, X, Check,
 } from 'lucide-react'
-import { format, addDays, parseISO, startOfWeek, getISOWeek } from 'date-fns'
-import { ko } from 'date-fns/locale'
+import { addDays, parseISO, startOfWeek, getISOWeek } from 'date-fns'
 import { toast } from 'sonner'
 import type { CalendarEvent, GanttTask, TaskStatus } from '@/types'
 import {
   getOrCreateWorkspace, getTasks, updateTaskSchedule, updateTask,
   softDeleteTask, duplicateTask, addTask, searchProjects,
 } from '@/lib/gantt-service'
+import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/TaskDetailDrawer'
+import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { TimeGrid } from './time-grid'
 import { TaskPanel } from './task-panel'
-import { setActiveDragOffsetY } from './drag-state'
+import { GoogleIcon } from './event-block'
+import { setActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
 
 const DAY_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
@@ -66,14 +68,6 @@ function isAllDayScheduled(iso: string): boolean {
   return d.getHours() === 0 && d.getMinutes() === 0
 }
 
-const STATUS_COLOR: Record<string, string> = {
-  'backlog':     'var(--task-status-backlog)',
-  'to-do':       'var(--task-status-todo)',
-  'in-progress': 'var(--task-status-in-progress)',
-  'done':        'var(--task-status-done)',
-  'pending':     'var(--task-status-pending)',
-}
-
 export function CalendarShell() {
   const today = toDateStr(new Date())
   const [weekStart, setWeekStart] = useState(() => getSundayOf(today))
@@ -81,7 +75,7 @@ export function CalendarShell() {
   const weekEnd   = weekDates[6]
 
   const [panelOpen, setPanelOpen]       = useState(true)
-  const [drawerTask, setDrawerTask]     = useState<GanttTask | null>(null)
+  const [drawerTask, setDrawerTask] = useState<GanttTask | null>(null)
   const [dragOverAllDay, setDragOverAllDay] = useState<string | null>(null)
   const [tasks, setTasks]             = useState<GanttTask[]>([])
   const [events, setEvents]           = useState<CalendarEvent[]>([])
@@ -223,13 +217,21 @@ export function CalendarShell() {
 
   const handleConnectGoogle = () => { window.location.href = '/api/calendar/auth' }
 
-  /* 주 범위 레이블: "5월 11일 - 17일 2026 · W20" */
+  const [formOpen, setFormOpen] = useState(false)
+
+  const handleFormSave = useCallback(async (
+    fields: Parameters<React.ComponentProps<typeof TaskFormDialog>['onSave']>[0],
+    projectIds: string[]
+  ) => {
+    if (!workspaceId) return
+    await addTask(workspaceId, { ...fields, parent_id: null }, projectIds)
+    await loadTasks()
+  }, [workspaceId, loadTasks])
+
+  /* 주 범위 레이블: "5/17 ~ 5/23 (2026년 20W)" */
   const weekStartObj = parseISO(weekStart)
   const weekEndObj   = parseISO(weekEnd)
-  const isSameMonth  = weekStartObj.getMonth() === weekEndObj.getMonth()
-  const weekLabel    = isSameMonth
-    ? `${format(weekStartObj, 'M월 d일', { locale: ko })} - ${format(weekEndObj, 'd일', { locale: ko })} ${format(weekEndObj, 'yyyy')} · W${getISOWeek(weekStartObj)}`
-    : `${format(weekStartObj, 'M월 d일', { locale: ko })} - ${format(weekEndObj, 'M월 d일', { locale: ko })} ${format(weekEndObj, 'yyyy')} · W${getISOWeek(weekStartObj)}`
+  const weekLabel    = `${weekStartObj.getMonth() + 1}/${weekStartObj.getDate()} ~ ${weekEndObj.getMonth() + 1}/${weekEndObj.getDate()} (${weekEndObj.getFullYear()}년 ${getISOWeek(weekStartObj)}W)`
 
   const allDayEvents = events.filter(e => e.isAllDay)
   const allDayTasks  = tasks.filter(t => !!t.scheduled_at && isAllDayScheduled(t.scheduled_at))
@@ -266,7 +268,6 @@ export function CalendarShell() {
               <PanelLeftOpen size={14} />
             </button>
           )}
-          <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">Calendar</span>
 
           <div className="flex items-center gap-0.5">
             <button
@@ -275,6 +276,7 @@ export function CalendarShell() {
             >
               <ChevronLeft size={15} />
             </button>
+            <span className="text-xs font-medium text-foreground min-w-[148px] text-center select-none">{weekLabel}</span>
             <button
               onClick={() => goWeek(1)}
               className="p-1.5 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors"
@@ -292,28 +294,35 @@ export function CalendarShell() {
             </button>
           )}
 
-          <span className="text-xs font-medium text-foreground">{weekLabel}</span>
-
           <div className="flex-1" />
 
           {loadingEvents && <RefreshCw size={13} className="animate-spin text-ink-400" />}
 
+          {calendarError === 'NO_TOKEN' || calendarError === 'TOKEN_EXPIRED' ? (
+            <button
+              onClick={handleConnectGoogle}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-status-warn/40 text-[11px] text-status-warn bg-status-warn/10 hover:bg-status-warn/15 transition-colors"
+              title="Google 캘린더 연결 필요"
+            >
+              <CalendarDays size={11} />
+              Google 연결
+            </button>
+          ) : (
+            <button
+              onClick={() => loadEvents(weekStart, weekEnd)}
+              className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border text-[11px] text-muted-foreground hover:bg-muted transition-colors"
+            >
+              <CalendarDays size={11} style={{ color: 'var(--color-google-primary)' }} />
+              Google Calendar
+            </button>
+          )}
+
           <button
-            onClick={() => loadEvents(weekStart, weekEnd)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full border border-border text-[11px] text-muted-foreground hover:bg-muted transition-colors"
+            onClick={() => setFormOpen(true)}
+            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity"
           >
-            <CalendarDays size={11} className="text-[#4285f4]" />
-            Google Calendar
-          </button>
-
-          <button className="flex items-center gap-1.5 px-2.5 py-1 rounded border border-border text-[11px] text-muted-foreground hover:bg-muted transition-colors">
-            <SlidersHorizontal size={11} />
-            필터
-          </button>
-
-          <button className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity">
             <Plus size={11} />
-            이벤트 추가
+            태스크 추가
           </button>
         </div>
 
@@ -348,14 +357,22 @@ export function CalendarShell() {
             {weekDates.map(date => {
               const d       = parseISO(date)
               const isToday = date === today
+              const isSun   = d.getDay() === 0
+              const isSat   = d.getDay() === 6
+              const dayColor      = !isToday && isSun ? 'var(--color-day-sun)' : !isToday && isSat ? 'var(--color-day-sat)' : undefined
+              const dayColorMuted = !isToday && isSun ? 'var(--color-day-sun-muted)' : !isToday && isSat ? 'var(--color-day-sat-muted)' : undefined
               return (
                 <div key={date} className="flex-1 border-l border-border h-12 flex items-center justify-center gap-1 px-2">
-                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${
-                    isToday ? 'bg-foreground text-background' : 'text-foreground'
-                  }`}>
+                  <span
+                    className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-foreground text-background' : ''}`}
+                    style={dayColor ? { color: dayColor } : undefined}
+                  >
                     {d.getDate()}
                   </span>
-                  <span className={`text-[10px] ${isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                  <span
+                    className={`text-sm ${isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+                    style={dayColorMuted ? { color: dayColorMuted } : undefined}
+                  >
                     ({DAY_LABELS[d.getDay()]})
                   </span>
                 </div>
@@ -363,19 +380,23 @@ export function CalendarShell() {
             })}
           </div>
 
-          {/* 업무 / 구글 시간 통계 (sticky) */}
-          <div className="sticky top-12 z-20 flex border-b bg-card">
+          {/* 업무가능 시간 통계 (sticky) */}
+          <div className="sticky top-12 z-20 flex border-b bg-muted">
             <div className="w-12 shrink-0" />
             {weekDates.map(date => {
-              const googleHrs = calcDayHours(date, events)
-              const taskHrs   = calcTaskHours(date, timedTasks)
+              const googleHrs    = calcDayHours(date, events)
+              const taskHrs      = calcTaskHours(date, timedTasks)
+              const hasAllDay    = allDayTasks.some(t => toDateStr(new Date(t.scheduled_at!)) === date)
+              const availableHrs = hasAllDay ? 0 : Math.max(0, 8 - taskHrs - googleHrs)
+              const isZero       = availableHrs === 0
+              const isTight      = !isZero && availableHrs <= 2
               return (
-                <div key={date} className="flex-1 border-l border-border h-7 flex items-center justify-center gap-3 px-1">
-                  <span className="text-[10px] text-ink-400">
-                    업무 <span className={taskHrs > 0 ? 'font-medium text-foreground' : ''}>{fmtHrs(taskHrs)}</span>
-                  </span>
-                  <span className="text-[10px] text-ink-400">
-                    구글 <span className={googleHrs > 0 ? 'font-medium text-[#4285f4]' : ''}>{fmtHrs(googleHrs)}</span>
+                <div key={date} className="flex-1 border-l border-border h-7 flex items-center justify-center px-1">
+                  <span className="text-xs text-ink-400">
+                    업무가능{' '}
+                    <span className={isZero ? 'font-semibold text-status-warn' : isTight ? 'font-semibold text-status-late' : availableHrs < 8 ? 'font-semibold text-foreground' : ''}>
+                      {fmtHrs(availableHrs)}
+                    </span>
                   </span>
                 </div>
               )
@@ -394,9 +415,10 @@ export function CalendarShell() {
                 <div
                   key={date}
                   className={`flex-1 min-w-0 border-l border-border min-h-[52px] px-1 py-1 flex flex-col gap-0.5 transition-colors ${
-                    dragOverAllDay === date ? 'bg-lilac-100/30' : ''
+                    dragOverAllDay === date ? DRAG_OVER_BG : ''
                   }`}
                   onDragOver={e => {
+                    if (e.dataTransfer.types.includes('from-all-day')) return
                     e.preventDefault()
                     e.dataTransfer.dropEffect = 'move'
                     setDragOverAllDay(date)
@@ -405,6 +427,7 @@ export function CalendarShell() {
                   onDrop={e => {
                     e.preventDefault()
                     setDragOverAllDay(null)
+                    if (e.dataTransfer.types.includes('from-all-day')) return
                     const taskId = e.dataTransfer.getData('taskId')
                     if (taskId) handleDropAllDay(taskId, date)
                   }}
@@ -418,12 +441,7 @@ export function CalendarShell() {
                         borderLeft: '2px solid var(--color-ink-300)',
                       }}
                     >
-                      <svg viewBox="0 0 24 24" width="8" height="8" className="shrink-0">
-                        <path fill="#4285F4" d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"/>
-                        <path fill="#34A853" d="M12 23c2.97 0 5.46-.98 7.28-2.66l-3.57-2.77c-.98.66-2.23 1.06-3.71 1.06-2.86 0-5.29-1.93-6.16-4.53H2.18v2.84C3.99 20.53 7.7 23 12 23z"/>
-                        <path fill="#FBBC05" d="M5.84 14.09c-.22-.66-.35-1.36-.35-2.09s.13-1.43.35-2.09V7.07H2.18C1.43 8.55 1 10.22 1 12s.43 3.45 1.18 4.93l2.85-2.22.81-.62z"/>
-                        <path fill="#EA4335" d="M12 5.38c1.62 0 3.06.56 4.21 1.64l3.15-3.15C17.45 2.09 14.97 1 12 1 7.7 1 3.99 3.47 2.18 7.07l3.66 2.84c.87-2.6 3.3-4.53 6.16-4.53z"/>
-                      </svg>
+                      <GoogleIcon size={8} />
                       <span className="truncate">{ev.title}</span>
                     </div>
                   ))}
@@ -442,32 +460,34 @@ export function CalendarShell() {
                           e.dataTransfer.setData('from-all-day', '')
                           e.dataTransfer.effectAllowed = 'move'
                         }}
-                        className="w-full text-[10px] px-1.5 py-1 rounded flex items-start gap-1 group cursor-grab active:cursor-grabbing min-w-0"
+                        className="relative w-full text-[10px] px-1.5 py-1.5 rounded flex flex-col gap-0.5 group cursor-grab active:cursor-grabbing min-w-0"
                         style={{
-                          backgroundColor: `color-mix(in srgb, ${color} 12%, transparent)`,
+                          backgroundColor: STATUS_BG_COLOR[task.status] ?? 'var(--color-ink-100)',
                           borderLeft: `2px solid ${color}`,
                         }}
                       >
-                        <button
-                          onMouseDown={e => e.stopPropagation()}
-                          onClick={e => { e.stopPropagation(); handleStatusChange(task.id, isDone ? 'to-do' : 'done') }}
-                          className="shrink-0 mt-0.5 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors hover:opacity-80"
-                          style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
-                        >
-                          {isDone && <Check size={7} className="text-white stroke-[3]" />}
-                        </button>
-                        <div className="flex-1 min-w-0">
-                          <p className={`truncate leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
-                            {task.title}
-                          </p>
-                          <p className="text-muted-foreground mt-0.5 leading-tight">
+                        {/* 1행: 체크 원 + 종일 + X */}
+                        <div className="flex items-center gap-1 pr-4">
+                          <button
+                            onMouseDown={e => e.stopPropagation()}
+                            onClick={e => { e.stopPropagation(); handleStatusChange(task.id, isDone ? 'to-do' : 'done') }}
+                            className="shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors hover:opacity-80"
+                            style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
+                          >
+                            {isDone && <Check size={7} className="text-white stroke-[3]" />}
+                          </button>
+                          <span className="text-[10px] text-muted-foreground leading-tight">
                             종일{task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
-                          </p>
+                          </span>
                         </div>
+                        {/* 2행: 태스크명 */}
+                        <p className={`line-clamp-2 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+                          {task.title}
+                        </p>
                         <button
                           onClick={e => { e.stopPropagation(); handleUnschedule(task.id) }}
                           onMouseDown={e => e.stopPropagation()}
-                          className="opacity-0 group-hover:opacity-100 text-ink-400 hover:text-foreground transition-opacity shrink-0 mt-0.5"
+                          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 text-ink-400 hover:text-foreground transition-opacity"
                         >
                           <X size={8} />
                         </button>
@@ -495,6 +515,14 @@ export function CalendarShell() {
 
       </div>
     </div>
+
+    <TaskFormDialog
+      open={formOpen}
+      onClose={() => setFormOpen(false)}
+      onSave={handleFormSave}
+      onSearchProjects={handleSearchProjects}
+      assigneeSuggestions={assigneeSuggestions}
+    />
 
     <TaskDetailDrawer
       open={!!drawerTask}
