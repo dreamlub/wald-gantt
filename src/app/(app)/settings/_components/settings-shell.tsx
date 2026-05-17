@@ -8,7 +8,7 @@ import {
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
-import { useRouter } from 'next/navigation'
+import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import type { Client } from '../../summary/_lib/types'
 import { updateClientKeywords } from '@/lib/history-service'
@@ -78,7 +78,9 @@ interface Props {
 }
 
 export function SettingsShell({ userEmail, clients, calendarConnected, initialWeeklySources, workspaceId }: Props) {
-  const [section, setSection] = useState<Section>('account')
+  const searchParams = useSearchParams()
+  const initialSection = (searchParams.get('section') as Section | null) ?? 'account'
+  const [section, setSection] = useState<Section>(initialSection)
   const { theme, setTheme } = useTheme()
   const router = useRouter()
 
@@ -199,24 +201,22 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   return (
     <div className="flex-1 flex overflow-hidden">
       {/* 사이드바 */}
-      <aside className="w-48 shrink-0 border-r bg-muted flex flex-col py-2 px-1.5">
-        <div className="px-2.5 pt-2 pb-1.5 text-[10px] uppercase tracking-[0.08em] text-ink-400">
-          설정
+      <aside className="w-48 shrink-0 border-r bg-muted flex flex-col overflow-hidden">
+        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
+          <h2 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">Settings</h2>
         </div>
-        {NAV.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setSection(key)}
-            className={`flex items-center gap-2.5 px-2.5 py-2 rounded-sm text-xs transition-colors ${
-              section === key
-                ? 'sidebar-btn-active'
-                : 'sidebar-btn'
-            }`}
-          >
-            <Icon size={14} />
-            {label}
-          </button>
-        ))}
+        <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
+          {NAV.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setSection(key)}
+              className={`sidebar-btn ${section === key ? 'sidebar-btn-active' : ''}`}
+            >
+              <Icon size={14} />
+              {label}
+            </button>
+          ))}
+        </div>
       </aside>
 
       {/* 본문 */}

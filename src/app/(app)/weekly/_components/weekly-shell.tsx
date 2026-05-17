@@ -89,7 +89,7 @@ export function WeeklyShell() {
               연동된 팀이 없어요
             </p>
             <a
-              href="/settings"
+              href="/settings?section=weekly"
               className="flex items-center gap-1 text-[11px] text-lilac-600 hover:underline"
             >
               <Settings size={11} />

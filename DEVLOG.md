@@ -683,6 +683,62 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Calendar 페이지 대규모 UX 개선
+
+### 사이드바 스타일 Tasks 페이지 통일
+- 배경색 `bg-card` → `bg-muted`, 헤더 uppercase + tracking-wider 스타일 적용
+- 타이틀 "배치 대기열" → "CALENDAR"
+- `panelOpen` state 추가: `PanelLeftClose` (사이드바 내부) / `PanelLeftOpen` (툴바, 닫힌 경우만 표시) 토글 버튼
+- 사이드바 너비 `style={{ width: panelOpen ? 256 : 0 }}` + `transition-all duration-200`
+
+### TaskPanel 전면 개편 (`task-panel.tsx`)
+- **AI 제안 탭 완전 제거**: 탭 구조 자체 삭제, 태스크 목록만 유지
+- **정렬 옵션 변경**: 생성일 제거 → 마감일 / 중요도 / 진행상황 3종 사이클 (`SortKey` 타입)
+- **진행상황 정렬 순서**: in-progress → to-do → pending → backlog → done (`STATUS_ORDER`)
+- **done 태스크 필터 유지**: `candidates = tasks.filter(!scheduled_at && !deleted_at)` — done 포함, 아래로 정렬
+- **상태 레이블 영문 통일**: Backlog / To-Do / In Progress / Done / Pending (Tasks 페이지 일치)
+- **체크 원 버튼**: 상태 점 → 클릭 가능한 원형 버튼으로 교체
+  - 클릭 시 done 처리, 재클릭 시 직전 상태 복구 (`prevStatusMap: Record<string, string>` 로컬 state)
+  - done 상태: 배경 채움 + Check 아이콘, 미완료: 테두리만
+- **3구역 아이템 레이아웃**: [GripVertical 핸들] [체크 원] [태스크명]
+  - 핸들 영역만 drag 이벤트 전파, 체크 원·태스크명은 `onMouseDown e.stopPropagation()`으로 드래그 차단
+  - 핸들: `cursor-grab`, done 시 `invisible`
+  - 태스크명: `cursor-pointer`, 클릭 → `onTaskClick(task)` 콜백
+- **done 태스크 스타일**: `opacity-50`, 제목 `line-through text-ink-400`, 상태 뱃지 숨김
+
+### 드래그 스냅 가이드라인 (`time-grid.tsx`)
+- `DayColumn`에 `snapMinutes: number | null` state 추가
+- `handleDragOver`에서 `getMinutesFromY(e.clientY - offsetY)` → `snapMinutes` 실시간 업데이트
+- `handleDragLeave` / `handleDrop`에서 `snapMinutes = null` 초기화
+- 가이드라인 렌더: 라일락 점 + 점선 + 우측 시각 레이블 (`HH:mm` 포맷, `z-30 pointer-events-none`)
+
+### 겹침 레이아웃 (`time-grid.tsx`, `task-block.tsx`, `event-block.tsx`)
+- `calcLayout(blocks)` 함수 추가: sweep line 알고리즘으로 `colIndex` / `totalCols` 계산
+  - startMin 오름차순 정렬 후 greedy 컬럼 할당, 겹치는 모든 블록의 maxCol로 totalCols 결정
+- `DayColumn` IIFE 렌더: timedEvents + scheduledTasks 합산 → `calcLayout` → 분리 적용
+- `TaskBlock` / `EventBlock` 모두 `colIndex` / `totalCols` prop 수용, 동적 left/width 계산
+  - `left: calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`, `width: calc(${widthPct}% - N px)`
+- `TaskBlock`에 "중복" 뱃지 추가: `totalCols > 1`일 때 시각 텍스트 영역에 `bg-status-warn/15 text-status-warn` 소형 pill
+
+### TaskDetailDrawer 연결 (`calendar-shell.tsx`)
+- `drawerTask: GanttTask | null` state 추가
+- `TaskPanel.onTaskClick` → `setDrawerTask`, `TimeGrid.onTaskClick` → `setDrawerTask` 연결
+- 핸들러 신규: `handleDrawerSave` / `handleDrawerDelete` / `handleDrawerDuplicate` / `handleDrawerAddSubTask` / `handleDrawerStatusChange` / `handleSearchProjects`
+- `assigneeSuggestions`: 태스크 목록에서 고유 담당자 추출
+- `TaskDetailDrawer` 렌더: JSX Fragment로 감싸 main flex 외부에 배치
+
+### TaskPanel 라벨 검색 추가 (`task-panel.tsx`)
+- 기존: 제목만 검색
+- 변경: 제목 OR 라벨 중 하나라도 검색어 포함 시 결과 표시
+- `(t.labels ?? []).some(l => l.toLowerCase().includes(ql))` — `labels: null` 안전 처리 포함
+
+### 날짜 하루 밀림 버그 수정 (`time-grid.tsx`)
+- **원인**: `buildIso()`가 `new Date(y, mo-1, d, h, m).toISOString()` (UTC) 반환 → 한국(UTC+9) 9시 이전 드롭 시 UTC 날짜가 전날로 바뀌어 저장
+- **필터 불일치**: `t.scheduled_at?.startsWith(date)` 에서 로컬 날짜 문자열과 UTC ISO 문자열 비교 → 전날 컬럼으로 분류
+- **수정**: `localDateStr(iso)` 헬퍼 추가 (`new Date(iso)`의 로컬 `getFullYear/Month/Date` 사용), 필터를 `localDateStr(t.scheduled_at) === date` 로 교체
+
+---
+
 ## 최근 변경 (2026-05-16)
 
 ### 디자인 시스템 & 공통 기반

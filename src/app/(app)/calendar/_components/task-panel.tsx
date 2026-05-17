@@ -59,8 +59,11 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
 
   const candidates = tasks.filter(t => !t.scheduled_at && !t.deleted_at)
 
+  const ql = q.toLowerCase()
   const filtered = candidates.filter(t =>
-    q === '' || t.title.toLowerCase().includes(q.toLowerCase())
+    q === '' ||
+    t.title.toLowerCase().includes(ql) ||
+    (t.labels ?? []).some(l => l.toLowerCase().includes(ql))
   )
 
   const sorted = [...filtered].sort((a, b) => {

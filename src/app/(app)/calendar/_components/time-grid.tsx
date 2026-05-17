@@ -16,6 +16,11 @@ function toMinutes(iso: string): number {
   return d.getHours() * 60 + d.getMinutes()
 }
 
+function localDateStr(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function snapToGrid(minutes: number): number {
   return Math.round(minutes / SNAP_MIN) * SNAP_MIN
 }
@@ -289,7 +294,7 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
           key={date}
           date={date}
           events={events.filter(e => new Date(e.start).toISOString().slice(0, 10) === date)}
-          tasks={tasks.filter(t => t.scheduled_at?.startsWith(date))}
+          tasks={tasks.filter(t => !!t.scheduled_at && localDateStr(t.scheduled_at) === date)}
           getMinutesFromY={getMinutesFromY}
           isToday={date === today}
           onDrop={onDrop}
