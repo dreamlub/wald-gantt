@@ -1,15 +1,15 @@
 'use client'
 
 import { ChevronLeft, ChevronRight } from 'lucide-react'
-import type { WeekSection, WeeklyTeam } from '../_lib/types'
+import type { WeeklyTeam } from '../_lib/types'
 
 interface Props {
   teams: WeeklyTeam[]
   selectedTeam: string
   onSelectTeam: (id: string) => void
-  weeks: WeekSection[]
+  weeks: string[]          // week_start 'YYYY-MM-DD' 내림차순
   selectedIso: string
-  onSelect: (isoDate: string) => void
+  onSelect: (weekStart: string) => void
 }
 
 function getWeekLabel(isoDate: string): string {
@@ -26,16 +26,16 @@ export function WeeklySidebar({
   teams, selectedTeam, onSelectTeam,
   weeks, selectedIso, onSelect,
 }: Props) {
-  const idx = weeks.findIndex(w => w.isoDate === selectedIso)
+  const idx = weeks.indexOf(selectedIso)
 
   function movePrev() {
-    if (idx < weeks.length - 1) onSelect(weeks[idx + 1].isoDate)
+    if (idx < weeks.length - 1) onSelect(weeks[idx + 1])
   }
   function moveNext() {
-    if (idx > 0) onSelect(weeks[idx - 1].isoDate)
+    if (idx > 0) onSelect(weeks[idx - 1])
   }
 
-  const selected = weeks[idx]
+  const selectedWeek = weeks[idx]
 
   return (
     <div className="flex flex-col overflow-hidden flex-1 min-h-0">
@@ -62,7 +62,7 @@ export function WeeklySidebar({
         <div className="px-2 mb-1.5 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">주차 선택</div>
 
         {/* 네비게이터 */}
-        {selected && (
+        {selectedWeek && (
           <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
             <button
               onClick={movePrev}
@@ -72,7 +72,9 @@ export function WeeklySidebar({
               <ChevronLeft size={13} />
             </button>
             <div className="flex-1 flex flex-col items-center justify-center py-2 px-1">
-              <div className="text-[12px] font-semibold text-foreground">{selected.date}</div>
+              <div className="text-[12px] font-semibold text-foreground">
+                {selectedWeek.replace(/-/g, '.')}
+              </div>
             </div>
             <button
               onClick={moveNext}
@@ -84,27 +86,23 @@ export function WeeklySidebar({
           </div>
         )}
 
-        {weeks.map((w, i) => {
-          const isSelected = w.isoDate === selectedIso
-          const isLatest = i === 0
-          return (
-            <button
-              key={w.isoDate}
-              onClick={() => onSelect(w.isoDate)}
-              className={`sidebar-btn ${isSelected ? 'sidebar-btn-active' : ''}`}
-            >
-              <span className="flex-1 flex items-center gap-1.5 truncate text-left">
-                {getWeekLabel(w.isoDate)}
-                {isLatest && (
-                  <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NEW</span>
-                )}
-              </span>
-            </button>
-          )
-        })}
+        {weeks.map((w, i) => (
+          <button
+            key={w}
+            onClick={() => onSelect(w)}
+            className={`sidebar-btn ${w === selectedIso ? 'sidebar-btn-active' : ''}`}
+          >
+            <span className="flex-1 flex items-center gap-1.5 truncate text-left">
+              {getWeekLabel(w)}
+              {i === 0 && (
+                <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NEW</span>
+              )}
+            </span>
+          </button>
+        ))}
 
         {weeks.length === 0 && (
-          <p className="px-2 text-[11px] text-muted-foreground">주간보고가 없어요</p>
+          <p className="px-2 text-[11px] text-muted-foreground">수집된 주간보고가 없어요</p>
         )}
       </div>
     </div>

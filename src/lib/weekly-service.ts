@@ -14,6 +14,21 @@ export type UpsertWeeklyReportInput = {
   summary?: Record<string, unknown> | null
 }
 
+// 팀의 수집된 주차 목록 (week_start 내림차순)
+export async function getWeeklyWeeks(
+  team: string,
+  sb?: Sb,
+): Promise<string[]> {
+  const client = sb ?? createBrowserClient()
+  const { data, error } = await client
+    .from('weekly_reports')
+    .select('week_start')
+    .eq('team', team)
+    .order('week_start', { ascending: false })
+  if (error) throw error
+  return [...new Set((data ?? []).map(r => r.week_start as string))]
+}
+
 // 해당 주 전체 리포트 조회 (week_start 기준)
 export async function getWeeklyReports(
   weekStart: string,

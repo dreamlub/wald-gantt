@@ -475,6 +475,25 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Weekly DB 완전 전환 (Outline 의존성 제거)
+
+### 배경
+대시보드(3단계)가 DB에서 데이터를 읽게 되면서, 사이드바 주차 목록만 여전히 Outline API에 의존하는 불일치 상태였음. DB 완전 전환으로 통일.
+
+### 변경 내용
+- **`weekly-service.ts`**: `getWeeklyWeeks(team)` 추가 — `weekly_reports`의 고유 `week_start` 내림차순 반환 (RLS 자동 스코핑)
+- **`weekly-shell.tsx`**: Outline `fetchDoc` → `fetchWeeks(teamLabel)` 교체, `doc(WeeklyDoc)` 상태 제거, `weeks: string[]`로 단순화
+- **`weekly-sidebar.tsx`**: `weeks: WeekSection[]` → `weeks: string[]` (week_start ISO 문자열 배열), 네비게이터 표시는 `.replace(/-/g, '.')` 변환
+- **`_lib/types.ts`**: `WeekSection` / `WeeklyDoc` 타입 삭제 (데드코드)
+- **`api/weekly/route.ts` 삭제**: Outline 컬렉션 기반 주차 탐색 라우트 제거
+
+### 결과
+- `weekly_sources.collection_id` 는 DB에 남아있지만 Weekly 페이지에서 더 이상 사용하지 않음
+- 주차 목록 = `weekly_reports`에 수집된 데이터 기준
+- Outline API, Outline 연동 코드 Weekly 페이지에서 완전 제거
+
+---
+
 ## 최근 변경 (2026-05-17) — Weekly 매니저 대시보드 (3단계)
 
 ### 신규: `weekly-dashboard.tsx`

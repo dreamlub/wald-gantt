@@ -2,12 +2,12 @@
 
 import { useState, useEffect, useCallback } from 'react'
 import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings } from 'lucide-react'
-import type { WeeklyDoc, WeeklyTeam } from '../_lib/types'
+import type { WeeklyTeam } from '../_lib/types'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
 import { WeeklyDashboard, DASHBOARD_TABS } from './weekly-dashboard'
 import type { DashboardTab } from './weekly-dashboard'
-import { getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
+import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
 
 function getWeekLabel(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00')
@@ -19,18 +19,18 @@ function getWeekLabel(isoDate: string): string {
 }
 
 export function WeeklyShell() {
-  const [teams, setTeams]         = useState<WeeklyTeam[]>([])
+  const [teams, setTeams]               = useState<WeeklyTeam[]>([])
   const [selectedTeam, setSelectedTeam] = useState<string>('')
-  const [doc, setDoc]             = useState<WeeklyDoc | null>(null)
-  const [loading, setLoading]     = useState(true)
-  const [error, setError]         = useState<string | null>(null)
-  const [selectedIso, setSelectedIso] = useState<string>('')
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [tab, setTab]             = useState<DashboardTab>('all')
+  const [weeks, setWeeks]               = useState<string[]>([])
+  const [selectedIso, setSelectedIso]   = useState<string>('')
+  const [sidebarOpen, setSidebarOpen]   = useState(true)
+  const [weeksLoading, setWeeksLoading] = useState(false)
+  const [weeksError, setWeeksError]     = useState<string | null>(null)
+  const [tab, setTab]                   = useState<DashboardTab>('all')
 
   // 대시보드 데이터
-  const [reports, setReports]     = useState<WeeklyReport[]>([])
-  const [insight, setInsight]     = useState<WeeklyInsight | null>(null)
+  const [reports, setReports]       = useState<WeeklyReport[]>([])
+  const [insight, setInsight]       = useState<WeeklyInsight | null>(null)
   const [dashLoading, setDashLoading] = useState(false)
 
   // 팀 목록 로드
@@ -44,33 +44,30 @@ export function WeeklyShell() {
       .catch(() => setTeams([]))
   }, [])
 
-  // Outline 주차 목록 fetch (사이드바용)
-  const fetchDoc = useCallback(async (teamId: string) => {
-    setLoading(true)
-    setError(null)
-    setDoc(null)
+  // 팀 선택 시 DB에서 주차 목록 fetch
+  const fetchWeeks = useCallback(async (teamLabel: string) => {
+    setWeeksLoading(true)
+    setWeeksError(null)
+    setWeeks([])
     setSelectedIso('')
     try {
-      const res = await fetch(`/api/weekly?team=${teamId}`)
-      if (!res.ok) {
-        const err = await res.json().catch(() => ({ error: '조회 실패' }))
-        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`)
-      }
-      const data: WeeklyDoc = await res.json()
-      setDoc(data)
-      if (data.weeks.length > 0) setSelectedIso(data.weeks[0].isoDate)
+      const data = await getWeeklyWeeks(teamLabel)
+      setWeeks(data)
+      if (data.length > 0) setSelectedIso(data[0])
     } catch (e) {
-      setError(e instanceof Error ? e.message : '조회 실패')
+      setWeeksError(e instanceof Error ? e.message : '주차 조회 실패')
     } finally {
-      setLoading(false)
+      setWeeksLoading(false)
     }
   }, [])
 
   useEffect(() => {
-    if (selectedTeam) fetchDoc(selectedTeam)
-  }, [selectedTeam, fetchDoc])
+    if (!selectedTeam || teams.length === 0) return
+    const team = teams.find(t => t.id === selectedTeam)
+    if (team) fetchWeeks(team.label)
+  }, [selectedTeam, teams, fetchWeeks])
 
-  // 주차 선택 시 DB 데이터 fetch
+  // 주차 선택 시 DB에서 reports + insight fetch
   const fetchDashData = useCallback(async (weekStart: string) => {
     setDashLoading(true)
     setReports([])
@@ -120,7 +117,7 @@ export function WeeklyShell() {
             teams={teams}
             selectedTeam={selectedTeam}
             onSelectTeam={setSelectedTeam}
-            weeks={doc?.weeks ?? []}
+            weeks={weeks}
             selectedIso={selectedIso}
             onSelect={setSelectedIso}
           />
@@ -154,10 +151,9 @@ export function WeeklyShell() {
             </button>
           )}
           <span className="text-sm font-semibold text-foreground shrink-0">
-            {selectedIso ? getWeekLabel(selectedIso) : (doc?.title ?? 'Weekly')}
+            {selectedIso ? getWeekLabel(selectedIso) : 'Weekly'}
           </span>
 
-          {/* 탭 */}
           {selectedIso && (
             <div className="ml-auto flex items-center">
               {DASHBOARD_TABS.map(t => (
@@ -179,17 +175,20 @@ export function WeeklyShell() {
 
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-y-auto bg-background">
-          {loading && (
+          {weeksLoading && (
             <div className="flex items-center justify-center py-20">
               <RefreshCw size={16} className="animate-spin text-ink-400" />
             </div>
           )}
 
-          {!loading && error && (
+          {!weeksLoading && weeksError && (
             <div className="flex flex-col items-center justify-center py-20 gap-3 text-center">
-              <p className="text-xs font-medium text-status-late">{error}</p>
+              <p className="text-xs font-medium text-status-late">{weeksError}</p>
               <button
-                onClick={() => selectedTeam && fetchDoc(selectedTeam)}
+                onClick={() => {
+                  const team = teams.find(t => t.id === selectedTeam)
+                  if (team) fetchWeeks(team.label)
+                }}
                 className="text-xs px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
               >
                 다시 시도
@@ -197,21 +196,21 @@ export function WeeklyShell() {
             </div>
           )}
 
-          {!loading && !error && teams.length === 0 && (
+          {!weeksLoading && !weeksError && teams.length === 0 && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <FileText size={40} strokeWidth={1.5} className="opacity-20 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">설정에서 팀을 추가해주세요</p>
             </div>
           )}
 
-          {!loading && !error && teams.length > 0 && !selectedIso && (
+          {!weeksLoading && !weeksError && teams.length > 0 && !selectedIso && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <FileText size={40} strokeWidth={1.5} className="opacity-20 text-muted-foreground" />
-              <p className="text-xs text-muted-foreground">주간보고가 없어요</p>
+              <p className="text-xs text-muted-foreground">수집된 주간보고가 없어요</p>
             </div>
           )}
 
-          {!loading && !error && selectedIso && (
+          {!weeksLoading && !weeksError && selectedIso && (
             <div className="p-6 max-w-[1200px] mx-auto">
               <WeeklyDashboard
                 weekStart={selectedIso}
