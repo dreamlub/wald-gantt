@@ -3,6 +3,7 @@
 import { useRef, useState } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
+import { setActiveDragOffsetY } from './drag-state'
 
 const SNAP_MIN  = 15
 const HOUR_H    = 60
@@ -90,9 +91,11 @@ export function TaskBlock({
     if (!blockRef.current) return
     const rect = blockRef.current.getBoundingClientRect()
     dragOffsetY.current = e.clientY - rect.top
+    setActiveDragOffsetY(dragOffsetY.current)
     e.dataTransfer.setData('taskId', task.id)
     e.dataTransfer.setData('offsetY', String(dragOffsetY.current))
     e.dataTransfer.setData('source', 'grid')
+    e.dataTransfer.setData('from-grid', '')
     e.dataTransfer.effectAllowed = 'move'
   }
 
@@ -180,7 +183,7 @@ export function TaskBlock({
         >
           {isDone && <Check size={7} className="text-white stroke-[3]" />}
         </button>
-        <p className={`text-[11px] font-medium truncate leading-tight flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+        <p className={`text-[11px] font-medium line-clamp-2 leading-tight flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
           {task.title}
         </p>
       </div>

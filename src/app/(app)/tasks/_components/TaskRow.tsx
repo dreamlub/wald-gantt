@@ -2,7 +2,7 @@
 
 import { useState, useRef } from 'react'
 import {
-  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check,
+  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays,
 } from 'lucide-react'
 import { useDraggable, useDroppable } from '@dnd-kit/core'
 import { CSS } from '@dnd-kit/utilities'
@@ -141,6 +141,21 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
           )
         })}
         {labels.length > 4 && <span className="text-[9px] text-ink-400 shrink-0">+{labels.length - 4}</span>}
+
+        {/* 캘린더 배치 뱃지 */}
+        {task.scheduled_at && (() => {
+          const d = new Date(task.scheduled_at)
+          const isAllDay = d.getHours() === 0 && d.getMinutes() === 0
+          const label = isAllDay
+            ? `${d.getMonth() + 1}/${d.getDate()} 종일`
+            : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+          return (
+            <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+              <CalendarDays size={9} className="shrink-0" />
+              {label}
+            </span>
+          )
+        })()}
 
         {/* 하위 태스크 진행 뱃지 */}
         {subTaskStats && subTaskStats.total > 0 && (

@@ -244,7 +244,7 @@ ${JSON_SCHEMA}`
 
         const message = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 4096,
+          max_tokens: 8192,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userPrompt }],
         })
@@ -255,7 +255,14 @@ ${JSON_SCHEMA}`
         const jsonMatch = raw.match(/\{[\s\S]*\}/)
         if (!jsonMatch) throw new Error('Claude did not return valid JSON')
 
-        const parsed = InsightContentSchema.safeParse(JSON.parse(jsonMatch[0]))
+        let jsonParsed: unknown
+        try {
+          jsonParsed = JSON.parse(jsonMatch[0])
+        } catch (e) {
+          const msg = e instanceof Error ? e.message : String(e)
+          throw new Error(`JSON 파싱 실패 (응답이 잘렸을 수 있음): ${msg}`)
+        }
+        const parsed = InsightContentSchema.safeParse(jsonParsed)
         if (!parsed.success) {
           const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(' | ')
           throw new Error(`Claude 응답 형식 오류: ${issues}`)

@@ -4,6 +4,7 @@ import { useRef, useCallback, useState } from 'react'
 import type { CalendarEvent, GanttTask } from '@/types'
 import { TaskBlock } from './task-block'
 import { EventBlock } from './event-block'
+import { getActiveDragOffsetY } from './drag-state'
 
 const HOUR_H   = 60
 const START_H  = 7
@@ -97,8 +98,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
     e.preventDefault()
     e.dataTransfer.dropEffect = 'move'
     setDragOver(true)
-    const offsetY = Number(e.dataTransfer.getData('offsetY') || '0')
-    setSnapMinutes(getMinutesFromY(e.clientY - offsetY))
+    setSnapMinutes(getMinutesFromY(e.clientY - getActiveDragOffsetY()))
   }
 
   const handleDragLeave = (e: React.DragEvent) => {

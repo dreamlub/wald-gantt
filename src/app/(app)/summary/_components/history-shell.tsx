@@ -3,15 +3,14 @@
 import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
-  Search, RefreshCw, X, PanelLeftClose, PanelLeftOpen,
-  Table2, Sparkles, BarChart2, Inbox,
+  Search, X, PanelLeftClose, PanelLeftOpen,
+  Table2, Sparkles, BarChart2,
 } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
-import { toast } from 'sonner'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
@@ -37,17 +36,6 @@ const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Table2 }[] = [
   { key: 'insight', label: '인사이트', icon: Sparkles },
   { key: 'summary', label: '요약',     icon: BarChart2 },
 ]
-
-function relativeFromNow(iso: string): string {
-  const diff = Date.now() - new Date(iso).getTime()
-  const m = Math.floor(diff / 60000)
-  if (m < 1)   return '방금'
-  if (m < 60)  return `${m}분 전`
-  const h = Math.floor(m / 60)
-  if (h < 24)  return `${h}시간 전`
-  const d = Math.floor(h / 24)
-  return `${d}일 전`
-}
 
 function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
   const now = new Date()
@@ -85,7 +73,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [priorityKey,  setPriorityKey]  = useState<PriorityKey>((searchParams.get('priority') ?? 'all') as PriorityKey)
   const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
-  const [isCollecting, setIsCollecting] = useState(false)
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
@@ -162,26 +149,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [searchOpen, searchQuery])
 
-  async function handleCollect() {
-    setIsCollecting(true)
-    try {
-      const res = await fetch('/api/slack/collect', { method: 'POST' })
-      const data = await res.json()
-      if (!res.ok) throw new Error(data.error ?? '수집 실패')
-      if (data.inserted > 0) {
-        toast.success(`${data.inserted}건 수집됐습니다`)
-        startTransition(() => router.refresh())
-      } else {
-        const debugInfo = data.debug ? '\n' + (data.debug as string[]).join('\n') : ''
-        toast.info(`새 메시지 없음${debugInfo}`, { duration: 10000 })
-      }
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '수집 실패')
-    } finally {
-      setIsCollecting(false)
-    }
-  }
-
   const resetFilters = useCallback(() => {
     setDateFrom(''); setDateTo(''); setBrandId('all'); setSelectedTags(new Set())
     setPriorityKey('all'); setAuthorKey('all'); setSearchQuery('')
@@ -233,13 +200,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
     return list.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
   }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
-
-  const lastCollected = useMemo(() => {
-    if (initialHistory.length === 0) return null
-    return initialHistory.reduce((latest, h) =>
-      h.occurred_at > latest ? h.occurred_at : latest, initialHistory[0].occurred_at
-    )
-  }, [initialHistory])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -350,27 +310,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           </div>
 
           <div className="ml-auto flex items-center gap-3">
-            {lastCollected && (
-              <span className="text-[11px] text-ink-400">
-                마지막 수집 {relativeFromNow(lastCollected)}
-              </span>
-            )}
-            <button
-              onClick={handleCollect}
-              disabled={isCollecting || isRefreshing}
-              className="flex items-center gap-1 text-xs font-medium text-foreground bg-muted border border-border hover:bg-card px-3 py-1.5 rounded transition-colors disabled:opacity-60"
-            >
-              <Inbox size={13} className={isCollecting ? 'animate-pulse' : ''} />
-              {isCollecting ? '수집 중...' : '수집'}
-            </button>
-            <button
-              onClick={() => startTransition(() => router.refresh())}
-              disabled={isRefreshing}
-              className="flex items-center gap-1 text-xs font-medium text-white bg-foreground hover:bg-black px-3 py-1.5 rounded transition-colors disabled:opacity-60"
-            >
-              <RefreshCw size={13} className={isRefreshing ? 'animate-spin' : ''} />
-              새로고침
-            </button>
+            <span className="text-[11px] text-ink-400">
+              수집은 Claude Desktop MCP로 실행
+            </span>
           </div>
         </div>
 

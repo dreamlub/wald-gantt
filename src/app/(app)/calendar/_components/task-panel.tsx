@@ -4,6 +4,7 @@ import { useState } from 'react'
 import { Search, PanelLeftClose, GripVertical, CalendarDays } from 'lucide-react'
 import { format, parseISO } from 'date-fns'
 import type { GanttTask } from '@/types'
+import { setActiveDragOffsetY } from './drag-state'
 
 const STATUS_COLOR: Record<string, string> = {
   'backlog':     'var(--task-status-backlog)',
@@ -57,11 +58,13 @@ interface Props {
   tasks: GanttTask[]
   onClose?: () => void
   onTaskClick?: (task: GanttTask) => void
+  onUnschedule?: (taskId: string) => void
 }
 
-export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
-  const [q, setQ]       = useState('')
-  const [sort, setSort] = useState<SortKey>('deadline')
+export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) {
+  const [q, setQ]               = useState('')
+  const [sort, setSort]         = useState<SortKey>('deadline')
+  const [dragOver, setDragOver] = useState(false)
 
   const candidates = tasks.filter(t => !t.deleted_at)
 
@@ -84,10 +87,31 @@ export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
   })
 
   const handleDragStart = (e: React.DragEvent, task: GanttTask) => {
+    setActiveDragOffsetY(0)
     e.dataTransfer.setData('taskId', task.id)
     e.dataTransfer.setData('offsetY', '0')
     e.dataTransfer.setData('source', 'panel')
+    e.dataTransfer.setData('from-panel', '')
     e.dataTransfer.effectAllowed = 'move'
+  }
+
+  const handleDragOver = (e: React.DragEvent) => {
+    if (!e.dataTransfer.types.includes('from-grid')) return
+    e.preventDefault()
+    e.dataTransfer.dropEffect = 'move'
+    setDragOver(true)
+  }
+
+  const handleDragLeave = (e: React.DragEvent) => {
+    if (e.currentTarget.contains(e.relatedTarget as Node)) return
+    setDragOver(false)
+  }
+
+  const handleDrop = (e: React.DragEvent) => {
+    e.preventDefault()
+    setDragOver(false)
+    const taskId = e.dataTransfer.getData('taskId')
+    if (taskId) onUnschedule?.(taskId)
   }
 
   const cycleSort = () => {
@@ -134,8 +158,19 @@ export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
         </button>
       </div>
 
-      {/* 태스크 목록 */}
-      <div className="flex-1 overflow-y-auto py-1">
+      {/* 태스크 목록 — from-grid 드롭 시 스케줄 해제 */}
+      <div
+        className={`flex-1 overflow-y-auto py-1.5 transition-colors ${dragOver ? 'bg-lilac-100/30' : ''}`}
+        onDragOver={handleDragOver}
+        onDragLeave={handleDragLeave}
+        onDrop={handleDrop}
+      >
+        {dragOver && (
+          <div className="mx-2 mb-1.5 border-2 border-dashed border-lilac-400 rounded text-[10px] text-lilac-500 text-center py-2">
+            여기에 놓으면 배치 해제
+          </div>
+        )}
+
         {sorted.length === 0 ? (
           <p className="text-[11px] text-ink-400 text-center py-10">
             {q ? '검색 결과 없음' : '태스크 없음'}
@@ -150,21 +185,20 @@ export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
               return (
                 <div
                   key={task.id}
-                  className={`flex items-center gap-1.5 mx-1 my-0.5 pr-2.5 py-1.5 rounded select-none transition-colors hover:bg-card ${
+                  onClick={() => onTaskClick?.(task)}
+                  className={`mx-2 my-1 rounded border border-border bg-card cursor-pointer select-none transition-colors hover:border-lilac-300 ${
                     isDone ? 'opacity-40' : 'opacity-70'
                   }`}
+                  style={{ borderLeft: `3px solid ${color}` }}
                 >
-                  <div className="shrink-0 px-1.5 py-2 text-ink-300">
-                    <CalendarDays size={12} />
-                  </div>
-                  <div
-                    className="flex-1 min-w-0 cursor-pointer"
-                    onClick={() => onTaskClick?.(task)}
-                  >
-                    <p className={`text-[11px] leading-snug truncate ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
-                      {task.title}
-                    </p>
-                    <span className="text-[10px] text-ink-400">{fmtScheduledAt(task.scheduled_at!)}</span>
+                  <div className="px-2 py-1.5 flex items-start gap-1.5">
+                    <CalendarDays size={11} className="shrink-0 mt-0.5 text-ink-300" />
+                    <div className="flex-1 min-w-0">
+                      <p className={`text-[11px] leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                        {task.title}
+                      </p>
+                      <p className="text-[10px] text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
+                    </div>
                   </div>
                 </div>
               )
@@ -175,42 +209,50 @@ export function TaskPanel({ tasks, onClose, onTaskClick }: Props) {
                 key={task.id}
                 draggable={!isDone}
                 onDragStart={e => handleDragStart(e, task)}
-                className={`flex items-center gap-1.5 mx-1 my-0.5 pr-2.5 py-1.5 rounded select-none transition-colors hover:bg-card ${
+                className={`mx-2 my-1 rounded border border-border bg-card select-none transition-colors hover:border-lilac-300 ${
                   isDone ? 'opacity-50' : ''
                 }`}
+                style={{ borderLeft: `3px solid ${color}` }}
               >
-                <div
-                  className={`shrink-0 px-1.5 py-2 text-ink-200 hover:text-ink-400 transition-colors ${
-                    isDone ? 'invisible' : 'cursor-grab active:cursor-grabbing'
-                  }`}
-                >
-                  <GripVertical size={12} />
-                </div>
-                <div
-                  className="flex-1 min-w-0 cursor-pointer"
-                  onMouseDown={e => e.stopPropagation()}
-                  onClick={() => onTaskClick?.(task)}
-                >
-                  <div className="flex items-center justify-between gap-1">
-                    <p className={`text-[11px] leading-snug truncate flex-1 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
-                      {task.title}
-                    </p>
-                    {task.due_date && (
-                      <span className="text-[10px] text-ink-400 shrink-0">{fmtDate(task.due_date)}</span>
-                    )}
+                <div className="px-1.5 py-1.5 flex items-start gap-1">
+                  <div
+                    className={`shrink-0 pt-0.5 text-ink-200 hover:text-ink-400 transition-colors ${
+                      isDone ? 'invisible' : 'cursor-grab active:cursor-grabbing'
+                    }`}
+                  >
+                    <GripVertical size={12} />
                   </div>
-                  {!isDone && (
-                    <span
-                      className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full border"
-                      style={{
-                        color,
-                        borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
-                        backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
-                      }}
-                    >
-                      {STATUS_LABEL[task.status]}
-                    </span>
-                  )}
+                  <div
+                    className="flex-1 min-w-0 cursor-pointer"
+                    onMouseDown={e => e.stopPropagation()}
+                    onClick={() => onTaskClick?.(task)}
+                  >
+                    <div className="flex items-start justify-between gap-1">
+                      <p className={`text-[11px] leading-snug line-clamp-2 flex-1 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                        {task.title}
+                      </p>
+                      {task.due_date && (
+                        <span className="text-[9px] text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
+                      )}
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-0.5 flex-wrap">
+                      {!isDone && (
+                        <span
+                          className="text-[9px] px-1 py-px rounded-full border leading-none"
+                          style={{
+                            color,
+                            borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
+                            backgroundColor: `color-mix(in srgb, ${color} 10%, transparent)`,
+                          }}
+                        >
+                          {STATUS_LABEL[task.status]}
+                        </span>
+                      )}
+                      {task.assignee && (
+                        <span className="text-[9px] text-ink-400 truncate">{task.assignee}</span>
+                      )}
+                    </div>
+                  </div>
                 </div>
               </div>
             )
