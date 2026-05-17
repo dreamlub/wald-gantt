@@ -364,7 +364,8 @@ src/
 │   │   │       ├── time-grid.tsx           # 07~23시 7일 그리드
 │   │   │       ├── task-panel.tsx          # 배치 대기열 사이드바
 │   │   │       ├── task-block.tsx          # 블로킹된 태스크 블록
-│   │   │       └── event-block.tsx         # Google Calendar 이벤트 블록
+│   │   │       ├── event-block.tsx         # Google Calendar 이벤트 블록
+│   │   │       └── drag-state.ts           # dragstart offsetY 모듈 공유 (브라우저 제한 우회)
 │   │   ├── weekly/
 │   │   │   ├── page.tsx
 │   │   │   ├── _lib/
@@ -471,6 +472,31 @@ LEFT_W_DEFAULT  = 300
 LEFT_W_MIN      = 120
 LEFT_W_MAX      = 560
 ```
+
+---
+
+## 최근 변경 (2026-05-17) — Weekly 매니저 대시보드 (3단계)
+
+### 신규: `weekly-dashboard.tsx`
+- `WeeklyDashboard` 컴포넌트 — AI 요약 카드 + 스탯 행 + 탭별 뷰
+- **AISummaryCard**: headline + changes(전주 대비) + 다시 요약 버튼 + ProgressBar SSE 진행
+  - `analyzeWeekly` SSE 호출, per-report 진행에 따라 progress 단계적 업데이트
+- **StatsRow**: 리포트 작성 / 이슈 / 결정사항 / 다음주 계획 · count + delta (▲▼)
+- **탭 4개**: 종합(AllView) / 팀별(TeamView) / 브랜드별(BrandView) / 담당자별(AssigneeView)
+  - 각 탭: `weekly_reports.summary.items` 그룹화 + type별 색상 dot + 브랜드/담당자 hash→ASSIGNEE_COLORS
+- 빈 상태: 보고서 없음 / 인사이트 미분석 구분 메시지
+- `DashboardTab` / `DASHBOARD_TABS` export → weekly-shell 헤더 탭에서 사용
+
+### 수정: `weekly-shell.tsx`
+- `tab(DashboardTab)` + `reports(WeeklyReport[])` + `insight(WeeklyInsight|null)` + `dashLoading` 추가
+- `selectedIso` 변경 시 `getWeeklyReports` + `getWeeklyInsight` 병렬 fetch
+- 헤더(h-12) 우측 탭 버튼 4개 (`DASHBOARD_TABS`)
+- 메인 콘텐츠: `WeeklyDashboard` (기존 `WeeklyContent` + `WeeklyAiSummary` 대체)
+- `onRefresh`: 분석 완료 후 reports + insight 재조회 콜백
+
+### 삭제 (데드코드)
+- `weekly-content.tsx` — GFM 마크다운 렌더러, 대시보드로 대체
+- `weekly-ai-summary.tsx` — 기존 단순 요약 패널, 대시보드로 대체
 
 ---
 
@@ -676,8 +702,8 @@ LEFT_W_MAX      = 560
 - **신규 파일** `src/app/api/slack/collect/route.ts`
   - `SLACK_USER_TOKEN` (User Token) 으로 Slack `search.messages` API 호출
   - 클라이언트별 `keywords`를 OR 조건으로 검색 (`"키워드1" OR "키워드2"`)
-  - 마지막 `occurred_at` 기준으로 이후 메시지만 수집 (없으면 30일 전, 2일 버퍼)
-  - `(client_id, source_id)` 조합으로 중복 방지
+  - `after:` 날짜 필터 없이 전체 검색 → `(client_id, source_id)` dedup으로만 중복 방지
+    - ⚠️ `after:` 필터를 MCP 레코드의 `occurred_at` 기준으로 쓰면 창이 너무 좁아져 수집 불가 — 제거함
   - 작성자명: `users.info` API로 조회, 요청 내 캐싱
   - 태그·중요도는 빈 값으로 삽입 → 사용자가 드로어에서 수동 편집
 - **`history-shell.tsx` 수정**
@@ -685,7 +711,7 @@ LEFT_W_MAX      = 560
   - `isCollecting` 상태 추가
   - `handleCollect` 함수: POST `/api/slack/collect` → 결과 toast → 자동 새로고침
   - 툴바에 "수집" 버튼 추가 (새로고침 버튼 왼쪽)
-- 챗창 없이 웹 UI에서 직접 수집 가능
+- 챗창 없이 웹 UI에서 직접 수집 가능 (17건 첫 수집 확인)
 
 ---
 
@@ -843,6 +869,29 @@ LEFT_W_MAX      = 560
 - **이벤트 날짜 필터 UTC→로컬**: `time-grid.tsx` `DayColumn` 이벤트 필터를 `new Date(e.start).toISOString().slice(0,10)` → `localDateStr(e.start)` 교체 → KST 9시 이전 이벤트 하루 밀림 수정
 - **`today` UTC→로컬**: `time-grid.tsx`의 `today` 계산을 `new Date().toISOString().slice(0,10)` → `localDateStr(new Date().toISOString())` 교체
 - **구글 시간 통계 UTC→로컬**: `calendar-shell.tsx` `calcDayHours` 이벤트 필터도 `toDateStr(new Date(e.start)) === date` 로 교체
+
+---
+
+## 최근 변경 (2026-05-17) — Calendar 드래그 위치 버그 3차 수정
+
+### ALL-DAY 행 실수 드롭 + 드래그 복구 (`calendar-shell.tsx`, `task-block.tsx`, `task-panel.tsx`)
+
+- **문제**: 타임그리드에서 태스크를 드래그할 때 sticky ALL-DAY 행(z-20)이 스크롤된 그리드 콘텐츠 위에 겹쳐 dragover 이벤트를 가로채 태스크가 ALL-DAY로 실수 배치되는 문제
+- **수정 1 — ALL-DAY dragover 전원 허용**: 모든 소스(`from-panel`, `from-grid`, `from-all-day`)에서 ALL-DAY로 드롭 가능 — 그리드 태스크를 ALL-DAY로 옮겨 종일 작업으로 표시 가능
+- **수정 2 — ALL-DAY 태스크 draggable 추가**: 종일 배치된 태스크에 `draggable` + `onDragStart`(`from-all-day` 타입) 추가 → 타임그리드에 다시 드래그해 빼낼 수 있음
+- **수정 3 — task-block.tsx source 추가**: `handleDragStart`에 `setData('source', 'grid')` 및 `setData('from-grid', '')` 추가 → 그리드 이동 시 `onMove` (duration 보존) 경로 사용
+
+### 드래그 스냅 인디케이터 위치 불일치 수정 (`drag-state.ts` 신규, `time-grid.tsx`, `task-block.tsx`, `task-panel.tsx`, `calendar-shell.tsx`)
+
+- **문제**: 그리드 내 태스크를 다시 이동할 때 스냅 인디케이터는 커서 위치에 표시되지만 실제 드롭 위치는 커서보다 `offsetY`만큼 위에 놓이는 차이 발생
+  - 원인: 브라우저 보안 정책상 `dragover`에서 `e.dataTransfer.getData('offsetY')`는 항상 `''` 반환 → `DayColumn.handleDragOver`에서 offsetY를 읽지 못해 스냅이 커서 기준으로 계산됨
+  - `drop` 이벤트에서는 올바르게 읽혀 실제 배치는 커서 - offsetY 위치 → 둘의 불일치가 "밀림"으로 체감
+- **수정**: `drag-state.ts` 신규 모듈 (`setActiveDragOffsetY` / `getActiveDragOffsetY`) — dragstart 시 실제 offsetY를 저장해 `handleDragOver`에서 공유
+  - `task-block.tsx` dragstart: `setActiveDragOffsetY(dragOffsetY.current)` 호출
+  - `task-panel.tsx` dragstart: `setActiveDragOffsetY(0)` 호출
+  - `calendar-shell.tsx` all-day task dragstart: `setActiveDragOffsetY(0)` 호출
+  - `time-grid.tsx` `handleDragOver`: `getData('offsetY')` 대신 `getActiveDragOffsetY()` 사용
+- 결과: 스냅 인디케이터 위치와 실제 드롭 위치가 완전히 일치
 
 ---
 

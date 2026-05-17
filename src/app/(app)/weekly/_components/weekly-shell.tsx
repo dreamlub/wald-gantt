@@ -3,18 +3,35 @@
 import { useState, useEffect, useCallback } from 'react'
 import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings } from 'lucide-react'
 import type { WeeklyDoc, WeeklyTeam } from '../_lib/types'
+import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
-import { WeeklyContent } from './weekly-content'
-import { WeeklyAiSummary } from './weekly-ai-summary'
+import { WeeklyDashboard, DASHBOARD_TABS } from './weekly-dashboard'
+import type { DashboardTab } from './weekly-dashboard'
+import { getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
+
+function getWeekLabel(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  const month = d.getMonth() + 1
+  const dow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
+  const firstMon = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
+  const weekNum = Math.floor((d.getDate() - firstMon) / 7) + 1
+  return `${month}월 ${weekNum}주 보고`
+}
 
 export function WeeklyShell() {
-  const [teams, setTeams] = useState<WeeklyTeam[]>([])
+  const [teams, setTeams]         = useState<WeeklyTeam[]>([])
   const [selectedTeam, setSelectedTeam] = useState<string>('')
-  const [doc, setDoc] = useState<WeeklyDoc | null>(null)
-  const [loading, setLoading] = useState(true)
-  const [error, setError] = useState<string | null>(null)
+  const [doc, setDoc]             = useState<WeeklyDoc | null>(null)
+  const [loading, setLoading]     = useState(true)
+  const [error, setError]         = useState<string | null>(null)
   const [selectedIso, setSelectedIso] = useState<string>('')
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [tab, setTab]             = useState<DashboardTab>('all')
+
+  // 대시보드 데이터
+  const [reports, setReports]     = useState<WeeklyReport[]>([])
+  const [insight, setInsight]     = useState<WeeklyInsight | null>(null)
+  const [dashLoading, setDashLoading] = useState(false)
 
   // 팀 목록 로드
   useEffect(() => {
@@ -27,6 +44,7 @@ export function WeeklyShell() {
       .catch(() => setTeams([]))
   }, [])
 
+  // Outline 주차 목록 fetch (사이드바용)
   const fetchDoc = useCallback(async (teamId: string) => {
     setLoading(true)
     setError(null)
@@ -36,7 +54,7 @@ export function WeeklyShell() {
       const res = await fetch(`/api/weekly?team=${teamId}`)
       if (!res.ok) {
         const err = await res.json().catch(() => ({ error: '조회 실패' }))
-        throw new Error(err.error ?? `HTTP ${res.status}`)
+        throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`)
       }
       const data: WeeklyDoc = await res.json()
       setDoc(data)
@@ -52,7 +70,32 @@ export function WeeklyShell() {
     if (selectedTeam) fetchDoc(selectedTeam)
   }, [selectedTeam, fetchDoc])
 
-  const selectedSection = doc?.weeks.find(w => w.isoDate === selectedIso) ?? null
+  // 주차 선택 시 DB 데이터 fetch
+  const fetchDashData = useCallback(async (weekStart: string) => {
+    setDashLoading(true)
+    setReports([])
+    setInsight(null)
+    try {
+      const [r, i] = await Promise.all([
+        getWeeklyReports(weekStart),
+        getWeeklyInsight(weekStart),
+      ])
+      setReports(r)
+      setInsight(i)
+    } catch {
+      // 빈 상태 → 대시보드에서 처리
+    } finally {
+      setDashLoading(false)
+    }
+  }, [])
+
+  useEffect(() => {
+    if (selectedIso) fetchDashData(selectedIso)
+  }, [selectedIso, fetchDashData])
+
+  const handleRefresh = useCallback(() => {
+    if (selectedIso) fetchDashData(selectedIso)
+  }, [selectedIso, fetchDashData])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -85,9 +128,7 @@ export function WeeklyShell() {
 
         {teams.length === 0 && (
           <div className="flex flex-col items-center justify-center flex-1 gap-2 px-4 text-center">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">
-              연동된 팀이 없어요
-            </p>
+            <p className="text-[11px] text-muted-foreground leading-relaxed">연동된 팀이 없어요</p>
             <a
               href="/settings?section=weekly"
               className="flex items-center gap-1 text-[11px] text-lilac-600 hover:underline"
@@ -102,27 +143,42 @@ export function WeeklyShell() {
       {/* 메인 */}
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 헤더 */}
-        <div className="h-12 border-b bg-card flex items-center px-4 gap-2 shrink-0">
+        <div className="h-12 border-b bg-card flex items-center px-4 gap-3 shrink-0">
           {!sidebarOpen && (
             <button
               onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
               title="사이드바 열기"
             >
               <PanelLeftOpen size={15} />
             </button>
           )}
-          {selectedSection ? (
-            <span className="text-sm font-semibold text-foreground">{selectedSection.date} 주간보고</span>
-          ) : (
-            <span className="text-xs font-semibold text-foreground">
-              {doc?.title ?? 'Weekly'}
-            </span>
+          <span className="text-sm font-semibold text-foreground shrink-0">
+            {selectedIso ? getWeekLabel(selectedIso) : (doc?.title ?? 'Weekly')}
+          </span>
+
+          {/* 탭 */}
+          {selectedIso && (
+            <div className="ml-auto flex items-center">
+              {DASHBOARD_TABS.map(t => (
+                <button
+                  key={t.key}
+                  onClick={() => setTab(t.key)}
+                  className={`px-3 h-12 text-xs font-medium border-b-2 transition-colors ${
+                    tab === t.key
+                      ? 'border-lilac-500 text-lilac-600'
+                      : 'border-transparent text-muted-foreground hover:text-foreground'
+                  }`}
+                >
+                  {t.label}
+                </button>
+              ))}
+            </div>
           )}
         </div>
 
         {/* 콘텐츠 */}
-        <div className="flex-1 overflow-y-auto bg-card">
+        <div className="flex-1 overflow-y-auto bg-background">
           {loading && (
             <div className="flex items-center justify-center py-20">
               <RefreshCw size={16} className="animate-spin text-ink-400" />
@@ -148,17 +204,24 @@ export function WeeklyShell() {
             </div>
           )}
 
-          {!loading && !error && teams.length > 0 && !selectedSection && doc && (
+          {!loading && !error && teams.length > 0 && !selectedIso && (
             <div className="flex flex-col items-center justify-center py-20 gap-3">
               <FileText size={40} strokeWidth={1.5} className="opacity-20 text-muted-foreground" />
               <p className="text-xs text-muted-foreground">주간보고가 없어요</p>
             </div>
           )}
 
-          {!loading && !error && selectedSection && (
-            <div className="p-6 max-w-[1200px]">
-              <WeeklyAiSummary section={selectedSection} />
-              <WeeklyContent section={selectedSection} />
+          {!loading && !error && selectedIso && (
+            <div className="p-6 max-w-[1200px] mx-auto">
+              <WeeklyDashboard
+                weekStart={selectedIso}
+                reports={reports}
+                insight={insight}
+                reportsLoading={dashLoading}
+                tab={tab}
+                onInsightUpdate={setInsight}
+                onRefresh={handleRefresh}
+              />
             </div>
           )}
         </div>
