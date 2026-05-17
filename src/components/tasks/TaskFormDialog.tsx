@@ -7,9 +7,13 @@ import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
 import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
-import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
+import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
+import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
+import { TaskHistorySection } from '@/app/(app)/tasks/_components/TaskHistorySection'
+
+type FormTab = 'info' | 'memo' | 'history'
 
 interface ProjectOption {
   id: string
@@ -31,14 +35,15 @@ interface Props {
   assigneeSuggestions?: string[]
   initialTitle?: string
   initialMemo?: string
+  initialTab?: FormTab
 }
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
-  { value: 'backlog',      label: 'Backlog',      color: '#94a3b8' },
-  { value: 'to-do',       label: 'To-Do',        color: '#6366f1' },
-  { value: 'in-progress', label: 'In Progress',  color: '#f59e0b' },
-  { value: 'done',        label: 'Done',         color: '#22c55e' },
-  { value: 'pending',     label: 'Pending',      color: '#f97316' },
+const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'backlog',      label: 'Backlog' },
+  { value: 'to-do',       label: 'To-Do' },
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'done',        label: 'Done' },
+  { value: 'pending',     label: 'Pending' },
 ]
 
 // ── DatePickerButton ─────────────────────────────────────────
@@ -73,7 +78,8 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 }
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo }: Props) {
+export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
+  const [tab,       setTab]       = useState<FormTab>('info')
   const [title,     setTitle]     = useState('')
   const [status,    setStatus]    = useState<TaskStatus>('to-do')
   const [priority,  setPriority]  = useState<Priority>(2)
@@ -89,18 +95,25 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
   const [showProjDrop,   setShowProjDrop]   = useState(false)
   const projRef  = useRef<HTMLDivElement>(null)
   const titleRef = useRef<HTMLInputElement>(null)
+  const memoRef  = useRef<HTMLTextAreaElement>(null)
 
   // validation
   const dateError = startDate && dueDate && startDate > dueDate
     ? '시작일이 마감일보다 늦을 수 없어요' : null
   const isValid = title.trim().length > 0 && !dateError
 
+  // open 시 탭 설정 + 포커스
   useEffect(() => {
     if (open) {
-      const t = setTimeout(() => titleRef.current?.focus(), 310)
+      // eslint-disable-next-line react-hooks/set-state-in-effect
+      setTab(initialTab)
+      const t = setTimeout(() => {
+        if (initialTab === 'memo') memoRef.current?.focus()
+        else titleRef.current?.focus()
+      }, 310)
       return () => clearTimeout(t)
     }
-  }, [open])
+  }, [open, initialTab])
 
   // open/editTask 변경 시 폼 상태 동기화 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
@@ -178,28 +191,51 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
   }
 
   return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}>
-      {/* Backdrop */}
-      <div
-        className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        onClick={onClose}
-      />
-      {/* Drawer panel */}
-      <div
-        className={`absolute right-0 top-0 h-full w-[440px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
-      >
-        {/* Header */}
-        <div className="flex items-center px-5 py-4 border-b shrink-0">
-          <h2 className="text-xs font-semibold text-foreground flex-1">
-            {editTask ? '태스크 수정' : '새 태스크'}
-          </h2>
-          <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
-            <X size={16} />
-          </button>
-        </div>
+    <Drawer open={open} onClose={onClose} width={440}>
+        {/* Header + 탭 */}
+        <DrawerHeader>
+          <div className="flex items-center px-5 h-12 gap-1">
+            <h2 className="text-xs font-semibold text-foreground flex-1">
+              {editTask ? '태스크 수정' : '새 태스크'}
+            </h2>
+            <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
+              <X size={16} />
+            </button>
+          </div>
+          <div className="flex px-5 gap-4">
+            <button
+              onClick={() => setTab('info')}
+              className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
+                tab === 'info' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              정보
+            </button>
+            <button
+              onClick={() => setTab('memo')}
+              className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
+                tab === 'memo' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
+              }`}
+            >
+              메모
+              {memo.trim() && <span className="w-1 h-1 rounded-full bg-lilac-400" />}
+            </button>
+            {editTask && (
+              <button
+                onClick={() => setTab('history')}
+                className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
+                  tab === 'history' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
+                }`}
+              >
+                이력
+              </button>
+            )}
+          </div>
+        </DrawerHeader>
 
-        {/* Scrollable content */}
-        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        {/* 바디 */}
+        {tab === 'info' ? (
+        <DrawerBody className="px-5 py-4 flex flex-col gap-4">
           {/* 제목 */}
           <input
             ref={titleRef}
@@ -217,7 +253,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
-                  style={{ backgroundColor: STATUS_OPTIONS.find(s => s.value === status)?.color ?? '#94a3b8' }}
+                  style={{ backgroundColor: STATUS_COLOR[status] }}
                 />
                 <select
                   value={status}
@@ -367,22 +403,25 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
               )}
             </div>
           </div>
-
-          {/* 메모 */}
-          <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">메모</label>
-            <textarea
-              className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300 resize-none"
-              placeholder="메모"
-              rows={3}
-              value={memo}
-              onChange={e => setMemo(e.target.value)}
-            />
-          </div>
-        </div>
+        </DrawerBody>
+        ) : tab === 'memo' ? (
+        <DrawerBody scrollable={false} className="p-5">
+          <textarea
+            ref={memoRef}
+            className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 resize-none leading-relaxed"
+            placeholder="메모를 입력하세요"
+            value={memo}
+            onChange={e => setMemo(e.target.value)}
+          />
+        </DrawerBody>
+        ) : (
+        <DrawerBody>
+          {editTask && <TaskHistorySection taskId={editTask.id} />}
+        </DrawerBody>
+        )}
 
         {/* Footer */}
-        <div className="shrink-0 px-5 py-3 border-t flex justify-end gap-2">
+        <DrawerFooter>
           <button
             onClick={onClose}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
@@ -396,8 +435,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, defaultStatus 
           >
             {saving ? '저장 중...' : editTask ? '수정' : '추가'}
           </button>
-        </div>
-      </div>
-    </div>
+        </DrawerFooter>
+    </Drawer>
   )
 }

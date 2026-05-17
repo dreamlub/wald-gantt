@@ -11,6 +11,7 @@ import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistory
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
+import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 
 // ── 수정 이력 인라인 섹션 ────────────────────────────────────
 const FIELD_LABELS: Record<string, string> = {
@@ -229,19 +230,10 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   }
 
   return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}>
-      {/* Backdrop */}
-      <div
-        className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        onClick={onClose}
-      />
-      {/* Drawer panel */}
-      <div
-        className={`absolute right-0 top-0 h-full w-[440px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
-      >
+    <Drawer open={open} onClose={onClose} width={440}>
         {/* Header */}
-        <div className="shrink-0 border-b">
-          <div className="flex items-center px-5 py-4">
+        <DrawerHeader>
+          <div className="flex items-center px-5 h-12 gap-1">
             <h2 className="text-xs font-semibold text-foreground flex-1">
               {editProject ? '프로젝트 수정' : '프로젝트 추가'}
             </h2>
@@ -280,7 +272,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               </button>
             )}
           </div>
-        </div>
+        </DrawerHeader>
 
         {/* Scrollable content */}
         {tab === 'info' ? (
@@ -421,7 +413,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
 
         </form>
         ) : tab === 'memo' ? (
-        <div className="flex-1 overflow-hidden p-5">
+        <DrawerBody scrollable={false} className="p-5">
           <textarea
             ref={memoRef}
             name="project-memo"
@@ -431,16 +423,15 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             value={memo}
             onChange={e => setMemo(e.target.value)}
           />
-        </div>
+        </DrawerBody>
         ) : (
-        <div className="flex-1 overflow-y-auto">
+        <DrawerBody>
           {editProject && <ProjectHistorySection projectId={editProject.id} />}
-        </div>
+        </DrawerBody>
         )}
 
         {/* Footer */}
-        <div className="shrink-0 px-5 py-3 border-t flex items-center gap-2">
-          <div className="flex-1" />
+        <DrawerFooter>
           <button
             onClick={onClose}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
@@ -454,8 +445,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           >
             {loading ? '저장 중...' : editProject ? '수정' : '저장'}
           </button>
-        </div>
-      </div>
-    </div>
+        </DrawerFooter>
+    </Drawer>
   )
 }

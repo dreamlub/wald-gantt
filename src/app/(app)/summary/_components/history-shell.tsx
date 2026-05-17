@@ -372,7 +372,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
               {view !== 'summary' && (
                 <div className="shrink-0 px-6 bg-card border-b border-ink-150">
-                  <div className="py-1.5 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+                  <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
                     </span>
@@ -389,6 +389,11 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                     {priorityKey !== 'all' && (
                       <FilterChip onClear={() => setPriorityKey('all')}>
                         중요도: {PRIORITY_META[priorityKey as Priority].label}
+                      </FilterChip>
+                    )}
+                    {authorKey !== 'all' && (
+                      <FilterChip onClear={() => setAuthorKey('all')}>
+                        작성자: {authorKey}
                       </FilterChip>
                     )}
                     {authorKey !== 'all' && (
@@ -415,7 +420,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   hasFilters={hasFilters}
                   onToggleTag={toggleTag}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                  onSelectPriority={p => setPriorityKey(priorityKey === p ? 'all' : p)}
                   onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
                   onOpenItem={setActiveItem}
                   onClearFilters={resetFilters}
@@ -513,9 +517,15 @@ interface BrandSelectorProps {
 }
 
 function BrandSelector({ clients, history, brandId, onBrandChange }: BrandSelectorProps) {
-  const counts = new Map<string, number>()
-  for (const h of history) counts.set(h.client_id, (counts.get(h.client_id) ?? 0) + 1)
-  const sorted = [...clients].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
+  const counts = useMemo(() => {
+    const m = new Map<string, number>()
+    for (const h of history) m.set(h.client_id, (m.get(h.client_id) ?? 0) + 1)
+    return m
+  }, [history])
+  const sorted = useMemo(
+    () => [...clients].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0)),
+    [clients, counts]
+  )
 
   return (
     <div className="flex flex-wrap items-center gap-1.5 mb-2 pb-2">

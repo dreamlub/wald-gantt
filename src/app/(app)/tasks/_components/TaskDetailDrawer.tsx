@@ -1,94 +1,20 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Clock, Copy } from 'lucide-react'
+import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Copy } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import type { GanttTask, TaskStatus, TaskType, Priority, TaskHistoryEntry } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
 import { fmtDate } from '../_utils'
-import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '../_constants'
-import { getTaskHistory } from '@/lib/gantt-service'
+import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '../_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
+import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
+import { TaskHistorySection } from './TaskHistorySection'
 
 type DrawerTab = 'info' | 'memo' | 'history'
-
-// ── 수정 이력 표시 헬퍼 ──────────────────────────────────────
-const HIST_FIELD_LABELS: Record<string, string> = {
-  title: '제목', status: '상태', type: '구분',
-  assignee: '담당자', start_date: '시작일', due_date: '마감일', priority: '우선순위',
-}
-const HIST_STATUS_LABELS: Record<string, string> = {
-  'to-do': 'To-Do', 'in-progress': 'In Progress', 'pending': 'Pending', 'backlog': 'Backlog', 'done': 'Done',
-}
-const HIST_TYPE_LABELS: Record<string, string> = { mine: '내 할일', delegated: '업무지시' }
-const HIST_PRIORITY_LABELS: Record<string, string> = { '0': '없음', '1': '낮음', '2': '보통', '3': '높음' }
-
-function fmtHistVal(field: string, value: string | null): string {
-  if (value === null || value === '') return '없음'
-  if (field === 'status')   return HIST_STATUS_LABELS[value] ?? value
-  if (field === 'type')     return HIST_TYPE_LABELS[value] ?? value
-  if (field === 'priority') return HIST_PRIORITY_LABELS[value] ?? value
-  if (field === 'start_date' || field === 'due_date') {
-    const [y, m, d] = value.split('-')
-    return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`
-  }
-  return value
-}
-function fmtHistDate(iso: string): string {
-  const d = new Date(iso); const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
-function groupHistByTime(entries: TaskHistoryEntry[]): TaskHistoryEntry[][] {
-  const groups: TaskHistoryEntry[][] = []; let cur: TaskHistoryEntry[] = []
-  for (const e of entries) {
-    if (cur.length === 0) cur.push(e)
-    else if (Math.abs(new Date(cur[0].changed_at).getTime() - new Date(e.changed_at).getTime()) < 10_000) cur.push(e)
-    else { groups.push(cur); cur = [e] }
-  }
-  if (cur.length > 0) groups.push(cur)
-  return groups
-}
-
-function TaskHistorySection({ taskId }: { taskId: string }) {
-  const [entries, setEntries] = useState<TaskHistoryEntry[]>([])
-  const [loading, setLoading] = useState(false)
-  // taskId가 바뀔 때 히스토리 fetch (외부 fetch → setState 의도된 패턴)
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    setLoading(true)
-    getTaskHistory(taskId).then(setEntries).catch(console.error).finally(() => setLoading(false))
-  }, [taskId])
-  const groups = groupHistByTime(entries)
-  return (
-    <div className="flex flex-col">
-      {loading ? (
-        <div className="flex items-center justify-center h-20 text-ink-400 text-xs">로딩 중...</div>
-      ) : groups.length === 0 ? (
-        <div className="flex flex-col items-center justify-center h-28 text-ink-300 text-xs gap-1">
-          <Clock size={20} className="opacity-30" />
-          수정 이력이 없습니다
-        </div>
-      ) : groups.map((group, gi) => (
-        <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-muted transition-colors">
-          <div className="text-[10px] text-ink-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
-          <div className="space-y-1">
-            {group.map(entry => (
-              <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-[11px] text-muted-foreground font-semibold w-12 shrink-0">{HIST_FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
-                <span className="text-[11px] text-ink-400 line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
-                <span className="text-[10px] text-ink-300">→</span>
-                <span className="text-[11px] text-ink-700 font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
-              </div>
-            ))}
-          </div>
-        </div>
-      ))}
-    </div>
-  )
-}
 
 interface ProjectOption {
   id: string
@@ -107,12 +33,12 @@ export function labelColor(name: string): string {
   return LABEL_COLORS[hash % LABEL_COLORS.length]
 }
 
-const STATUS_OPTIONS: { value: TaskStatus; label: string; color: string }[] = [
-  { value: 'backlog',      label: 'Backlog',      color: '#94a3b8' },
-  { value: 'to-do',       label: 'To-Do',        color: '#6366f1' },
-  { value: 'in-progress', label: 'In Progress',  color: '#f59e0b' },
-  { value: 'done',        label: 'Done',         color: '#22c55e' },
-  { value: 'pending',     label: 'Pending',      color: '#f97316' },
+const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
+  { value: 'backlog',      label: 'Backlog' },
+  { value: 'to-do',       label: 'To-Do' },
+  { value: 'in-progress', label: 'In Progress' },
+  { value: 'done',        label: 'Done' },
+  { value: 'pending',     label: 'Pending' },
 ]
 
 function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
@@ -149,6 +75,8 @@ interface Props {
   open: boolean
   task: GanttTask | null
   subTasks: GanttTask[]
+  parentTask?: GanttTask | null
+  initialTab?: DrawerTab
   onClose: () => void
   onSave: (
     task: GanttTask,
@@ -163,7 +91,7 @@ interface Props {
   assigneeSuggestions?: string[]
 }
 
-export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
+export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab, onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
   const [title,      setTitle]      = useState('')
   const [status,     setStatus]     = useState<TaskStatus>('to-do')
   const [priority,   setPriority]   = useState<Priority>(2)
@@ -208,9 +136,9 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     setLabels(task.labels ?? [])
     setLinkedProjects(task.projects ?? [])
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput('')
-    setTab('info')
+    setTab(initialTab ?? 'info')
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [open, task])
+  }, [open, task, initialTab])
 
   useEffect(() => {
     if (!showProjDrop) return
@@ -264,21 +192,14 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
     setProjSearch(''); setProjResults([]); setShowProjDrop(false)
   }
 
-  const currentStatusColor = STATUS_OPTIONS.find(s => s.value === status)?.color ?? '#94a3b8'
+  const currentStatusColor = STATUS_COLOR[status]
   const doneCount = subTasks.filter(t => t.status === 'done').length
 
   return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}>
-      <div
-        className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        onClick={onClose}
-      />
-      <div
-        className={`absolute right-0 top-0 h-full w-[480px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
-      >
+    <Drawer open={open} onClose={onClose}>
         {/* 헤더 + 탭 */}
-        <div className="shrink-0 border-b">
-          <div className="flex items-center px-5 pt-4 pb-2">
+        <DrawerHeader>
+          <div className="flex items-center px-5 h-12 gap-1">
             <h2 className="text-xs font-semibold text-foreground flex-1">태스크 수정</h2>
             <div className="flex items-center gap-1">
               {onDuplicate && task && (
@@ -329,11 +250,11 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
               이력
             </button>
           </div>
-        </div>
+        </DrawerHeader>
 
         {/* 바디 */}
         {tab === 'info' ? (
-        <div className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4">
+        <DrawerBody className="px-5 py-4 flex flex-col gap-4">
 
           {/* 제목 — 신규 폼과 동일: 완료 토글 + 밑줄 인풋 */}
           <div className="flex items-center gap-2">
@@ -589,24 +510,24 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
               {task.parent_id && <span className="text-lilac-300">· 상위 태스크의 하위 항목</span>}
             </div>
           )}
-        </div>
+        </DrawerBody>
         ) : tab === 'memo' ? (
-        <div className="flex-1 overflow-hidden p-5">
+        <DrawerBody scrollable={false} className="p-5">
           <textarea
             className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700 resize-none leading-relaxed"
             placeholder="메모를 입력하세요"
             value={memo}
             onChange={e => setMemo(e.target.value)}
           />
-        </div>
+        </DrawerBody>
         ) : (
-        <div className="flex-1 overflow-y-auto">
+        <DrawerBody>
           {task && <TaskHistorySection taskId={task.id} />}
-        </div>
+        </DrawerBody>
         )}
 
         {/* 푸터 */}
-        <div className="shrink-0 px-5 py-3 border-t flex justify-end gap-2">
+        <DrawerFooter>
           <button
             onClick={onClose}
             className="px-3 py-1.5 text-xs text-muted-foreground hover:text-ink-700 hover:bg-muted rounded transition-colors"
@@ -620,8 +541,7 @@ export function TaskDetailDrawer({ open, task, subTasks, onClose, onSave, onDele
           >
             {saving ? '저장 중...' : '저장'}
           </button>
-        </div>
-      </div>
-    </div>
+        </DrawerFooter>
+    </Drawer>
   )
 }

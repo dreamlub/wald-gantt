@@ -328,6 +328,7 @@ export default function TasksPage() {
     // 인라인 퀵 등록으로 전환 — 부모를 펼치고 입력창 노출
     setExpandedParents(prev => new Set([...prev, parentId]))
     setQuickAddParentId(parentId)
+    setQuickAddStatus(null)
     setQuickAddTitle('')
   }
 
@@ -457,15 +458,16 @@ export default function TasksPage() {
     }
   }
 
-  const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status) && !t.parent_id)
+  const taskIdSet = new Set(tasks.map(t => t.id))
+  const overdueGroup = filtered.filter(t => isOverdue(t.due_date, t.status) && (!t.parent_id || !taskIdSet.has(t.parent_id)))
   const overdueIds   = new Set(overdueGroup.map(t => t.id))
   const avgOverdueDays = overdueGroup.length
     ? Math.round(overdueGroup.reduce((s, t) => s + overdueDays(t.due_date), 0) / overdueGroup.length * 10) / 10
     : 0
 
-  // 최상위 태스크만 (parent_id 없는 것)
+  // 최상위 태스크 + 고아 하위 태스크(부모가 삭제된 경우) 포함
   function getGroup(status: TaskStatus) {
-    return filtered.filter(t => t.status === status && !overdueIds.has(t.id) && !t.parent_id)
+    return filtered.filter(t => t.status === status && !overdueIds.has(t.id) && (!t.parent_id || !taskIdSet.has(t.parent_id)))
   }
   // 특정 부모의 하위 태스크 (filtered 내에서)
   function getSubTasks(parentId: string) {
@@ -646,7 +648,7 @@ export default function TasksPage() {
             {VIEW_TABS.map(tab => (
               <button
                 key={tab.key}
-                onClick={() => setView(tab.key)}
+                onClick={() => { setView(tab.key); if (tab.key !== 'normal' && tab.key !== 'list') exitSelectionMode() }}
                 className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
                   ${view === tab.key
                     ? 'bg-card text-ink-700 shadow-sm'
@@ -775,7 +777,6 @@ export default function TasksPage() {
           <CalendarView
             tasks={filtered}
             onEdit={editHandler}
-            onStatusChange={handleStatusChange}
           />
         ) : view === 'kanban' ? (
           <KanbanView
@@ -983,7 +984,7 @@ export default function TasksPage() {
                             </div>
                           ) : (
                             <button
-                              onClick={() => { setQuickAddStatus(status); setQuickAddTitle('') }}
+                              onClick={() => { setQuickAddStatus(status); setQuickAddParentId(null); setQuickAddTitle('') }}
                               className="flex items-center gap-1.5 pl-10 pr-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
                             >
                               <Plus size={11} /> 태스크 추가

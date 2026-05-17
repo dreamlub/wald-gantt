@@ -3,14 +3,13 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { todayStrKST } from '@/lib/gantt-utils'
-import type { GanttTask, TaskStatus } from '@/types'
+import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '../_constants'
 import { isOverdue } from '../_utils'
 
 interface Props {
   tasks: GanttTask[]
   onEdit: (t: GanttTask) => void
-  onStatusChange: (id: string, s: TaskStatus) => void
 }
 
 const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토']

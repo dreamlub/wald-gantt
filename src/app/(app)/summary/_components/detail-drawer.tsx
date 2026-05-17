@@ -8,6 +8,7 @@ import { useEffect, useRef, useState } from 'react'
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
+import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 
 interface EditDraft {
   client_id: string
@@ -113,16 +114,10 @@ export function HistoryDetailDrawer({
   const displayTags     = isEditing && draft ? draft.tags     : (item?.tags ?? [])
 
   return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}>
-      <div
-        className={`absolute inset-0 bg-black/20 transition-opacity duration-200 ${open ? 'opacity-100' : 'opacity-0'}`}
-        onClick={isEditing ? undefined : onClose}
-      />
-      <div
-        className={`absolute right-0 top-0 h-full w-[480px] bg-card shadow-2xl flex flex-col transition-transform duration-300 ease-out ${open ? 'translate-x-0' : 'translate-x-full'}`}
-      >
+    <Drawer open={open} onClose={onClose} closeOnBackdrop={!isEditing}>
         {/* 헤더 */}
-        <div className="shrink-0 border-b flex items-center px-5 h-12 gap-1">
+        <DrawerHeader>
+          <div className="flex items-center px-5 h-12 gap-1">
           <h2 className="text-xs font-semibold text-foreground flex-1">상세 정보</h2>
           {!isEditing && item?.body && (
             <button onClick={copyBody} className="p-1 text-ink-300 hover:text-foreground rounded transition-colors" title="제목+본문 복사">
@@ -143,10 +138,11 @@ export function HistoryDetailDrawer({
           <button onClick={isEditing ? cancelEdit : onClose} className="p-1 text-ink-400 hover:text-muted-foreground rounded">
             <X size={16} />
           </button>
-        </div>
+          </div>
+        </DrawerHeader>
 
         {item && (
-          <div className="flex-1 overflow-y-auto px-5 py-4 space-y-4">
+          <DrawerBody className="px-5 py-4 space-y-4">
             {/* 제목 */}
             <div>
               <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
@@ -349,7 +345,7 @@ export function HistoryDetailDrawer({
                 )}
               </div>
             )}
-          </div>
+          </DrawerBody>
         )}
 
         {/* 편집 푸터 */}
@@ -374,8 +370,7 @@ export function HistoryDetailDrawer({
             </div>
           </div>
         )}
-      </div>
-    </div>
+    </Drawer>
   )
 }
 

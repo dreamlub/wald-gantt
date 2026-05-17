@@ -288,10 +288,10 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
     [clients, counts]
   )
 
-  const filteredActions   = useMemo(() => insight ? filterByBrand(insight.content.action_items, brandId) : [], [insight, brandId, clients])
-  const filteredUpcoming  = useMemo(() => insight ? filterByBrand(insight.content.upcoming,      brandId) : [], [insight, brandId, clients])
-  const filteredPending   = useMemo(() => insight ? filterByBrand(insight.content.pending,        brandId) : [], [insight, brandId, clients])
-  const filteredDecisions = useMemo(() => insight ? filterByBrand(insight.content.decisions,      brandId) : [], [insight, brandId, clients])
+  const filteredActions   = useMemo(() => insight ? filterByBrand(insight.content.action_items, brandId) : [], [insight, brandId])
+  const filteredUpcoming  = useMemo(() => insight ? filterByBrand(insight.content.upcoming,      brandId) : [], [insight, brandId])
+  const filteredPending   = useMemo(() => insight ? filterByBrand(insight.content.pending,        brandId) : [], [insight, brandId])
+  const filteredDecisions = useMemo(() => insight ? filterByBrand(insight.content.decisions,      brandId) : [], [insight, brandId])
 
   async function handleGenerate() {
     setGenerating(true)
@@ -385,8 +385,15 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
       )}
 
       {error && (
-        <div className="mb-4 text-[12px] text-status-late bg-status-late/10 border border-status-late/15 px-3 py-2 rounded">
-          오류: {error}
+        <div className="mb-4 flex items-center gap-3 text-[12px] text-status-late bg-status-late/10 border border-status-late/15 px-3 py-2 rounded">
+          <span className="flex-1">오류: {error}</span>
+          <button
+            onClick={handleGenerate}
+            disabled={generating}
+            className="shrink-0 text-[11px] font-medium underline underline-offset-2 hover:opacity-70 transition-opacity disabled:opacity-40"
+          >
+            다시 시도
+          </button>
         </div>
       )}
 

@@ -118,14 +118,14 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
 
   const sorted = [...tasks].sort((a, b) => {
     // 일정(마감일) 정렬: 날짜 없는 항목은 정렬 방향과 무관하게 항상 뒤로
-    if (sortKey === 'due_date') {
-      const aNull = !a.due_date
-      const bNull = !b.due_date
-      if (aNull && bNull) return 0
-      if (aNull) return 1
-      if (bNull) return -1
-      if (a.due_date! < b.due_date!) return sortDir === 'asc' ? -1 : 1
-      if (a.due_date! > b.due_date!) return sortDir === 'asc' ? 1 : -1
+    if (sortKey === 'due_date' || sortKey === 'start_date') {
+      const av = a[sortKey]
+      const bv = b[sortKey]
+      if (!av && !bv) return 0
+      if (!av) return 1
+      if (!bv) return -1
+      if (av < bv) return sortDir === 'asc' ? -1 : 1
+      if (av > bv) return sortDir === 'asc' ? 1 : -1
       return 0
     }
     let va: string | number = 0, vb: string | number = 0

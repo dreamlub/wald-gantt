@@ -6,6 +6,7 @@ import { useConfirm } from '@/hooks/use-confirm'
 import { getDeletedTasks, restoreTask, permanentDeleteTask, emptyTaskTrash } from '@/lib/gantt-service'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
+import { Drawer } from '@/components/ui/drawer'
 
 interface Props {
   open: boolean
@@ -61,13 +62,10 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
     setDeleted([])
   }
 
-  if (!open) return null
-
   return (
     <>
       {confirmDialog}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-80 bg-card border-l shadow-xl z-50 flex flex-col">
+      <Drawer open={open} onClose={onClose} width={320} backdrop={false} panelClass="border-l shadow-xl">
         {/* 헤더 */}
         <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
           <Trash2 size={14} className="text-muted-foreground shrink-0" />
@@ -137,7 +135,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
             </div>
           ))}
         </div>
-      </div>
+      </Drawer>
     </>
   )
 }

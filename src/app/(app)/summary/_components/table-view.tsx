@@ -7,9 +7,8 @@ import { ListTodo, CalendarRange } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
 
-type SortKey = 'brand' | 'priority' | 'author' | 'date'
+type SortKey = 'brand' | 'author' | 'date'
 type SortDir = 'asc' | 'desc'
 
 interface Props {
@@ -20,7 +19,6 @@ interface Props {
   hasFilters:       boolean
   onToggleTag:      (t: Tag) => void
   onSelectBrand:    (id: string) => void
-  onSelectPriority: (p: Priority) => void
   onSelectAuthor:   (a: string) => void
   onOpenItem:       (item: HistoryItem) => void
   onClearFilters:   () => void
@@ -28,11 +26,10 @@ interface Props {
   onCreateProject?: (item: HistoryItem) => void
 }
 
-const PRIORITY_RANK: Record<Priority, number> = { high: 3, medium: 2, low: 1 }
 const PRIORITY_TITLE_CLASS: Record<Priority, string> = {
   high:   'font-semibold text-rose-500',
   medium: 'font-medium text-foreground',
-  low:    'font-normal text-muted-foreground',
+  low:    'font-medium text-muted-foreground',
 }
 const TAG_ORDER: Tag[] = ['issue', 'mention', 'in_progress', 'decision', 'schedule', 'done']
 
@@ -62,7 +59,7 @@ function SortBtn({
 
 export function TableView({
   items, clients, selectedTags, searchQuery, hasFilters,
-  onToggleTag, onSelectBrand, onSelectPriority, onSelectAuthor, onOpenItem, onClearFilters,
+  onToggleTag, onSelectBrand, onSelectAuthor, onOpenItem, onClearFilters,
   onCreateTask, onCreateProject,
 }: Props) {
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
@@ -86,8 +83,6 @@ export function TableView({
       let cmp = 0
       if (sortKey === 'brand') {
         cmp = (clientMap.get(a.client_id)?.name ?? '').localeCompare(clientMap.get(b.client_id)?.name ?? '', 'ko')
-      } else if (sortKey === 'priority') {
-        cmp = (a.priority ? PRIORITY_RANK[a.priority] : 0) - (b.priority ? PRIORITY_RANK[b.priority] : 0)
       } else if (sortKey === 'author') {
         cmp = (a.author ?? '').localeCompare(b.author ?? '', 'ko')
       } else if (sortKey === 'date') {
@@ -106,7 +101,6 @@ export function TableView({
         <div className="flex-1 min-w-0 text-[11px] font-semibold text-ink-400 uppercase tracking-wider">내용</div>
         <div className="w-24 shrink-0"><SortBtn col="brand" label="브랜드" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-20 shrink-0 text-[11px] font-semibold text-ink-400 uppercase tracking-wider">태그</div>
-        <div className="w-16 shrink-0"><SortBtn col="priority" label="중요도" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-20 shrink-0"><SortBtn col="author" label="작성자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-28 shrink-0"><SortBtn col="date" label="등록일시" align="right" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
@@ -141,7 +135,7 @@ export function TableView({
           >
             <div className="flex-1 min-w-0 flex items-start gap-2">
               <div className="flex-1 min-w-0">
-                <div className={`text-xs leading-[1.45] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-normal text-muted-foreground'}`}>
+                <div className={`text-sm leading-[1.45] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-medium text-muted-foreground'}`}>
                   <Highlight text={item.title} query={searchQuery} />
                 </div>
                 {item.body && (
@@ -209,19 +203,6 @@ export function TableView({
                     )
                   })}
                 </div>
-              ) : (
-                <span className="text-xs text-ink-300">—</span>
-              )}
-            </div>
-            <div className="w-16 shrink-0">
-              {item.priority ? (
-                <button
-                  onClick={e => { e.stopPropagation(); onSelectPriority(item.priority!) }}
-                  className="flex items-center hover:opacity-70 transition-opacity"
-                  title="중요도로 필터"
-                >
-                  <PriorityBars priority={item.priority} showLabel />
-                </button>
               ) : (
                 <span className="text-xs text-ink-300">—</span>
               )}

@@ -390,7 +390,65 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — TaskFormDialog 탭 구조 추가
+
+### TaskFormDialog에 정보 / 메모 / 이력 탭 추가 (ProjectFormDialog와 동일 패턴)
+
+- `TaskHistorySection` 컴포넌트를 `TaskDetailDrawer.tsx` 로컬 정의에서 `_components/TaskHistorySection.tsx`로 분리 → `TaskDetailDrawer`와 `TaskFormDialog` 양쪽에서 재사용
+- `TaskFormDialog.tsx` 구조 변경
+  - `tab` state (`'info' | 'memo' | 'history'`) 추가
+  - `initialTab?: FormTab` prop 추가 (기본 `'info'`)
+  - DrawerHeader에 탭 UI 추가 (`ProjectFormDialog`와 동일한 lilac-600 스타일)
+  - 메모 필드를 info 탭 인라인에서 **메모 탭** 전체 textarea로 이동 (`initialMemo` prop 동작 유지)
+  - **이력 탭**: `editTask` 있을 때만 탭 표시, `TaskHistorySection` 렌더링
+  - 메모 탭 진입 시 textarea 자동 포커스
+
+---
+
+## 최근 변경 (2026-05-17) — 공통 Drawer 컴포넌트 도입
+
+### 드로어 6곳 공통 컴포넌트로 통일
+
+- **신규 파일** `src/components/ui/drawer.tsx` — `Drawer` / `DrawerHeader` / `DrawerBody` / `DrawerFooter` 4개 컴포넌트
+  - `Drawer`: fixed inset-0 z-50 + bg-black/20 backdrop + 슬라이드 애니메이션 (duration-300 ease-out) 공통화
+  - 너비(`width`), backdrop 표시(`backdrop`), backdrop 클릭 닫기(`closeOnBackdrop`), 패널 추가 클래스(`panelClass`) prop 지원
+  - `DrawerHeader`: `shrink-0 border-b` 래퍼 — 내부 레이아웃은 각 컴포넌트가 직접 정의
+  - `DrawerBody`: `flex-1 overflow-y-auto` + `className` prop으로 padding/gap 주입
+  - `DrawerFooter`: `shrink-0 px-5 py-3 border-t flex justify-end gap-2` 공통 레이아웃
+- **헤더 패딩 통일** — 기존 `px-5 pt-4 pb-2` / `px-5 py-4` 혼재 → 전부 `h-12 flex items-center px-5` (Summary 방식)로 통일
+- **교체된 파일 6곳**
+  - `TaskDetailDrawer.tsx` (480px, 탭 포함)
+  - `summary/detail-drawer.tsx` (480px, closeOnBackdrop prop 활용)
+  - `ProjectFormDialog.tsx` (440px, 탭 포함)
+  - `TaskFormDialog.tsx` (440px)
+  - `TaskTrashPanel.tsx` (320px, `backdrop=false panelClass="border-l shadow-xl"`)
+  - `TrashPanel.tsx` (320px, 동일)
+- TrashPanel 2종: `if(!open) return null` 패턴 제거 → Drawer가 자체적으로 pointer-events-none + translate로 닫힘 처리. 슬라이드 애니메이션 추가됨
+- tsc --noEmit 에러 0건, vitest 6/6 통과
+
+---
+
+## 최근 변경 (2026-05-17) — Summary 버그 픽스
+
+### Summary 페이지 소버그 4건 수정
+
+- **작성자 FilterChip 누락 수정** (`history-shell.tsx`): `authorKey !== 'all'`일 때 FilterChip이 없어 작성자 필터 적용 후 칩이 표시되지 않고 해제도 불가했던 문제 수정
+- **BrandSelector useMemo 추가** (`history-shell.tsx`): `counts`, `sorted` 계산을 렌더마다 반복 실행하던 것을 `useMemo`로 메모이제이션
+- **filteredActions 등 불필요 deps 제거** (`insight-view.tsx`): `filterByBrand`에서 사용하지 않는 `clients`가 4개 useMemo 의존성 배열에 포함되어 불필요한 재계산을 유발하던 것 제거
+- **인사이트 에러 재시도 버튼 추가** (`insight-view.tsx`): 분석 실패 시 에러 텍스트만 표시되던 것을 인라인 "다시 시도" 버튼으로 개선
+
+---
+
 ## 최근 변경 (2026-05-17)
+
+### Tasks 페이지 기능 버그 수정 (6건)
+
+- **퀵 추가 이중 생성 방지**: `quickAddTitle`이 상태 그룹 퀵 추가(`quickAddStatus`)와 하위 태스크 퀵 추가(`quickAddParentId`)에 공유되어 동시 활성 시 두 태스크가 동시 생성되던 문제 수정 — 각 퀵 추가 진입 시 반대쪽 상태를 `null`로 초기화
+- **고아 하위 태스크 유령화 방지**: 부모만 선택 삭제 시 `parent_id`가 남은 하위 태스크가 `!t.parent_id` 필터에 걸려 보이지 않던 문제 수정 — `taskIdSet`으로 실제 부모 존재 여부 판별, 없으면 최상위 취급 (normal view / KanbanView / `computeColumnOrder` 동일 적용)
+- **ListView `start_date` 정렬 null 처리 불일치**: null이 맨 앞에 오던 문제 수정 — `due_date`와 동일한 null-last 로직으로 통합
+- **뷰 전환 시 선택 모드 미해제**: kanban/gantt/calendar로 전환 시 floating 액션 바가 남는 문제 수정 — 미지원 뷰 전환 시 `exitSelectionMode()` 호출
+- **다이얼로그 상태 색상 하드코딩**: `TaskFormDialog`, `TaskDetailDrawer` 상태 점이 hex로 하드코딩되어 CSS 변수 테마와 불일치하던 문제 수정 — `STATUS_COLOR` 토큰으로 교체
+- **CalendarView `onStatusChange` 미사용 prop 제거**: Props 및 호출부에서 제거
 
 ### 간트 주 뷰 — 일요일 today 스크롤 버그 수정
 

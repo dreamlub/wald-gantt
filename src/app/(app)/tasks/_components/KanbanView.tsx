@@ -27,12 +27,13 @@ interface Props {
 }
 
 function computeColumnOrder(tasks: GanttTask[]): Map<TaskStatus, string[]> {
+  const taskIds = new Set(tasks.map(t => t.id))
   const map = new Map<TaskStatus, string[]>()
   for (const { status } of STATUS_GROUPS) {
     map.set(
       status,
       tasks
-        .filter(t => t.status === status && !t.parent_id)
+        .filter(t => t.status === status && (!t.parent_id || !taskIds.has(t.parent_id)))
         .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
         .map(t => t.id)
     )
@@ -373,7 +374,8 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
         <div className="flex gap-3 px-4 py-3 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 272 }}>
           {STATUS_GROUPS.map(({ status, label, color, bgColor }) => {
             const orderedIds  = columnOrder.get(status) ?? []
-            const taskMap     = new Map(tasks.filter(t => t.status === status && !t.parent_id).map(t => [t.id, t]))
+            const taskIds     = new Set(tasks.map(t => t.id))
+          const taskMap     = new Map(tasks.filter(t => t.status === status && (!t.parent_id || !taskIds.has(t.parent_id))).map(t => [t.id, t]))
             const columnTasks = orderedIds.map(id => taskMap.get(id)).filter(Boolean) as GanttTask[]
             return (
               <KanbanColumn

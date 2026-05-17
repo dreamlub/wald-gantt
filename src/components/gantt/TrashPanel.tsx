@@ -5,6 +5,7 @@ import { X, Trash2, RotateCcw } from 'lucide-react'
 import { useConfirm } from '@/hooks/use-confirm'
 import { getDeletedProjects, restoreProject, permanentDeleteProject, emptyTrash } from '@/lib/gantt-service'
 import type { GanttProject, GanttCategory } from '@/types'
+import { Drawer } from '@/components/ui/drawer'
 
 interface Props {
   open: boolean
@@ -61,13 +62,10 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
     setDeleted([])
   }
 
-  if (!open) return null
-
   return (
     <>
       {confirmDialog}
-      <div className="fixed inset-0 z-40" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-80 bg-card border-l shadow-xl z-50 flex flex-col">
+      <Drawer open={open} onClose={onClose} width={320} backdrop={false} panelClass="border-l shadow-xl">
         {/* 헤더 */}
         <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
           <Trash2 size={14} className="text-muted-foreground shrink-0" />
@@ -139,7 +137,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
             })
           )}
         </div>
-      </div>
+      </Drawer>
     </>
   )
 }
