@@ -82,12 +82,25 @@ export async function POST() {
       }
     }
 
+    const debugLog: string[] = [`since=${sinceStr}`, `clients=${clients.length}`, `existing=${existingSet.size}`]
+
     const rows: object[] = []
 
     for (const client of clients) {
-      if (!client.keywords?.length) continue
+      if (!client.keywords?.length) { debugLog.push(`skip:${client.id}(no keywords)`); continue }
       const query = client.keywords.map((k: string) => `"${k}"`).join(' OR ')
+      debugLog.push(`query: ${query} after:${sinceStr}`)
       try {
+        // 날짜 필터 없이 먼저 테스트
+        const dataNoDate = await slackFetch('search.messages', {
+          query,
+          count: '3',
+          sort: 'timestamp',
+          sort_dir: 'desc',
+        })
+        const totalNoDate = dataNoDate.messages?.total ?? '?'
+        debugLog.push(`(날짜없이) client:${client.id} → total:${totalNoDate}`)
+
         const data = await slackFetch('search.messages', {
           query: `${query} after:${sinceStr}`,
           count: '100',
@@ -97,6 +110,8 @@ export async function POST() {
 
         // eslint-disable-next-line @typescript-eslint/no-explicit-any
         const messages: any[] = data.messages?.matches ?? []
+        const total = data.messages?.total ?? data.messages?.pagination?.total_count ?? '?'
+        debugLog.push(`(날짜있이) client:${client.id} → matches:${messages.length} total:${total}`)
         for (const msg of messages) {
           const sourceId = `${msg.channel?.id}_${msg.ts}`
           const dedupKey = `${client.id}:${sourceId}`
@@ -135,7 +150,7 @@ export async function POST() {
       if (iErr) throw iErr
     }
 
-    return NextResponse.json({ inserted: rows.length })
+    return NextResponse.json({ inserted: rows.length, debug: debugLog })
   } catch (e) {
     const msg = e instanceof Error ? e.message : '수집 실패'
     console.error('[slack/collect]', msg)

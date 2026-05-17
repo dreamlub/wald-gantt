@@ -1,6 +1,6 @@
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { WeeklyReport, WeeklyReportSource } from '@/types/index'
+import type { WeeklyReport, WeeklyReportSource, WeeklyInsight } from '@/types/index'
 
 type Sb = SupabaseClient
 
@@ -28,6 +28,72 @@ export async function getWeeklyReports(
     .order('team',   { ascending: true })
   if (error) throw error
   return (data ?? []) as WeeklyReport[]
+}
+
+export async function getWeeklyInsight(
+  weekStart: string,
+  sb?: Sb,
+): Promise<WeeklyInsight | null> {
+  const client = sb ?? createBrowserClient()
+  const { data } = await client
+    .from('weekly_insights')
+    .select('*')
+    .eq('week_start', weekStart)
+    .maybeSingle()
+  return (data as WeeklyInsight | null) ?? null
+}
+
+export async function analyzeWeekly(
+  weekStart: string,
+  onStatus?: (message: string) => void,
+): Promise<WeeklyInsight> {
+  const res = await fetch('/api/weekly/analyze', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ week_start: weekStart }),
+  })
+
+  if (!res.ok || !res.body) {
+    const err = await res.json().catch(() => ({ error: 'Unknown error' }))
+    throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`)
+  }
+
+  const reader = res.body.getReader()
+  const decoder = new TextDecoder()
+  let buffer = ''
+
+  while (true) {
+    const { done, value } = await reader.read()
+    if (done) break
+
+    buffer += decoder.decode(value, { stream: true })
+    const parts = buffer.split('\n\n')
+    buffer = parts.pop() ?? ''
+
+    for (const part of parts) {
+      const lines = part.split('\n')
+      let eventType = 'message'
+      let eventData = ''
+
+      for (const line of lines) {
+        if (line.startsWith('event: ')) eventType = line.slice(7).trim()
+        else if (line.startsWith('data: ')) eventData = line.slice(6)
+      }
+
+      if (!eventData) continue
+
+      const data = JSON.parse(eventData) as Record<string, unknown>
+      if (eventType === 'status') {
+        onStatus?.(data.message as string)
+      } else if (eventType === 'result') {
+        return data as unknown as WeeklyInsight
+      } else if (eventType === 'error') {
+        throw new Error(data.message as string)
+      }
+    }
+  }
+
+  throw new Error('분석 스트림이 결과 없이 종료되었습니다')
 }
 
 // MCP 수집 시 INSERT/UPDATE — UNIQUE(workspace_id, source, team, author, week_start) 기준

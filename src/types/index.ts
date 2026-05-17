@@ -110,6 +110,41 @@ export interface GanttProject {
   deleted_at: string | null
 }
 
+export interface WeeklyReportItem {
+  type: 'issue' | 'decision' | 'plan'
+  title: string
+  detail: string
+  date: string | null
+  brand: string | null
+}
+
+export interface WeeklyReportSummary {
+  items: WeeklyReportItem[]
+  summary: string
+}
+
+export interface WeeklyInsightStats {
+  authors:   { count: number; delta: number }
+  issues:    { count: number; delta: number }
+  decisions: { count: number; delta: number }
+  plans:     { count: number; delta: number }
+}
+
+export interface WeeklyInsightContent {
+  headline: string
+  stats: WeeklyInsightStats
+  changes: string
+}
+
+export interface WeeklyInsight {
+  id: string
+  workspace_id: string
+  week_start: string
+  content: WeeklyInsightContent | null
+  analyzed_at: string | null
+  created_at: string
+}
+
 export interface WeeklySource {
   id: string
   workspace_id: string

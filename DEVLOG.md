@@ -78,11 +78,27 @@ client_history                           ← Slack 수집 이력 (Claude Code MC
   occurred_at, priority, author, created_at, deleted_at
   ⚠️ source_id unique 인덱스: 초기 추가 → Make.com 호환성으로 제거. 중복 방지는 INSERT 측에서 처리
 
-insights                                 ← AI 주간 분석 캐시
+insights                                 ← AI 주간 분석 캐시 (Slack 기반)
   id, workspace_id, week_start DATE
   content JSONB, analyzed_at, source_count INT
   created_at, updated_at
   UNIQUE (workspace_id, week_start)
+
+weekly_sources                           ← Weekly Outline 연동 설정
+  id, workspace_id, label, collection_id, sort_order, created_at
+  RLS: workspace_members 기준
+
+weekly_reports                           ← Outline 수집 raw 데이터
+  id, workspace_id, source, team, author, week_start
+  raw_content TEXT, summary JSONB, created_at, updated_at
+  UNIQUE INDEX: (workspace_id, source, team, COALESCE(author,''), week_start)
+  RLS: workspace_members 기준
+
+weekly_insights                          ← Weekly AI 종합 인사이트
+  id, workspace_id, week_start DATE
+  content JSONB, analyzed_at, created_at
+  UNIQUE (workspace_id, week_start)
+  RLS: workspace_members 기준
 ```
 
 **insights.content JSONB 구조**
@@ -386,7 +402,9 @@ src/
 │   │   ├── insights/generate/route.ts      # SSE 스트리밍 인사이트 분석 API
 │   │   ├── weekly/
 │   │   │   ├── route.ts                    # Outline 문서 파싱 + 5분 캐시
-│   │   │   └── ai-summary/route.ts         # Claude Haiku SSE 주간보고 요약
+│   │   │   ├── teams/route.ts              # weekly_sources 목록 반환 (GET)
+│   │   │   ├── ai-summary/route.ts         # Claude Haiku SSE 주간보고 요약 (간이)
+│   │   │   └── analyze/route.ts            # 2단계 AI 분석 SSE (weekly_reports→insights)
 │   │   ├── calendar/
 │   │   │   ├── events/route.ts             # Google Calendar 이벤트 조회 (주간 범위)
 │   │   │   ├── auth/route.ts               # Google OAuth 시작
@@ -424,6 +442,7 @@ src/
 │   ├── gantt-utils.ts                      # toDate, toDateStr, isLightColor 등
 │   ├── daily-note.ts                       # 경로 패턴 + readNote/writeNote
 │   ├── insight-service.ts                  # getInsight / generateInsight SSE 클라이언트
+│   ├── weekly-service.ts                   # getWeeklyReports/upsertWeeklyReport/getWeeklyInsight/analyzeWeekly
 │   ├── history-service.ts                  # client_history CRUD (클라이언트)
 │   ├── history-service-server.ts           # 서버 전용 (keywords 등)
 │   └── supabase/
@@ -455,6 +474,25 @@ LEFT_W_MAX      = 560
 
 ---
 
+## 최근 변경 (2026-05-17) — Weekly AI 분석 2단계
+
+### API (`src/app/api/weekly/analyze/route.ts` 신규)
+- `POST /api/weekly/analyze` SSE 라우트
+- **1단계 — 레코드별 요약**: `weekly_reports.raw_content` → Claude Haiku → `summary JSONB` 업데이트
+  - 이미 `summary`가 있는 레코드는 건너뜀 (중복 분석 방지)
+  - Zod `ReportSummarySchema`로 JSON 검증: `{ items: [{type, title, detail, date, brand}], summary }`
+- **2단계 — 종합 인사이트**: 전체 요약 집계 → Claude Haiku → `weekly_insights` upsert
+  - `stats` 자동 계산: `authors/issues/decisions/plans` count + 전주 대비 delta
+  - 전주 `weekly_reports.summary` JSONB로 delta 계산 (별도 AI 호출 없음)
+  - Zod `InsightNarrativeSchema`로 `headline`·`changes` 검증
+- SSE 이벤트: `status` (진행상황) / `result` (최종 `weekly_insights` row) / `error`
+
+### 서비스 (`src/lib/weekly-service.ts`)
+- `getWeeklyInsight(weekStart)` — `weekly_insights` 단건 조회 (RLS 자동 workspace 스코핑)
+- `analyzeWeekly(weekStart, onStatus?)` — SSE 클라이언트 (insight-service.ts 패턴 동일)
+
+---
+
 ## 최근 변경 (2026-05-17) — Weekly 데이터 수집 레이어 기반 구축
 
 ### DB
@@ -467,6 +505,11 @@ LEFT_W_MAX      = 560
 - `WeeklySource` 인터페이스 추가
 - `WeeklyReportSource` 타입 추가 (`'biz_lead' | 'team_doc'`)
 - `WeeklyReport` 인터페이스 추가
+- `WeeklyReportItem` / `WeeklyReportSummary` — 보고서 AI 분석 결과 JSONB 구조
+- `WeeklyInsightStats` / `WeeklyInsightContent` / `WeeklyInsight` — 종합 인사이트 구조
+
+### DB
+- `weekly_insights` 테이블 신규 (UNIQUE workspace_id,week_start + RLS)
 
 ### 서비스 (`src/lib/weekly-service.ts` 신규)
 - `getWeeklyReports(weekStart)` — 해당 주 전체 리포트 조회

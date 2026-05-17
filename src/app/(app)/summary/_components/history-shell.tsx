@@ -172,7 +172,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         toast.success(`${data.inserted}건 수집됐습니다`)
         startTransition(() => router.refresh())
       } else {
-        toast.info('새로운 메시지가 없습니다')
+        const debugInfo = data.debug ? '\n' + (data.debug as string[]).join('\n') : ''
+        toast.info(`새 메시지 없음${debugInfo}`, { duration: 10000 })
       }
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '수집 실패')
