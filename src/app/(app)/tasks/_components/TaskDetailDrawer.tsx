@@ -85,13 +85,14 @@ interface Props {
   ) => Promise<void>
   onDelete: (id: string) => void
   onDuplicate?: (task: GanttTask) => void
-  onAddSubTask: (parentId: string, status: TaskStatus) => void
+  onAddSubTask: (parentId: string, title: string, status: TaskStatus) => Promise<void>
   onStatusChange: (id: string, s: TaskStatus) => void
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
   assigneeSuggestions?: string[]
+  labelSuggestions?: string[]
 }
 
-export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab, onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [] }: Props) {
+export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab, onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange, onSearchProjects, assigneeSuggestions = [], labelSuggestions = [] }: Props) {
   const [title,      setTitle]      = useState('')
   const [status,     setStatus]     = useState<TaskStatus>('to-do')
   const [priority,   setPriority]   = useState<Priority>(2)
@@ -102,6 +103,11 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
   const [labels,     setLabels]     = useState<string[]>([])
   const [labelInput, setLabelInput] = useState('')
   const [saving,     setSaving]     = useState(false)
+  const [subInput,   setSubInput]   = useState('')
+  const [addingSub,  setAddingSub]  = useState(false)
+  const [labelOpen,  setLabelOpen]  = useState(false)
+  const subInputRef = useRef<HTMLInputElement>(null)
+  const labelRef = useRef<HTMLDivElement>(null)
 
   const [linkedProjects, setLinkedProjects] = useState<ProjectOption[]>([])
   const [projSearch,     setProjSearch]     = useState('')
@@ -136,6 +142,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
     setLabels(task.labels ?? [])
     setLinkedProjects(task.projects ?? [])
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput('')
+    setSubInput(''); setAddingSub(false)
     setTab(initialTab ?? 'info')
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [open, task, initialTab])
@@ -153,6 +160,8 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
     function onClick(e: MouseEvent) {
       if (projRef.current && !projRef.current.contains(e.target as Node))
         setShowProjDrop(false)
+      if (labelRef.current && !labelRef.current.contains(e.target as Node))
+        setLabelOpen(false)
     }
     document.addEventListener('mousedown', onClick)
     return () => document.removeEventListener('mousedown', onClick)
@@ -437,7 +446,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           </div>
 
           {/* 라벨 */}
-          <div>
+          <div ref={labelRef}>
             <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
@@ -453,15 +462,44 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                   {l} <X size={9} />
                 </button>
               ))}
-              <input
-                className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
-                placeholder="입력 후 Enter"
-                value={labelInput}
-                onChange={e => setLabelInput(e.target.value)}
-                onKeyDown={e => {
-                  if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
-                }}
-              />
+              <div className="relative">
+                <input
+                  className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+                  placeholder="입력 후 Enter"
+                  value={labelInput}
+                  onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
+                  onFocus={() => setLabelOpen(true)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter' || e.key === ',') { e.preventDefault(); addLabel() }
+                    if (e.key === 'Escape') setLabelOpen(false)
+                  }}
+                />
+                {labelOpen && (() => {
+                  const suggestions = labelSuggestions.filter(s =>
+                    !labels.includes(s) && s.toLowerCase().includes(labelInput.toLowerCase())
+                  )
+                  if (suggestions.length === 0) return null
+                  return (
+                    <ul className="absolute z-50 left-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-40 overflow-y-auto min-w-[140px]">
+                      {suggestions.map(s => (
+                        <li
+                          key={s}
+                          onPointerDown={e => {
+                            e.preventDefault()
+                            setLabels(prev => [...prev, s])
+                            setLabelInput('')
+                            setLabelOpen(false)
+                          }}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] hover:bg-accent cursor-pointer"
+                        >
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
+                          {s}
+                        </li>
+                      ))}
+                    </ul>
+                  )
+                })()}
+              </div>
             </div>
           </div>
 
@@ -493,21 +531,47 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
               </div>
             )}
             {task && (
-              <button
-                onClick={() => { onAddSubTask(task.id, task.status); onClose() }}
-                className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-[11px] text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
-              >
-                <Plus size={11} /> 하위 태스크 추가
-              </button>
+              addingSub ? (
+                <div className="flex items-center gap-1.5 border border-dashed border-lilac-300 rounded-md px-3 py-1.5 bg-accent/30">
+                  <Plus size={11} className="text-lilac-400 shrink-0" />
+                  <input
+                    ref={subInputRef}
+                    autoFocus
+                    value={subInput}
+                    onChange={e => setSubInput(e.target.value)}
+                    onKeyDown={async e => {
+                      if (e.key === 'Enter') {
+                        e.preventDefault()
+                        const t = subInput.trim()
+                        if (!t) return
+                        await onAddSubTask(task.id, t, task.status)
+                        setSubInput('')
+                        subInputRef.current?.focus()
+                      }
+                      if (e.key === 'Escape') { setAddingSub(false); setSubInput('') }
+                    }}
+                    onBlur={() => { if (!subInput.trim()) { setAddingSub(false); setSubInput('') } }}
+                    placeholder="하위 태스크 제목 후 Enter, Esc 취소"
+                    className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+                  />
+                </div>
+              ) : (
+                <button
+                  onClick={() => setAddingSub(true)}
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-[11px] text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
+                >
+                  <Plus size={11} /> 하위 태스크 추가
+                </button>
+              )
             )}
           </div>}
 
           {/* 상위 태스크 */}
-          {task?.parent_id && (
-            <div className="text-[10px] text-ink-300 pt-2 border-t border-border">
-              <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
-              <p className="mt-0.5 text-[11px] text-ink-500 truncate">
-                {parentTask?.title ?? '(알 수 없음)'}
+          {task?.parent_id && parentTask && (
+            <div className="pt-2 border-t border-border">
+              <span className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
+              <p className="mt-1 text-sm font-medium text-foreground">
+                {parentTask.title}
               </p>
             </div>
           )}

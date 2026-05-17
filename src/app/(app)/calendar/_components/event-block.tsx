@@ -32,10 +32,10 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
 
   return (
     <div
-      className="absolute rounded px-2 py-2 overflow-hidden select-none z-10"
+      className="absolute rounded px-2 py-1 overflow-hidden select-none z-10"
       style={{
         top,
-        height,
+        height: height - 2,
         left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
         width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
         backgroundColor: 'var(--color-ink-100)',

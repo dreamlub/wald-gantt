@@ -6,8 +6,8 @@ import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { setActiveDragOffsetY } from './drag-state'
 
-const SNAP_MIN  = 15
-const HOUR_H    = 60
+const SNAP_MIN  = 30
+const HOUR_H    = 80
 const START_H   = 7
 const END_H     = 23
 
@@ -148,43 +148,38 @@ export function TaskBlock({
       onDragStart={handleDragStart}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className="absolute rounded px-2 py-2 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-1"
+      className="absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5"
       style={{
         top,
-        height,
+        height: height - 2,
         left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
         width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
         backgroundColor: bg,
         borderLeft: `3px solid ${color}`,
       }}
     >
-      {/* 1행: 체크 원 + 시간 */}
+      {/* 1행: 체크 + 태스크명 */}
       <div className="flex items-center gap-1 pr-5">
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={handleToggleDone}
-          className="shrink-0 w-3.5 h-3.5 rounded-full border-2 flex items-center justify-center transition-colors hover:opacity-80"
+          className="shrink-0 w-2.5 h-2.5 rounded-full border-[1.5px] flex items-center justify-center transition-colors hover:opacity-80"
           style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
           title={isDone ? '완료 취소' : '완료로 표시'}
         >
-          {isDone && <Check size={7} className="text-white stroke-[3]" />}
+          {isDone && <Check size={6} className="text-white stroke-[3]" />}
         </button>
-        {task.scheduled_at && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
-            {fmtTime(task.scheduled_at)}
-            {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
-            {isOverlapping && (
-              <span className="inline-block text-[10px] px-1 py-px rounded bg-status-warn/15 text-status-warn border border-status-warn/25 leading-none shrink-0">
-                중복
-              </span>
-            )}
-          </span>
-        )}
+        <p className={`text-[10px] font-medium line-clamp-1 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+          {task.title}
+        </p>
       </div>
-      {/* 2행: 태스크명 */}
-      <p className={`text-[10px] font-medium line-clamp-2 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
-        {task.title}
-      </p>
+      {/* 2행: 시간 */}
+      {task.scheduled_at && (
+        <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
+          {fmtTime(task.scheduled_at)}
+          {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
+        </span>
+      )}
 
       {/* 스케줄 해제 버튼 */}
       <button

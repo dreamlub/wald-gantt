@@ -196,10 +196,13 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                 key={task.id}
                 draggable={!isDone}
                 onDragStart={e => handleDragStart(e, task)}
-                className={`mx-2 my-1 rounded border border-border bg-card select-none transition-colors hover:border-lilac-300 ${
-                  isDone ? 'opacity-50' : ''
+                className={`mx-2 my-1 rounded border select-none transition-colors hover:border-lilac-300 ${
+                  isDone ? 'opacity-50 border-border bg-card' : 'border-border'
                 }`}
-                style={{ borderLeft: `3px solid ${color}` }}
+                style={{
+                  borderLeft: `4px solid ${color}`,
+                  backgroundColor: isDone ? undefined : `color-mix(in srgb, ${color} 8%, white)`,
+                }}
               >
                 <div className="px-1.5 py-1.5 flex items-start gap-1">
                   <div

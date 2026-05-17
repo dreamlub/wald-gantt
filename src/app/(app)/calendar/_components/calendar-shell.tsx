@@ -38,19 +38,27 @@ function getWeekDates(mondayStr: string): string[] {
   return Array.from({ length: 7 }, (_, i) => toDateStr(addDays(monday, i)))
 }
 
+// 업무시간 슬롯: 9~12, 13~18 (점심 제외 8h)
+const WORK_SLOTS = [{ start: 9, end: 12 }, { start: 13, end: 18 }]
+
 function calcDayHours(date: string, events: CalendarEvent[]): number {
-  return events
-    .filter(e => !e.isAllDay && toDateStr(new Date(e.start)) === date)
-    .reduce((sum, e) => {
-      const ms = new Date(e.end).getTime() - new Date(e.start).getTime()
-      return sum + ms / 3_600_000
-    }, 0)
+  const dayEvents = events.filter(e => !e.isAllDay && toDateStr(new Date(e.start)) === date)
+  let total = 0
+  for (const ev of dayEvents) {
+    const evStart = new Date(ev.start).getHours() + new Date(ev.start).getMinutes() / 60
+    const evEnd   = new Date(ev.end).getHours()   + new Date(ev.end).getMinutes()   / 60
+    for (const slot of WORK_SLOTS) {
+      const overlap = Math.min(evEnd, slot.end) - Math.max(evStart, slot.start)
+      if (overlap > 0) total += overlap
+    }
+  }
+  return total
 }
 
 function calcTaskHours(date: string, tasks: GanttTask[]): number {
   return tasks
     .filter(t => !!t.scheduled_at && toDateStr(new Date(t.scheduled_at)) === date)
-    .reduce((sum, t) => sum + (t.duration_minutes ?? 60) / 60, 0)
+    .reduce((sum, t) => sum + (t.duration_minutes ?? 30) / 60, 0)
 }
 
 function fmtHrs(h: number): string {
@@ -138,7 +146,7 @@ export function CalendarShell() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: scheduledAt } : t))
     try {
       const task = tasks.find(t => t.id === taskId)
-      await updateTaskSchedule(taskId, scheduledAt, task?.duration_minutes ?? 60)
+      await updateTaskSchedule(taskId, scheduledAt, task?.duration_minutes ?? 30)
     } catch { toast.error('저장 실패'); await loadTasks() }
   }, [tasks, loadTasks])
 
@@ -195,11 +203,23 @@ export function CalendarShell() {
     await loadTasks()
   }, [workspaceId, loadTasks])
 
-  const handleDrawerAddSubTask = useCallback(async (parentId: string, status: TaskStatus) => {
+  const handleDrawerAddSubTask = useCallback(async (parentId: string, title: string, status: TaskStatus) => {
     if (!workspaceId) return
-    await addTask(workspaceId, { title: '새 하위 태스크', status, type: 'mine', assignee: null, start_date: null, due_date: null, memo: null, parent_id: parentId })
+    const parent = tasks.find(t => t.id === parentId)
+    await addTask(workspaceId, {
+      title,
+      status: parent?.status ?? status,
+      type: parent?.type ?? 'mine',
+      assignee: parent?.assignee ?? null,
+      start_date: parent?.start_date ?? null,
+      due_date: parent?.due_date ?? null,
+      memo: null,
+      priority: parent?.priority ?? 2,
+      labels: parent?.labels ?? [],
+      parent_id: parentId,
+    })
     await loadTasks()
-  }, [workspaceId, loadTasks])
+  }, [workspaceId, tasks, loadTasks])
 
   const handleDrawerStatusChange = useCallback(async (id: string, status: TaskStatus) => {
     setTasks(prev => prev.map(t => t.id === id ? { ...t, status } : t))
@@ -244,7 +264,7 @@ export function CalendarShell() {
       {/* 사이드바 */}
       <div
         className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: panelOpen ? 256 : 0 }}
+        style={{ width: panelOpen ? 240 : 0 }}
       >
         <TaskPanel
           tasks={tasks}
@@ -319,7 +339,7 @@ export function CalendarShell() {
 
           <button
             onClick={() => setFormOpen(true)}
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1 text-xs font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={11} />
             태스크 추가
@@ -362,15 +382,15 @@ export function CalendarShell() {
               const dayColor      = !isToday && isSun ? 'var(--color-day-sun)' : !isToday && isSat ? 'var(--color-day-sat)' : undefined
               const dayColorMuted = !isToday && isSun ? 'var(--color-day-sun-muted)' : !isToday && isSat ? 'var(--color-day-sat-muted)' : undefined
               return (
-                <div key={date} className="flex-1 border-l border-border h-12 flex items-center justify-center gap-1 px-2">
+                <div key={date} className="flex-1 border-l border-border h-8 flex items-center justify-center gap-1 px-2">
                   <span
-                    className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${isToday ? 'bg-foreground text-background' : ''}`}
+                    className={`text-xs font-semibold w-5 h-5 flex items-center justify-center rounded-full ${isToday ? 'bg-foreground text-background' : ''}`}
                     style={dayColor ? { color: dayColor } : undefined}
                   >
                     {d.getDate()}
                   </span>
                   <span
-                    className={`text-sm ${isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
+                    className={`text-xs ${isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}`}
                     style={dayColorMuted ? { color: dayColorMuted } : undefined}
                   >
                     ({DAY_LABELS[d.getDay()]})
@@ -381,13 +401,12 @@ export function CalendarShell() {
           </div>
 
           {/* 업무가능 시간 통계 (sticky) */}
-          <div className="sticky top-12 z-20 flex border-b bg-muted">
+          <div className="sticky top-8 z-20 flex border-b bg-muted">
             <div className="w-12 shrink-0" />
             {weekDates.map(date => {
               const googleHrs    = calcDayHours(date, events)
-              const taskHrs      = calcTaskHours(date, timedTasks)
               const hasAllDay    = allDayTasks.some(t => toDateStr(new Date(t.scheduled_at!)) === date)
-              const availableHrs = hasAllDay ? 0 : Math.max(0, 8 - taskHrs - googleHrs)
+              const availableHrs = hasAllDay ? 0 : Math.max(0, 8 - googleHrs)
               const isZero       = availableHrs === 0
               const isTight      = !isZero && availableHrs <= 2
               return (
@@ -404,7 +423,7 @@ export function CalendarShell() {
           </div>
 
           {/* ALL-DAY 행 (sticky, 항상 표시, 드래그 드롭 가능) */}
-          <div className="sticky top-[76px] z-20 flex border-b bg-card">
+          <div className="sticky top-[60px] z-20 flex border-b bg-card">
             <div className="w-12 shrink-0 flex items-start justify-end pt-1.5 pr-2">
               <span className="text-[10px] text-ink-400 whitespace-nowrap">ALL-DAY</span>
             </div>

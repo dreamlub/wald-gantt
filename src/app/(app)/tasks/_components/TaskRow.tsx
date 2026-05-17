@@ -4,7 +4,8 @@ import { useState, useRef } from 'react'
 import {
   Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays,
 } from 'lucide-react'
-import { useDraggable, useDroppable } from '@dnd-kit/core'
+import { useDroppable } from '@dnd-kit/core'
+import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor, clampTooltipPos } from '../_utils'
@@ -186,7 +187,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
       {/* 메모 컬럼 */}
       <div className="w-10 shrink-0 flex items-center justify-start relative">
         <button
-          onClick={() => task.memo && onEditMemo ? onEditMemo(task) : onEdit(task)}
+          onClick={() => onEditMemo ? onEditMemo(task) : onEdit(task)}
           onMouseEnter={task.memo ? e => {
             if (memoTimerRef.current) clearTimeout(memoTimerRef.current)
             setMemoPos({ x: e.clientX, y: e.clientY })
@@ -196,7 +197,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
           } : undefined}
           className={task.memo
             ? 'text-lilac-400 hover:text-accent-foreground transition-colors'
-            : 'text-ink-200 opacity-0 group-hover:opacity-100 hover:text-lilac-400 transition-colors'}
+            : 'text-ink-300 opacity-0 group-hover:opacity-100 hover:text-lilac-500 transition-colors'}
         >
           <StickyNote size={12} />
         </button>
@@ -207,7 +208,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onStatusChange, dragHandlePr
               className="fixed z-[9999] pointer-events-none max-w-xs"
               style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
             >
-              <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+              <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-hidden">
                 {task.memo}
               </div>
               <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
@@ -248,8 +249,11 @@ interface DraggableTaskRowProps {
 }
 
 export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect, ...props }: DraggableTaskRowProps) {
-  const { attributes, listeners, setNodeRef, transform } = useDraggable({ id: task.id })
-  const style = transform ? { transform: CSS.Translate.toString(transform) } : undefined
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+  }
   return (
     <div ref={setNodeRef} style={style}>
       <TaskRow

@@ -6,11 +6,11 @@ import { TaskBlock } from './task-block'
 import { EventBlock } from './event-block'
 import { getActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
 
-const HOUR_H   = 60
+const HOUR_H   = 80
 const START_H  = 7
 const END_H    = 23
 const TOTAL_H  = END_H - START_H
-const SNAP_MIN = 15
+const SNAP_MIN = 30
 
 function toMinutes(iso: string): number {
   const d = new Date(iso)
@@ -157,7 +157,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
       {/* 현재 시각 */}
       {isToday && nowMin >= START_H * 60 && nowMin <= END_H * 60 && (
         <div
-          className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
+          className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
           style={{ top: nowTop }}
         >
           <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
@@ -191,7 +191,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
           })),
           ...scheduledTasks.map(t => ({
             startMin: toMinutes(t.scheduled_at!),
-            endMin:   toMinutes(t.scheduled_at!) + (t.duration_minutes ?? 60),
+            endMin:   toMinutes(t.scheduled_at!) + (t.duration_minutes ?? 30),
           })),
         ]
 
@@ -221,7 +221,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
 
             {scheduledTasks.map((task, i) => {
               const startMin = toMinutes(task.scheduled_at!)
-              const dur    = task.duration_minutes ?? 60
+              const dur    = task.duration_minutes ?? 30
               const top    = minutesToPx(startMin - START_H * 60)
               const height = Math.max(minutesToPx(dur), 20)
               const { colIndex, totalCols } = taskLayout[i]

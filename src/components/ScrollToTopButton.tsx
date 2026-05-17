@@ -34,7 +34,7 @@ export function ScrollToTopButton() {
     <button
       onClick={() => activeEl.current?.scrollTo({ top: 0, behavior: 'smooth' })}
       aria-label="맨 위로"
-      className={`fixed bottom-6 right-6 z-50 w-9 h-9 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center transition-all duration-200 ${
+      className={`fixed bottom-6 right-6 z-40 w-9 h-9 rounded-full bg-foreground text-background shadow-lg flex items-center justify-center transition-all duration-200 ${
         visible ? 'opacity-100 translate-y-0' : 'opacity-0 translate-y-2 pointer-events-none'
       }`}
     >

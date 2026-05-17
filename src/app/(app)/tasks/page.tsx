@@ -8,8 +8,9 @@ import {
 import { toast } from 'sonner'
 import {
   DndContext, DragOverlay, PointerSensor, useSensor, useSensors,
-  closestCenter, type DragEndEvent, type DragStartEvent,
+  closestCenter, pointerWithin, rectIntersection, type DragEndEvent, type DragStartEvent, type DragOverEvent, type CollisionDetection,
 } from '@dnd-kit/core'
+import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { TaskTrashPanel } from '@/components/tasks/TaskTrashPanel'
 import {
@@ -146,20 +147,38 @@ export default function TasksPage() {
   }
 
   async function handleStatusChange(id: string, status: TaskStatus) {
-    const updatedTasks = tasks.map(t => t.id === id ? { ...t, status } : t)
+    let updatedTasks = tasks.map(t => t.id === id ? { ...t, status } : t)
+
+    if (status === 'done') {
+      // 부모 완료 → 하위 태스크도 모두 완료
+      const children = updatedTasks.filter(t => t.parent_id === id && t.status !== 'done')
+      if (children.length > 0) {
+        updatedTasks = updatedTasks.map(t => t.parent_id === id ? { ...t, status: 'done' } : t)
+      }
+
+      // 하위 완료 → 형제 모두 완료면 부모도 완료
+      const changedTask = updatedTasks.find(t => t.id === id)
+      if (changedTask?.parent_id) {
+        const siblings = updatedTasks.filter(t => t.parent_id === changedTask.parent_id)
+        if (siblings.length > 0 && siblings.every(t => t.status === 'done')) {
+          updatedTasks = updatedTasks.map(t => t.id === changedTask.parent_id ? { ...t, status: 'done' } : t)
+        }
+      }
+    }
+
     setTasks(updatedTasks)
     try {
-      await updateTask(id, { status })
-      // 자동 완료: 하위 태스크가 모두 done이면 부모도 done으로
-      if (status === 'done') {
-        const changedTask = updatedTasks.find(t => t.id === id)
-        if (changedTask?.parent_id) {
-          const siblings = updatedTasks.filter(t => t.parent_id === changedTask.parent_id)
-          if (siblings.length > 0 && siblings.every(t => t.status === 'done')) {
-            await updateTask(changedTask.parent_id, { status: 'done' })
-            setTasks(prev => prev.map(t => t.id === changedTask.parent_id ? { ...t, status: 'done' } : t))
-            toast('하위 태스크가 모두 완료되어 상위 태스크도 완료했어요')
-          }
+      const changed = updatedTasks.filter((t, i) => t.status !== tasks[i]?.status || t.id === id)
+      await Promise.all(changed.map(t => updateTask(t.id, { status: t.status })))
+
+      const changedTask = updatedTasks.find(t => t.id === id)
+      const children = tasks.filter(t => t.parent_id === id && t.status !== 'done')
+      if (status === 'done' && children.length > 0) {
+        toast(`하위 태스크 ${children.length}개도 함께 완료했어요`)
+      } else if (status === 'done' && changedTask?.parent_id) {
+        const siblings = updatedTasks.filter(t => t.parent_id === changedTask.parent_id)
+        if (siblings.every(t => t.status === 'done')) {
+          toast('하위 태스크가 모두 완료되어 상위 태스크도 완료했어요')
         }
       }
     }
@@ -168,19 +187,130 @@ export default function TasksPage() {
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
+  // 포인터 위치의 아이템 우선, 없으면 가장 가까운 센터
+  const collisionDetection: CollisionDetection = useCallback((args) => {
+    const pointerCollisions = pointerWithin(args)
+    if (pointerCollisions.length > 0) return pointerCollisions
+    return rectIntersection(args)
+  }, [])
+
+  const dragExpandedRef = useRef<string | null>(null)
+  const [dragOverGroup, setDragOverGroup] = useState<string | null>(null)
+  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
+
   function handleDragStart(event: DragStartEvent) {
     const task = tasks.find(t => t.id === event.active.id)
-    if (task) setDraggingTask(task)
+    if (task) {
+      setDraggingTask(task)
+      setDragOverGroup(null)
+      setDragOverItemId(null)
+      if (expandedParents.has(task.id)) {
+        dragExpandedRef.current = task.id
+        setExpandedParents(prev => { const next = new Set(prev); next.delete(task.id); return next })
+      } else {
+        dragExpandedRef.current = null
+      }
+    }
+  }
+
+  function handleDragOver(event: DragOverEvent) {
+    const { over } = event
+    if (!over) { setDragOverGroup(null); setDragOverItemId(null); return }
+    const statusValues = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
+    if (statusValues.includes(over.id as string)) {
+      setDragOverGroup(over.id as string)
+      setDragOverItemId(null)
+    } else {
+      const overTask = tasks.find(t => t.id === over.id)
+      if (overTask) {
+        const overGroup = isOverdue(overTask.due_date, overTask.status) ? '__overdue__' : overTask.status
+        setDragOverGroup(overGroup)
+        setDragOverItemId(overTask.id)
+      }
+    }
+  }
+
+  function restoreDragExpanded() {
+    setDragOverGroup(null)
+    setDragOverItemId(null)
+    if (dragExpandedRef.current) {
+      const id = dragExpandedRef.current
+      dragExpandedRef.current = null
+      setExpandedParents(prev => new Set([...prev, id]))
+    }
+  }
+
+  function handleDragCancel() {
+    setDraggingTask(null)
+    restoreDragExpanded()
   }
 
   function handleDragEnd(event: DragEndEvent) {
     setDraggingTask(null)
+    restoreDragExpanded()
     const { active, over } = event
-    if (!over) return
-    const newStatus = over.id as TaskStatus
+    if (!over || active.id === over.id) return
+
     const task = tasks.find(t => t.id === active.id)
-    if (!task || task.status === newStatus) return
-    handleStatusChange(task.id, newStatus)
+    if (!task) return
+
+    // 상태 그룹 영역에 드롭 → 상태 변경 (그룹 끝에 추가)
+    const statusValues: string[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
+    if (statusValues.includes(over.id as string)) {
+      const newStatus = over.id as TaskStatus
+      if (task.status !== newStatus) handleStatusChange(task.id, newStatus)
+      return
+    }
+
+    // 태스크 위에 드롭
+    const overTask = tasks.find(t => t.id === over.id)
+    if (!overTask) return
+
+    const sameGroup = task.status === overTask.status
+    const targetStatus = overTask.status
+
+    // 대상 그룹의 최상위 태스크 목록
+    const targetGroupTasks = tasks.filter(t => !t.parent_id && t.status === targetStatus && t.id !== task.id)
+    const insertIdx = targetGroupTasks.findIndex(t => t.id === over.id)
+    if (insertIdx === -1) return
+
+    if (sameGroup) {
+      // 같은 그룹: 순서만 변경
+      const groupWithActive = tasks.filter(t => !t.parent_id && t.status === targetStatus)
+      const oldIdx = groupWithActive.findIndex(t => t.id === active.id)
+      const newIdx = groupWithActive.findIndex(t => t.id === over.id)
+      if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return
+
+      const reordered = [...groupWithActive]
+      const [moved] = reordered.splice(oldIdx, 1)
+      reordered.splice(newIdx, 0, moved)
+
+      const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }))
+      setTasks(prev => {
+        const orderMap = new Map(updates.map(u => [u.id, u.sort_order]))
+        return prev.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t)
+          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      })
+      Promise.all(updates.map(u => updateTask(u.id, { sort_order: u.sort_order })))
+        .catch(e => { toast.error(errMsg(e)); load() })
+    } else {
+      // 다른 그룹: 상태 변경 + 해당 위치에 삽입
+      const reordered = [...targetGroupTasks]
+      reordered.splice(insertIdx, 0, { ...task, status: targetStatus })
+
+      const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }))
+      setTasks(prev => {
+        const orderMap = new Map(updates.map(u => [u.id, u.sort_order]))
+        return prev.map(t => {
+          if (t.id === task.id) return { ...t, status: targetStatus, sort_order: orderMap.get(t.id) ?? t.sort_order }
+          return orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t
+        }).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+      })
+      Promise.all([
+        updateTask(task.id, { status: targetStatus, sort_order: updates.find(u => u.id === task.id)?.sort_order }),
+        ...updates.filter(u => u.id !== task.id).map(u => updateTask(u.id, { sort_order: u.sort_order })),
+      ]).catch(e => { toast.error(errMsg(e)); load() })
+    }
   }
 
   function handleSelect(id: string) {
@@ -343,13 +473,13 @@ export default function TasksPage() {
       await addTask(workspace.id, {
         title,
         status: parent.status,
-        type: 'mine',
-        assignee: null,
-        start_date: null,
-        due_date: null,
+        type: parent.type ?? 'mine',
+        assignee: parent.assignee ?? null,
+        start_date: parent.start_date ?? null,
+        due_date: parent.due_date ?? null,
         memo: null,
-        priority: 2,
-        labels: [],
+        priority: parent.priority ?? 2,
+        labels: parent.labels ?? [],
         parent_id: parentId,
       }, parent.projects?.map(p => p.id) ?? [])
       setQuickAddTitle('')
@@ -399,6 +529,8 @@ export default function TasksPage() {
   const allAssignees = [...assigneeMap.entries()]
     .map(([key, v]) => ({ key, ...v }))
     .sort((a, b) => b.count - a.count)
+
+  const allLabels = [...new Set(tasks.flatMap(t => t.labels ?? []))].sort()
   const ASSIGNEE_VISIBLE_LIMIT = 7
   const sidebarAssigneesFull = allAssignees
     .filter(a => !assigneeSearch || a.label.toLowerCase().includes(assigneeSearch.toLowerCase()))
@@ -484,6 +616,34 @@ export default function TasksPage() {
   function getSubTasks(parentId: string) {
     return filtered.filter(t => t.parent_id === parentId)
   }
+  // 드래그 중인 아이템을 타겟 그룹 context에 포함시키는 헬퍼
+  function getSortableIds(groupKey: string, groupTasks: GanttTask[]) {
+    const ids = groupTasks.map(t => t.id)
+    if (!draggingTask) return ids
+    const dragId = draggingTask.id
+    const dragGroup = isOverdue(draggingTask.due_date, draggingTask.status) ? '__overdue__' : draggingTask.status
+    const isSource = dragGroup === groupKey
+    const isTarget = dragOverGroup === groupKey
+
+    if (isSource && !isTarget) {
+      return ids.filter(id => id !== dragId)
+    }
+    if (!isSource && isTarget) {
+      const clean = ids.filter(id => id !== dragId)
+      // over 대상 아이템의 위치에 삽입
+      if (dragOverItemId) {
+        const overIdx = clean.indexOf(dragOverItemId)
+        if (overIdx !== -1) {
+          clean.splice(overIdx, 0, dragId)
+          return clean
+        }
+      }
+      // over 대상이 없으면 (그룹 헤더에 드롭) 끝에 추가
+      return [...clean, dragId]
+    }
+    return ids
+  }
+
   const ipGroup = getGroup('in-progress')
   const avgIPDays = ipGroup.length
     ? Math.round(ipGroup.reduce((s, t) => s + daysDiff(t.start_date), 0) / ipGroup.length * 10) / 10
@@ -835,7 +995,7 @@ export default function TasksPage() {
                 </div>
               )
             })() : (
-              <DndContext sensors={sensors} collisionDetection={closestCenter} onDragStart={handleDragStart} onDragEnd={handleDragEnd}>
+              <DndContext sensors={sensors} collisionDetection={collisionDetection} onDragStart={handleDragStart} onDragOver={handleDragOver} onDragEnd={handleDragEnd} onDragCancel={handleDragCancel}>
                 {overdueGroup.length > 0 && (
                   <div>
                     <button
@@ -852,7 +1012,7 @@ export default function TasksPage() {
                         <span className="ml-auto text-[10px] text-ink-400">평균 지연 {avgOverdueDays}일</span>
                       )}
                     </button>
-                    {!collapsed.has('__overdue__') && overdueGroup.map(task => {
+                    {!collapsed.has('__overdue__') && <SortableContext items={getSortableIds('__overdue__', overdueGroup)} strategy={verticalListSortingStrategy}>{overdueGroup.map(task => {
                       const subs = getSubTasks(task.id)
                       const isExp = expandedParents.has(task.id) || quickAddParentId === task.id
                       return (
@@ -903,7 +1063,7 @@ export default function TasksPage() {
                           )}
                         </div>
                       )
-                    })}
+                    })}</SortableContext>}
                   </div>
                 )}
 
@@ -928,7 +1088,7 @@ export default function TasksPage() {
                       </button>
                       {!isCollapsed && (
                         <>
-                          {group.map(task => {
+                          <SortableContext items={getSortableIds(status, group)} strategy={verticalListSortingStrategy}>{group.map(task => {
                             const subs = getSubTasks(task.id)
                             const isExp = expandedParents.has(task.id) || quickAddParentId === task.id
                             return (
@@ -979,7 +1139,7 @@ export default function TasksPage() {
                                 )}
                               </div>
                             )
-                          })}
+                          })}</SortableContext>
                           {quickAddStatus === status ? (
                             <div className="flex items-center gap-1.5 pl-10 pr-4 py-2 border-b border-ink-150 bg-accent/30">
                               <Plus size={11} className="text-lilac-400 shrink-0" />
@@ -1047,10 +1207,27 @@ export default function TasksPage() {
         onSave={handleDrawerSave}
         onDelete={handleDelete}
         onDuplicate={handleDuplicate}
-        onAddSubTask={openAddSubTask}
+        onAddSubTask={async (parentId, title, status) => {
+          if (!workspace) return
+          const parent = tasks.find(t => t.id === parentId)
+          await addTask(workspace.id, {
+            title,
+            status: parent?.status ?? status,
+            type: parent?.type ?? 'mine',
+            assignee: parent?.assignee ?? null,
+            start_date: parent?.start_date ?? null,
+            due_date: parent?.due_date ?? null,
+            memo: null,
+            priority: parent?.priority ?? 2,
+            labels: parent?.labels ?? [],
+            parent_id: parentId,
+          }, parent?.projects?.map(p => p.id) ?? [])
+          await load()
+        }}
         onStatusChange={handleStatusChange}
         onSearchProjects={handleSearch}
         assigneeSuggestions={allAssignees.map(a => a.label).filter(Boolean)}
+        labelSuggestions={allLabels}
       />
 
       <TaskTrashPanel
