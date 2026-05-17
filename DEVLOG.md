@@ -1,5 +1,50 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-18) — Calendar UX 개선
+
+### 변경 내역
+
+**타임그리드 확대** (`time-grid.tsx`, `task-block.tsx`)
+- `HOUR_H`: 60 → 80 (1시간 높이 확대)
+- `SNAP_MIN`: 15 → 30 (드래그 스냅 간격 30분)
+- 기본 블록 duration: 60분 → 30분 (0.5h)
+
+**블록 스타일 개선** (`task-block.tsx`, `event-block.tsx`)
+- 블록 하단 2px 패딩 (`height - 2`)
+- 내부 텍스트 간격 축소: `py-2` → `py-1`, `gap-1` → `gap-0.5`
+- 태스크 블록 레이아웃 변경: 1행 체크+태스크명 / 2행 시간 (순서 반전)
+- 체크박스 축소: `w-3.5 h-3.5 border-2` → `w-2.5 h-2.5 border-[1.5px]`
+- 중복 뱃지 제거
+
+**업무가능시간 계산 변경** (`calendar-shell.tsx`)
+- 업무시간 슬롯: 9~12시 + 13~18시 = 8h (점심 제외)
+- 구글 이벤트가 업무시간 슬롯과 겹치는 부분만 차감
+- 태스크 시간은 차감에서 제외
+
+**레이아웃 통일** (`calendar-shell.tsx`)
+- 사이드바 너비: 256 → 240 (간트와 동일)
+- 태스크 추가 버튼: 간트 프로젝트 추가 버튼 스타일로 통일
+- 날짜 헤더 축소: `h-12` → `h-8`, `text-sm` → `text-xs`, 오늘 원 `w-7 h-7` → `w-5 h-5`
+- sticky top 보정: 업무가능 행 `top-12` → `top-8`, ALL-DAY 행 `top-[76px]` → `top-[60px]`
+
+**미배정 태스크 시각 구분** (`task-panel.tsx`)
+- 미배정: 상태 색상 8% 배경 + 4px 좌측 보더
+- 배정됨: 흰 배경 + 3px 좌측 보더 + opacity 낮춤
+
+**z-index 정리**
+- `ScrollToTopButton`: `z-50` → `z-40` (Drawer 중첩 방지)
+- 현재시간 줄: `z-20` → `z-10` (sticky 헤더 아래로)
+
+### 수정된 파일
+- `src/app/(app)/calendar/_components/calendar-shell.tsx`
+- `src/app/(app)/calendar/_components/event-block.tsx`
+- `src/app/(app)/calendar/_components/task-block.tsx`
+- `src/app/(app)/calendar/_components/task-panel.tsx`
+- `src/app/(app)/calendar/_components/time-grid.tsx`
+- `src/components/ScrollToTopButton.tsx`
+
+---
+
 ## 최근 변경 (2026-05-17) — 공통 컴포넌트 추출 리팩터링
 
 ### 변경 내역
