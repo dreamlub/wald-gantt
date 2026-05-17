@@ -163,7 +163,7 @@ export function TaskBlock({
           {fmtTime(task.scheduled_at)}
           {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
           {isOverlapping && (
-            <span className="inline-block text-[8px] px-1 py-px rounded bg-status-warn/15 text-status-warn border border-status-warn/25 leading-none">
+            <span className="inline-block text-[10px] px-1 py-px rounded bg-status-warn/15 text-status-warn border border-status-warn/25 leading-none">
               중복
             </span>
           )}

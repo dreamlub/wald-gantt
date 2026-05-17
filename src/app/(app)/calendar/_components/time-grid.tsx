@@ -172,7 +172,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
         >
           <div className="w-1.5 h-1.5 rounded-full bg-lilac-500 -ml-0.5 shrink-0" />
           <div className="flex-1 border-t-2 border-lilac-400 border-dashed" />
-          <span className="text-[9px] text-lilac-500 font-medium pr-1 shrink-0 bg-white/80 rounded px-0.5">
+          <span className="text-[10px] text-lilac-500 font-medium pr-1 shrink-0 bg-white/80 rounded px-0.5">
             {String(Math.floor(snapMinutes / 60)).padStart(2, '0')}:{String(snapMinutes % 60).padStart(2, '0')}
           </span>
         </div>

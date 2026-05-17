@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback } from 'react'
 import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
-  CalendarDays, SlidersHorizontal, Plus, PanelLeftOpen,
+  CalendarDays, SlidersHorizontal, Plus, PanelLeftOpen, X,
 } from 'lucide-react'
 import { format, addDays, parseISO, startOfWeek, getISOWeek } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -44,14 +44,44 @@ function calcDayHours(date: string, events: CalendarEvent[]): number {
     }, 0)
 }
 
+function calcTaskHours(date: string, tasks: GanttTask[]): number {
+  return tasks
+    .filter(t => !!t.scheduled_at && toDateStr(new Date(t.scheduled_at)) === date)
+    .reduce((sum, t) => sum + (t.duration_minutes ?? 60) / 60, 0)
+}
+
+function fmtHrs(h: number): string {
+  if (h === 0) return '0h'
+  return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`
+}
+
+function buildAllDayIso(date: string): string {
+  const [y, mo, d] = date.split('-').map(Number)
+  return new Date(y, mo - 1, d, 0, 0).toISOString()
+}
+
+function isAllDayScheduled(iso: string): boolean {
+  const d = new Date(iso)
+  return d.getHours() === 0 && d.getMinutes() === 0
+}
+
+const STATUS_COLOR: Record<string, string> = {
+  'backlog':     'var(--task-status-backlog)',
+  'to-do':       'var(--task-status-todo)',
+  'in-progress': 'var(--task-status-in-progress)',
+  'done':        'var(--task-status-done)',
+  'pending':     'var(--task-status-pending)',
+}
+
 export function CalendarShell() {
   const today = toDateStr(new Date())
   const [weekStart, setWeekStart] = useState(() => getSundayOf(today))
   const weekDates = getWeekDates(weekStart)
   const weekEnd   = weekDates[6]
 
-  const [panelOpen, setPanelOpen]     = useState(true)
-  const [drawerTask, setDrawerTask]   = useState<GanttTask | null>(null)
+  const [panelOpen, setPanelOpen]       = useState(true)
+  const [drawerTask, setDrawerTask]     = useState<GanttTask | null>(null)
+  const [dragOverAllDay, setDragOverAllDay] = useState<string | null>(null)
   const [tasks, setTasks]             = useState<GanttTask[]>([])
   const [events, setEvents]           = useState<CalendarEvent[]>([])
   const [loadingEvents, setLoadingEvents] = useState(false)
@@ -139,6 +169,14 @@ export function CalendarShell() {
     } catch { toast.error('저장 실패'); await loadTasks() }
   }, [loadTasks])
 
+  const handleDropAllDay = useCallback(async (taskId: string, date: string) => {
+    const scheduledAt = buildAllDayIso(date)
+    setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: scheduledAt, duration_minutes: 0 } : t))
+    try {
+      await updateTaskSchedule(taskId, scheduledAt, 0)
+    } catch { toast.error('저장 실패'); await loadTasks() }
+  }, [loadTasks])
+
   /* ── TaskDetailDrawer 핸들러 ── */
   const handleDrawerSave = useCallback(async (
     task: GanttTask,
@@ -193,6 +231,8 @@ export function CalendarShell() {
     : `${format(weekStartObj, 'M월 d일', { locale: ko })} - ${format(weekEndObj, 'M월 d일', { locale: ko })} ${format(weekEndObj, 'yyyy')} · W${getISOWeek(weekStartObj)}`
 
   const allDayEvents = events.filter(e => e.isAllDay)
+  const allDayTasks  = tasks.filter(t => !!t.scheduled_at && isAllDayScheduled(t.scheduled_at))
+  const timedTasks   = tasks.filter(t => !t.scheduled_at || !isAllDayScheduled(t.scheduled_at))
 
   return (
     <>
@@ -298,68 +338,112 @@ export function CalendarShell() {
           </div>
         )}
 
-        {/* 주간 컬럼 헤더 (고정) */}
-        <div className="shrink-0 flex border-b bg-card">
-          <div className="w-12 shrink-0" />
-          {weekDates.map(date => {
-            const d        = parseISO(date)
-            const dayLabel = DAY_LABELS[d.getDay()]
-            const isToday  = date === today
-            const hrs      = calcDayHours(date, events)
-            return (
-              <div key={date} className="flex-1 border-l border-border px-2 py-1.5 flex flex-col items-center gap-0.5">
-                {hrs > 0 ? (
-                  <span className="text-[9px] text-ink-400">
-                    {Number.isInteger(hrs) ? `${hrs}h` : `${hrs.toFixed(1)}h`}
-                  </span>
-                ) : (
-                  <span className="text-[9px] text-transparent select-none">—</span>
-                )}
-                <span className="text-[10px] text-muted-foreground">{dayLabel}</span>
-                <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${
-                  isToday ? 'bg-foreground text-background' : 'text-foreground'
-                }`}>
-                  {d.getDate()}
-                </span>
-              </div>
-            )
-          })}
-        </div>
+        {/* 날짜 헤더 + 통계 + ALL-DAY + 타임그리드 (하나의 스크롤 컨테이너 — 컬럼 밀림 방지) */}
+        <div className="flex-1 overflow-y-auto">
 
-        {/* ALL-DAY 행 */}
-        {allDayEvents.length > 0 && (
-          <div className="shrink-0 flex border-b bg-card">
+          {/* 날짜 헤더 (sticky) */}
+          <div className="sticky top-0 z-20 flex border-b bg-card">
+            <div className="w-12 shrink-0" />
+            {weekDates.map(date => {
+              const d       = parseISO(date)
+              const isToday = date === today
+              return (
+                <div key={date} className="flex-1 border-l border-border h-12 flex items-center justify-center gap-1 px-2">
+                  <span className={`text-sm font-semibold w-7 h-7 flex items-center justify-center rounded-full ${
+                    isToday ? 'bg-foreground text-background' : 'text-foreground'
+                  }`}>
+                    {d.getDate()}
+                  </span>
+                  <span className={`text-[10px] ${isToday ? 'font-medium text-foreground' : 'text-muted-foreground'}`}>
+                    ({DAY_LABELS[d.getDay()]})
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* 업무 / 구글 시간 통계 (sticky) */}
+          <div className="sticky top-12 z-20 flex border-b bg-card">
+            <div className="w-12 shrink-0" />
+            {weekDates.map(date => {
+              const googleHrs = calcDayHours(date, events)
+              const taskHrs   = calcTaskHours(date, timedTasks)
+              return (
+                <div key={date} className="flex-1 border-l border-border h-7 flex items-center justify-center gap-3 px-1">
+                  <span className="text-[10px] text-ink-400">
+                    업무 <span className={taskHrs > 0 ? 'font-medium text-foreground' : ''}>{fmtHrs(taskHrs)}</span>
+                  </span>
+                  <span className="text-[10px] text-ink-400">
+                    구글 <span className={googleHrs > 0 ? 'font-medium text-[#4285f4]' : ''}>{fmtHrs(googleHrs)}</span>
+                  </span>
+                </div>
+              )
+            })}
+          </div>
+
+          {/* ALL-DAY 행 (sticky, 항상 표시, 드래그 드롭 가능) */}
+          <div className="sticky top-[76px] z-20 flex border-b bg-card">
             <div className="w-12 shrink-0 flex items-start justify-end pt-1.5 pr-2">
-              <span className="text-[9px] text-ink-400 whitespace-nowrap">ALL-DAY</span>
+              <span className="text-[10px] text-ink-400 whitespace-nowrap">ALL-DAY</span>
             </div>
             {weekDates.map(date => {
-              const dayAll = allDayEvents.filter(e => e.start.slice(0, 10) === date)
+              const dayAllEvt  = allDayEvents.filter(e => e.start.slice(0, 10) === date)
+              const dayAllTask = allDayTasks.filter(t => toDateStr(new Date(t.scheduled_at!)) === date)
               return (
-                <div key={date} className="flex-1 border-l border-border min-h-7 px-1 py-0.5 flex flex-col gap-0.5">
-                  {dayAll.map(e => (
+                <div
+                  key={date}
+                  className={`flex-1 border-l border-border min-h-8 px-1 py-0.5 flex flex-col gap-0.5 transition-colors ${
+                    dragOverAllDay === date ? 'bg-lilac-100/30' : ''
+                  }`}
+                  onDragOver={e => { e.preventDefault(); e.dataTransfer.dropEffect = 'move'; setDragOverAllDay(date) }}
+                  onDragLeave={e => { if (!e.currentTarget.contains(e.relatedTarget as Node)) setDragOverAllDay(null) }}
+                  onDrop={e => {
+                    e.preventDefault()
+                    setDragOverAllDay(null)
+                    const taskId = e.dataTransfer.getData('taskId')
+                    if (taskId) handleDropAllDay(taskId, date)
+                  }}
+                >
+                  {dayAllEvt.map(ev => (
                     <div
-                      key={e.id}
+                      key={ev.id}
                       className="text-[10px] px-1.5 py-0.5 rounded truncate"
                       style={{
-                        backgroundColor: e.color ? `${e.color}33` : 'var(--color-ink-100)',
-                        borderLeft: `2px solid ${e.color ?? 'var(--color-ink-400)'}`,
+                        backgroundColor: ev.color ? `${ev.color}33` : 'var(--color-ink-100)',
+                        borderLeft: `2px solid ${ev.color ?? 'var(--color-ink-400)'}`,
                       }}
                     >
-                      {e.title}
+                      {ev.title}
+                    </div>
+                  ))}
+                  {dayAllTask.map(task => (
+                    <div
+                      key={task.id}
+                      className="text-[10px] px-1.5 py-0.5 rounded flex items-center gap-1 group"
+                      style={{
+                        backgroundColor: `color-mix(in srgb, ${STATUS_COLOR[task.status]} 15%, transparent)`,
+                        borderLeft: `2px solid ${STATUS_COLOR[task.status]}`,
+                      }}
+                    >
+                      <span className="flex-1 truncate text-foreground">{task.title}</span>
+                      <button
+                        onClick={() => handleUnschedule(task.id)}
+                        className="opacity-0 group-hover:opacity-100 text-ink-400 hover:text-foreground transition-opacity shrink-0"
+                      >
+                        <X size={8} />
+                      </button>
                     </div>
                   ))}
                 </div>
               )
             })}
           </div>
-        )}
 
-        {/* 타임 그리드 (스크롤) */}
-        <div className="flex-1 overflow-y-auto">
+          {/* 타임 그리드 */}
           <TimeGrid
             dates={weekDates}
             events={events}
-            tasks={tasks}
+            tasks={timedTasks}
             onDrop={handleDrop}
             onMove={handleMove}
             onResize={handleResize}

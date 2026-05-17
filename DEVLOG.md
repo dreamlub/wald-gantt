@@ -1167,3 +1167,30 @@ LEFT_W_MAX      = 560
   - 키워드 검색
   - 주차별 AI 요약 캐시 (DB 저장 여부 결정 필요)
   - 날짜 표시 형식 개선 (사이드바 주차 라벨)
+
+---
+
+## 최근 변경 (2026-05-17) — Settings 키워드 섹션 제거
+
+### `settings-shell.tsx`
+
+- **키워드 섹션 삭제**: `Section` 타입에서 `'keywords'` 제거, NAV 항목 제거, 섹션 JSX 제거
+- **`KeywordsInline` 컴포넌트 삭제**: 브랜드 드로어(BrandDrawer)에 키워드 편집 기능이 이미 포함되어 있어 중복 — 브랜드 섹션으로 통합
+- `KeyRound` lucide import 제거, `updateClientKeywords` import 제거
+
+---
+
+## 최근 변경 (2026-05-17) — Settings Weekly 연동 DnD 순서 변경
+
+### `settings-shell.tsx`
+
+- **▲▼ 버튼 → GripVertical 드래그 핸들로 교체**
+  - `moveWeeklySource` 함수 제거 (up/down swap 방식)
+  - `@dnd-kit/core` + `@dnd-kit/sortable` 기반 드래그앤드롭 순서 변경으로 대체
+  - `SortableWeeklyRow` 컴포넌트 추가: `useSortable` 훅 + `GripVertical` 핸들 아이콘
+  - `handleWeeklyDragEnd`: `arrayMove` 후 전체 행 `sort_order` 재계산 + 병렬 DB 업데이트
+  - 드래그 중 opacity 0.5로 위치 피드백
+- **Collection ID `font-mono` 제거**
+  - 팀 목록 행의 `collection_id` span: `font-mono` 삭제
+  - 팀 추가 폼의 `collection_id` input: `font-mono` 삭제
+  - 일반 Noto Sans 폰트로 통일

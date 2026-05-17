@@ -199,7 +199,7 @@ export function TaskPanel({ tasks, onClose, onStatusChange, onTaskClick }: Props
                   </div>
                   {!isDone && (
                     <span
-                      className="inline-block mt-0.5 text-[9px] px-1.5 py-0.5 rounded-full border"
+                      className="inline-block mt-0.5 text-[10px] px-1.5 py-0.5 rounded-full border"
                       style={{
                         color,
                         borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,

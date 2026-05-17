@@ -2,19 +2,27 @@
 
 import { useState, useEffect } from 'react'
 import {
-  User, Link2, Monitor, KeyRound, Database, Layers,
+  User, Link2, Monitor, Database, Layers,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
-  Download, ChevronRight, Plus, BookOpen, Trash2, ChevronUp, ChevronDown,
+  Download, ChevronRight, Plus, BookOpen, Trash2, GripVertical,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import type { Client } from '../../summary/_lib/types'
-import { updateClientKeywords } from '@/lib/history-service'
 import { BrandDrawer } from './brand-drawer'
+import {
+  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent,
+} from '@dnd-kit/core'
+import {
+  SortableContext, verticalListSortingStrategy,
+  useSortable, arrayMove,
+} from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 
-type Section = 'account' | 'integrations' | 'display' | 'brands' | 'keywords' | 'weekly' | 'data'
+type Section = 'account' | 'integrations' | 'display' | 'brands' | 'weekly' | 'data'
 
 type WeeklySource = {
   id: string
@@ -29,7 +37,6 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'integrations', label: '연동',        icon: Link2 },
   { key: 'display',      label: '화면',        icon: Monitor },
   { key: 'brands',       label: '브랜드',      icon: Layers },
-  { key: 'keywords',     label: '키워드',      icon: KeyRound },
   { key: 'weekly',       label: 'Weekly 연동', icon: BookOpen },
   { key: 'data',         label: '데이터',      icon: Database },
 ]
@@ -173,19 +180,17 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
     }
   }
 
-  const moveWeeklySource = async (id: string, dir: 'up' | 'down') => {
-    const idx = weeklySources.findIndex(s => s.id === id)
-    const swapIdx = dir === 'up' ? idx - 1 : idx + 1
-    if (swapIdx < 0 || swapIdx >= weeklySources.length) return
-    const next = [...weeklySources]
-    ;[next[idx], next[swapIdx]] = [next[swapIdx], next[idx]]
-    const updated = next.map((s, i) => ({ ...s, sort_order: i * 10 }))
-    setWeeklySources(updated)
+  const sensors = useSensors(useSensor(PointerSensor))
+
+  const handleWeeklyDragEnd = async (event: DragEndEvent) => {
+    const { active, over } = event
+    if (!over || active.id === over.id) return
+    const oldIndex = weeklySources.findIndex(s => s.id === active.id)
+    const newIndex = weeklySources.findIndex(s => s.id === over.id)
+    const reordered = arrayMove(weeklySources, oldIndex, newIndex).map((s, i) => ({ ...s, sort_order: i * 10 }))
+    setWeeklySources(reordered)
     const sb = createClient()
-    await Promise.all([
-      sb.from('weekly_sources').update({ sort_order: updated[idx].sort_order }).eq('id', updated[idx].id),
-      sb.from('weekly_sources').update({ sort_order: updated[swapIdx].sort_order }).eq('id', updated[swapIdx].id),
-    ])
+    await Promise.all(reordered.map(s => sb.from('weekly_sources').update({ sort_order: s.sort_order }).eq('id', s.id)))
   }
 
   const SECTION_TITLE: Record<Section, string> = {
@@ -193,7 +198,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
     integrations: '연동',
     display:      '화면 설정',
     brands:       '브랜드 관리',
-    keywords:     '키워드 관리',
     weekly:       'Weekly 문서 연동',
     data:         '데이터',
   }
@@ -402,21 +406,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
             </>
           )}
 
-          {/* ── 키워드 ── */}
-          {section === 'keywords' && (
-            <div className="rounded-lg border border-border bg-card overflow-hidden">
-              <div className="px-5 py-4 border-b border-border">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  슬랙 수집 시 Claude가 이 키워드로 관련 채널을 자동 탐색합니다.<br />
-                  채널명 또는 대화 내용에 키워드가 포함된 채널을 찾아냅니다.
-                </p>
-              </div>
-              <div className="p-5 space-y-2">
-                <KeywordsInline clients={clients} />
-              </div>
-            </div>
-          )}
-
           {/* ── Weekly 연동 ── */}
           {section === 'weekly' && (
             <>
@@ -424,37 +413,15 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                 {weeklySources.length === 0 && (
                   <p className="text-xs text-ink-400">등록된 팀이 없습니다.</p>
                 )}
-                <div className="space-y-1.5">
-                  {weeklySources.map((src, idx) => (
-                    <div key={src.id} className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-background">
-                      <div className="flex flex-col shrink-0">
-                        <button
-                          onClick={() => moveWeeklySource(src.id, 'up')}
-                          disabled={idx === 0}
-                          className="text-ink-400 hover:text-foreground disabled:opacity-25 transition-colors"
-                        >
-                          <ChevronUp size={11} />
-                        </button>
-                        <button
-                          onClick={() => moveWeeklySource(src.id, 'down')}
-                          disabled={idx === weeklySources.length - 1}
-                          className="text-ink-400 hover:text-foreground disabled:opacity-25 transition-colors"
-                        >
-                          <ChevronDown size={11} />
-                        </button>
-                      </div>
-                      <span className="text-xs font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
-                      <span className="text-[11px] text-muted-foreground flex-1 font-mono truncate">{src.collection_id}</span>
-                      <button
-                        onClick={() => deleteWeeklySource(src.id)}
-                        className="text-ink-400 hover:text-status-late transition-colors shrink-0"
-                        aria-label={`${src.label} 삭제`}
-                      >
-                        <Trash2 size={13} />
-                      </button>
+                <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWeeklyDragEnd}>
+                  <SortableContext items={weeklySources.map(s => s.id)} strategy={verticalListSortingStrategy}>
+                    <div className="space-y-1.5">
+                      {weeklySources.map(src => (
+                        <SortableWeeklyRow key={src.id} src={src} onDelete={deleteWeeklySource} />
+                      ))}
                     </div>
-                  ))}
-                </div>
+                  </SortableContext>
+                </DndContext>
               </SettingCard>
 
               <SettingCard title="팀 추가">
@@ -471,7 +438,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     onChange={e => setWeeklyForm(p => ({ ...p, collection_id: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') addWeeklySource() }}
                     placeholder="Outline Collection ID"
-                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-[11px] font-mono outline-none focus:border-lilac-400 transition-colors"
+                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-[11px] outline-none focus:border-lilac-400 transition-colors"
                   />
                   <button
                     onClick={addWeeklySource}
@@ -533,97 +500,33 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   )
 }
 
-function KeywordsInline({ clients }: { clients: Client[] }) {
-  const [localClients, setLocalClients] = useState<Client[]>(clients)
-  const [inputs, setInputs] = useState<Record<string, string>>({})
-  const [pending, setPending] = useState<Set<string>>(new Set())
-
-  function mark(id: string, on: boolean) {
-    setPending(prev => {
-      const next = new Set(prev)
-      if (on) next.add(id); else next.delete(id)
-      return next
-    })
-  }
-
-  async function persist(id: string, keywords: string[], rollback: Client[]) {
-    mark(id, true)
-    try {
-      await updateClientKeywords(id, keywords)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '저장에 실패했어요')
-      setLocalClients(rollback)
-    } finally {
-      mark(id, false)
-    }
-  }
-
-  async function removeKw(id: string, kw: string) {
-    const rollback = localClients
-    const next = localClients.find(c => c.id === id)?.keywords.filter(k => k !== kw) ?? []
-    setLocalClients(prev => prev.map(c => c.id === id ? { ...c, keywords: next } : c))
-    await persist(id, next, rollback)
-  }
-
-  async function addKw(id: string) {
-    const v = (inputs[id] ?? '').trim().toLowerCase()
-    if (!v) return
-    const cur = localClients.find(c => c.id === id)
-    if (!cur || cur.keywords.includes(v)) { setInputs(p => ({ ...p, [id]: '' })); return }
-    const rollback = localClients
-    const next = [...cur.keywords, v]
-    setLocalClients(prev => prev.map(c => c.id === id ? { ...c, keywords: next } : c))
-    setInputs(p => ({ ...p, [id]: '' }))
-    await persist(id, next, rollback)
-  }
-
+function SortableWeeklyRow({ src, onDelete }: { src: WeeklySource; onDelete: (id: string) => void }) {
+  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: src.id })
+  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
   return (
-    <>
-      {localClients.map(c => (
-        <div key={c.id} className="border border-border rounded-md overflow-hidden">
-          <div className="px-4 py-2.5 border-b border-border flex items-center gap-2.5 bg-muted">
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-            <span className="text-xs font-semibold">{c.name}</span>
-            <span className="text-[11px] text-muted-foreground">{c.name_en}</span>
-            {pending.has(c.id) && (
-              <span className="ml-auto text-[10px] text-muted-foreground">저장 중…</span>
-            )}
-          </div>
-          <div className="px-4 py-3">
-            <div className="flex flex-wrap gap-1.5 mb-2.5 min-h-6">
-              {c.keywords.length === 0 && <span className="text-xs text-ink-400">키워드 없음</span>}
-              {c.keywords.map(kw => (
-                <span
-                  key={kw}
-                  className="inline-flex items-center gap-1.5 px-2 py-0.5 rounded-full text-[11px] bg-ink-100 text-ink-700 border border-border"
-                >
-                  {kw}
-                  <button
-                    onClick={() => removeKw(c.id, kw)}
-                    aria-label={`키워드 ${kw} 삭제`}
-                    className="text-ink-400 hover:text-status-late transition-colors leading-none"
-                  >✕</button>
-                </span>
-              ))}
-            </div>
-            <div className="flex gap-1.5 items-center">
-              <input
-                value={inputs[c.id] ?? ''}
-                onChange={e => setInputs(p => ({ ...p, [c.id]: e.target.value }))}
-                onKeyDown={e => { if (e.key === 'Enter') addKw(c.id) }}
-                placeholder="키워드 입력 후 Enter"
-                className="bg-background border border-border rounded-sm px-2.5 py-1.5 text-[11px] w-40 outline-none focus:border-lilac-400 transition-colors"
-              />
-              <button
-                onClick={() => addKw(c.id)}
-                className="inline-flex items-center gap-1.5 h-7 px-3 rounded-sm bg-card border border-border text-foreground text-[11px] font-medium hover:bg-muted transition-colors"
-              >
-                <Plus size={13} /> 추가
-              </button>
-            </div>
-          </div>
-        </div>
-      ))}
-    </>
+    <div
+      ref={setNodeRef}
+      style={style}
+      className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-background"
+    >
+      <button
+        {...attributes}
+        {...listeners}
+        className="text-ink-400 hover:text-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0"
+        aria-label="순서 변경"
+      >
+        <GripVertical size={14} />
+      </button>
+      <span className="text-xs font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
+      <span className="text-[11px] text-muted-foreground flex-1 truncate">{src.collection_id}</span>
+      <button
+        onClick={() => onDelete(src.id)}
+        className="text-ink-400 hover:text-status-late transition-colors shrink-0"
+        aria-label={`${src.label} 삭제`}
+      >
+        <Trash2 size={13} />
+      </button>
+    </div>
   )
 }
+

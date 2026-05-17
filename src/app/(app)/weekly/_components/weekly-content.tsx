@@ -85,6 +85,12 @@ function fixMultilineTableCells(text: string): string {
 function processContent(content: string): string {
   return fixMultilineTableCells(content)
     .replace(/==(.*?)==/g, '**$1**')
+    // Outline이 셀 구분자로 쓰는 trailing ### 제거 (줄 끝 또는 <br> 앞)
+    .replace(/###\s*(?=<br>|\n|$)/gm, '')
+    // 줄 시작 ### 헤더 → 볼드 (일반 줄)
+    .replace(/^###\s+(.+)$/gm, '**$1**')
+    // <br> 뒤 ### 헤더 → 볼드 (테이블 셀 병합 줄)
+    .replace(/<br>###\s+([^<\n]+)/g, '<br>**$1**')
 }
 
 export function WeeklyContent({ section }: Props) {
