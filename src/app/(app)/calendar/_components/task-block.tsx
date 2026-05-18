@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState } from 'react'
+import { useRef, useState, useEffect } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
@@ -21,14 +21,23 @@ interface Props {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onClick: () => void
+  highlight?: boolean
 }
 
 export function TaskBlock({
   task, top, height, getMinutesFromY, date,
   colIndex = 0, totalCols = 1,
-  onMove, onResize, onUnschedule, onStatusChange, onClick,
+  onMove, onResize, onUnschedule, onStatusChange, onClick, highlight = false,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
+  const [highlighted, setHighlighted] = useState(highlight)
+
+  useEffect(() => {
+    if (!highlight) return
+    setHighlighted(true)
+    const t = setTimeout(() => setHighlighted(false), 1200)
+    return () => clearTimeout(t)
+  }, [highlight])
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
   const startHeight  = useRef(0)
@@ -121,7 +130,7 @@ export function TaskBlock({
       onDragStart={handleDragStart}
       onMouseDown={handleMouseDown}
       onMouseUp={handleMouseUp}
-      className="absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5"
+      className={`absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5 ${highlighted ? 'animate-block-flash z-20' : ''}`}
       style={{
         top,
         height: height - 2,

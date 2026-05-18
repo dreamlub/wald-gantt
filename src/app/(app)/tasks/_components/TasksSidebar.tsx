@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  LayoutList, Search, PanelLeftClose, Trash2, Eye, EyeOff, Archive,
+  LayoutList, Search, PanelLeftClose, Trash2, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
@@ -98,27 +98,17 @@ export function TasksSidebar({
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
         {/* 퀵 필터 */}
         {quickItems.map(item => (
-          <div key={item.key} className="flex items-center">
-            <button
-              onClick={() => onQuickFilterChange(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key)}
-              className={`sidebar-btn flex-1 ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
-            >
-              {item.icon}
-              <span className="flex-1 text-left truncate">{item.label}</span>
-              <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
-                {item.count}
-              </span>
-            </button>
-            {item.key === 'done' && (
-              <button
-                onClick={(e) => { e.stopPropagation(); onHideDoneChange(!hideDone) }}
-                className={`shrink-0 p-1 rounded transition-colors ${hideDone ? 'text-ink-300 hover:text-muted-foreground' : 'text-ink-400 hover:text-muted-foreground'}`}
-                title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
-              >
-                {hideDone ? <EyeOff size={12} /> : <Eye size={12} />}
-              </button>
-            )}
-          </div>
+          <button
+            key={item.key}
+            onClick={() => onQuickFilterChange(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key)}
+            className={`sidebar-btn ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
+          >
+            {item.icon}
+            <span className="flex-1 text-left truncate">{item.label}</span>
+            <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
+              {item.count}
+            </span>
+          </button>
         ))}
 
         {/* 프로젝트 */}

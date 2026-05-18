@@ -23,9 +23,10 @@ interface DayColumnProps {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
+  highlightTaskId?: string
 }
 
-function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
+function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, highlightTaskId }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -179,6 +180,7 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}
           onClick={() => onTaskClick(task)}
+          highlight={highlightTaskId === task.id}
         />
       ))}
     </div>
@@ -195,9 +197,10 @@ interface Props {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
+  highlightTaskId?: string
 }
 
-export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: Props) {
+export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, highlightTaskId }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
 
   const getMinutesFromY = useCallback((clientY: number): number => {
@@ -241,6 +244,7 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}
           onTaskClick={onTaskClick}
+          highlightTaskId={highlightTaskId}
         />
       ))}
     </div>

@@ -60,14 +60,18 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
   // ── 사이드바 데이터 (tasks 변경 시만 재계산) ───────────────
   const sidebarData = useMemo(() => {
     const projectMap = new Map<string, { name: string; count: number; colorIdx: number }>()
-    tasks.forEach(t => t.projects?.forEach(p => {
-      if (!projectMap.has(p.id)) projectMap.set(p.id, { name: p.name, count: 0, colorIdx: projectMap.size })
-      projectMap.get(p.id)!.count++
-    }))
+    tasks.forEach(t => {
+      if (t.status === 'done') return
+      t.projects?.forEach(p => {
+        if (!projectMap.has(p.id)) projectMap.set(p.id, { name: p.name, count: 0, colorIdx: projectMap.size })
+        projectMap.get(p.id)!.count++
+      })
+    })
     const sidebarProjects = [...projectMap.entries()].map(([id, v]) => ({ id, ...v }))
 
     const assigneeMap = new Map<string, { label: string; count: number }>()
     tasks.forEach(t => {
+      if (t.status === 'done') return
       const key = t.type === 'mine' ? '__mine__' : (t.assignee ?? '')
       if (!key) return
       const label = t.type === 'mine' ? '내 할일' : t.assignee!
@@ -86,7 +90,10 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
     })
 
     const labelMap = new Map<string, number>()
-    tasks.forEach(t => (t.labels ?? []).forEach(l => labelMap.set(l, (labelMap.get(l) ?? 0) + 1)))
+    tasks.forEach(t => {
+      if (t.status === 'done') return
+      ;(t.labels ?? []).forEach(l => labelMap.set(l, (labelMap.get(l) ?? 0) + 1))
+    })
     const sidebarLabels = [...labelMap.entries()].map(([name, count]) => ({ name, count })).sort((a, b) => b.count - a.count)
 
     return { sidebarProjects, allAssignees, allLabels, assigneeColorMap, sidebarLabels }

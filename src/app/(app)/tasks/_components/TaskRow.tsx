@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useRef } from 'react'
+import { useRouter } from 'next/navigation'
 import {
   Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2,
 } from 'lucide-react'
@@ -10,6 +11,11 @@ import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor, clampTooltipPos } from '../_utils'
 import { labelColor } from './TaskDetailDrawer'
+
+function fmtHHMM(iso: string): string {
+  const d = new Date(iso)
+  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
 
 interface TaskRowProps {
   task: GanttTask
@@ -32,6 +38,7 @@ interface TaskRowProps {
 export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const router = useRouter()
 
   const overdue  = isOverdue(task.due_date, task.status)
   const startDelayed = !overdue && isStartDelayed(task.start_date, task.status)
@@ -147,14 +154,28 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {task.scheduled_at && (() => {
           const d = new Date(task.scheduled_at)
           const isAllDay = d.getHours() === 0 && d.getMinutes() === 0
+          const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`
           const label = isAllDay
-            ? `${d.getMonth() + 1}/${d.getDate()} 종일`
-            : `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+            ? `${dateLabel} 종일`
+            : (() => {
+                const from = fmtHHMM(task.scheduled_at)
+                if (!task.duration_minutes) return `${dateLabel} ${from}`
+                const endMs = d.getTime() + task.duration_minutes * 60000
+                const to = fmtHHMM(new Date(endMs).toISOString())
+                return `${dateLabel} ${from} → ${to}`
+              })()
           return (
-            <span className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap">
+            <button
+              onClick={e => {
+                e.stopPropagation()
+                const dateStr = new Date(task.scheduled_at!).toISOString().slice(0, 10)
+                router.push(`/calendar?highlight=${task.id}&date=${dateStr}`)
+              }}
+              className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
+            >
               <CalendarDays size={9} className="shrink-0" />
               {label}
-            </span>
+            </button>
           )
         })()}
 

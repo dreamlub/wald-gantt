@@ -298,3 +298,14 @@
 [data-sonner-toast] * {
   font-family: var(--font-noto-sans-kr), 'Noto Sans KR', system-ui, sans-serif !important;
 }
+
+@keyframes block-flash {
+  0%   { box-shadow: 0 0 0 0px rgba(167, 139, 250, 0); }
+  25%  { box-shadow: 0 0 0 5px rgba(167, 139, 250, 0.7); }
+  50%  { box-shadow: 0 0 0 2px rgba(167, 139, 250, 0.2); }
+  75%  { box-shadow: 0 0 0 5px rgba(167, 139, 250, 0.7); }
+  100% { box-shadow: 0 0 0 0px rgba(167, 139, 250, 0); }
+}
+.animate-block-flash {
+  animation: block-flash 1.2s ease-in-out;
+}

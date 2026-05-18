@@ -1,6 +1,7 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useMemo, useRef } from 'react'
+import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
   CalendarDays, Plus, PanelLeftOpen, X, Check,
@@ -23,12 +24,23 @@ import { setActiveDragOffsetY } from './drag-state'
 
 export function CalendarShell() {
   const today = toDateStr(new Date())
-  const [weekStart, setWeekStart] = useState(() => getSundayOf(today))
+  const router = useRouter()
+  const searchParams = useSearchParams()
+
+  // ?date 파라미터가 있으면 해당 주로 바로 초기화 → 페이지 진입 시 주 이동 플래시 없음
+  const [weekStart, setWeekStart] = useState(() => {
+    const dateParam = searchParams.get('date')
+    return getSundayOf(dateParam ?? today)
+  })
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
   const weekEnd   = weekDates[6]
 
   const [panelOpen, setPanelOpen] = useState(true)
   const [dragOverAllDay, setDragOverAllDay] = useState<string | null>(null)
+  const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null)
+
+  const scrollContainerRef = useRef<HTMLDivElement>(null)
+  const highlightHandled = useRef(false)
 
   const {
     tasks, events, loadingEvents, calendarError,
@@ -51,6 +63,30 @@ export function CalendarShell() {
   const weekStartObj = parseISO(weekStart)
   const weekEndObj   = parseISO(weekEnd)
   const weekLabel    = `${weekStartObj.getMonth() + 1}/${weekStartObj.getDate()} ~ ${weekEndObj.getMonth() + 1}/${weekEndObj.getDate()} (${weekEndObj.getFullYear()}년 ${getISOWeek(weekStartObj)}W)`
+
+  /* ── ?highlight 파라미터 처리 ── */
+  useEffect(() => {
+    const id = searchParams.get('highlight')
+    if (!id || highlightHandled.current) return
+    const task = tasks.find(t => t.id === id)
+    if (!task) return
+    highlightHandled.current = true
+    setHighlightTaskId(id)
+    router.replace('/calendar')
+
+    // 태스크 시각으로 스크롤 (헤더 높이 67px 고려, 위 여백 80px)
+    if (task.scheduled_at && scrollContainerRef.current) {
+      const d = new Date(task.scheduled_at)
+      const taskMinutes = d.getHours() * 60 + d.getMinutes()
+      const HOUR_H = 80
+      const START_H = 7
+      const STICKY_H = 67
+      const scrollTo = ((taskMinutes - START_H * 60) / 60) * HOUR_H + STICKY_H - 80
+      requestAnimationFrame(() => {
+        scrollContainerRef.current?.scrollTo({ top: Math.max(0, scrollTo), behavior: 'smooth' })
+      })
+    }
+  }, [searchParams, tasks, router])
 
   /* ── 이벤트 로드 (주 변경 시) ── */
   useEffect(() => { loadEvents(weekStart, weekEnd) }, [weekStart, weekEnd, loadEvents])
@@ -156,7 +192,7 @@ export function CalendarShell() {
         )}
 
         {/* 날짜 헤더 + 통계 + ALL-DAY + 타임그리드 */}
-        <div className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
 
           {/* 날짜 헤더 (sticky) */}
           <div className="sticky top-0 z-20 flex border-b bg-card">
@@ -316,6 +352,7 @@ export function CalendarShell() {
             onUnschedule={handleUnschedule}
             onStatusChange={handleStatusChange}
             onTaskClick={setDrawerTask}
+            highlightTaskId={highlightTaskId ?? undefined}
           />
         </div>
 
