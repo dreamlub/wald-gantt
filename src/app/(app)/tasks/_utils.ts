@@ -1,4 +1,4 @@
-import { todayStrKST, parseDateStr } from '@/lib/gantt-utils'
+import { todayStrKST, parseDateStr, MS_PER_DAY } from '@/lib/gantt-utils'
 import type { TaskStatus } from '@/types'
 
 /** "YYYY-MM-DD" 또는 타임스탬프 → "M/D" 표시 */
@@ -51,13 +51,13 @@ export function daysDiff(d: string | null): number {
   if (!d) return 0
   const todayMid = parseDateStr(todayStrKST()).getTime()
   const target   = d.length === 10 ? parseDateStr(d).getTime() : new Date(d).getTime()
-  return Math.floor((todayMid - target) / 864e5)
+  return Math.floor((todayMid - target) / MS_PER_DAY)
 }
 
 /** KST 기준 마감 초과 일수 */
 export function overdueDays(due: string | null): number {
   if (!due) return 0
-  return Math.max(0, Math.floor((parseDateStr(todayStrKST()).getTime() - parseDateStr(due).getTime()) / 864e5))
+  return Math.max(0, Math.floor((parseDateStr(todayStrKST()).getTime() - parseDateStr(due).getTime()) / MS_PER_DAY))
 }
 
 /** KST 오늘 기준 마감 초과 여부 */
@@ -76,7 +76,7 @@ export function isStartDelayed(start: string | null, status: TaskStatus) {
 /** KST 기준 시작일 지연 일수 */
 export function startDelayedDays(start: string | null): number {
   if (!start) return 0
-  return Math.max(0, Math.floor((parseDateStr(todayStrKST()).getTime() - parseDateStr(start).getTime()) / 864e5))
+  return Math.max(0, Math.floor((parseDateStr(todayStrKST()).getTime() - parseDateStr(start).getTime()) / MS_PER_DAY))
 }
 
 /** KST 기준 이번 주(오늘~이번 주 토요일) 마감 여부 */
@@ -85,7 +85,7 @@ export function isDueThisWeek(due: string | null) {
   const today = todayStrKST()
   const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const daysUntilSat = 6 - kstNow.getUTCDay()
-  const sat = new Date(kstNow.getTime() + daysUntilSat * 864e5)
+  const sat = new Date(kstNow.getTime() + daysUntilSat * MS_PER_DAY)
   const endStr = `${sat.getUTCFullYear()}-${String(sat.getUTCMonth() + 1).padStart(2, '0')}-${String(sat.getUTCDate()).padStart(2, '0')}`
   return due >= today && due <= endStr
 }
@@ -95,8 +95,8 @@ export function isDueNextWeek(due: string | null) {
   if (!due) return false
   const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
   const daysUntilNextSun = 7 - kstNow.getUTCDay()
-  const nextSun = new Date(kstNow.getTime() + daysUntilNextSun * 864e5)
-  const nextSat = new Date(nextSun.getTime() + 6 * 864e5)
+  const nextSun = new Date(kstNow.getTime() + daysUntilNextSun * MS_PER_DAY)
+  const nextSat = new Date(nextSun.getTime() + 6 * MS_PER_DAY)
   const ymd = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
   return due >= ymd(nextSun) && due <= ymd(nextSat)

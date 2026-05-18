@@ -1,6 +1,9 @@
 // 'YYYY-MM' 형식 유틸리티
 import { format } from 'date-fns'
 
+/** 1일의 밀리초 (24 * 60 * 60 * 1000) */
+export const MS_PER_DAY = 86_400_000
+
 // ── KST(UTC+9) 유틸 ───────────────────────────────────────────
 
 /** KST(UTC+9) 기준 오늘 날짜 문자열 "YYYY-MM-DD" 반환 */
@@ -81,6 +84,36 @@ export function formatDateYMD(iso: string): string {
   return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}`
 }
 
+/** ISO 타임스탬프 → "YYYY.MM.DD  HH:MM" (히스토리 표시용) */
+export function formatHistDate(iso: string): string {
+  const d = new Date(iso)
+  const pad = (n: number) => String(n).padStart(2, '0')
+  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`
+}
+
+const STATUS_LABELS_MAP: Record<string, string> = {
+  'to-do': 'To-Do', 'in-progress': 'In Progress', 'pending': 'Pending', 'backlog': 'Backlog', 'done': 'Done',
+}
+const TYPE_LABELS_MAP: Record<string, string> = { mine: '내 할일', delegated: '업무지시' }
+const PRIORITY_LABELS_MAP: Record<string, string> = { '0': '없음', '1': '낮음', '2': '보통', '3': '높음' }
+
+/** 히스토리 값 표시용 포맷 (프로젝트·태스크 공통) */
+export function formatHistValue(field: string, value: string | null): string {
+  if (value === null || value === '') return '없음'
+  if (field === 'status')   return STATUS_LABELS_MAP[value] ?? value
+  if (field === 'type')     return TYPE_LABELS_MAP[value] ?? value
+  if (field === 'priority') return PRIORITY_LABELS_MAP[value] ?? value
+  if (field === 'start_date' || field === 'end_date' || field === 'due_date') {
+    const [y, m, d] = value.split('-')
+    return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`
+  }
+  if (field === 'start_month' || field === 'end_month') {
+    const [y, m] = value.split('-')
+    return `${y}년 ${parseInt(m)}월`
+  }
+  return value
+}
+
 // ── Day-level bar positioning ──────────────────────────────
 
 function daysInMonth(year: number, month: number): number {
@@ -105,10 +138,10 @@ export function dayOffsetInWeeks(weeks: WeekInfo[], dateStr: string, edge: 'star
     weekEnd.setDate(weekEnd.getDate() + 6)
     if (target <= weekEnd) {
       if (edge === 'start') {
-        const diff = Math.max(0, (target.getTime() - weeks[i].weekStart.getTime()) / (7 * 86400000))
+        const diff = Math.max(0, (target.getTime() - weeks[i].weekStart.getTime()) / (7 * MS_PER_DAY))
         return i + diff
       } else {
-        const diff = Math.min(1, (target.getTime() - weeks[i].weekStart.getTime()) / (7 * 86400000) + 1 / 7)
+        const diff = Math.min(1, (target.getTime() - weeks[i].weekStart.getTime()) / (7 * MS_PER_DAY) + 1 / 7)
         return i + diff
       }
     }

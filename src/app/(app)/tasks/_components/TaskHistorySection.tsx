@@ -4,33 +4,15 @@ import { useState, useEffect } from 'react'
 import { Clock } from 'lucide-react'
 import type { TaskHistoryEntry } from '@/types'
 import { getTaskHistory } from '@/lib/gantt-service'
+import { formatHistValue, formatHistDate } from '@/lib/gantt-utils'
 
 const HIST_FIELD_LABELS: Record<string, string> = {
   title: '제목', status: '상태', type: '구분',
   assignee: '담당자', start_date: '시작일', due_date: '마감일', priority: '우선순위',
 }
-const HIST_STATUS_LABELS: Record<string, string> = {
-  'to-do': 'To-Do', 'in-progress': 'In Progress', 'pending': 'Pending', 'backlog': 'Backlog', 'done': 'Done',
-}
-const HIST_TYPE_LABELS: Record<string, string> = { mine: '내 할일', delegated: '업무지시' }
-const HIST_PRIORITY_LABELS: Record<string, string> = { '0': '없음', '1': '낮음', '2': '보통', '3': '높음' }
 
-function fmtHistVal(field: string, value: string | null): string {
-  if (value === null || value === '') return '없음'
-  if (field === 'status')   return HIST_STATUS_LABELS[value] ?? value
-  if (field === 'type')     return HIST_TYPE_LABELS[value] ?? value
-  if (field === 'priority') return HIST_PRIORITY_LABELS[value] ?? value
-  if (field === 'start_date' || field === 'due_date') {
-    const [y, m, d] = value.split('-')
-    return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일`
-  }
-  return value
-}
-
-function fmtHistDate(iso: string): string {
-  const d = new Date(iso); const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const fmtHistVal = formatHistValue
+const fmtHistDate = formatHistDate
 
 function groupHistByTime(entries: TaskHistoryEntry[]): TaskHistoryEntry[][] {
   const groups: TaskHistoryEntry[][] = []; let cur: TaskHistoryEntry[] = []

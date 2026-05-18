@@ -17,7 +17,10 @@ export async function createClient() {
             cookiesToSet.forEach(({ name, value, options }) =>
               cookieStore.set(name, value, options)
             )
-          } catch {}
+          } catch (e) {
+            // Server Component에서 쿠키 설정이 불가능할 수 있음 (읽기 전용 컨텍스트)
+            console.warn('[supabase] cookie setAll failed:', e)
+          }
         },
       },
     }

@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useCallback, useEffect } from 'react'
+import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
   DndContext, closestCenter, PointerSensor, KeyboardSensor,
   useSensor, useSensors, DragOverlay,
@@ -54,6 +54,8 @@ interface Props {
   readOnly?: boolean
 }
 
+/** 평균 월 일수 (365.25 / 12) — 월뷰 드래그 스냅 계산용 */
+const AVG_DAYS_PER_MONTH = 30.4375
 const COL_WIDTH      = 72
 const WEEK_COL_WIDTH = 36
 const DAY_COL_WIDTH  = 28
@@ -100,6 +102,7 @@ export function GanttChart({
   const [liveItems, setLiveItems]           = useState<Record<string, string[]> | null>(null)
   const [liveCats, setLiveCats]             = useState<string[] | null>(null)
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
+  const [barDrag, setBarDrag] = useState<{ cursor: string; tooltipText: string; x: number; y: number } | null>(null)
 
   const sensors = useSensors(
     useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
@@ -113,36 +116,44 @@ export function GanttChart({
   const totalCols = viewMode === 'week' ? weeks.length : viewMode === 'day' ? days.length : months.length
   const totalWidth = colW * totalCols
 
-  // 헤더용 그룹 (월/주/일 공통)
-  const yearGroups: { year: number; count: number }[] = []
-  for (const year of (viewMode === 'month' ? months.map(ym => parseInt(ym)) : viewMode === 'week' ? weeks.map(w => w.year) : days.map(d => d.year))) {
-    if (!yearGroups.length || yearGroups[yearGroups.length-1].year !== year) yearGroups.push({ year, count: 1 })
-    else yearGroups[yearGroups.length-1].count++
-  }
-
-  // 주·일 뷰의 월 그룹 (월 행 렌더용)
-  const monthGroups: { ym: string; label: string; count: number }[] = []
-  for (const item of (viewMode === 'week' ? weeks : viewMode === 'day' ? days : []) as { year: number; month: number }[]) {
-    const ym = formatYearMonth(item.year, item.month)
-    if (!monthGroups.length || monthGroups[monthGroups.length-1].ym !== ym) monthGroups.push({ ym, label: MONTH_LABELS[item.month-1], count: 1 })
-    else monthGroups[monthGroups.length-1].count++
-  }
-
-  // 그리드 세로선 위치 — 월: 매월 / 주: 매월 / 일: 매주(일요일)
-  const gridLinePositions: number[] = []
-  if (viewMode === 'month') {
-    for (let i = 1; i < months.length; i++) gridLinePositions.push(i * colW)
-  } else if (viewMode === 'week') {
-    let acc = 0
-    for (let g = 0; g < monthGroups.length - 1; g++) {
-      acc += monthGroups[g].count
-      gridLinePositions.push(acc * colW)
+  // 헤더용 그룹 (뷰 모드·범위 변경 시만 재계산)
+  const yearGroups = useMemo(() => {
+    const groups: { year: number; count: number }[] = []
+    for (const year of (viewMode === 'month' ? months.map(ym => parseInt(ym)) : viewMode === 'week' ? weeks.map(w => w.year) : days.map(d => d.year))) {
+      if (!groups.length || groups[groups.length-1].year !== year) groups.push({ year, count: 1 })
+      else groups[groups.length-1].count++
     }
-  } else {
-    for (let i = 1; i < days.length; i++) {
-      if (days[i].date.getDay() === 0) gridLinePositions.push(i * colW)
+    return groups
+  }, [viewMode, months, weeks, days])
+
+  const monthGroups = useMemo(() => {
+    const groups: { ym: string; label: string; count: number }[] = []
+    for (const item of (viewMode === 'week' ? weeks : viewMode === 'day' ? days : []) as { year: number; month: number }[]) {
+      const ym = formatYearMonth(item.year, item.month)
+      if (!groups.length || groups[groups.length-1].ym !== ym) groups.push({ ym, label: MONTH_LABELS[item.month-1], count: 1 })
+      else groups[groups.length-1].count++
     }
-  }
+    return groups
+  }, [viewMode, weeks, days])
+
+  // 그리드 세로선 위치 (뷰 모드·범위 변경 시만 재계산)
+  const gridLinePositions = useMemo(() => {
+    const positions: number[] = []
+    if (viewMode === 'month') {
+      for (let i = 1; i < months.length; i++) positions.push(i * colW)
+    } else if (viewMode === 'week') {
+      let acc = 0
+      for (let g = 0; g < monthGroups.length - 1; g++) {
+        acc += monthGroups[g].count
+        positions.push(acc * colW)
+      }
+    } else {
+      for (let i = 1; i < days.length; i++) {
+        if (days[i].date.getDay() === 0) positions.push(i * colW)
+      }
+    }
+    return positions
+  }, [viewMode, months, monthGroups, days, colW])
 
   const allTeams   = [...new Set(projects.map(p => p.team || ''))].sort()
   const allPMs     = [...new Set(projects.map(p => p.pm || ''))].sort()
@@ -457,9 +468,8 @@ export function GanttChart({
       const ds = viewMode === 'day'  ? buildDayRange(viewStart, viewEnd)  : ([] as DayInfo[])
 
       // 드래그 단위: 월뷰=주(7일), 주뷰·일뷰=일(1일)
-      const AVG_MONTH  = 30.4375
       const snapDays   = viewMode === 'month' ? 7 : 1
-      const pxPerSnap  = viewMode === 'month' ? cw / AVG_MONTH * 7
+      const pxPerSnap  = viewMode === 'month' ? cw / AVG_DAYS_PER_MONTH * 7
                        : viewMode === 'week'  ? cw / 7
                        : cw  // day: 1컬럼=1일
 
@@ -474,19 +484,11 @@ export function GanttChart({
       let snapDelta = 0
       let previewColStart = origColStart, previewColEnd = origColEnd
 
-      const overlay = document.createElement('div')
-      overlay.style.cssText = `position:fixed;inset:0;cursor:${dragType === 'move' ? 'grabbing' : 'ew-resize'};z-index:9999;user-select:none;`
-      document.body.appendChild(overlay)
+      // React state로 overlay + tooltip 활성화
+      const cursor = dragType === 'move' ? 'grabbing' : 'ew-resize'
+      setBarDrag({ cursor, tooltipText: '', x: 0, y: 0 })
 
-      const tooltip = document.createElement('div')
-      tooltip.style.cssText = 'position:fixed;z-index:10000;background:#1e293b;color:#f1f5f9;font-size:11px;font-weight:600;padding:4px 10px;border-radius:6px;pointer-events:none;white-space:nowrap;transform:translate(-50%,calc(-100% - 10px));box-shadow:0 2px 8px rgba(0,0,0,.3);font-family:system-ui,sans-serif;display:none;'
-      const tooltipLabel = document.createElement('span')
-      const tooltipArrow = document.createElement('div')
-      tooltipArrow.style.cssText = 'position:absolute;bottom:-4px;left:50%;transform:translateX(-50%);width:0;height:0;border-left:4px solid transparent;border-right:4px solid transparent;border-top:4px solid #1e293b;'
-      tooltip.appendChild(tooltipLabel)
-      tooltip.appendChild(tooltipArrow)
-      document.body.appendChild(tooltip)
-
+      // 바/메타 요소 (성능상 직접 스타일 업데이트 — ref 기반 DOM 접근)
       const barEl = (e.currentTarget as HTMLElement).closest('[data-bar-id]') as HTMLElement | null
       const metaEl = barEl?.parentElement?.querySelector(`[data-bar-meta-id="${p.id}"]`) as HTMLElement | null
 
@@ -503,6 +505,7 @@ export function GanttChart({
 
       function onMouseMove(me: MouseEvent) {
         const raw = me.clientX - startX
+        let tooltipText = ''
         if (viewMode === 'day') {
           const delta = Math.round(raw / cw)
           if (dragType === 'move') {
@@ -517,11 +520,9 @@ export function GanttChart({
           }
           if (barEl) { barEl.style.left = `${previewColStart * cw + 4}px`; barEl.style.width = `${(previewColEnd - previewColStart + 1) * cw - 8}px` }
           if (metaEl) { metaEl.style.left = `${(previewColEnd + 1) * cw + 12}px` }
-          // 툴팁
           const sk = ds[Math.max(0, Math.min(previewColStart, ds.length-1))].key
           const ek = ds[Math.max(0, Math.min(previewColEnd,   ds.length-1))].key
-          tooltipLabel.textContent = formatBarDate(sk, ek)
-          tooltip.style.left = `${me.clientX}px`; tooltip.style.top = `${me.clientY}px`; tooltip.style.display = 'block'
+          tooltipText = formatBarDate(sk, ek)
         } else {
           snapDelta = Math.round(raw / pxPerSnap)
           const d = snapDelta * snapDays
@@ -531,17 +532,15 @@ export function GanttChart({
           else                             { ne = shift(origEndDate, d);    if (ne < origStartDate) ne = origStartDate }
           if (barEl) { const px = barPx(ns, ne); barEl.style.left = `${px.left}px`; barEl.style.width = `${px.width}px` }
           if (metaEl) { const px = barPx(ns, ne); metaEl.style.left = `${px.left + px.width + 16}px` }
-          // 툴팁
-          tooltipLabel.textContent = formatBarDate(fmt(ns), fmt(ne))
-          tooltip.style.left = `${me.clientX}px`; tooltip.style.top = `${me.clientY}px`; tooltip.style.display = 'block'
+          tooltipText = formatBarDate(fmt(ns), fmt(ne))
         }
+        setBarDrag({ cursor, tooltipText, x: me.clientX, y: me.clientY })
       }
 
       async function onMouseUp() {
         document.removeEventListener('mousemove', onMouseMove)
         document.removeEventListener('mouseup', onMouseUp)
-        overlay.remove()
-        tooltip.remove()
+        setBarDrag(null)
         if (viewMode === 'day') {
           if (previewColStart !== origColStart || previewColEnd !== origColEnd)
             await onUpdateProjectDates(p.id, ds[Math.max(0, Math.min(previewColStart, ds.length-1))].key, ds[Math.max(0, Math.min(previewColEnd, ds.length-1))].key)
@@ -852,6 +851,27 @@ export function GanttChart({
       >
         <div style={{ width: totalWidth, height: 1 }} />
       </div>
+
+      {/* 바 드래그 overlay + tooltip */}
+      {barDrag && (
+        <>
+          <div
+            className="fixed inset-0 z-[9999] select-none"
+            style={{ cursor: barDrag.cursor }}
+          />
+          {barDrag.tooltipText && (
+            <div
+              className="fixed z-[10000] pointer-events-none"
+              style={{ left: barDrag.x, top: barDrag.y, transform: 'translate(-50%, calc(-100% - 10px))' }}
+            >
+              <span className="inline-block bg-[#1e293b] text-[#f1f5f9] text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
+                {barDrag.tooltipText}
+              </span>
+              <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#1e293b]" />
+            </div>
+          )}
+        </>
+      )}
 
       {/* 메모 hover 툴팁 */}
       {memoHover && (() => {

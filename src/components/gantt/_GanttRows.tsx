@@ -6,6 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Palette, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import { MS_PER_DAY } from '@/lib/gantt-utils'
 
 // ── Layout constants ──────────────────────────────────────────
 export const CAT_ROW_H  = 32
@@ -59,15 +60,14 @@ export function formatBarDate(start: string, end: string): string {
 function daysBetween(fromDate: string, toDateStr: string): number {
   const from = new Date(fromDate + 'T00:00:00')
   const to   = new Date(toDateStr + 'T00:00:00')
-  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / 86_400_000))
+  return Math.max(0, Math.floor((to.getTime() - from.getTime()) / MS_PER_DAY))
 }
 
 // ── Sortable row shells ───────────────────────────────────────
 function SortableProjRow({ id, disabled, children }: {
   id: string
   disabled?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  children: (props: { listeners: any; isDragging: boolean }) => ReactNode
+  children: (props: { listeners: ReturnType<typeof useSortable>['listeners']; isDragging: boolean }) => ReactNode
 }) {
   const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
   return (
@@ -84,8 +84,7 @@ function SortableProjRow({ id, disabled, children }: {
 function SortableCatRow({ id, disabled, children }: {
   id: string
   disabled?: boolean
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  children: (props: { listeners: any; isDragging: boolean }) => ReactNode
+  children: (props: { listeners: ReturnType<typeof useSortable>['listeners']; isDragging: boolean }) => ReactNode
 }) {
   const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
   return (

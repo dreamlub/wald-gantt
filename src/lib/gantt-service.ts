@@ -16,8 +16,7 @@ export async function getOrCreateWorkspace(): Promise<Workspace> {
     .single()
 
   if (member?.workspace_id) {
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    return (member as any).workspaces as Workspace
+    return (member as unknown as { workspaces: Workspace }).workspaces
   }
 
   const { data: ws, error } = await db().rpc('create_workspace_for_user', {
@@ -319,11 +318,11 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
     .order('sort_order')
   if (error) throw error
 
+  type TaskRow = GanttTask & { gantt_task_projects?: TaskProjectJoin[] }
   type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((row: any) => ({
+  return (data as TaskRow[] ?? []).map((row) => ({
     ...row,
-    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
+    projects: (row.gantt_task_projects ?? []).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',
@@ -356,11 +355,11 @@ export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]>
     .order('deleted_at', { ascending: false })
   if (error) throw error
 
+  type TaskRow = GanttTask & { gantt_task_projects?: TaskProjectJoin[] }
   type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((row: any) => ({
+  return (data as TaskRow[] ?? []).map((row) => ({
     ...row,
-    projects: ((row.gantt_task_projects ?? []) as TaskProjectJoin[]).map((tp) => ({
+    projects: (row.gantt_task_projects ?? []).map((tp) => ({
       id: tp.gantt_projects.id,
       name: tp.gantt_projects.name,
       board_name: tp.gantt_projects.gantt_boards?.name ?? '',
@@ -530,8 +529,8 @@ export async function searchProjects(workspaceId: string, query: string): Promis
     .ilike('name', `%${query.replace(/[%_\\]/g, '\\$&')}%`)
     .limit(20)
   if (error) throw error
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  return (data ?? []).map((p: any) => ({
+  type ProjectRow = { id: string; name: string; gantt_boards?: { name?: string } | null }
+  return (data as ProjectRow[] ?? []).map((p) => ({
     id: p.id,
     name: p.name,
     board_name: p.gantt_boards?.name ?? '',

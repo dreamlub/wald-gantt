@@ -9,7 +9,7 @@ import { Calendar } from '@/components/ui/calendar'
 import { getProjectHistory } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistoryEntry } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
-import { toDate, toDateStr } from '@/lib/gantt-utils'
+import { toDate, toDateStr, formatHistValue, formatHistDate } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 
@@ -18,21 +18,8 @@ const FIELD_LABELS: Record<string, string> = {
   name: '이름', status: '상태', start_date: '시작일', end_date: '종료일',
   start_month: '시작일', end_month: '종료일', team: '팀', pm: 'PM', category: '카테고리',
 }
-const STATUS_LABELS: Record<string, string> = {
-  'to-do': 'To-Do', 'in-progress': 'In Progress', 'pending': 'Pending', 'backlog': 'Backlog', 'done': 'Done',
-}
-function fmtHistVal(field: string, value: string | null): string {
-  if (value === null || value === '') return '없음'
-  if (field === 'status') return STATUS_LABELS[value] ?? value
-  if (field === 'start_date' || field === 'end_date') { const [y, m, d] = value.split('-'); return `${y}년 ${parseInt(m)}월 ${parseInt(d)}일` }
-  if (field === 'start_month' || field === 'end_month') { const [y, m] = value.split('-'); return `${y}년 ${parseInt(m)}월` }
-  return value
-}
-function fmtHistDate(iso: string): string {
-  const d = new Date(iso)
-  const pad = (n: number) => String(n).padStart(2, '0')
-  return `${d.getFullYear()}.${pad(d.getMonth() + 1)}.${pad(d.getDate())}  ${pad(d.getHours())}:${pad(d.getMinutes())}`
-}
+const fmtHistVal = formatHistValue
+const fmtHistDate = formatHistDate
 function groupByTime(entries: ProjectHistoryEntry[]): ProjectHistoryEntry[][] {
   const groups: ProjectHistoryEntry[][] = []; let cur: ProjectHistoryEntry[] = []
   for (const entry of entries) {
