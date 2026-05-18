@@ -2,14 +2,13 @@
 
 import { useState, useRef, useCallback, useEffect, useMemo } from 'react'
 import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, DragOverlay,
+  DndContext, closestCenter, DragOverlay,
   type DragStartEvent, type DragOverEvent, type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy,
-  sortableKeyboardCoordinates, arrayMove,
+  SortableContext, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
+import { useDndSensors, findContainer } from '@/lib/dnd-utils'
 import { Plus, GripVertical } from 'lucide-react'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
@@ -104,10 +103,7 @@ export function GanttChart({
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
   const [barDrag, setBarDrag] = useState<{ cursor: string; tooltipText: string; x: number; y: number } | null>(null)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useDndSensors()
 
   // 뷰 모드별 파생 값
   const colW      = viewMode === 'week' ? WEEK_COL_WIDTH : viewMode === 'day' ? DAY_COL_WIDTH : COL_WIDTH
@@ -349,14 +345,6 @@ export function GanttChart({
   }
 
   // ── 프로젝트/카테고리 행 DnD (dnd-kit) ─────────────────────
-  function findContainer(items: Record<string, string[]>, id: string): string | undefined {
-    if (id in items) return id
-    for (const [catId, ids] of Object.entries(items)) {
-      if (ids.includes(id)) return catId
-    }
-    return undefined
-  }
-
   function handleProjDragStart({ active }: DragStartEvent) {
     const id = active.id as string
     if (isCatDrag(id)) {

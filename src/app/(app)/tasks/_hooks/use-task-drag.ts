@@ -2,12 +2,12 @@
 
 import { useCallback, useRef, useState } from 'react'
 import {
-  PointerSensor, useSensor, useSensors,
   pointerWithin, rectIntersection,
   type DragEndEvent, type DragStartEvent, type DragOverEvent, type CollisionDetection,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
 import { updateTask } from '@/lib/gantt-service'
+import { useDndSensorsPointer, computeReorder } from '@/lib/dnd-utils'
 import type { GanttTask, TaskStatus } from '@/types'
 import { isOverdue } from '../_utils'
 
@@ -26,7 +26,7 @@ export function useTaskDrag(
   const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
   const dragExpandedRef = useRef<string | null>(null)
 
-  const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
+  const sensors = useDndSensorsPointer()
 
   const collisionDetection: CollisionDetection = useCallback((args) => {
     const pointerCollisions = pointerWithin(args)
@@ -107,36 +107,32 @@ export function useTaskDrag(
     const insertIdx = targetGroupTasks.findIndex(t => t.id === over.id)
     if (insertIdx === -1) return
 
-    if (sameGroup) {
-      const groupWithActive = tasks.filter(t => !t.parent_id && t.status === targetStatus)
-      const oldIdx = groupWithActive.findIndex(t => t.id === active.id)
-      const newIdx = groupWithActive.findIndex(t => t.id === over.id)
-      if (oldIdx === -1 || newIdx === -1 || oldIdx === newIdx) return
-
-      const reordered = [...groupWithActive]
-      const [moved] = reordered.splice(oldIdx, 1)
-      reordered.splice(newIdx, 0, moved)
-
-      const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }))
+    // setTasks에 sort_order 업데이트 반영 + 정렬
+    function applyOrderUpdates(updates: { id: string; sort_order: number }[], statusChange?: { taskId: string; status: TaskStatus }) {
       setTasks(prev => {
         const orderMap = new Map(updates.map(u => [u.id, u.sort_order]))
-        return prev.map(t => orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t)
-          .sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
+        return prev.map(t => {
+          const newOrder = orderMap.get(t.id)
+          if (statusChange && t.id === statusChange.taskId) return { ...t, status: statusChange.status, sort_order: newOrder ?? t.sort_order }
+          return newOrder != null ? { ...t, sort_order: newOrder } : t
+        }).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
       })
+    }
+
+    if (sameGroup) {
+      const groupWithActive = tasks.filter(t => !t.parent_id && t.status === targetStatus)
+      const updates = computeReorder(groupWithActive, active.id as string, over.id as string)
+      if (updates.length === 0) return
+
+      applyOrderUpdates(updates)
       Promise.all(updates.map(u => updateTask(u.id, { sort_order: u.sort_order })))
         .catch(e => { toast.error(errMsg(e)); load() })
     } else {
       const reordered = [...targetGroupTasks]
       reordered.splice(insertIdx, 0, { ...task, status: targetStatus })
-
       const updates = reordered.map((t, i) => ({ id: t.id, sort_order: i }))
-      setTasks(prev => {
-        const orderMap = new Map(updates.map(u => [u.id, u.sort_order]))
-        return prev.map(t => {
-          if (t.id === task.id) return { ...t, status: targetStatus, sort_order: orderMap.get(t.id) ?? t.sort_order }
-          return orderMap.has(t.id) ? { ...t, sort_order: orderMap.get(t.id)! } : t
-        }).sort((a, b) => (a.sort_order ?? 0) - (b.sort_order ?? 0))
-      })
+
+      applyOrderUpdates(updates, { taskId: task.id, status: targetStatus })
       Promise.all([
         updateTask(task.id, { status: targetStatus, sort_order: updates.find(u => u.id === task.id)?.sort_order }),
         ...updates.filter(u => u.id !== task.id).map(u => updateTask(u.id, { sort_order: u.sort_order })),

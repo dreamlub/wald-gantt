@@ -2,14 +2,14 @@
 
 import { useState } from 'react'
 import {
-  DndContext, closestCenter, PointerSensor, KeyboardSensor,
-  useSensor, useSensors, DragOverlay,
+  DndContext, closestCenter, DragOverlay,
   type DragStartEvent, type DragEndEvent,
 } from '@dnd-kit/core'
 import {
   SortableContext, verticalListSortingStrategy, useSortable,
-  sortableKeyboardCoordinates, arrayMove,
+  arrayMove,
 } from '@dnd-kit/sortable'
+import { useDndSensors } from '@/lib/dnd-utils'
 import { CSS } from '@dnd-kit/utilities'
 import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical, PanelLeftClose } from 'lucide-react'
 import type { GanttBoard } from '@/types'
@@ -111,10 +111,7 @@ export function BoardSidebar({
   const [newName, setNewName]   = useState('')
   const [activeId, setActiveId] = useState<string | null>(null)
 
-  const sensors = useSensors(
-    useSensor(PointerSensor, { activationConstraint: { distance: 5 } }),
-    useSensor(KeyboardSensor, { coordinateGetter: sortableKeyboardCoordinates }),
-  )
+  const sensors = useDndSensors()
 
   function startEdit(board: GanttBoard, e: React.MouseEvent) {
     e.stopPropagation()
