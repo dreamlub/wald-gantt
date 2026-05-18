@@ -50,15 +50,24 @@ const THEME_OPTIONS = [
 ] as const
 
 const DEFAULT_VIEW_KEYS: { key: string; label: string; options: string[] }[] = [
-  { key: 'wald.tasks.view',  label: '태스크',   options: ['list', 'kanban', 'gantt'] },
-  { key: 'wald.gantt.view',  label: '간트',     options: ['gantt'] },
-  { key: 'wald.summary.view', label: '서머리',  options: ['table', 'timeline', 'insight'] },
+  { key: 'wald.tasks.view',      label: '태스크',      options: ['list', 'kanban', 'gantt'] },
+  { key: 'wald.gantt.viewMode',  label: '간트 시간축', options: ['week', 'month', 'day'] },
+  { key: 'wald.summary.view',    label: '서머리',      options: ['table', 'timeline', 'insight'] },
 ]
 
 const VIEW_LABELS: Record<string, string> = {
   list: '리스트', kanban: '칸반', gantt: '간트',
   table: '테이블', timeline: '타임라인', insight: '인사이트',
+  month: '월', week: '주', day: '일',
 }
+
+type SortMode = 'default' | 'start-asc' | 'end-desc' | 'priority-desc'
+const SORT_MODE_OPTIONS: { value: SortMode; label: string }[] = [
+  { value: 'default',       label: '입력순' },
+  { value: 'start-asc',     label: '시작일 ↑' },
+  { value: 'end-desc',      label: '종료일 ↓' },
+  { value: 'priority-desc', label: '우선순위 ↓' },
+]
 
 function SettingCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -130,6 +139,16 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   const setDefaultView = (key: string, value: string) => {
     setDefaultViews(prev => ({ ...prev, [key]: value }))
     localStorage.setItem(key, value)
+    toast.success('저장되었습니다.')
+  }
+
+  const [defaultSortMode, setDefaultSortMode] = useState<SortMode>('default')
+  useEffect(() => {
+    setDefaultSortMode((localStorage.getItem('wald.gantt.sortMode') as SortMode) ?? 'default')
+  }, [])
+  const setDefaultSort = (value: SortMode) => {
+    setDefaultSortMode(value)
+    localStorage.setItem('wald.gantt.sortMode', value)
     toast.success('저장되었습니다.')
   }
 
@@ -412,6 +431,23 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                       </div>
                     </Row>
                   ))}
+                  <Row label="간트 정렬">
+                    <div className="flex items-center gap-1">
+                      {SORT_MODE_OPTIONS.map(({ value, label }) => (
+                        <button
+                          key={value}
+                          onClick={() => setDefaultSort(value)}
+                          className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                            defaultSortMode === value
+                              ? 'bg-foreground text-background'
+                              : 'border border-border text-muted-foreground hover:bg-muted'
+                          }`}
+                        >
+                          {label}
+                        </button>
+                      ))}
+                    </div>
+                  </Row>
                 </div>
               </SettingCard>
             </>

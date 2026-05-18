@@ -80,18 +80,21 @@ export function GanttChart({
 }: Props) {
   const months = buildMonthRange(viewStart, viewEnd)
   const leftRef         = useRef<HTMLDivElement>(null)
+  const leftPanelRef    = useRef<HTMLDivElement>(null)
   const rightRef        = useRef<HTMLDivElement>(null)
   const headerRef       = useRef<HTMLDivElement>(null)
   const stickyScrollRef = useRef<HTMLDivElement>(null)
 
   const [leftWidth, setLeftWidth]           = useState(LEFT_WIDTH_DEFAULT)
-  const [viewMode, setViewMode]             = useState<ViewMode>('week')
+  const [viewMode, setViewMode]             = useState<ViewMode>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.viewMode') as ViewMode : null) ?? 'week')
+  const changeViewMode = (v: ViewMode) => { localStorage.setItem('wald.gantt.viewMode', v); setViewMode(v) }
   const [editCatId, setEditCatId]           = useState<string | null>(null)
   const [editCatVal, setEditCatVal]         = useState('')
   const [addingCat, setAddingCat]           = useState(false)
   const [newCatName, setNewCatName]         = useState('')
   const [newCatColor, setNewCatColor]       = useState<string>(CAT_COLORS[0])
-  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>('default')
+  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.sortMode') as 'default' | 'start-asc' | 'end-desc' | 'priority-desc' : null) ?? 'default')
+  const changeSortMode = (v: 'default' | 'start-asc' | 'end-desc' | 'priority-desc') => { localStorage.setItem('wald.gantt.sortMode', v); setSortMode(v) }
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
   const [overdueFilter, setOverdueFilter] = useState(false)
@@ -257,9 +260,22 @@ export function GanttChart({
     if (headerRef.current && stickyScrollRef.current)
       headerRef.current.scrollLeft = stickyScrollRef.current.scrollLeft
   }
-  function onLeftWheel(e: React.WheelEvent) {
-    if (rightRef.current) rightRef.current.scrollTop += e.deltaY
-  }
+
+  // 왼쪽 패널 휠: non-passive 리스너로 등록해야 preventDefault 가능
+  useEffect(() => {
+    const el = leftPanelRef.current
+    if (!el) return
+    const handler = (e: WheelEvent) => {
+      e.preventDefault()
+      if (!rightRef.current) return
+      let dy = e.deltaY
+      if (e.deltaMode === 1) dy *= 16          // 줄 단위 → 픽셀
+      else if (e.deltaMode === 2) dy *= rightRef.current.clientHeight  // 페이지 단위 → 픽셀
+      rightRef.current.scrollTop += dy
+    }
+    el.addEventListener('wheel', handler, { passive: false })
+    return () => el.removeEventListener('wheel', handler)
+  }, [])
 
   // 카테고리 추가 모달 열릴 때 랜덤 색상 (외부 트리거 기반 → 의도된 setState)
   useEffect(() => {
@@ -576,9 +592,9 @@ export function GanttChart({
         excludedPMs={excludedPMs}
         onTogglePM={togglePM}
         viewMode={viewMode}
-        onViewModeChange={setViewMode}
+        onViewModeChange={changeViewMode}
         sortMode={sortMode}
-        onSortModeChange={setSortMode}
+        onSortModeChange={changeSortMode}
         sortedCats={sortedCats}
         onAddProject={onAddProject}
         onAddCategory={() => setAddingCat(true)}
@@ -589,7 +605,7 @@ export function GanttChart({
 
         {/* ── 왼쪽 패널 (고정, 레이블) ─────────────────────── */}
         <div
-          onWheel={onLeftWheel}
+          ref={leftPanelRef}
           className="shrink-0 flex flex-col shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
           style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
         >
@@ -607,7 +623,8 @@ export function GanttChart({
           </div>
           <div
             ref={leftRef}
-            className="flex-1 overflow-y-hidden flex flex-col"
+            className="flex-1 flex flex-col"
+            style={{ overflowY: 'scroll', scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
           >
             <DndContext
               sensors={sensors}
@@ -799,7 +816,7 @@ export function GanttChart({
             ref={rightRef}
             onScroll={onRightScroll}
             className="flex-1 overflow-auto"
-            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none' } as React.CSSProperties}
+            style={{ scrollbarWidth: 'none', msOverflowStyle: 'none', overscrollBehavior: 'contain' } as React.CSSProperties}
           >
             <div style={{ width: totalWidth }} className="relative bg-background">
               {/* 그리드 세로선 */}

@@ -8,7 +8,7 @@ type ViewMode = 'month' | 'week' | 'day'
 type SortMode = 'default' | 'start-asc' | 'end-desc' | 'priority-desc'
 
 const SORT_LABELS: Record<SortMode, string> = {
-  'default':       '기본',
+  'default':       '입력순',
   'start-asc':     '시작일 ↑',
   'end-desc':      '종료일 ↓',
   'priority-desc': '우선순위 ↓',

@@ -115,6 +115,8 @@ export default function TasksPage() {
           searchInputRef={filters.searchInputRef}
           selectionMode={selection.selectionMode}
           onToggleSelection={() => { if (selection.selectionMode) selection.exitSelectionMode(); else selection.setSelectionMode(true) }}
+          hideDone={filters.hideDone}
+          onHideDoneChange={filters.setHideDone}
           onAdd={() => openAdd('to-do')}
           allAssignees={filters.allAssignees}
           filterAssignee={filters.filterAssignee}

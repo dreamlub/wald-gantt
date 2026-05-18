@@ -1,5 +1,100 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-18) — UX 레이블 정리 + 완료 포함 토글 이동
+
+### 1. 정렬 기본값 레이블 변경 (`GanttToolbar.tsx`, `settings-shell.tsx`)
+- `'기본'` → `'입력순'` — 입력 순서를 유지한다는 의미를 명확히 표현
+
+### 2. '완료 포함' 토글 — 태스크 액션바에 추가 (`TasksActionBar.tsx`, `page.tsx`)
+- 완료 숨김 토글을 사이드바 눈 아이콘 외에 본문 상단 액션바에도 추가
+- 캘린더 task-panel과 동일한 role="switch" 스타일
+- `hideDone` / `onHideDoneChange` props 추가, `filters.hideDone`·`filters.setHideDone` 연결
+
+### 3. 레이블 통일: `'완료'` → `'완료 포함'` (`TasksActionBar.tsx`, `task-panel.tsx`)
+- 태스크 액션바·캘린더 패널 양쪽에서 동일한 표현으로 통일
+
+### 4. 캘린더 task-panel 폰트 크기 개선 (`task-panel.tsx`)
+- 정렬 콤보박스 트리거·드롭다운 항목: `text-[11px]` → `text-xs`
+- ChevronDown 아이콘: `size={10}` → `size={12}`
+- "완료 포함" 레이블: `text-[10px]` → `text-xs`
+
+---
+
+## 최근 변경 (2026-05-18) — SSR 호환성 버그 수정 2건
+
+### 1. `localStorage is not defined` 수정 (`GanttChart.tsx`)
+- **원인**: `useState` 초기화 함수에서 `localStorage`를 직접 참조 — `'use client'` 컴포넌트도 SSR 시에는 `window`/`localStorage`가 없음
+- **수정**: `typeof window !== 'undefined'` 가드 추가 (viewMode, sortMode 2곳)
+- `localStorage`가 없는 환경(SSR)에서는 `null` → 기본값(`'week'`, `'default'`) 사용
+
+### 2. React 19 + next-themes script tag 경고 수정 (`providers.tsx`)
+- **원인**: React 19에서 JSX로 렌더링된 `<script>` 태그는 클라이언트에서 자동 실행되지 않음 — `next-themes`의 ThemeProvider가 테마 감지용 script를 주입하면서 발생
+- **수정**: `next/dynamic`으로 `ThemeProvider`를 `ssr: false`로 dynamic import → SSR 시점에 script 주입 차단
+- `<html suppressHydrationWarning>`이 기존에 설정되어 있어 하이드레이션 불일치는 무해하게 처리됨
+
+---
+
+## 최근 변경 (2026-05-18) — 캘린더 연동 딥링크 + 간트 설정 영속성
+
+### 1. 태스크 → 캘린더 딥링크 (`TaskRow.tsx`, `calendar-shell.tsx`)
+- **기능**: TaskRow의 스케줄 시간 뱃지 클릭 시 `/calendar?highlight=<id>`로 이동
+- **캘린더**: `?highlight` 파라미터 감지 → 해당 태스크의 주로 자동 이동 + 하이라이트
+- 이동 완료 후 `router.replace('/calendar')`로 URL 파라미터 제거
+- `highlightTaskId` → `TimeGrid`에 `highlightTaskId`, `onHighlightClear` prop으로 전달
+
+### 2. 태스크 스케줄 시간 뱃지 개선 (`TaskRow.tsx`)
+- `duration_minutes` 있을 때 종료 시각 계산해 `시작 ~ 종료` 형식으로 표시
+- 기존 `<span>` → `<Link>` 컴포넌트로 교체, `e.stopPropagation()` 으로 행 클릭과 분리
+
+### 3. 캘린더 좌측 패널 UX 개선 (`task-panel.tsx`)
+- **정렬 UI**: 버튼 나열 → 드롭다운 콤보박스로 변경 (외부 클릭 닫힘 처리 포함)
+- **완료 숨김 토글**: 스위치 UI 추가, 완료 태스크는 항상 목록 하단 정렬
+- **검색창**: `Input` → 네이티브 `<input>`, Escape 키로 검색어 초기화
+
+### 4. TooltipProvider 전역 등록 (`layout.tsx`)
+- 앱 레이아웃(`(app)/layout.tsx`)에 `<TooltipProvider>` 래핑 추가
+- 기존 각 페이지별 개별 등록 불필요
+- `src/components/ui/tooltip.tsx` 신규 생성
+
+### 5. 간트 설정 localStorage 영속성 (`GanttChart.tsx`, `settings-shell.tsx`)
+- `viewMode` / `sortMode` 초기값을 `localStorage`에서 읽어 복원
+- 변경 시 `changeViewMode()` / `changeSortMode()` 헬퍼가 localStorage에 즉시 저장
+- **Settings 연동**: `wald.gantt.view` → `wald.gantt.viewMode` 키 통일, 정렬 기본값(`wald.gantt.sortMode`) 설정 항목 추가
+
+### 6. 간트 공유 모드 빈 행 숨김 (`_GanttRows.tsx`)
+- `readOnly` 일 때 카테고리 하단 빈 행(`PROJ_ROW_H`) 미렌더링
+
+---
+
+## 최근 변경 (2026-05-18) — UI 버그 수정 3건
+
+### 1. 사이드바 완료 눈 아이콘 위치 수정 (`TasksSidebar.tsx`)
+- **문제**: 눈 아이콘(완료 숨김 토글)이 카운트 숫자 뒤에 렌더링됨
+- **원인**: 눈 버튼이 메인 버튼 바깥(형제 요소)에 있어서 `[dot] [완료] [6] [👁]` 순서가 됨
+- **수정**: `<span role="button">`으로 눈 버튼을 메인 버튼 내부로 이동, 카운트 앞에 배치 → `[dot] [완료] [👁] [6]`
+- 외부 wrapper `<div>` 제거, 버튼 구조 단순화
+
+### 2. 구글 캘린더 블록 풍선말 교체 (`event-block.tsx`)
+- **문제**: 구글 캘린더 이벤트 블록이 브라우저 기본 `title` 속성으로 풍선말을 표시함 (태스크 블록과 다른 UX)
+- **수정**: 네이티브 `title` 제거, 커스텀 `Tooltip` 컴포넌트 적용
+- 풍선말 내용: 제목(bold) + 시간 범위 + 장소(`location`, 있을 때) + 설명(`description`, 있을 때)
+
+### 3. 태스크 캘린더 블록 풍선말 시간 추가 (`task-block.tsx`)
+- **문제**: 태스크 블록 풍선말에 제목만 표시됨 (구글 블록과 달리 시간 없음)
+- **수정**: `fmtTime(scheduled_at)` + `duration_minutes`로 종료 시각 계산해 `시작 – 종료` 형식으로 추가
+- `toMinutes` 유틸 import 추가
+
+### 4. 공유 페이지 간트 스크롤 동기화 버그 수정 (`GanttChart.tsx`)
+- **문제**: 공유 URL(`/share/[token]`) 에서 스크롤 시 프로젝트 목록(좌)과 간트 바(우)가 엇갈림
+- **원인 1**: React의 `onWheel`은 passive 리스너라 `e.preventDefault()` 불가 → wheel 이벤트가 body/상위 컨테이너로 전파되어 이중 스크롤 발생
+- **원인 2**: `e.deltaMode` 미처리 — Windows 마우스는 `deltaMode=1`(줄 단위)인데 `deltaY` 값을 픽셀로 취급해 실제 스크롤량의 1/16만 적용됨
+- **수정**:
+  - `onWheel` 제거 → `useEffect`로 non-passive `addEventListener('wheel', handler, { passive: false })` 등록
+  - `deltaMode` 정규화: `1(줄) × 16px`, `2(페이지) × clientHeight`
+  - `rightRef`에 `overscrollBehavior: contain` 추가 → 스크롤 체이닝 차단
+
+---
+
 ## 최근 변경 (2026-05-18) — 프로젝트 코드 리뷰 & 리팩터링
 
 ### 배경

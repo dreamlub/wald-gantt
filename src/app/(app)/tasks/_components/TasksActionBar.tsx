@@ -19,6 +19,9 @@ interface TasksActionBarProps {
   // 선택
   selectionMode: boolean
   onToggleSelection: () => void
+  // 완료 숨김
+  hideDone: boolean
+  onHideDoneChange: (v: boolean) => void
   // 추가
   onAdd: () => void
   // 담당자 필터 바 (사이드바 닫힘 시)
@@ -33,6 +36,7 @@ export function TasksActionBar({
   searchOpen, onSearchOpenChange, searchQuery, onSearchQueryChange,
   searchRef, searchInputRef,
   selectionMode, onToggleSelection,
+  hideDone, onHideDoneChange,
   onAdd,
   allAssignees, filterAssignee, onFilterAssigneeChange,
 }: TasksActionBarProps) {
@@ -102,6 +106,20 @@ export function TasksActionBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
+          <div
+            className="flex items-center gap-1.5 cursor-pointer select-none"
+            onClick={() => onHideDoneChange(!hideDone)}
+            title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
+          >
+            <span className="text-xs text-muted-foreground">완료 포함</span>
+            <div
+              role="switch"
+              aria-checked={!hideDone}
+              className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${hideDone ? 'bg-border' : 'bg-foreground'}`}
+            >
+              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
+            </div>
+          </div>
           {(view === 'normal' || view === 'list') && (
             <button
               onClick={onToggleSelection}
