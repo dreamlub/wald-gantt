@@ -26,6 +26,7 @@ interface DbHistory {
   title: string
   body: string | null
   occurred_at: string
+  updated_at: string
   status: string | null
   status_kind: StatusKind | null
   priority: Priority | null
@@ -55,6 +56,7 @@ function toHistory(r: DbHistory): HistoryItem {
     title: r.title,
     body: r.body,
     occurred_at: r.occurred_at,
+    updated_at: r.updated_at,
     status: r.status,
     status_kind: r.status_kind,
     priority: r.priority,

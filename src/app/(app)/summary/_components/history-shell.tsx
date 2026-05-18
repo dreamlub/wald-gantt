@@ -12,7 +12,7 @@ import type { Client, HistoryItem, Tag } from '../_lib/types'
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
+import { HistorySidebar, type PriorityKey, type DateMode, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
 import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
@@ -65,6 +65,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [view,         setView]         = useState<ViewKey>(((searchParams.get('view') ?? 'table') as ViewKey))
   const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
   const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
+  const [dateMode,     setDateMode]     = useState<DateMode>((searchParams.get('dateMode') as DateMode) ?? 'occurred')
   const [weekStart,    setWeekStart]    = useState<string>(searchParams.get('week') ?? getCurrentWeekStart())
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => {
@@ -130,6 +131,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (view !== 'table')     p.set('view', view)
     if (dateFrom)             p.set('from', dateFrom)
     if (dateTo)               p.set('to', dateTo)
+    if (dateMode !== 'occurred') p.set('dateMode', dateMode)
     if (weekStart !== getCurrentWeekStart()) p.set('week', weekStart)
     if (brandId !== 'all')    p.set('brand', brandId)
     if (selectedTags.size > 0) p.set('tags', [...selectedTags].join(','))
@@ -138,7 +140,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (searchQuery.trim())   p.set('q', searchQuery)
     const qs = p.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [view, dateFrom, dateTo, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
+  }, [view, dateFrom, dateTo, dateMode, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
 
   useEffect(() => { if (searchOpen) searchInputRef.current?.focus() }, [searchOpen])
   useEffect(() => {
@@ -172,10 +174,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
   const filtered = useMemo(() => {
     const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : 0
-    // dateTo가 없으면 사실상 무제한 (Date.now()는 render 중 impure → 불가)
     const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER
     let list = initialHistory.filter(h => {
-      const t = new Date(h.occurred_at).getTime()
+      const dateField = dateMode === 'updated' ? h.updated_at : h.occurred_at
+      const t = new Date(dateField).getTime()
       return t >= fromMs && t <= toMs
     })
     // 태그: AND — 선택된 모든 태그를 포함해야 함
@@ -199,7 +201,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       )
     }
     return list.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
-  }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
+  }, [initialHistory, dateFrom, dateTo, dateMode, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -226,12 +228,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           history={initialHistory}
           dateFrom={dateFrom}
           dateTo={dateTo}
+          dateMode={dateMode}
           weekStart={weekStart}
           brandId={brandId}
           selectedTags={selectedTags}
           priorityKey={priorityKey}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
+          onDateModeChange={setDateMode}
           onPresetClick={applyPreset}
           onWeekChange={setWeekStart}
           onBrandChange={setBrandId}

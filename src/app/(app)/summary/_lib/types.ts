@@ -83,6 +83,7 @@ export interface HistoryItem {
   title: string
   body: string | null
   occurred_at: string
+  updated_at: string
   status: string | null
   status_kind: StatusKind | null
   priority: Priority | null

@@ -15,6 +15,7 @@ import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-d
 import { PriorityBars } from './badges'
 
 export type PriorityKey = 'all' | Priority
+export type DateMode = 'occurred' | 'updated'
 
 // ── 주 유틸 (export — shell에서도 사용) ─────────────────────
 export function getMondayOfDate(d: Date): Date {
@@ -60,9 +61,11 @@ interface Props {
   // table/summary용
   dateFrom: string
   dateTo: string
+  dateMode: DateMode
   onDateFromChange: (s: string) => void
   onDateToChange: (s: string) => void
   onPresetClick: (preset: 'today' | 'week' | 'month' | 'all') => void
+  onDateModeChange: (mode: DateMode) => void
   // insight용
   weekStart: string
   onWeekChange: (weekStart: string) => void
@@ -99,7 +102,7 @@ function activePreset(from: string, to: string): 'today' | 'week' | 'month' | 'a
 export function HistorySidebar({
   view,
   clients, history,
-  dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick,
+  dateFrom, dateTo, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange,
   weekStart, onWeekChange,
   brandId, selectedTags, priorityKey,
   onBrandChange, onToggleTag, onPriorityChange,
@@ -120,9 +123,9 @@ export function HistorySidebar({
         <WeekNavSection weekStart={weekStart} onWeekChange={onWeekChange} />
       ) : (
         <DatePickerSection
-          dateFrom={dateFrom} dateTo={dateTo}
+          dateFrom={dateFrom} dateTo={dateTo} dateMode={dateMode}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-          onPresetClick={onPresetClick}
+          onPresetClick={onPresetClick} onDateModeChange={onDateModeChange}
         />
       )}
 
@@ -259,15 +262,33 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
 }
 
 // ── 날짜 피커 (테이블/요약 전용) ────────────────────────────
-function DatePickerSection({ dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick }: {
-  dateFrom: string; dateTo: string
+const DATE_MODES: { key: DateMode; label: string }[] = [
+  { key: 'occurred', label: '발생일' },
+  { key: 'updated',  label: '수정일' },
+]
+
+function DatePickerSection({ dateFrom, dateTo, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange }: {
+  dateFrom: string; dateTo: string; dateMode: DateMode
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
   onPresetClick: (preset: 'today' | 'week' | 'month' | 'all') => void
+  onDateModeChange: (mode: DateMode) => void
 }) {
   const active = activePreset(dateFrom, dateTo)
   return (
     <div className="px-2 pt-0.5 pb-1 flex flex-col gap-1.5">
       <div className="mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">필터</div>
+      <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+        {DATE_MODES.map(({ key, label }) => (
+          <button key={key} onClick={() => onDateModeChange(key)}
+            className={`flex-1 text-[11px] py-0.5 rounded transition-colors text-center ${
+              dateMode === key
+                ? 'bg-card text-foreground font-medium shadow-sm'
+                : 'text-muted-foreground hover:text-foreground'
+            }`}>
+            {label}
+          </button>
+        ))}
+      </div>
       <DateField label="시작" value={dateFrom} onChange={onDateFromChange} />
       <DateField label="끝"   value={dateTo}   onChange={onDateToChange} />
       <div className="flex flex-wrap gap-1 pt-1">
