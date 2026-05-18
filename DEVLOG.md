@@ -1,5 +1,33 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-19) — 캘린더 UX 개선 + Summary 버그 수정
+
+### 1. 캘린더 그리드 시작 시각 06:00으로 확장 (`_constants.ts`)
+- `START_H` 7 → 6 변경, 06:00 시간대 표시
+
+### 2. 현재시각 빨간 선 헤더 뒤로 숨김 (`calendar-shell.tsx`)
+- 날짜 헤더 / 업무가능 통계 / 올데이 sticky 행 z-index `z-20` → `z-30`
+- 스크롤 시 현재시각 라인(`z-20`)이 헤더 위로 올라오던 버그 수정
+
+### 3. Gantt 바 텍스트 색상 자동 전환 (`_GanttRows.tsx`, `gantt-utils.ts`)
+- `isLightColor(hex)` 유틸을 `gantt-utils.ts`에 추가
+- 밝은 배경(노란색 등)에서 흰 텍스트가 안 보이던 문제 수정
+- 밝은 바 → `rgba(0,0,0,0.75)` / 어두운 바 → `#fff` 자동 선택
+
+### 4. Summary — `SummaryView` 계산 useMemo 적용 (`summary-view.tsx`)
+- `tagCounts`, `priorityCounts`, `brandStats`, `topAuthors`, `topChannels` 5개 계산에 `useMemo` 추가
+- `items` / `clients` 변경 시에만 재계산
+
+### 5. Summary — 한 달 프리셋 날짜 계산 오류 수정 (`history-shell.tsx`, `history-sidebar.tsx`)
+- 29일 고정(`now - 29 * MS`) → `new Date(year, month-1, date)` 방식으로 정확한 1개월 전 계산
+- 월별 일수(28~31일)에 관계없이 동일 일자 기준 정확히 1개월 전 반환
+
+### 6. Summary — URL 파라미터 타입 검증 추가 (`history-shell.tsx`)
+- `view` / `dateMode` / `priority` / `tags` 4개 파라미터에 파서 함수 적용
+- 유효하지 않은 값은 기본값으로 폴백, `tags`는 개별 항목 단위로 검증
+
+---
+
 ## 최근 변경 (2026-05-18) — 사이드바 카운트 개선 + 캘린더 딥링크
 
 ### 1. Tasks 사이드바 — done 태스크 카운트 제외 (`use-task-filters.ts`)
