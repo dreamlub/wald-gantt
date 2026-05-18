@@ -1,6 +1,7 @@
 'use client'
 
 import type { CalendarEvent } from '@/types'
+import { fmtTime } from '../_utils'
 
 interface Props {
   event: CalendarEvent
@@ -8,11 +9,6 @@ interface Props {
   height: number
   colIndex?: number
   totalCols?: number
-}
-
-function fmtTime(iso: string): string {
-  const d = new Date(iso)
-  return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
 export function GoogleIcon({ size = 9 }: { size?: number }) {

@@ -1,80 +1,15 @@
 'use client'
 
-import { useRef, useCallback, useState } from 'react'
+import { useRef, useCallback, useState, useMemo } from 'react'
 import type { CalendarEvent, GanttTask } from '@/types'
+import { HOUR_H, START_H, END_H, TOTAL_H, SNAP_MIN, DRAG_OVER_BG } from '../_constants'
+import {
+  toMinutes, localDateStr, buildIso, snapToGrid, minutesToPx,
+  pxToMinutes, clamp, calcLayout,
+} from '../_utils'
 import { TaskBlock } from './task-block'
 import { EventBlock } from './event-block'
-import { getActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
-
-const HOUR_H   = 80
-const START_H  = 7
-const END_H    = 23
-const TOTAL_H  = END_H - START_H
-const SNAP_MIN = 30
-
-function toMinutes(iso: string): number {
-  const d = new Date(iso)
-  return d.getHours() * 60 + d.getMinutes()
-}
-
-function localDateStr(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-}
-
-function snapToGrid(minutes: number): number {
-  return Math.round(minutes / SNAP_MIN) * SNAP_MIN
-}
-
-function minutesToPx(minutes: number): number {
-  return (minutes / 60) * HOUR_H
-}
-
-function pxToMinutes(px: number): number {
-  return (px / HOUR_H) * 60
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v))
-}
-
-interface LayoutItem { colIndex: number; totalCols: number }
-
-function calcLayout(blocks: { startMin: number; endMin: number }[]): LayoutItem[] {
-  const n = blocks.length
-  if (n === 0) return []
-
-  const sorted = blocks
-    .map((b, i) => ({ ...b, origIdx: i }))
-    .sort((a, b) => a.startMin - b.startMin || b.endMin - a.endMin)
-
-  const cols: number[] = []       // cols[c] = endMin of last block in column c
-  const assigned = new Array<number>(n)
-
-  for (const b of sorted) {
-    let col = cols.findIndex(end => end <= b.startMin)
-    if (col === -1) col = cols.length
-    cols[col] = b.endMin
-    assigned[b.origIdx] = col
-  }
-
-  return blocks.map((b, i) => {
-    let maxCol = assigned[i]
-    for (let j = 0; j < n; j++) {
-      if (i !== j && b.startMin < blocks[j].endMin && b.endMin > blocks[j].startMin) {
-        maxCol = Math.max(maxCol, assigned[j])
-      }
-    }
-    return { colIndex: assigned[i], totalCols: maxCol + 1 }
-  })
-}
-
-function buildIso(date: string, totalMinutes: number): string {
-  const [y, mo, d] = date.split('-').map(Number)
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  return new Date(y, mo - 1, d, h, m).toISOString()
-}
+import { getActiveDragOffsetY } from './drag-state'
 
 interface DayColumnProps {
   date: string
@@ -129,6 +64,44 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
   const nowMin = now.getHours() * 60 + now.getMinutes()
   const nowTop = minutesToPx(nowMin - START_H * 60)
 
+  const layoutData = useMemo(() => {
+    const timedEvents    = events.filter(e => !e.isAllDay)
+    const scheduledTasks = tasks.filter(t => !!t.scheduled_at)
+
+    const allBlocks = [
+      ...timedEvents.map(e => ({ startMin: toMinutes(e.start), endMin: toMinutes(e.end) })),
+      ...scheduledTasks.map(t => ({ startMin: toMinutes(t.scheduled_at!), endMin: toMinutes(t.scheduled_at!) + (t.duration_minutes ?? 30) })),
+    ]
+
+    const layout      = calcLayout(allBlocks)
+    const eventLayout = layout.slice(0, timedEvents.length)
+    const taskLayout  = layout.slice(timedEvents.length)
+
+    const eventBlocks = timedEvents.map((event, i) => {
+      const startMin = toMinutes(event.start)
+      const endMin   = toMinutes(event.end)
+      return {
+        event,
+        top:    minutesToPx(startMin - START_H * 60),
+        height: Math.max(minutesToPx(endMin - startMin), 20),
+        ...eventLayout[i],
+      }
+    })
+
+    const taskBlocks = scheduledTasks.map((task, i) => {
+      const startMin = toMinutes(task.scheduled_at!)
+      const dur      = task.duration_minutes ?? 30
+      return {
+        task,
+        top:    minutesToPx(startMin - START_H * 60),
+        height: Math.max(minutesToPx(dur), 20),
+        ...taskLayout[i],
+      }
+    })
+
+    return { eventBlocks, taskBlocks }
+  }, [events, tasks])
+
   return (
     <div
       className={`flex-1 relative border-l border-border transition-colors ${dragOver ? DRAG_OVER_BG : ''}`}
@@ -179,73 +152,35 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
         </div>
       )}
 
-      {/* 겹침 레이아웃 계산 */}
-      {(() => {
-        const timedEvents = events.filter(e => !e.isAllDay)
-        const scheduledTasks = tasks.filter(t => !!t.scheduled_at)
+      {/* 겹침 레이아웃 계산 (메모이제이션) */}
+      {layoutData.eventBlocks.map(({ event, top, height, colIndex, totalCols }) => (
+        <EventBlock
+          key={event.id}
+          event={event}
+          top={top}
+          height={height}
+          colIndex={colIndex}
+          totalCols={totalCols}
+        />
+      ))}
 
-        const allBlocks = [
-          ...timedEvents.map(e => ({
-            startMin: toMinutes(e.start),
-            endMin:   toMinutes(e.end),
-          })),
-          ...scheduledTasks.map(t => ({
-            startMin: toMinutes(t.scheduled_at!),
-            endMin:   toMinutes(t.scheduled_at!) + (t.duration_minutes ?? 30),
-          })),
-        ]
-
-        const layout       = calcLayout(allBlocks)
-        const eventLayout  = layout.slice(0, timedEvents.length)
-        const taskLayout   = layout.slice(timedEvents.length)
-
-        return (
-          <>
-            {timedEvents.map((event, i) => {
-              const startMin = toMinutes(event.start)
-              const endMin   = toMinutes(event.end)
-              const top    = minutesToPx(startMin - START_H * 60)
-              const height = Math.max(minutesToPx(endMin - startMin), 20)
-              const { colIndex, totalCols } = eventLayout[i]
-              return (
-                <EventBlock
-                  key={event.id}
-                  event={event}
-                  top={top}
-                  height={height}
-                  colIndex={colIndex}
-                  totalCols={totalCols}
-                />
-              )
-            })}
-
-            {scheduledTasks.map((task, i) => {
-              const startMin = toMinutes(task.scheduled_at!)
-              const dur    = task.duration_minutes ?? 30
-              const top    = minutesToPx(startMin - START_H * 60)
-              const height = Math.max(minutesToPx(dur), 20)
-              const { colIndex, totalCols } = taskLayout[i]
-              return (
-                <TaskBlock
-                  key={task.id}
-                  task={task}
-                  top={top}
-                  height={height}
-                  colIndex={colIndex}
-                  totalCols={totalCols}
-                  getMinutesFromY={getMinutesFromY}
-                  date={date}
-                  onMove={onMove}
-                  onResize={onResize}
-                  onUnschedule={onUnschedule}
-                  onStatusChange={onStatusChange}
-                  onClick={() => onTaskClick(task)}
-                />
-              )
-            })}
-          </>
-        )
-      })()}
+      {layoutData.taskBlocks.map(({ task, top, height, colIndex, totalCols }) => (
+        <TaskBlock
+          key={task.id}
+          task={task}
+          top={top}
+          height={height}
+          colIndex={colIndex}
+          totalCols={totalCols}
+          getMinutesFromY={getMinutesFromY}
+          date={date}
+          onMove={onMove}
+          onResize={onResize}
+          onUnschedule={onUnschedule}
+          onStatusChange={onStatusChange}
+          onClick={() => onTaskClick(task)}
+        />
+      ))}
     </div>
   )
 }

@@ -4,24 +4,9 @@ import { useRef, useState } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
+import { SNAP_MIN, HOUR_H, START_H, END_H } from '../_constants'
+import { snapToGrid, clamp, pxToMinutes, buildIso, fmtTime } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
-
-const SNAP_MIN  = 30
-const HOUR_H    = 80
-const START_H   = 7
-const END_H     = 23
-
-function snapToGrid(minutes: number): number {
-  return Math.round(minutes / SNAP_MIN) * SNAP_MIN
-}
-
-function clamp(v: number, min: number, max: number) {
-  return Math.max(min, Math.min(max, v))
-}
-
-function pxToMinutes(px: number): number {
-  return (px / HOUR_H) * 60
-}
 
 interface Props {
   task: GanttTask
@@ -36,13 +21,6 @@ interface Props {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onClick: () => void
-}
-
-function buildIso(date: string, totalMinutes: number): string {
-  const [y, mo, d] = date.split('-').map(Number)
-  const h = Math.floor(totalMinutes / 60)
-  const m = totalMinutes % 60
-  return new Date(y, mo - 1, d, h, m).toISOString()
 }
 
 export function TaskBlock({
@@ -130,11 +108,6 @@ export function TaskBlock({
     const dy = Math.abs(e.clientY - clickStart.current.y)
     if (dx < 4 && dy < 4) onClick()
     clickStart.current = null
-  }
-
-  const fmtTime = (iso: string) => {
-    const d = new Date(iso)
-    return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   }
 
   const leftPct  = (colIndex / totalCols) * 100

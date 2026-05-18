@@ -5,14 +5,13 @@ import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { todayStrKST } from '@/lib/gantt-utils'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '../_constants'
+import { DAY_LABELS } from '@/app/(app)/calendar/_constants'
 import { isOverdue } from '../_utils'
 
 interface Props {
   tasks: GanttTask[]
   onEdit: (t: GanttTask) => void
 }
-
-const DOW_LABELS = ['일', '월', '화', '수', '목', '금', '토']
 
 export function CalendarView({ tasks, onEdit }: Props) {
   const [cur, setCur] = useState(() => {
@@ -88,7 +87,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
 
       {/* 요일 헤더 */}
       <div className="grid grid-cols-7 border-b bg-muted/50 shrink-0">
-        {DOW_LABELS.map((d, i) => (
+        {DAY_LABELS.map((d, i) => (
           <div
             key={d}
             className={`py-2 text-center text-[11px] font-semibold tracking-wide

@@ -2,42 +2,14 @@
 
 import { useState } from 'react'
 import { Search, PanelLeftClose, GripVertical, CalendarDays } from 'lucide-react'
-import { format, parseISO } from 'date-fns'
 import type { GanttTask } from '@/types'
+import { Button } from '@/components/ui/button'
+import { Input } from '@/components/ui/input'
 import { STATUS_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
-import { setActiveDragOffsetY, DRAG_OVER_BG } from './drag-state'
-
-const STATUS_ORDER: Record<string, number> = {
-  'in-progress': 0,
-  'to-do':       1,
-  'pending':     2,
-  'backlog':     3,
-  'done':        4,
-}
-
-type SortKey = 'deadline' | 'priority' | 'status'
-
-const SORT_LABELS: Record<SortKey, string> = {
-  deadline: '마감일',
-  priority: '중요도',
-  status:   '진행상황',
-}
-
-const SORT_CYCLE: SortKey[] = ['deadline', 'priority', 'status']
-
-function fmtDate(d: string | null | undefined): string {
-  if (!d) return ''
-  try { return format(parseISO(d), 'M/d') } catch { return '' }
-}
-
-function fmtScheduledAt(iso: string): string {
-  try {
-    const d = new Date(iso)
-    const base = `${d.getMonth() + 1}/${d.getDate()}`
-    if (d.getHours() === 0 && d.getMinutes() === 0) return `${base} 종일`
-    return `${base} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
-  } catch { return '' }
-}
+import { STATUS_ORDER, SORT_LABELS, SORT_CYCLE, DRAG_OVER_BG } from '../_constants'
+import type { SortKey } from '../_constants'
+import { fmtDate, fmtScheduledAt } from '../_utils'
+import { setActiveDragOffsetY } from './drag-state'
 
 interface Props {
   tasks: GanttTask[]
@@ -106,24 +78,20 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
         <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
-        <button
-          onClick={onClose}
-          className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
-          title="사이드바 닫기"
-        >
+        <Button variant="ghost" size="icon-xs" onClick={onClose} title="사이드바 닫기" className="text-ink-300">
           <PanelLeftClose size={14} />
-        </button>
+        </Button>
       </div>
 
       {/* 검색 */}
       <div className="shrink-0 px-2 pt-2 pb-1.5">
         <div className="relative">
-          <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
-          <input
+          <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
+          <Input
             value={q}
             onChange={e => setQ(e.target.value)}
             placeholder="태스크 검색"
-            className="w-full pl-5 pr-2 py-1 text-[11px] border border-border rounded bg-card text-muted-foreground placeholder:text-ink-300 focus:outline-none focus:border-lilac-300"
+            className="h-6 pl-5 pr-2 text-[11px] rounded"
           />
         </div>
       </div>

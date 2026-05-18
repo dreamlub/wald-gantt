@@ -1,5 +1,86 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-18) — Calendar 코드 리팩터링
+
+### 배경
+캘린더 코드 리뷰에서 중복 코드, God Component, 성능 문제, 디자인시스템 미준수 발견. 4단계에 걸쳐 리팩터링 수행.
+
+### Step 1: 중복 코드 제거
+- `calendar/_constants.ts` 신규 — 상수 11개 + SortKey 타입 통합
+- `calendar/_utils.ts` 신규 — 유틸 함수 18개 + LayoutItem 타입 통합
+- 7개 컴포넌트에서 복붙된 로컬 함수/상수 삭제, import 교체
+- 매직넘버 `8` → `WORK_HOURS_PER_DAY` 상수로 교체
+
+### Step 2: 커스텀 훅 추출
+- `calendar/_hooks/use-calendar-data.ts` 신규 — useState 7개 + useCallback 12개
+- `calendar-shell.tsx` 515줄 → 290줄 (43% 축소), JSX만 남김
+
+### Step 3: useMemo 추가
+- `use-calendar-data.ts`: assigneeSuggestions, allLabels
+- `calendar-shell.tsx`: weekDates, allDayEvents, allDayTasks, timedTasks
+- `time-grid.tsx` DayColumn: layoutData (calcLayout O(n²) × 7컬럼 → 변경 시에만)
+
+### Step 4: shadcn 공통 컴포넌트 전환
+- `calendar-shell.tsx` raw `<button>` 8개 → shadcn `Button`
+- `task-panel.tsx` 닫기 → `Button`, 검색 → shadcn `Input`
+
+---
+
+## 최근 변경 (2026-05-18) — Tasks UX 대폭 개선
+
+### 변경 내역
+
+**TaskDetailDrawer 하위태스크 인라인 입력**
+- "하위 태스크 추가" 버튼 클릭 → 드로어 안에서 인라인 입력 필드 노출 (기존: 드로어 닫히고 본문에서 입력)
+- Enter 연속 입력 가능, Esc 취소
+- 하위태스크 생성 시 부모 속성 전체 상속 (status, type, assignee, start_date, due_date, priority, labels, projects). memo는 제외
+
+**부모-하위 태스크 자동 완료 연동**
+- 부모 완료 → 미완료 하위태스크 일괄 완료 + 토스트 알림
+- 하위 전체 완료 → 부모 자동 완료 (기존 유지)
+
+**태스크 드래그 순서 변경**
+- `DraggableTaskRow`: `useDraggable` → `useSortable` 교체
+- 같은 상태 그룹 내 순서 변경 + 다른 상태 그룹으로 이동 시 상태 변경 + 정확한 위치 삽입
+- 그룹별 `SortableContext` + `onDragOver`로 타겟 그룹 추적, `getSortableIds`가 드래그 아이템을 타겟 그룹에 동적 삽입
+- collision detection: `pointerWithin` + `rectIntersection` 조합
+- 드래그 시작 시 하위태스크 자동 접기, 종료/취소 시 복원
+- 드래그 중 원본 `opacity-0`으로 DragOverlay 중첩 방지
+
+**라벨 자동완성**
+- `TaskDetailDrawer` / `TaskFormDialog`: 라벨 입력에 자동완성 드롭다운 추가
+- 기존 라벨 목록에서 필터링, 색상 점 표시, 클릭으로 즉시 추가
+- Calendar 드로어에도 `labelSuggestions` 전달
+- `TaskFormDialog`에 라벨 입력 UI 신규 추가 (`onSave`에 `labels` 필드 추가)
+
+**메모 풍선말 높이 제한**
+- `TaskRow` / `MemoTooltip`: `max-h-[60vh]` → `max-h-48` (192px), `overflow-hidden`
+
+**메모 호버 버튼 개선**
+- 색상 `text-ink-200` → `text-ink-300`, hover `text-lilac-500`로 가시성 향상
+- 메모 유무 관계없이 클릭 시 항상 메모 탭으로 드로어 오픈
+
+**태스크 행 삭제 호버 버튼**
+- 태스크 제목 영역 안(sub+ 버튼 옆)에 Trash2 아이콘 삭제 버튼 추가
+- 호버 시에만 표시, `hover:text-status-late` 강조
+
+**상위 태스크 표시 개선**
+- TaskDetailDrawer: 상위 태스크 텍스트 `text-[11px]` → `text-sm font-medium` 크게 변경
+
+**Google Calendar OAuth 진단**
+- `.env.local`에 `GOOGLE_CLIENT_ID`/`GOOGLE_CLIENT_SECRET` 미설정 → `invalid_client` 오류
+- Vercel 환경변수 추가 + Google Cloud Console 리디렉션 URI(`www.ggugong.com`) 등록 안내
+
+### 수정된 파일
+- `src/app/(app)/tasks/_components/TaskDetailDrawer.tsx` — 인라인 하위태스크 입력, 라벨 자동완성, 상위 태스크 크게
+- `src/app/(app)/tasks/_components/TaskRow.tsx` — `useSortable`, 삭제 버튼, 메모 버튼 개선, 드래그 opacity
+- `src/app/(app)/tasks/page.tsx` — 드래그 순서 변경, 부모-하위 자동완료, 라벨 수집/전달
+- `src/components/tasks/TaskFormDialog.tsx` — 라벨 입력 UI + 자동완성 추가
+- `src/app/(app)/calendar/_components/calendar-shell.tsx` — 하위태스크 부모 속성 상속, labelSuggestions 전달
+- `src/components/MemoTooltip.tsx` — max-h 제한
+
+---
+
 ## 최근 변경 (2026-05-18) — Calendar UX 개선
 
 ### 변경 내역
