@@ -1,5 +1,30 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-18) — 사이드바 카운트 개선 + 캘린더 딥링크
+
+### 1. Tasks 사이드바 — done 태스크 카운트 제외 (`use-task-filters.ts`)
+- 프로젝트·담당자·라벨 카운트 집계 시 `status === 'done'` 태스크 제외
+- 완료된 항목이 카운트에 포함돼 실제 활성 작업량과 달랐던 문제 수정
+
+### 2. Tasks 사이드바 — 완료 항목 눈 아이콘 제거 (`TasksSidebar.tsx`)
+- '완료' 퀵필터 우측 Eye/EyeOff 버튼 제거 (액션바 토글로 충분)
+- 미사용 `Eye`, `EyeOff` import 정리
+
+### 3. 캘린더 뱃지 — from → to 시간 범위 표시 (`TaskRow.tsx`)
+- `scheduled_at`만 표시하던 뱃지를 `M/D HH:MM → HH:MM` 형식으로 변경
+- `duration_minutes` 없을 시 시작 시각만 표시
+- 종일 태스크는 기존대로 `M/D 종일` 유지
+
+### 4. 캘린더 딥링크 — 뱃지 클릭 시 이동 + 하이라이트 (`TaskRow.tsx`, `calendar-shell.tsx`, `time-grid.tsx`, `task-block.tsx`)
+- 뱃지 클릭 → `/calendar?highlight=<id>&date=<YYYY-MM-DD>` 이동
+- `date` 파라미터로 `weekStart` 초기값 설정 → 주차 이동 플래시 없음
+- tasks 로드 후 `?highlight` 감지 → `highlightTaskId` 설정 + `router.replace('/calendar')` URL 클린업
+- 해당 태스크 시각 기준으로 스크롤 컨테이너 자동 스크롤 (`smooth`)
+- `TaskBlock`에 `highlight` prop 추가 → lilac glow `box-shadow` 번쩍 애니메이션 1.2s (`globals.css` `@keyframes block-flash`)
+- `calendar/page.tsx` — `useSearchParams` 사용을 위해 `<Suspense>` 래핑 추가
+
+---
+
 ## 최근 변경 (2026-05-18) — UX 레이블 정리 + 완료 포함 토글 이동
 
 ### 1. 정렬 기본값 레이블 변경 (`GanttToolbar.tsx`, `settings-shell.tsx`)
