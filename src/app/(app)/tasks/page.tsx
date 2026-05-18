@@ -3,6 +3,7 @@
 import React, { useState } from 'react'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { TaskTrashPanel } from '@/components/tasks/TaskTrashPanel'
+import { TaskArchivePanel } from '@/components/tasks/TaskArchivePanel'
 import type { GanttTask, TaskStatus } from '@/types'
 import type { ViewType } from './_constants'
 
@@ -34,6 +35,7 @@ export default function TasksPage() {
   const [formOpen,    setFormOpen]    = useState(false)
   const [editTask,    setEditTask]    = useState<GanttTask | null>(null)
   const [trashOpen,   setTrashOpen]   = useState(false)
+  const [archiveOpen, setArchiveOpen] = useState(false)
   const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('to-do')
   const [pendingParentId, setPendingParentId] = useState<string | null>(null)
   const [pendingDefaultProjects, setPendingDefaultProjects] = useState<{ id: string; name: string; board_name: string }[]>([])
@@ -91,6 +93,10 @@ export default function TasksPage() {
         labels={filters.sidebarLabels}
         filterLabel={filters.filterLabel}
         onFilterLabelChange={filters.setFilterLabel}
+        hideDone={filters.hideDone}
+        onHideDoneChange={filters.setHideDone}
+        archiveCount={data.archiveCount}
+        onArchiveOpen={() => setArchiveOpen(true)}
         trashCount={data.trashCount}
         onTrashOpen={() => setTrashOpen(true)}
       />
@@ -229,6 +235,13 @@ export default function TasksPage() {
         onClose={() => setTrashOpen(false)}
         workspaceId={data.workspace?.id ?? ''}
         onRestore={async () => { await data.load(); data.setTrashCount(prev => Math.max(0, prev - 1)) }}
+      />
+
+      <TaskArchivePanel
+        open={archiveOpen}
+        onClose={() => setArchiveOpen(false)}
+        workspaceId={data.workspace?.id ?? ''}
+        onUnarchive={async () => { await data.load(); data.setArchiveCount(prev => Math.max(0, prev - 1)) }}
       />
 
       {selection.selectionMode && (

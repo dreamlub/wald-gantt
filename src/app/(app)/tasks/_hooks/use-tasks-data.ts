@@ -6,6 +6,7 @@ import {
   getOrCreateWorkspace, getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, duplicateTask,
   bulkSoftDeleteTasks, bulkUpdateTaskStatus,
+  autoArchiveTasks, getArchivedTasksCount,
 } from '@/lib/gantt-service'
 import type { GanttTask, TaskStatus, TaskType, Priority, Workspace } from '@/types'
 
@@ -16,6 +17,7 @@ export function useTasksData() {
   const [tasks,     setTasks]     = useState<GanttTask[]>([])
   const [loading,   setLoading]   = useState(true)
   const [trashCount, setTrashCount] = useState(0)
+  const [archiveCount, setArchiveCount] = useState(0)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set<string>())
 
@@ -23,9 +25,12 @@ export function useTasksData() {
     try {
       const ws = await getOrCreateWorkspace()
       setWorkspace(ws)
-      const [list, cnt] = await Promise.all([getTasks(ws.id), getDeletedTasksCount(ws.id)])
+      // 자동 아카이브 실행 (완료 후 7일 경과 태스크)
+      await autoArchiveTasks(ws.id)
+      const [list, cnt, arcCnt] = await Promise.all([getTasks(ws.id), getDeletedTasksCount(ws.id), getArchivedTasksCount(ws.id)])
       setTasks(list)
       setTrashCount(cnt)
+      setArchiveCount(arcCnt)
       const statuses: TaskStatus[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
       setCollapsed(new Set(
         statuses.filter(s => s === 'done' || s === 'pending' || list.filter(t => t.status === s).length === 0)
@@ -207,7 +212,7 @@ export function useTasksData() {
   }, [])
 
   return {
-    workspace, tasks, setTasks, loading, trashCount, setTrashCount,
+    workspace, tasks, setTasks, loading, trashCount, setTrashCount, archiveCount, setArchiveCount,
     collapsed, toggleCollapse,
     expandedParents, setExpandedParents, toggleExpanded,
     load,

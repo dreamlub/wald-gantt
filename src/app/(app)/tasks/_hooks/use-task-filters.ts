@@ -18,9 +18,17 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
   const [searchOpen,     setSearchOpen]     = useState(false)
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [assigneesExpanded, setAssigneesExpanded] = useState(false)
+  const [hideDone, setHideDone] = useState(() => {
+    if (typeof window === 'undefined') return false
+    return localStorage.getItem('tasks:hideDone') === 'true'
+  })
 
   const searchRef      = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    localStorage.setItem('tasks:hideDone', String(hideDone))
+  }, [hideDone])
 
   useEffect(() => {
     if (searchOpen) searchInputRef.current?.focus()
@@ -96,6 +104,8 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
   // ── 필터링 (필터 조건 + tasks 변경 시만 재계산) ────────────
   const filtered = useMemo(() => {
     let result = tasks
+    // 완료 숨김 (단, '완료' 퀵필터 활성 시에는 무시)
+    if (hideDone && quickFilter !== 'done') result = result.filter(t => t.status !== 'done')
     if (filterProject)   result = result.filter(t => t.projects?.some(p => p.id === filterProject))
     if (filterAssignee) {
       if (filterAssignee === '__mine__') result = result.filter(t => t.type === 'mine')
@@ -140,7 +150,7 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
       }
     }
     return result
-  }, [tasks, filterProject, filterAssignee, filterLabel, quickFilter, searchQuery, todayStr])
+  }, [tasks, filterProject, filterAssignee, filterLabel, quickFilter, searchQuery, todayStr, hideDone])
 
   // ── 파생 그룹 (filtered 변경 시만 재계산) ──────────────────
   const derivedGroups = useMemo(() => {
@@ -189,6 +199,7 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
     searchRef, searchInputRef,
     assigneeSearch, setAssigneeSearch,
     assigneesExpanded, setAssigneesExpanded,
+    hideDone, setHideDone,
     // 통계
     ...stats,
     // 사이드바 데이터

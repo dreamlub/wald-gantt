@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  LayoutList, Search, PanelLeftClose, Trash2,
+  LayoutList, Search, PanelLeftClose, Trash2, Eye, EyeOff, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
@@ -44,6 +44,12 @@ interface TasksSidebarProps {
   labels: SidebarLabel[]
   filterLabel: string | null
   onFilterLabelChange: (name: string | null) => void
+  // 완료 숨김
+  hideDone: boolean
+  onHideDoneChange: (v: boolean) => void
+  // 아카이브
+  archiveCount: number
+  onArchiveOpen: () => void
   // 휴지통
   trashCount: number
   onTrashOpen: () => void
@@ -59,6 +65,8 @@ export function TasksSidebar({
   assigneesExpanded, onAssigneesExpandedChange, assigneesHidden, isSearching,
   assigneeColorMap,
   labels, filterLabel, onFilterLabelChange,
+  hideDone, onHideDoneChange,
+  archiveCount, onArchiveOpen,
   trashCount, onTrashOpen,
 }: TasksSidebarProps) {
   const quickItems = [
@@ -90,17 +98,27 @@ export function TasksSidebar({
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
         {/* 퀵 필터 */}
         {quickItems.map(item => (
-          <button
-            key={item.key}
-            onClick={() => onQuickFilterChange(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key)}
-            className={`sidebar-btn ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
-          >
-            {item.icon}
-            <span className="flex-1 text-left truncate">{item.label}</span>
-            <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
-              {item.count}
-            </span>
-          </button>
+          <div key={item.key} className="flex items-center">
+            <button
+              onClick={() => onQuickFilterChange(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key)}
+              className={`sidebar-btn flex-1 ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
+            >
+              {item.icon}
+              <span className="flex-1 text-left truncate">{item.label}</span>
+              <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
+                {item.count}
+              </span>
+            </button>
+            {item.key === 'done' && (
+              <button
+                onClick={(e) => { e.stopPropagation(); onHideDoneChange(!hideDone) }}
+                className={`shrink-0 p-1 rounded transition-colors ${hideDone ? 'text-ink-300 hover:text-muted-foreground' : 'text-ink-400 hover:text-muted-foreground'}`}
+                title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
+              >
+                {hideDone ? <EyeOff size={12} /> : <Eye size={12} />}
+              </button>
+            )}
+          </div>
         ))}
 
         {/* 프로젝트 */}
@@ -189,8 +207,20 @@ export function TasksSidebar({
         )}
       </div>
 
-      {/* 휴지통 */}
-      <div className="shrink-0 border-t px-1.5 py-1.5">
+      {/* 아카이브 + 휴지통 */}
+      <div className="shrink-0 border-t px-1.5 py-1.5 flex flex-col gap-0.5">
+        <button
+          onClick={onArchiveOpen}
+          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
+        >
+          <Archive size={13} className="shrink-0" />
+          <span className="whitespace-nowrap">아카이브</span>
+          {archiveCount > 0 && (
+            <span className="ml-auto text-[10px] bg-ink-300/15 text-ink-400 font-semibold px-1.5 py-0.5 rounded-full">
+              {archiveCount}
+            </span>
+          )}
+        </button>
         <button
           onClick={onTrashOpen}
           className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"

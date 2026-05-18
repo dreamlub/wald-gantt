@@ -73,6 +73,7 @@ export interface GanttTask {
   created_at: string
   updated_at: string
   deleted_at: string | null
+  archived_at: string | null
   scheduled_at: string | null   // ISO 8601, time blocking 시작 시각
   duration_minutes: number | null
   // 연결된 프로젝트 (join 후 포함)

@@ -1,5 +1,56 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-18) — 프로젝트 코드 리뷰 & 리팩터링
+
+### 배경
+프로젝트 전체 코드 리뷰 수행. tasks/page.tsx 메가 컴포넌트, GanttChart DOM 직접 조작, any 타입, 매직넘버, 중복 함수 등 7개 항목 발견 후 전부 처리.
+
+### 1. tasks/page.tsx 분리 (1286줄 → 190줄)
+- **커스텀 훅 5개** (`_hooks/`): use-tasks-data, use-task-filters, use-task-drag, use-task-selection, use-quick-add
+- **하위 컴포넌트 4개** (`_components/`): TasksSidebar, TasksActionBar, NormalView, BulkActionBar
+- useState 68개 → page.tsx에 10개만 남기고 훅으로 분산
+
+### 2. GanttChart DOM 직접 조작 → React state
+- `document.createElement` × 4 (overlay, tooltip) → `barDrag` state + JSX 선언적 렌더링
+- 메모리 누수 원천 차단 (`setBarDrag(null)`로 cleanup)
+
+### 3. useMemo 메모이제이션
+- `use-task-filters.ts`: 통계/사이드바 데이터/필터링 결과/파생 그룹 4곳
+- `GanttChart.tsx`: yearGroups, monthGroups, gridLinePositions 3곳
+- 드래그/hover 등 잦은 리렌더 시 불필요한 O(n) 재계산 방지
+
+### 4. any 타입 제거 (6곳 → 0곳)
+- `_GanttRows.tsx`: `listeners: any` → `ReturnType<typeof useSortable>['listeners']`
+- `gantt-service.ts`: `(member as any)` → 명시적 캐스팅, `(row: any)` → `TaskRow`/`ProjectRow` 타입
+
+### 5. 빈 catch 블록 에러 로깅
+- `supabase/server.ts`: `catch {}` → `catch (e) { console.warn(...) }`
+
+### 6. 날짜 포맷 함수 중복 제거
+- `gantt-utils.ts`에 `formatHistValue()`, `formatHistDate()` 공통화
+- `ProjectFormDialog.tsx`, `TaskHistorySection.tsx` 로컬 함수 제거 → import
+
+### 7. 매직넘버 상수화
+- `MS_PER_DAY` (gantt-utils) — `864e5`/`86_400_000` 8곳 교체
+- `AVG_DAYS_PER_MONTH` (GanttChart) — `30.4375` 주석 포함 상수화
+
+### 8. 완료 숨김 토글 + 자동 아카이브
+- **완료 숨김 토글**: 사이드바 '완료' 항목 옆 눈 아이콘(Eye/EyeOff), localStorage에 설정 저장
+- **자동 아카이브**: DB `archived_at` 컬럼 추가, 페이지 로드 시 완료 후 7일 경과 태스크 자동 아카이브
+- **아카이브 패널**: Drawer UI로 아카이브된 태스크 열람/복원 가능
+- **사이드바**: 아카이브 버튼 + 카운트 배지 추가 (휴지통 위)
+- 아카이브 기간 설정은 향후 Settings에서 조정 예정
+
+### 9. 사이드바 '완료' 퀵필터 추가
+- 퀵필터 목록 하단에 '완료' 항목 추가 (초록색 dot, done 카운트)
+- 클릭 시 done 상태 태스크만 필터링
+
+### 9. DnD 핸들러 패턴 공용화
+- `dnd-utils.ts` 신규 — `useDndSensors`, `useDndSensorsPointer`, `computeReorder`, `findContainer`
+- 3곳(use-task-drag, GanttChart, BoardSidebar)에서 센서 설정/재정렬/컨테이너 탐색 중복 제거
+
+---
+
 ## 최근 변경 (2026-05-18) — Calendar 코드 리팩터링
 
 ### 배경

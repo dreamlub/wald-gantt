@@ -315,6 +315,7 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
     `)
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
+    .is('archived_at', null)
     .order('sort_order')
   if (error) throw error
 
@@ -535,4 +536,74 @@ export async function searchProjects(workspaceId: string, query: string): Promis
     name: p.name,
     board_name: p.gantt_boards?.name ?? '',
   }))
+}
+
+// ── Archive ───────────────────────────────────────────────
+
+const DEFAULT_ARCHIVE_DAYS = 7
+
+/** 완료 후 N일 경과한 태스크를 자동 아카이브 (archived_at 세팅) */
+export async function autoArchiveTasks(workspaceId: string, days: number = DEFAULT_ARCHIVE_DAYS): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString()
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .update({ archived_at: new Date().toISOString() })
+    .eq('workspace_id', workspaceId)
+    .eq('status', 'done')
+    .is('archived_at', null)
+    .is('deleted_at', null)
+    .lt('updated_at', cutoff)
+    .select('id')
+  if (error) throw error
+  return data?.length ?? 0
+}
+
+/** 아카이브된 태스크 목록 조회 */
+export async function getArchivedTasks(workspaceId: string): Promise<GanttTask[]> {
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .select(`
+      *,
+      gantt_task_projects (
+        project_id,
+        gantt_projects ( id, name, gantt_boards ( name ) )
+      )
+    `)
+    .eq('workspace_id', workspaceId)
+    .not('archived_at', 'is', null)
+    .is('deleted_at', null)
+    .order('archived_at', { ascending: false })
+  if (error) throw error
+
+  type TaskRow = GanttTask & { gantt_task_projects?: TaskProjectJoin[] }
+  type TaskProjectJoin = { gantt_projects: { id: string; name: string; gantt_boards?: { name?: string } | null } }
+  return (data as TaskRow[] ?? []).map((row) => ({
+    ...row,
+    projects: (row.gantt_task_projects ?? []).map((tp) => ({
+      id: tp.gantt_projects.id,
+      name: tp.gantt_projects.name,
+      board_name: tp.gantt_projects.gantt_boards?.name ?? '',
+    })),
+  }))
+}
+
+/** 아카이브된 태스크 수 */
+export async function getArchivedTasksCount(workspaceId: string): Promise<number> {
+  const { count, error } = await db()
+    .from('gantt_tasks')
+    .select('*', { count: 'exact', head: true })
+    .eq('workspace_id', workspaceId)
+    .not('archived_at', 'is', null)
+    .is('deleted_at', null)
+  if (error) throw error
+  return count ?? 0
+}
+
+/** 아카이브 해제 (복원) */
+export async function unarchiveTask(id: string): Promise<void> {
+  const { error } = await db()
+    .from('gantt_tasks')
+    .update({ archived_at: null })
+    .eq('id', id)
+  if (error) throw error
 }
