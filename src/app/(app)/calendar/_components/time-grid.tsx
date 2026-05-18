@@ -16,17 +16,17 @@ interface DayColumnProps {
   events: CalendarEvent[]
   tasks: GanttTask[]
   getMinutesFromY: (clientY: number) => number
-  isToday: boolean
+  highlightTaskId?: string | null
+  onHighlightClear?: () => void
   onDrop: (taskId: string, scheduledAt: string, durationMinutes: number) => void
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
-  highlightTaskId?: string
 }
 
-function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, highlightTaskId }: DayColumnProps) {
+function DayColumn({ date, events, tasks, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -61,9 +61,6 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
   }
 
   const hours = Array.from({ length: TOTAL_H }, (_, i) => START_H + i)
-  const now    = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const nowTop = minutesToPx(nowMin - START_H * 60)
 
   const layoutData = useMemo(() => {
     const timedEvents    = events.filter(e => !e.isAllDay)
@@ -128,17 +125,6 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
         />
       ))}
 
-      {/* 현재 시각 */}
-      {isToday && nowMin >= START_H * 60 && nowMin <= END_H * 60 && (
-        <div
-          className="absolute left-0 right-0 flex items-center pointer-events-none z-10"
-          style={{ top: nowTop }}
-        >
-          <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
-          <div className="flex-1 border-t border-status-late" />
-        </div>
-      )}
-
       {/* 드래그 스냅 가이드라인 */}
       {dragOver && snapMinutes !== null && (
         <div
@@ -173,6 +159,8 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
           height={height}
           colIndex={colIndex}
           totalCols={totalCols}
+          highlight={highlightTaskId === task.id}
+          onHighlightClear={onHighlightClear}
           getMinutesFromY={getMinutesFromY}
           date={date}
           onMove={onMove}
@@ -180,7 +168,6 @@ function DayColumn({ date, events, tasks, getMinutesFromY, isToday, onDrop, onMo
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}
           onClick={() => onTaskClick(task)}
-          highlight={highlightTaskId === task.id}
         />
       ))}
     </div>
@@ -191,16 +178,17 @@ interface Props {
   dates: string[]
   events: CalendarEvent[]
   tasks: GanttTask[]
+  highlightTaskId?: string | null
+  onHighlightClear?: () => void
   onDrop: (taskId: string, scheduledAt: string, durationMinutes: number) => void
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
-  highlightTaskId?: string
 }
 
-export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, highlightTaskId }: Props) {
+export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
 
   const getMinutesFromY = useCallback((clientY: number): number => {
@@ -214,8 +202,13 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
   const hours = Array.from({ length: TOTAL_H + 1 }, (_, i) => START_H + i)
   const today = localDateStr(new Date().toISOString())
 
+  const now    = new Date()
+  const nowMin = now.getHours() * 60 + now.getMinutes()
+  const nowTop = minutesToPx(nowMin - START_H * 60)
+  const showNowLine = dates.includes(today) && nowMin >= START_H * 60 && nowMin <= END_H * 60
+
   return (
-    <div ref={gridRef} className="flex w-full">
+    <div ref={gridRef} className="relative flex w-full">
       {/* 시간 레이블 */}
       <div className="w-12 shrink-0 relative" style={{ height: TOTAL_H * HOUR_H }}>
         {hours.map(h => (
@@ -229,6 +222,17 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
         ))}
       </div>
 
+      {/* 현재 시각 라인 (전체 컬럼 폭) */}
+      {showNowLine && (
+        <div
+          className="absolute flex items-center pointer-events-none z-20"
+          style={{ top: nowTop, left: 48, right: 0 }}
+        >
+          <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
+          <div className="flex-1 border-t border-status-late" />
+        </div>
+      )}
+
       {/* 요일 컬럼 */}
       {dates.map(date => (
         <DayColumn
@@ -237,14 +241,14 @@ export function TimeGrid({ dates, events, tasks, onDrop, onMove, onResize, onUns
           events={events.filter(e => localDateStr(e.start) === date)}
           tasks={tasks.filter(t => !!t.scheduled_at && localDateStr(t.scheduled_at) === date)}
           getMinutesFromY={getMinutesFromY}
-          isToday={date === today}
+          highlightTaskId={highlightTaskId}
+          onHighlightClear={onHighlightClear}
           onDrop={onDrop}
           onMove={onMove}
           onResize={onResize}
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}
           onTaskClick={onTaskClick}
-          highlightTaskId={highlightTaskId}
         />
       ))}
     </div>

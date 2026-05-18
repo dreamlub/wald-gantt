@@ -1,6 +1,7 @@
 'use client'
 
 import type { CalendarEvent } from '@/types'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { fmtTime } from '../_utils'
 
 interface Props {
@@ -27,29 +28,40 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
   const widthPct = (1 / totalCols) * 100
 
   return (
-    <div
-      className="absolute rounded px-2 py-1 overflow-hidden select-none z-10"
-      style={{
-        top,
-        height: height - 2,
-        left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        backgroundColor: 'var(--color-ink-100)',
-        borderLeft: '3px solid var(--color-ink-300)',
-      }}
-      title={event.location ? `${event.title}\n${event.location}` : event.title}
-    >
-      <div className="flex items-center gap-1 leading-tight">
-        <GoogleIcon />
-        <p className="text-[11px] font-medium text-foreground truncate flex-1">
-          {event.title}
-        </p>
-      </div>
-      {height >= 36 && (
-        <p className="text-[10px] text-muted-foreground mt-0.5">
-          {fmtTime(event.start)} – {fmtTime(event.end)}
-        </p>
-      )}
-    </div>
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <div
+            className="absolute rounded px-2 py-1 overflow-hidden select-none z-10"
+            style={{
+              top,
+              height: height - 2,
+              left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+              backgroundColor: 'var(--color-ink-100)',
+              borderLeft: '3px solid var(--color-ink-300)',
+            }}
+          />
+        }
+      >
+        <div className="flex items-center gap-1 leading-tight">
+          <GoogleIcon />
+          <p className="text-[11px] font-medium text-foreground truncate flex-1">
+            {event.title}
+          </p>
+        </div>
+        {height >= 36 && (
+          <p className="text-[10px] text-muted-foreground mt-0.5">
+            {fmtTime(event.start)} – {fmtTime(event.end)}
+          </p>
+        )}
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <p className="font-medium">{event.title}</p>
+        <p className="text-xs text-muted-foreground">{fmtTime(event.start)} – {fmtTime(event.end)}</p>
+        {event.location && <p className="text-xs text-muted-foreground">{event.location}</p>}
+        {event.description && <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>}
+      </TooltipContent>
+    </Tooltip>
   )
 }

@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation'
 import {
   Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2,
 } from 'lucide-react'
+import Link from 'next/link'
 import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -164,18 +165,16 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
                 const to = fmtHHMM(new Date(endMs).toISOString())
                 return `${dateLabel} ${from} → ${to}`
               })()
+          const dateStr = new Date(task.scheduled_at!).toISOString().slice(0, 10)
           return (
-            <button
-              onClick={e => {
-                e.stopPropagation()
-                const dateStr = new Date(task.scheduled_at!).toISOString().slice(0, 10)
-                router.push(`/calendar?highlight=${task.id}&date=${dateStr}`)
-              }}
+            <Link
+              href={`/calendar?highlight=${task.id}&date=${dateStr}`}
+              onClick={e => e.stopPropagation()}
               className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
             >
               <CalendarDays size={9} className="shrink-0" />
               {label}
-            </button>
+            </Link>
           )
         })()}
 

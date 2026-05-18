@@ -418,7 +418,9 @@ export function GanttCategoryRight({
         )
       })}
 
-      <div className="border-b border-border" style={{ height: PROJ_ROW_H }} />
+      {!readOnly && (
+        <div className="border-b border-border" style={{ height: PROJ_ROW_H }} />
+      )}
     </div>
   )
 }

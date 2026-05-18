@@ -91,6 +91,20 @@ export function CalendarShell() {
   /* ── 이벤트 로드 (주 변경 시) ── */
   useEffect(() => { loadEvents(weekStart, weekEnd) }, [weekStart, weekEnd, loadEvents])
 
+  /* ── highlight 파라미터 처리 ── */
+  useEffect(() => {
+    const hid = searchParams.get('highlight')
+    if (!hid || tasks.length === 0) return
+    const target = tasks.find(t => t.id === hid)
+    if (!target?.scheduled_at) return
+    // 해당 태스크의 주로 이동
+    const targetWeek = getSundayOf(toDateStr(new Date(target.scheduled_at)))
+    setWeekStart(targetWeek)
+    setHighlightTaskId(hid)
+    // URL에서 highlight 파라미터 제거
+    router.replace('/calendar', { scroll: false })
+  }, [searchParams, tasks, router])
+
   const allDayEvents = useMemo(() => events.filter(e => e.isAllDay), [events])
   const allDayTasks  = useMemo(() => tasks.filter(t => !!t.scheduled_at && isAllDayScheduled(t.scheduled_at)), [tasks])
   const timedTasks   = useMemo(() => tasks.filter(t => !t.scheduled_at || !isAllDayScheduled(t.scheduled_at)), [tasks])
@@ -346,13 +360,14 @@ export function CalendarShell() {
             dates={weekDates}
             events={events}
             tasks={timedTasks}
+            highlightTaskId={highlightTaskId}
+            onHighlightClear={() => setHighlightTaskId(null)}
             onDrop={handleDrop}
             onMove={handleMove}
             onResize={handleResize}
             onUnschedule={handleUnschedule}
             onStatusChange={handleStatusChange}
             onTaskClick={setDrawerTask}
-            highlightTaskId={highlightTaskId ?? undefined}
           />
         </div>
 

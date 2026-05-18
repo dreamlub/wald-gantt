@@ -3,9 +3,10 @@
 import { useRef, useState, useEffect } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { SNAP_MIN, HOUR_H, START_H, END_H } from '../_constants'
-import { snapToGrid, clamp, pxToMinutes, buildIso, fmtTime } from '../_utils'
+import { snapToGrid, clamp, pxToMinutes, buildIso, fmtTime, toMinutes } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
 
 interface Props {
@@ -16,18 +17,20 @@ interface Props {
   date: string
   colIndex?: number
   totalCols?: number
+  highlight?: boolean
+  onHighlightClear?: () => void
   onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onClick: () => void
-  highlight?: boolean
 }
 
 export function TaskBlock({
   task, top, height, getMinutesFromY, date,
   colIndex = 0, totalCols = 1,
-  onMove, onResize, onUnschedule, onStatusChange, onClick, highlight = false,
+  highlight = false, onHighlightClear,
+  onMove, onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
   const [highlighted, setHighlighted] = useState(highlight)
@@ -43,6 +46,14 @@ export function TaskBlock({
   const startHeight  = useRef(0)
   const isDragging   = useRef(false)
   const blockRef     = useRef<HTMLDivElement>(null)
+
+  /* ── 하이라이트 처리 ── */
+  useEffect(() => {
+    if (!highlight || !blockRef.current) return
+    blockRef.current.scrollIntoView({ behavior: 'smooth', block: 'center' })
+    const timer = setTimeout(() => onHighlightClear?.(), 3000)
+    return () => clearTimeout(timer)
+  }, [highlight, onHighlightClear])
 
   const color  = STATUS_COLOR[task.status] ?? 'var(--color-ink-400)'
   const bg     = STATUS_BG_COLOR[task.status] ?? 'var(--color-ink-100)'
@@ -124,59 +135,77 @@ export function TaskBlock({
   const isOverlapping = totalCols > 1
 
   return (
-    <div
-      ref={blockRef}
-      draggable
-      onDragStart={handleDragStart}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      className={`absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5 ${highlighted ? 'animate-block-flash z-20' : ''}`}
-      style={{
-        top,
-        height: height - 2,
-        left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        backgroundColor: bg,
-        borderLeft: `3px solid ${color}`,
-      }}
-    >
-      {/* 1행: 체크 + 태스크명 */}
-      <div className="flex items-center gap-1 pr-5">
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <div
+            ref={blockRef}
+            draggable
+            onDragStart={handleDragStart}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            className={`absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5 ${
+              highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
+            }`}
+            style={{
+              top,
+              height: height - 2,
+              left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+              backgroundColor: bg,
+              borderLeft: `3px solid ${color}`,
+            }}
+          />
+        }
+      >
+        {/* 1행: 체크 + 태스크명 */}
+        <div className="flex items-center gap-1 pr-5">
+          <button
+            onMouseDown={e => e.stopPropagation()}
+            onClick={handleToggleDone}
+            className="shrink-0 w-2.5 h-2.5 rounded-full border-[1.5px] flex items-center justify-center transition-colors hover:opacity-80"
+            style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
+          >
+            {isDone && <Check size={6} className="text-white stroke-[3]" />}
+          </button>
+          <p className={`text-[10px] font-medium line-clamp-1 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+            {task.title}
+          </p>
+        </div>
+        {/* 2행: 시간 */}
+        {task.scheduled_at && (
+          <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
+            {fmtTime(task.scheduled_at)}
+            {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
+          </span>
+        )}
+
+        {/* 스케줄 해제 버튼 */}
         <button
           onMouseDown={e => e.stopPropagation()}
-          onClick={handleToggleDone}
-          className="shrink-0 w-2.5 h-2.5 rounded-full border-[1.5px] flex items-center justify-center transition-colors hover:opacity-80"
-          style={{ borderColor: color, backgroundColor: isDone ? color : 'transparent' }}
-          title={isDone ? '완료 취소' : '완료로 표시'}
+          onClick={e => { e.stopPropagation(); onUnschedule(task.id) }}
+          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
         >
-          {isDone && <Check size={6} className="text-white stroke-[3]" />}
+          <X size={10} />
         </button>
-        <p className={`text-[10px] font-medium line-clamp-1 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
-          {task.title}
-        </p>
-      </div>
-      {/* 2행: 시간 */}
-      {task.scheduled_at && (
-        <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
-          {fmtTime(task.scheduled_at)}
-          {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
-        </span>
-      )}
 
-      {/* 스케줄 해제 버튼 */}
-      <button
-        onMouseDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onUnschedule(task.id) }}
-        className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
-      >
-        <X size={10} />
-      </button>
-
-      {/* 리사이즈 핸들 */}
-      <div
-        onMouseDown={handleResizeMouseDown}
-        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
-      />
-    </div>
+        {/* 리사이즈 핸들 */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <p className="font-medium">{task.title}</p>
+        {task.scheduled_at && (
+          <p className="text-xs text-muted-foreground">
+            {fmtTime(task.scheduled_at)}
+            {task.duration_minutes
+              ? ` – ${fmtTime(buildIso(date, toMinutes(task.scheduled_at) + task.duration_minutes))}`
+              : ''}
+          </p>
+        )}
+      </TooltipContent>
+    </Tooltip>
   )
 }

@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  LayoutList, Search, PanelLeftClose, Trash2, Archive,
+  LayoutList, Search, PanelLeftClose, Trash2, Archive, Eye, EyeOff,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
@@ -101,10 +101,20 @@ export function TasksSidebar({
           <button
             key={item.key}
             onClick={() => onQuickFilterChange(quickFilter === item.key && item.key !== 'all' ? 'all' : item.key)}
-            className={`sidebar-btn ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
+            className={`sidebar-btn w-full ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
           >
             {item.icon}
             <span className="flex-1 text-left truncate">{item.label}</span>
+            {item.key === 'done' && (
+              <span
+                role="button"
+                onClick={(e) => { e.stopPropagation(); onHideDoneChange(!hideDone) }}
+                className={`shrink-0 p-0.5 rounded transition-colors ${hideDone ? 'text-ink-300 hover:text-muted-foreground' : 'text-ink-400 hover:text-muted-foreground'}`}
+                title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
+              >
+                {hideDone ? <EyeOff size={12} /> : <Eye size={12} />}
+              </span>
+            )}
             <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
               {item.count}
             </span>
