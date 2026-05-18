@@ -6,7 +6,7 @@ import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Palette, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
-import { MS_PER_DAY } from '@/lib/gantt-utils'
+import { MS_PER_DAY, isLightColor } from '@/lib/gantt-utils'
 
 // ── Layout constants ──────────────────────────────────────────
 export const CAT_ROW_H  = 32
@@ -322,6 +322,8 @@ export function GanttCategoryRight({
   cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap,
 }: GanttCategoryRightProps) {
   const barColor = cat.color
+  const barTextColor = isLightColor(barColor) ? 'rgba(0,0,0,0.75)' : '#fff'
+  const barTextShadow = isLightColor(barColor) ? 'none' : '0 0 3px rgba(0,0,0,0.3)'
 
   return (
     <div>
@@ -370,7 +372,7 @@ export function GanttCategoryRight({
                   {dateFitsInside && (
                     <span
                       className="text-[10px] font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
-                      style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
+                      style={{ color: barTextColor, textShadow: barTextShadow }}
                     >
                       {dateText}
                     </span>

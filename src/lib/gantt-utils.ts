@@ -4,6 +4,14 @@ import { format } from 'date-fns'
 /** 1일의 밀리초 (24 * 60 * 60 * 1000) */
 export const MS_PER_DAY = 86_400_000
 
+/** hex 색상이 밝은 색인지 여부 (텍스트 색상 결정에 사용) */
+export function isLightColor(hex: string): boolean {
+  const r = parseInt(hex.slice(1, 3), 16)
+  const g = parseInt(hex.slice(3, 5), 16)
+  const b = parseInt(hex.slice(5, 7), 16)
+  return (r * 0.299 + g * 0.587 + b * 0.114) > 170
+}
+
 // ── KST(UTC+9) 유틸 ───────────────────────────────────────────
 
 /** KST(UTC+9) 기준 오늘 날짜 문자열 "YYYY-MM-DD" 반환 */
