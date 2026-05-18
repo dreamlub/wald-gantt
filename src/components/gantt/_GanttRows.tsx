@@ -1,5 +1,6 @@
 'use client'
 
+import { useState } from 'react'
 import type { ReactNode } from 'react'
 import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -316,10 +317,52 @@ interface GanttCategoryRightProps {
   barCols: (p: GanttProject) => { start: number; end: number } | null
   makeDragHandlers: (p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => (e: React.MouseEvent) => void
   pmColorMap: Map<string, string>
+  onBarCreate?: (projectId: string, colIndex: number) => void
+}
+
+// 날짜 없는 프로젝트 행: hover 시 ghost bar + 클릭으로 바 생성
+function EmptyBarHint({ colW, barColor, curTop, BAR_H, projectId, onBarCreate }: {
+  colW: number
+  barColor: string
+  curTop: number
+  BAR_H: number
+  projectId: string
+  onBarCreate: (projectId: string, colIndex: number) => void
+}) {
+  const [hoverCol, setHoverCol] = useState<number | null>(null)
+
+  function getColIndex(e: React.MouseEvent): number {
+    const rect = e.currentTarget.getBoundingClientRect()
+    return Math.floor((e.clientX - rect.left) / colW)
+  }
+
+  return (
+    <div
+      className="absolute inset-0"
+      style={{ cursor: 'crosshair' }}
+      onMouseMove={e => setHoverCol(getColIndex(e))}
+      onMouseLeave={() => setHoverCol(null)}
+      onClick={e => onBarCreate(projectId, getColIndex(e))}
+    >
+      {hoverCol !== null && (
+        <div
+          className="absolute pointer-events-none rounded"
+          style={{
+            top: curTop,
+            left: hoverCol * colW + 4,
+            width: Math.max(colW - 8, 16),
+            height: BAR_H,
+            border: `1.5px dashed ${barColor}`,
+            backgroundColor: barColor + '18',
+          }}
+        />
+      )}
+    </div>
+  )
 }
 
 export function GanttCategoryRight({
-  cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap,
+  cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap, onBarCreate,
 }: GanttCategoryRightProps) {
   const barColor = cat.color
   const barTextColor = isLightColor(barColor) ? 'rgba(0,0,0,0.75)' : '#fff'
@@ -345,6 +388,16 @@ export function GanttCategoryRight({
             className="relative border-b"
             style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'transparent' }}
           >
+            {!cols && !readOnly && onBarCreate && (
+              <EmptyBarHint
+                colW={colW}
+                barColor={barColor}
+                curTop={curTop}
+                BAR_H={BAR_H}
+                projectId={project.id}
+                onBarCreate={onBarCreate}
+              />
+            )}
             {cols && (
               <>
                 <div

@@ -15,7 +15,7 @@ import { Button } from '@/components/ui/button'
 import { GanttToolbar } from './GanttToolbar'
 import {
   buildMonthRange, monthOffset, formatYearMonth, MONTH_LABELS,
-  buildWeekRange, dayOffset, dayOffsetInWeeks, buildDayRange,
+  buildWeekRange, dayOffset, dayOffsetInWeeks, buildDayRange, colFracToDate,
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
@@ -228,6 +228,31 @@ export function GanttChart({
       if (s >= totalCols || e <= 0) return null
       return { start: Math.max(0, s), end: Math.min(totalCols, e) }
     }
+  }
+
+  // 열 인덱스 → YYYY-MM-DD 날짜 문자열
+  function colIndexToDate(colIndex: number): string {
+    const idx = Math.max(0, Math.min(colIndex, totalCols - 1))
+    if (viewMode === 'day') return days[idx]?.key ?? ''
+    if (viewMode === 'week') {
+      const ws = weeks[idx]?.weekStart
+      if (!ws) return ''
+      return `${ws.getFullYear()}-${String(ws.getMonth() + 1).padStart(2, '0')}-${String(ws.getDate()).padStart(2, '0')}`
+    }
+    // month view
+    return colFracToDate(viewStart, idx)
+  }
+
+  // 날짜 없는 프로젝트 행 클릭 → 바 즉시 생성
+  function handleBarCreate(projectId: string, colIndex: number) {
+    const startDate = colIndexToDate(colIndex)
+    if (!startDate) return
+    const start = new Date(startDate + 'T00:00:00')
+    const daysToAdd = viewMode === 'month' ? 29 : 6
+    const end = new Date(start)
+    end.setDate(end.getDate() + daysToAdd)
+    const endDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
+    onUpdateProjectDates(projectId, startDate, endDate)
   }
 
   const today  = _today
@@ -840,6 +865,7 @@ export function GanttChart({
                   barCols={barCols}
                   makeDragHandlers={makeDragHandlers}
                   pmColorMap={pmColorMap}
+                  onBarCreate={readOnly ? undefined : handleBarCreate}
                 />
               ))}
             </div>
