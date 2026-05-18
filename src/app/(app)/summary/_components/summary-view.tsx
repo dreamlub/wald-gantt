@@ -1,5 +1,6 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Sparkles, BarChart3, Tag as TagIcon, Users, Hash } from 'lucide-react'
 import type { Client, HistoryItem, Priority, Tag } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
@@ -14,44 +15,53 @@ export function SummaryView({ items, clients }: Props) {
   const total = items.length
 
   // 태그별 카운트 (한 항목이 여러 태그 가지면 모두 +1)
-  const tagCounts = TAG_KEYS.reduce((acc, t) => { acc[t] = 0; return acc }, {} as Record<Tag, number>)
-  for (const h of items) for (const t of (h.tags ?? [])) tagCounts[t] = (tagCounts[t] ?? 0) + 1
+  const tagCounts = useMemo(() => {
+    const acc = TAG_KEYS.reduce((a, t) => { a[t] = 0; return a }, {} as Record<Tag, number>)
+    for (const h of items) for (const t of (h.tags ?? [])) acc[t] = (acc[t] ?? 0) + 1
+    return acc
+  }, [items])
 
   // 중요도별
-  const priorityCounts = (['high', 'medium', 'low'] as Priority[]).reduce((acc, p) => {
-    acc[p] = items.filter(i => i.priority === p).length
-    return acc
-  }, {} as Record<Priority, number>)
+  const priorityCounts = useMemo(() =>
+    (['high', 'medium', 'low'] as Priority[]).reduce((acc, p) => {
+      acc[p] = items.filter(i => i.priority === p).length
+      return acc
+    }, {} as Record<Priority, number>)
+  , [items])
 
   // 브랜드별
-  const brandStats = clients.map(c => {
-    const own = items.filter(i => i.client_id === c.id)
-    return {
-      client: c,
-      total: own.length,
-      issue: own.filter(i => i.tags?.includes('issue')).length,
-      decision: own.filter(i => i.tags?.includes('decision')).length,
-    }
-  }).filter(b => b.total > 0).sort((a, b) => b.total - a.total)
+  const brandStats = useMemo(() =>
+    clients.map(c => {
+      const own = items.filter(i => i.client_id === c.id)
+      return {
+        client: c,
+        total: own.length,
+        issue: own.filter(i => i.tags?.includes('issue')).length,
+        decision: own.filter(i => i.tags?.includes('decision')).length,
+      }
+    }).filter(b => b.total > 0).sort((a, b) => b.total - a.total)
+  , [items, clients])
 
   // 작성자 Top
-  const authorMap = new Map<string, number>()
-  for (const h of items) {
-    if (!h.author) continue
-    authorMap.set(h.author, (authorMap.get(h.author) ?? 0) + 1)
-  }
-  const topAuthors = [...authorMap.entries()].map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count).slice(0, 5)
-  const authorMax = topAuthors[0]?.count ?? 1
+  const { topAuthors, authorMax } = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const h of items) {
+      if (!h.author) continue
+      map.set(h.author, (map.get(h.author) ?? 0) + 1)
+    }
+    const top = [...map.entries()].map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count).slice(0, 5)
+    return { topAuthors: top, authorMax: top[0]?.count ?? 1 }
+  }, [items])
 
   // 채널 Top
-  const channelMap = new Map<string, number>()
-  for (const h of items) {
-    channelMap.set(h.channel, (channelMap.get(h.channel) ?? 0) + 1)
-  }
-  const topChannels = [...channelMap.entries()].map(([name, count]) => ({ name, count }))
-    .sort((a, b) => b.count - a.count).slice(0, 5)
-  const channelMax = topChannels[0]?.count ?? 1
+  const { topChannels, channelMax } = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const h of items) map.set(h.channel, (map.get(h.channel) ?? 0) + 1)
+    const top = [...map.entries()].map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count).slice(0, 5)
+    return { topChannels: top, channelMax: top[0]?.count ?? 1 }
+  }, [items])
 
   if (total === 0) {
     return <div className="text-center py-12 text-ink-400 text-xs">필터에 해당하는 항목이 없어요</div>
