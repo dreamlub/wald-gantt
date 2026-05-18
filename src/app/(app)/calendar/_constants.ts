@@ -2,7 +2,7 @@
 
 // 타임그리드
 export const HOUR_H   = 80   // 1시간 = 80px
-export const START_H  = 7    // 그리드 시작 시각
+export const START_H  = 6    // 그리드 시작 시각
 export const END_H    = 23   // 그리드 끝 시각
 export const TOTAL_H  = END_H - START_H
 export const SNAP_MIN = 30   // 스냅 단위(분)

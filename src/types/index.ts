@@ -117,11 +117,28 @@ export interface WeeklyReportItem {
   detail: string
   date: string | null
   brand: string | null
+  // 확장 필드 (하위 호환: 기존 저장 데이터에 없을 수 있음)
+  assignee?: string | null
+  task_type?: string | null
+  status?: string | null
+  // 비교 필드 (AI가 전주 대비 채움)
+  prev_status?: string | null
+  change?: 'new' | 'continued' | 'completed' | 'blocked' | null
+  prev_title?: string | null
+}
+
+export interface WeeklyDiffSummary {
+  new: number
+  completed: number
+  continued: number
+  blocked: number
+  dropped: number
 }
 
 export interface WeeklyReportSummary {
   items: WeeklyReportItem[]
   summary: string
+  diff_summary?: WeeklyDiffSummary
 }
 
 export interface WeeklyInsightStats {

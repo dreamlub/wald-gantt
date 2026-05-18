@@ -209,7 +209,7 @@ export function CalendarShell() {
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
 
           {/* 날짜 헤더 (sticky) */}
-          <div className="sticky top-0 z-20 flex border-b bg-card">
+          <div className="sticky top-0 z-30 flex border-b bg-card">
             <div className="w-12 shrink-0" />
             {weekDates.map(date => {
               const d       = parseISO(date)
@@ -238,7 +238,7 @@ export function CalendarShell() {
           </div>
 
           {/* 업무가능 시간 통계 (sticky) */}
-          <div className="sticky top-8 z-20 flex border-b bg-muted">
+          <div className="sticky top-8 z-30 flex border-b bg-muted">
             <div className="w-12 shrink-0" />
             {weekDates.map(date => {
               const googleHrs    = calcDayHours(date, events)
@@ -260,7 +260,7 @@ export function CalendarShell() {
           </div>
 
           {/* ALL-DAY 행 (sticky) */}
-          <div className="sticky top-[60px] z-20 flex border-b bg-card">
+          <div className="sticky top-[60px] z-30 flex border-b bg-card">
             <div className="w-12 shrink-0 flex items-start justify-end pt-1.5 pr-2">
               <span className="text-[10px] text-ink-400 whitespace-nowrap">ALL-DAY</span>
             </div>
