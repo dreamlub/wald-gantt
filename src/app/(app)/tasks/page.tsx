@@ -57,6 +57,7 @@ export default function TasksPage() {
                      : filters.quickFilter === 'due-today'     ? '오늘 마감 태스크가 없어요'
                      : filters.quickFilter === 'due-this-week' ? '이번 주 마감 태스크가 없어요'
                      : filters.quickFilter === 'due-next-week' ? '다음 주 마감 태스크가 없어요'
+                     : filters.quickFilter === 'done'          ? '완료된 태스크가 없어요'
                      : filters.hasFilter                       ? '조건에 맞는 태스크가 없어요'
                      : '태스크가 없어요'
 
@@ -72,6 +73,7 @@ export default function TasksPage() {
         dueTodayCount={filters.dueTodayCount}
         dueThisWeekCount={filters.dueThisWeekCount}
         dueNextWeekCount={filters.dueNextWeekCount}
+        doneCount={filters.doneCount}
         totalCount={data.tasks.length}
         projects={filters.sidebarProjects}
         filterProject={filters.filterProject}

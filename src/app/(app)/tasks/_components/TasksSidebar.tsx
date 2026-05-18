@@ -23,6 +23,7 @@ interface TasksSidebarProps {
   dueTodayCount: number
   dueThisWeekCount: number
   dueNextWeekCount: number
+  doneCount: number
   totalCount: number
   // 프로젝트
   projects: SidebarProject[]
@@ -51,7 +52,7 @@ interface TasksSidebarProps {
 export function TasksSidebar({
   open, onClose,
   quickFilter, onQuickFilterChange,
-  overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, totalCount,
+  overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount, totalCount,
   projects, filterProject, onFilterProjectChange,
   assignees, filterAssignee, onFilterAssigneeChange,
   assigneeSearch, onAssigneeSearchChange,
@@ -67,6 +68,7 @@ export function TasksSidebar({
     { key: 'due-today' as const,     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-orange-400 shrink-0" /> },
     { key: 'due-this-week' as const, label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" /> },
     { key: 'due-next-week' as const, label: '다음 주 마감',  count: dueNextWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-sky-400 shrink-0" /> },
+    { key: 'done' as const,          label: '완료',         count: doneCount,          icon: <span className="w-2 h-2 rounded-full bg-status-done shrink-0" /> },
   ]
 
   return (
@@ -95,7 +97,7 @@ export function TasksSidebar({
           >
             {item.icon}
             <span className="flex-1 text-left truncate">{item.label}</span>
-            <span className={`text-xs ${item.count > 0 && item.key !== 'all' ? 'text-status-late font-medium' : 'text-ink-400'}`}>
+            <span className={`text-xs ${item.count > 0 && item.key === 'done' ? 'text-status-done font-medium' : item.count > 0 && item.key !== 'all' ? 'text-status-late font-medium' : 'text-ink-400'}`}>
               {item.count}
             </span>
           </button>

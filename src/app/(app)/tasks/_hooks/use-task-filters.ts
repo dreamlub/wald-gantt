@@ -7,7 +7,7 @@ import type { GanttTask, Workspace } from '@/types'
 import { ASSIGNEE_COLORS } from '../_constants'
 import { isOverdue, isStartDelayed, isDueThisWeek, isDueNextWeek, overdueDays, daysDiff } from '../_utils'
 
-export type QuickFilterKey = 'all' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week'
+export type QuickFilterKey = 'all' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week' | 'done'
 
 export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) {
   const [filterProject,  setFilterProject]  = useState<string | null>(null)
@@ -45,7 +45,8 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
     const dueTodayCount      = tasks.filter(t => t.due_date === todayStr && t.status !== 'done').length
     const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
     const dueNextWeekCount   = tasks.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done').length
-    return { overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount }
+    const doneCount          = tasks.filter(t => t.status === 'done').length
+    return { overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount }
   }, [tasks, todayStr])
 
   // ── 사이드바 데이터 (tasks 변경 시만 재계산) ───────────────
@@ -113,6 +114,7 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
     if (quickFilter === 'due-today')     result = result.filter(t => t.due_date === todayStr && t.status !== 'done')
     if (quickFilter === 'due-this-week') result = result.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done')
     if (quickFilter === 'due-next-week') result = result.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done')
+    if (quickFilter === 'done')          result = result.filter(t => t.status === 'done')
     if (searchQuery.trim()) {
       const q = searchQuery.toLowerCase()
       result = result.filter(t =>
