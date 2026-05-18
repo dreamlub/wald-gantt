@@ -26,6 +26,19 @@ import {
 
 type ViewKey = 'table' | 'insight' | 'summary'
 
+const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary']
+const VALID_DATE_MODES: readonly DateMode[]  = ['occurred', 'updated']
+const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
+const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
+
+function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'table'    }
+function parseDateMode(v: string | null): DateMode   { return VALID_DATE_MODES.includes(v as DateMode)       ? (v as DateMode)       : 'occurred' }
+function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
+function parseTags(v: string | null): Set<Tag> {
+  if (!v) return new Set()
+  return new Set(v.split(',').filter((t): t is Tag => VALID_TAGS.includes(t as Tag)))
+}
+
 interface Props {
   initialClients: Client[]
   initialHistory: HistoryItem[]
@@ -62,16 +75,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [isRefreshing, startTransition] = useTransition()
 
   // URL → 초기 state
-  const [view,         setView]         = useState<ViewKey>(((searchParams.get('view') ?? 'table') as ViewKey))
+  const [view,         setView]         = useState<ViewKey>(() => parseView(searchParams.get('view')))
   const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
   const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
-  const [dateMode,     setDateMode]     = useState<DateMode>((searchParams.get('dateMode') as DateMode) ?? 'occurred')
+  const [dateMode,     setDateMode]     = useState<DateMode>(() => parseDateMode(searchParams.get('dateMode')))
   const [weekStart,    setWeekStart]    = useState<string>(searchParams.get('week') ?? getCurrentWeekStart())
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
-  const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => {
-    const t = searchParams.get('tags'); return new Set(t ? t.split(',').filter(Boolean) as Tag[] : [])
-  })
-  const [priorityKey,  setPriorityKey]  = useState<PriorityKey>((searchParams.get('priority') ?? 'all') as PriorityKey)
+  const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => parseTags(searchParams.get('tags')))
+  const [priorityKey,  setPriorityKey]  = useState<PriorityKey>(() => parsePriority(searchParams.get('priority')))
   const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
   const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
