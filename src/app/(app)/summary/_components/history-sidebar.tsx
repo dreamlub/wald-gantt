@@ -93,7 +93,7 @@ function activePreset(from: string, to: string): 'today' | 'week' | 'month' | 'a
   if (to === today) {
     const week = dateStr(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000))
     if (from === week) return 'week'
-    const month = dateStr(new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000))
+    const month = dateStr(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()))
     if (from === month) return 'month'
   }
   return null

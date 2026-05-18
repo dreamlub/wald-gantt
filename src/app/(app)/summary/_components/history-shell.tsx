@@ -49,7 +49,7 @@ function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string
     return { from: fmt(week), to: today }
   }
   if (preset === 'month') {
-    const month = new Date(now.getTime() - 29 * 24 * 60 * 60 * 1000)
+    const month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
     return { from: fmt(month), to: today }
   }
   return { from: '', to: '' }
