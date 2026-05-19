@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useCallback } from 'react'
-import { Sparkles, RefreshCw, CalendarDays, TrendingUp, TrendingDown } from 'lucide-react'
+import { Sparkles, RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight, WeeklyReportSummary, WeeklyReportItem } from '@/types/index'
 import { analyzeWeekly } from '@/lib/weekly-service'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 
-// ── 색상 ─────────────────────────────────────────────────────────
+// ── 유틸 ─────────────────────────────────────────────────────────
 
 function hashStr(s: string): number {
   let h = 0
@@ -18,45 +18,296 @@ function colorFor(s: string): string {
   return ASSIGNEE_COLORS[hashStr(s) % ASSIGNEE_COLORS.length]
 }
 
-// ── 타입 메타 ─────────────────────────────────────────────────────
-
-const TYPE_META = {
-  issue:    { label: '이슈', dotCls: 'bg-status-late',   badgeCls: 'bg-status-late/10 text-status-late' },
-  decision: { label: '결정', dotCls: 'bg-status-warn',   badgeCls: 'bg-status-warn/10 text-status-warn' },
-  plan:     { label: '계획', dotCls: 'bg-lilac-500',     badgeCls: 'bg-lilac-100 text-lilac-600' },
-} as const
-
-// ── bold 렌더 ─────────────────────────────────────────────────────
-
-function renderBold(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold">{part.slice(2, -2)}</strong>
-      : <span key={i}>{part}</span>
-  )
-}
-
-// ── 날짜 포맷 ─────────────────────────────────────────────────────
-
 function fmtDatetime(iso: string): string {
   const d = new Date(iso)
   return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
-// ── Delta 표시 ────────────────────────────────────────────────────
+// ── 타입 & 상수 ───────────────────────────────────────────────────
 
-function Delta({ delta }: { delta: number }) {
-  if (delta === 0) return <span className="text-[10px] text-ink-400">—</span>
-  const up = delta > 0
+type ChangeKey = 'new' | 'continued' | 'completed' | 'blocked' | 'dropped'
+type FilterKey = 'all' | ChangeKey
+
+const CHANGE_META: Record<ChangeKey, {
+  label: string
+  sectionLabel: string
+  dotCls: string
+  badgeCls: string
+}> = {
+  new:       { label: '신규',   sectionLabel: '신규',               dotCls: 'bg-lilac-500',   badgeCls: 'bg-lilac-100 text-lilac-700' },
+  continued: { label: '진행중', sectionLabel: '진행중',             dotCls: 'bg-blue-500',    badgeCls: 'bg-blue-50 text-blue-700' },
+  completed: { label: '완료',   sectionLabel: '완료',               dotCls: 'bg-mint-500',    badgeCls: 'bg-mint-50 text-mint-700' },
+  blocked:   { label: '블로킹', sectionLabel: '블로킹',             dotCls: 'bg-status-late', badgeCls: 'bg-red-50 text-status-late' },
+  dropped:   { label: '미언급', sectionLabel: '미언급 (전주 대비)', dotCls: 'bg-amber-400',   badgeCls: 'bg-amber-50 text-amber-700' },
+}
+
+const SECTION_ORDER: ChangeKey[] = ['new', 'continued', 'completed', 'blocked', 'dropped']
+
+// ── 아이템 조립 ───────────────────────────────────────────────────
+
+type EnrichedItem = WeeklyReportItem & {
+  _team: string
+  _author: string | null
+  change: ChangeKey
+}
+
+function assembleItems(reports: WeeklyReport[]): EnrichedItem[] {
+  const result: EnrichedItem[] = []
+  for (const r of reports) {
+    const summary = r.summary as unknown as WeeklyReportSummary | null
+    for (const item of summary?.items ?? []) {
+      result.push({
+        ...item,
+        change: (item.change as ChangeKey | null | undefined) ?? 'new',
+        _team: r.team,
+        _author: r.author,
+      })
+    }
+    for (const dropped of summary?.diff_summary?.dropped_items ?? []) {
+      result.push({
+        ...dropped,
+        change: 'dropped' as const,
+        type: (dropped.type ?? 'plan') as 'issue' | 'decision' | 'plan',
+        detail: dropped.detail ?? '',
+        date: dropped.date ?? null,
+        _team: r.team,
+        _author: r.author,
+      })
+    }
+  }
+  return result
+}
+
+// ── StatusChip ────────────────────────────────────────────────────
+
+const STATUS_LABEL: Record<string, string> = {
+  in_progress: '진행중',
+  completed:   '완료',
+  blocked:     '블로킹',
+  pending:     '대기',
+}
+
+function StatusChip({ status, dim }: { status: string | null; dim?: boolean }) {
+  if (!status) return null
+  const label = STATUS_LABEL[status] ?? status
   return (
-    <span className={`text-[10px] font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
-      {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
-      {up ? '+' : ''}{delta}
+    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-[3px] ${
+      dim
+        ? 'bg-ink-100 text-ink-400 line-through'
+        : status === 'completed' ? 'bg-mint-50 text-mint-600'
+        : status === 'blocked'   ? 'bg-red-50 text-status-late'
+        : status === 'in_progress' ? 'bg-blue-50 text-blue-600'
+        : 'bg-muted text-ink-500'
+    }`}>
+      {label}
     </span>
   )
 }
 
-// ── ProgressBar ──────────────────────────────────────────────────
+// ── ItemCard ──────────────────────────────────────────────────────
+
+function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: boolean }) {
+  const meta = CHANGE_META[item.change]
+  const displayName = item.assignee ?? item._author
+  const hasCompareDiff = compareMode && item.change !== 'new' && item.change !== 'dropped'
+  const statusChanged = hasCompareDiff && item.prev_status && item.status && item.prev_status !== item.status
+  const titleChanged  = hasCompareDiff && item.prev_title && item.prev_title !== item.title
+
+  return (
+    <div className={`bg-card border rounded-lg p-3.5 flex flex-col gap-2 hover:border-ink-300 transition-colors ${
+      compareMode && item.change === 'new'     ? 'border-lilac-300 ring-1 ring-lilac-100' :
+      compareMode && item.change === 'dropped' ? 'border-amber-200 bg-amber-50/30' :
+      compareMode && item.change === 'blocked' ? 'border-red-200' :
+      'border-border'
+    }`}>
+      {/* 헤더: 브랜드 + 담당자 */}
+      <div className="flex items-start justify-between gap-2">
+        <span className="text-sm font-semibold text-foreground leading-snug">
+          {item.brand ?? item.title}
+        </span>
+        {displayName && (
+          <span className="text-[11px] text-ink-400 shrink-0 flex items-center gap-1 mt-0.5">
+            <span
+              className="w-1.5 h-1.5 rounded-full shrink-0"
+              style={{ background: colorFor(displayName) }}
+            />
+            {displayName}
+          </span>
+        )}
+      </div>
+
+      {/* 제목 (brand와 다를 때) */}
+      {item.brand && item.title !== item.brand && (
+        <p className="text-xs font-medium text-ink-600 -mt-1">{item.title}</p>
+      )}
+
+      {/* 상세 */}
+      {item.detail && (
+        <p className="text-xs text-ink-500 leading-relaxed">{item.detail}</p>
+      )}
+
+      {/* 블로킹 사유 */}
+      {item.change === 'blocked' && item.block_reason && (
+        <div className="text-[11px] text-status-late bg-red-50 border border-red-100 rounded px-2 py-1 leading-snug">
+          블로킹 사유 {item.block_reason}
+        </div>
+      )}
+
+      {/* 전주 비교 모드: 상태 전환 표시 */}
+      {compareMode && item.change === 'new' && (
+        <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
+          <span className="italic">없음</span>
+          <span>→</span>
+          <span className="font-medium text-lilac-600">신규 등록</span>
+        </div>
+      )}
+
+      {compareMode && item.change === 'dropped' && (
+        <div className="flex items-center gap-1.5 text-[11px] text-amber-600">
+          <StatusChip status={item.prev_status ?? null} dim />
+          <span>→</span>
+          <span className="font-medium">이번 주 미언급</span>
+        </div>
+      )}
+
+      {hasCompareDiff && (statusChanged || titleChanged) && (
+        <div className="flex flex-col gap-1 bg-muted rounded px-2 py-1.5 -mx-0.5">
+          {titleChanged && (
+            <p className="text-[11px] text-ink-400 leading-snug">
+              <span className="text-ink-300">이전 제목</span> {item.prev_title}
+            </p>
+          )}
+          {statusChanged && (
+            <div className="flex items-center gap-1.5">
+              <StatusChip status={item.prev_status ?? null} dim />
+              <span className="text-[10px] text-ink-300">→</span>
+              <StatusChip status={item.status ?? null} />
+            </div>
+          )}
+        </div>
+      )}
+
+      {/* compareMode + continued이지만 변경사항 없음 */}
+      {hasCompareDiff && !statusChanged && !titleChanged && item.change === 'continued' && (
+        <p className="text-[11px] text-ink-300 italic">전주와 동일</p>
+      )}
+
+      {/* 태그 */}
+      <div className="flex gap-1.5 flex-wrap mt-auto pt-0.5">
+        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] ${meta.badgeCls}`}>
+          {meta.label}
+        </span>
+        {item.task_type ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-ink-100 text-ink-500">
+            {item.task_type}
+          </span>
+        ) : item.type ? (
+          <span className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-ink-100 text-ink-500">
+            {item.type === 'issue' ? '이슈' : item.type === 'decision' ? '결정' : '계획'}
+          </span>
+        ) : null}
+      </div>
+    </div>
+  )
+}
+
+// ── ChangeSection ──────────────────────────────────────────────────
+
+function ChangeSection({ changeKey, items, compareMode }: {
+  changeKey: ChangeKey
+  items: EnrichedItem[]
+  compareMode: boolean
+}) {
+  if (items.length === 0) return null
+  const meta = CHANGE_META[changeKey]
+  return (
+    <section className="mb-6">
+      <div className="flex items-center gap-2 mb-3">
+        <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dotCls}`} />
+        <span className="text-sm font-semibold text-foreground">{meta.sectionLabel}</span>
+        <span className="text-xs text-ink-400">{items.length}건</span>
+      </div>
+      <div className="grid grid-cols-2 gap-3">
+        {items.map((item, i) => (
+          <ItemCard key={i} item={item} compareMode={compareMode} />
+        ))}
+      </div>
+    </section>
+  )
+}
+
+// ── FilterBar ─────────────────────────────────────────────────────
+
+function FilterBar({
+  compareMode,
+  onCompareModeChange,
+  filter,
+  onFilterChange,
+  counts,
+}: {
+  compareMode: boolean
+  onCompareModeChange: (v: boolean) => void
+  filter: FilterKey
+  onFilterChange: (f: FilterKey) => void
+  counts: Record<FilterKey, number>
+}) {
+  const pills: { key: FilterKey; label: string; dotCls?: string }[] = [
+    { key: 'all',       label: '전체' },
+    { key: 'new',       label: '신규',   dotCls: 'bg-lilac-500' },
+    { key: 'continued', label: '진행중', dotCls: 'bg-blue-500' },
+    { key: 'completed', label: '완료',   dotCls: 'bg-mint-500' },
+    { key: 'blocked',   label: '블로킹', dotCls: 'bg-status-late' },
+    { key: 'dropped',   label: '미언급', dotCls: 'bg-amber-400' },
+  ]
+
+  return (
+    <div className="flex items-center gap-3 mb-6 flex-wrap">
+      {/* 전주 비교 모드 토글 */}
+      <button
+        role="switch"
+        aria-checked={compareMode}
+        onClick={() => onCompareModeChange(!compareMode)}
+        className={`relative inline-flex h-5 w-9 items-center rounded-full transition-colors shrink-0 ${
+          compareMode ? 'bg-lilac-500' : 'bg-ink-200'
+        }`}
+      >
+        <span
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+            compareMode ? 'translate-x-4' : 'translate-x-0.5'
+          }`}
+        />
+      </button>
+      <span className={`text-xs shrink-0 ${compareMode ? 'text-lilac-600 font-medium' : 'text-ink-500'}`}>전주 비교 모드</span>
+
+      <div className="w-px h-4 bg-border shrink-0" />
+
+      {/* 필터 pills */}
+      {pills.map(p => {
+        const active = filter === p.key
+        const count = counts[p.key]
+        return (
+          <button
+            key={p.key}
+            onClick={() => onFilterChange(p.key)}
+            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+              active
+                ? 'bg-foreground text-background border-foreground'
+                : 'bg-card text-ink-500 border-border hover:border-ink-400 hover:text-foreground'
+            }`}
+          >
+            {p.dotCls && (
+              <span className={`w-1.5 h-1.5 rounded-full shrink-0 ${p.dotCls}`} />
+            )}
+            {p.label}
+            <span className={`font-medium ${active ? '' : 'text-ink-400'}`}>{count}</span>
+          </button>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── ProgressBar ───────────────────────────────────────────────────
 
 function ProgressBar({ progress, slowPhase, statusMessage }: {
   progress: number
@@ -81,368 +332,36 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
   )
 }
 
-// ── 주차 제목 ─────────────────────────────────────────────────────
+// ── Delta ─────────────────────────────────────────────────────────
 
-function getWeekTitle(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  const month = d.getMonth() + 1
-  const dow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
-  const firstMon = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
-  const weekNum = Math.floor((d.getDate() - firstMon) / 7) + 1
-  return `${month}월 ${weekNum}주 전체 요약`
+function Delta({ delta }: { delta: number }) {
+  if (delta === 0) return <span className="text-[10px] text-ink-400">—</span>
+  const up = delta > 0
+  return (
+    <span className={`text-[10px] font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
+      {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
+      {up ? '+' : ''}{delta}
+    </span>
+  )
 }
 
-// ── AISummaryCard ─────────────────────────────────────────────────
+// ── AISummaryPanel ────────────────────────────────────────────────
 
-interface AISummaryCardProps {
+function AISummaryPanel({
+  weekStart, insight, reports, onInsightUpdate, onRefresh, onClose,
+}: {
   weekStart: string
   insight: WeeklyInsight | null
-  reportCount: number
-  analyzing: boolean
-  progress: number
-  slowPhase: boolean
-  statusMessage: string | null
-  error: string | null
-  onAnalyze: () => void
-}
-
-function AISummaryCard({
-  weekStart, insight, reportCount, analyzing, progress, slowPhase, statusMessage, error, onAnalyze,
-}: AISummaryCardProps) {
-  const content = insight?.content ?? null
-
-  return (
-    <div className="bg-card border border-border rounded-lg mb-4">
-      <div className="flex items-center gap-2 px-4 h-10 border-b border-border">
-        <Sparkles size={12} className="text-lilac-500 shrink-0" />
-        <span className="flex-1 text-xs font-semibold text-foreground">{getWeekTitle(weekStart)}</span>
-        <button
-          onClick={onAnalyze}
-          disabled={analyzing}
-          className="flex items-center gap-1.5 text-[11px] font-medium px-2.5 py-1 rounded bg-foreground text-background hover:bg-ink-800 disabled:opacity-60 transition-colors"
-        >
-          {analyzing
-            ? <RefreshCw size={10} className="animate-spin" />
-            : <Sparkles size={10} />}
-          {analyzing ? '분석 중...' : content ? '다시 요약' : '분석하기'}
-        </button>
-      </div>
-
-      <div className="px-4 py-3 space-y-2">
-        {analyzing && (
-          <ProgressBar progress={progress} slowPhase={slowPhase} statusMessage={statusMessage} />
-        )}
-
-        {error && (
-          <p className="text-[11px] text-status-late">{error}</p>
-        )}
-
-        {content ? (
-          <>
-            <p className="text-xs leading-relaxed text-foreground">
-              {renderBold(content.headline)}
-            </p>
-            {content.changes && (
-              <p className="text-[11px] text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
-                {content.changes}
-              </p>
-            )}
-            <p className="text-[10px] text-ink-400">
-              by Claude · 총 {reportCount}개 보고서 분석
-              {insight!.analyzed_at ? ` · ${fmtDatetime(insight!.analyzed_at)}` : ''}
-            </p>
-          </>
-        ) : !analyzing && (
-          <p className="text-[11px] text-ink-400 py-1">
-            {reportCount === 0
-              ? '수집된 보고서가 없어 분석할 수 없습니다.'
-              : '분석하기 버튼을 눌러 AI 요약을 생성하세요.'}
-          </p>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── StatsRow ──────────────────────────────────────────────────────
-
-function StatCard({ label, count, delta }: { label: string; count: number; delta: number }) {
-  return (
-    <div className="flex-1 bg-card border border-border rounded-lg px-3 py-2.5 min-w-0">
-      <p className="text-[10px] text-ink-500 mb-1.5 truncate">{label}</p>
-      <div className="flex items-end gap-1.5">
-        <span className="text-base font-bold text-foreground leading-none">{count}</span>
-        <Delta delta={delta} />
-      </div>
-    </div>
-  )
-}
-
-function StatsRow({ stats }: { stats: NonNullable<WeeklyInsight['content']>['stats'] }) {
-  return (
-    <div className="flex gap-2 mb-4">
-      <StatCard label="리포트 작성" count={stats.authors.count}   delta={stats.authors.delta} />
-      <StatCard label="이슈"        count={stats.issues.count}    delta={stats.issues.delta} />
-      <StatCard label="결정사항"    count={stats.decisions.count} delta={stats.decisions.delta} />
-      <StatCard label="다음주 계획" count={stats.plans.count}     delta={stats.plans.delta} />
-    </div>
-  )
-}
-
-// ── 아이템 행 ────────────────────────────────────────────────────
-
-interface ItemRowProps {
-  item: WeeklyReportItem
-  author?: string | null
-  showAuthor?: boolean
-  showBrand?: boolean
-  showTeam?: string
-}
-
-const FALLBACK_META = { label: '기타', dotCls: 'bg-ink-300', badgeCls: 'bg-ink-100 text-ink-500' }
-
-function ItemRow({ item, author, showAuthor = true, showBrand = true, showTeam }: ItemRowProps) {
-  const meta = TYPE_META[item.type as keyof typeof TYPE_META] ?? FALLBACK_META
-  return (
-    <div className="flex items-start gap-2.5 py-2.5 px-3 border-b border-border last:border-0 hover:bg-ink-50 transition-colors">
-      <span className={`w-1.5 h-1.5 rounded-full shrink-0 mt-[5px] ${meta.dotCls}`} />
-      <div className="flex-1 min-w-0">
-        <div className="flex items-start gap-2">
-          <p className="flex-1 text-xs font-medium text-foreground leading-snug">{item.title}</p>
-          <span className={`shrink-0 text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] ${meta.badgeCls}`}>
-            {meta.label}
-          </span>
-        </div>
-        {item.detail && (
-          <p className="text-[11px] text-ink-500 mt-0.5 leading-relaxed">{item.detail}</p>
-        )}
-        {(item.date || (showBrand && item.brand) || (showAuthor && author) || showTeam) && (
-          <div className="flex items-center gap-2 mt-1 flex-wrap">
-            {item.date && (
-              <span className="text-[10px] text-ink-400 flex items-center gap-0.5">
-                <CalendarDays size={10} />
-                {item.date}
-              </span>
-            )}
-            {showTeam && (
-              <span className="text-[10px] text-ink-400">{showTeam}</span>
-            )}
-            {showBrand && item.brand && (
-              <span className="text-[10px] text-ink-600 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorFor(item.brand) }} />
-                {item.brand}
-              </span>
-            )}
-            {showAuthor && author && (
-              <span className="text-[10px] text-ink-400 flex items-center gap-1">
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: colorFor(author) }} />
-                {author}
-              </span>
-            )}
-          </div>
-        )}
-      </div>
-    </div>
-  )
-}
-
-// ── 그룹 헤더 ─────────────────────────────────────────────────────
-
-function GroupHeader({ title, count, subtitle, color }: {
-  title: string
-  count: number
-  subtitle?: string
-  color?: string
-}) {
-  return (
-    <div className="flex items-center gap-2 px-3 py-2 bg-muted/60 border-b border-border">
-      {color && (
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-      )}
-      <span className="text-xs font-semibold text-foreground">{title}</span>
-      <span className="text-[10px] text-ink-400 bg-background border border-border px-1.5 py-0.5 rounded-full leading-none">
-        {count}
-      </span>
-      {subtitle && (
-        <span className="text-[11px] text-ink-400 ml-auto truncate max-w-[140px]">{subtitle}</span>
-      )}
-    </div>
-  )
-}
-
-// ── 빈 상태 ──────────────────────────────────────────────────────
-
-function EmptyItems({ message = '분석된 아이템이 없습니다.' }: { message?: string }) {
-  return (
-    <div className="text-center py-10 text-[11px] text-ink-400">{message}</div>
-  )
-}
-
-// ── 아이템 추출 유틸 ──────────────────────────────────────────────
-
-type ItemEntry = { item: WeeklyReportItem; team: string; author: string | null }
-
-function extractEntries(reports: WeeklyReport[]): ItemEntry[] {
-  const result: ItemEntry[] = []
-  for (const r of reports) {
-    const summary = r.summary as unknown as WeeklyReportSummary | null
-    for (const item of summary?.items ?? []) {
-      result.push({ item, team: r.team, author: r.author })
-    }
-  }
-  return result
-}
-
-// ── 탭별 뷰 ──────────────────────────────────────────────────────
-
-function AllView({ reports }: { reports: WeeklyReport[] }) {
-  const entries = extractEntries(reports)
-  if (entries.length === 0) return <EmptyItems />
-  return (
-    <div className="bg-card border border-border rounded-lg overflow-hidden">
-      {entries.map((e, i) => (
-        <ItemRow key={i} item={e.item} author={e.author} showTeam={e.team} showAuthor showBrand />
-      ))}
-    </div>
-  )
-}
-
-function TeamView({ reports }: { reports: WeeklyReport[] }) {
-  const withItems = reports.filter(r => {
-    const s = r.summary as unknown as WeeklyReportSummary | null
-    return (s?.items?.length ?? 0) > 0
-  })
-  if (withItems.length === 0) return <EmptyItems />
-
-  return (
-    <div className="flex flex-col gap-3">
-      {withItems.map(r => {
-        const items = (r.summary as unknown as WeeklyReportSummary).items
-        const brands = [...new Set(items.filter(it => it.brand).map(it => it.brand!))]
-        const subtitle = [r.author, brands[0]].filter(Boolean).join(' · ')
-        return (
-          <div key={r.id} className="bg-card border border-border rounded-lg overflow-hidden">
-            <GroupHeader
-              title={r.team}
-              count={items.length}
-              subtitle={subtitle || undefined}
-              color={r.author ? colorFor(r.author) : undefined}
-            />
-            {items.map((item, i) => (
-              <ItemRow key={i} item={item} author={r.author} showAuthor={false} showBrand />
-            ))}
-          </div>
-        )
-      })}
-    </div>
-  )
-}
-
-function BrandView({ reports }: { reports: WeeklyReport[] }) {
-  const entries = extractEntries(reports)
-  const grouped = new Map<string, ItemEntry[]>()
-  const noBrand: ItemEntry[] = []
-
-  for (const e of entries) {
-    const brand = e.item.brand ?? ''
-    if (!brand) { noBrand.push(e); continue }
-    if (!grouped.has(brand)) grouped.set(brand, [])
-    grouped.get(brand)!.push(e)
-  }
-
-  const sorted = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)
-
-  if (sorted.length === 0 && noBrand.length === 0) return <EmptyItems />
-  return (
-    <div className="flex flex-col gap-3">
-      {sorted.map(([brand, es]) => (
-        <div key={brand} className="bg-card border border-border rounded-lg overflow-hidden">
-          <GroupHeader title={brand} count={es.length} color={colorFor(brand)} />
-          {es.map((e, i) => (
-            <ItemRow key={i} item={e.item} author={e.author} showAuthor showBrand={false} showTeam={e.team} />
-          ))}
-        </div>
-      ))}
-      {noBrand.length > 0 && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <GroupHeader title="브랜드 미지정" count={noBrand.length} />
-          {noBrand.map((e, i) => (
-            <ItemRow key={i} item={e.item} author={e.author} showAuthor showBrand={false} showTeam={e.team} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-function AssigneeView({ reports }: { reports: WeeklyReport[] }) {
-  const entries = extractEntries(reports)
-  const grouped = new Map<string, ItemEntry[]>()
-  const noAuthor: ItemEntry[] = []
-
-  for (const e of entries) {
-    if (!e.author) { noAuthor.push(e); continue }
-    if (!grouped.has(e.author)) grouped.set(e.author, [])
-    grouped.get(e.author)!.push(e)
-  }
-
-  const sorted = [...grouped.entries()].sort((a, b) => b[1].length - a[1].length)
-
-  if (sorted.length === 0 && noAuthor.length === 0) return <EmptyItems />
-  return (
-    <div className="flex flex-col gap-3">
-      {sorted.map(([author, es]) => (
-        <div key={author} className="bg-card border border-border rounded-lg overflow-hidden">
-          <GroupHeader title={author} count={es.length} color={colorFor(author)} />
-          {es.map((e, i) => (
-            <ItemRow key={i} item={e.item} author={null} showAuthor={false} showBrand showTeam={e.team} />
-          ))}
-        </div>
-      ))}
-      {noAuthor.length > 0 && (
-        <div className="bg-card border border-border rounded-lg overflow-hidden">
-          <GroupHeader title="담당자 미지정" count={noAuthor.length} />
-          {noAuthor.map((e, i) => (
-            <ItemRow key={i} item={e.item} author={null} showAuthor={false} showBrand showTeam={e.team} />
-          ))}
-        </div>
-      )}
-    </div>
-  )
-}
-
-// ── 탭 정의 ──────────────────────────────────────────────────────
-
-export type DashboardTab = 'all' | 'team' | 'brand' | 'assignee'
-
-export const DASHBOARD_TABS: { key: DashboardTab; label: string }[] = [
-  { key: 'all',      label: '종합' },
-  { key: 'team',     label: '팀별' },
-  { key: 'brand',    label: '브랜드별' },
-  { key: 'assignee', label: '담당자별' },
-]
-
-// ── WeeklyDashboard ───────────────────────────────────────────────
-
-interface Props {
-  weekStart: string
   reports: WeeklyReport[]
-  insight: WeeklyInsight | null
-  reportsLoading: boolean
-  tab: DashboardTab
-  onInsightUpdate: (insight: WeeklyInsight) => void
+  onInsightUpdate: (i: WeeklyInsight) => void
   onRefresh: () => void
-}
-
-export function WeeklyDashboard({
-  weekStart, reports, insight, reportsLoading, tab,
-  onInsightUpdate, onRefresh,
-}: Props) {
-  const [analyzing, setAnalyzing]       = useState(false)
-  const [progress, setProgress]         = useState(0)
-  const [slowPhase, setSlowPhase]       = useState(false)
+  onClose: () => void
+}) {
+  const [analyzing, setAnalyzing]         = useState(false)
+  const [progress, setProgress]           = useState(0)
+  const [slowPhase, setSlowPhase]         = useState(false)
   const [statusMessage, setStatusMessage] = useState<string | null>(null)
-  const [error, setError]               = useState<string | null>(null)
+  const [error, setError]                 = useState<string | null>(null)
 
   const handleAnalyze = useCallback(async () => {
     setAnalyzing(true)
@@ -457,19 +376,10 @@ export function WeeklyDashboard({
     try {
       const result = await analyzeWeekly(weekStart, (msg) => {
         setStatusMessage(msg)
-        if (msg.includes('조회')) {
-          setProgress(10)
-        } else if (msg.includes('분석 중')) {
-          reportsDone += 1
-          setProgress(10 + Math.round((reportsDone / totalReports) * 65))
-        } else if (msg.includes('종합')) {
-          setProgress(80)
-          setSlowPhase(true)
-          requestAnimationFrame(() => requestAnimationFrame(() => setProgress(93)))
-        } else if (msg.includes('저장')) {
-          setSlowPhase(false)
-          setProgress(97)
-        }
+        if (msg.includes('조회'))         setProgress(10)
+        else if (msg.includes('분석 중')) { reportsDone += 1; setProgress(10 + Math.round((reportsDone / totalReports) * 65)) }
+        else if (msg.includes('종합'))    { setProgress(80); setSlowPhase(true); requestAnimationFrame(() => requestAnimationFrame(() => setProgress(93))) }
+        else if (msg.includes('저장'))    { setSlowPhase(false); setProgress(97) }
       })
       setProgress(100)
       onInsightUpdate(result)
@@ -483,6 +393,139 @@ export function WeeklyDashboard({
     }
   }, [weekStart, reports.length, onInsightUpdate, onRefresh])
 
+  const content = insight?.content ?? null
+
+  return (
+    <>
+      <div className="fixed inset-0 bg-black/20 z-40" onClick={onClose} />
+      <div className="fixed right-0 top-0 h-full w-[380px] bg-card border-l border-border z-50 flex flex-col shadow-xl">
+        {/* 패널 헤더 */}
+        <div className="flex items-center gap-2 px-4 h-12 border-b border-border shrink-0">
+          <Sparkles size={13} className="text-lilac-500" />
+          <span className="flex-1 text-sm font-semibold text-foreground">AI 주간 요약</span>
+          <button
+            onClick={onClose}
+            className="p-1 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
+          >
+            <X size={15} />
+          </button>
+        </div>
+
+        {/* 패널 본문 */}
+        <div className="flex-1 overflow-y-auto p-4 space-y-4">
+          {analyzing && (
+            <ProgressBar progress={progress} slowPhase={slowPhase} statusMessage={statusMessage} />
+          )}
+
+          {error && (
+            <p className="text-xs text-status-late">{error}</p>
+          )}
+
+          {content ? (
+            <>
+              {content.stats && (
+                <div className="grid grid-cols-2 gap-2">
+                  {([
+                    { label: '리포트', ...content.stats.authors },
+                    { label: '이슈',   ...content.stats.issues },
+                    { label: '결정',   ...content.stats.decisions },
+                    { label: '계획',   ...content.stats.plans },
+                  ] as { label: string; count: number; delta: number }[]).map(s => (
+                    <div key={s.label} className="bg-muted rounded-lg px-3 py-2.5">
+                      <p className="text-[10px] text-ink-500 mb-1.5">{s.label}</p>
+                      <div className="flex items-end gap-1.5">
+                        <span className="text-base font-bold text-foreground leading-none">{s.count}</span>
+                        <Delta delta={s.delta} />
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+
+              <div>
+                <p className="text-[10px] text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
+                <p className="text-xs leading-relaxed text-foreground">
+                  {content.headline.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
+                    p.startsWith('**') && p.endsWith('**')
+                      ? <strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>
+                      : <span key={i}>{p}</span>
+                  )}
+                </p>
+              </div>
+
+              {content.changes && (
+                <div>
+                  <p className="text-[10px] text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
+                  <p className="text-[11px] text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
+                    {content.changes}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-[10px] text-ink-400">
+                by Claude · {reports.length}개 보고서
+                {insight!.analyzed_at ? ` · ${fmtDatetime(insight!.analyzed_at)}` : ''}
+              </p>
+            </>
+          ) : !analyzing && (
+            <p className="text-xs text-ink-400 py-2">
+              {reports.length === 0
+                ? '수집된 보고서가 없어 분석할 수 없습니다.'
+                : '분석하기 버튼을 눌러 AI 요약을 생성하세요.'}
+            </p>
+          )}
+        </div>
+
+        {/* 분석 버튼 */}
+        <div className="p-4 border-t border-border shrink-0">
+          <button
+            onClick={handleAnalyze}
+            disabled={analyzing || reports.length === 0}
+            className="w-full flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-md bg-foreground text-background hover:bg-ink-800 disabled:opacity-60 transition-colors"
+          >
+            {analyzing ? <RefreshCw size={11} className="animate-spin" /> : <Sparkles size={11} />}
+            {analyzing ? '분석 중...' : content ? '다시 분석' : '분석하기'}
+          </button>
+        </div>
+      </div>
+    </>
+  )
+}
+
+// ── WeeklyDashboard ───────────────────────────────────────────────
+
+interface Props {
+  weekStart: string
+  prevWeekStart: string
+  reports: WeeklyReport[]
+  insight: WeeklyInsight | null
+  reportsLoading: boolean
+  showInsight: boolean
+  onCloseInsight: () => void
+  onInsightUpdate: (insight: WeeklyInsight) => void
+  onRefresh: () => void
+}
+
+export function WeeklyDashboard({
+  weekStart, reports, insight, reportsLoading,
+  showInsight, onCloseInsight, onInsightUpdate, onRefresh,
+}: Props) {
+  const [compareMode, setCompareMode] = useState(false)
+  const [filter, setFilter]           = useState<FilterKey>('all')
+
+  const allItems = assembleItems(reports)
+
+  const counts: Record<FilterKey, number> = {
+    all:       allItems.length,
+    new:       allItems.filter(it => it.change === 'new').length,
+    continued: allItems.filter(it => it.change === 'continued').length,
+    completed: allItems.filter(it => it.change === 'completed').length,
+    blocked:   allItems.filter(it => it.change === 'blocked').length,
+    dropped:   allItems.filter(it => it.change === 'dropped').length,
+  }
+
+  const filtered = filter === 'all' ? allItems : allItems.filter(it => it.change === filter)
+
   if (reportsLoading) {
     return (
       <div className="flex items-center justify-center py-16">
@@ -492,45 +535,49 @@ export function WeeklyDashboard({
   }
 
   return (
-    <div>
-      {/* 페이지 설명 */}
-      <p className="text-[11px] text-ink-400 mb-4">
-        AI가 분석한 주간 핵심 흐름과 팀/브랜드별 상세 보고를 확인하세요
-      </p>
+    <>
+      {showInsight && (
+        <AISummaryPanel
+          weekStart={weekStart}
+          insight={insight}
+          reports={reports}
+          onInsightUpdate={onInsightUpdate}
+          onRefresh={onRefresh}
+          onClose={onCloseInsight}
+        />
+      )}
 
-      {/* AI 요약 카드 */}
-      <AISummaryCard
-        weekStart={weekStart}
-        insight={insight}
-        reportCount={reports.length}
-        analyzing={analyzing}
-        progress={progress}
-        slowPhase={slowPhase}
-        statusMessage={statusMessage}
-        error={error}
-        onAnalyze={handleAnalyze}
-      />
-
-      {/* 스탯 행 */}
-      {insight?.content && <StatsRow stats={insight.content.stats} />}
-
-      {/* 보고서 없음 */}
-      {reports.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16 text-center gap-1">
+      {reports.length === 0 ? (
+        <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">
           <p className="text-xs text-muted-foreground">수집된 보고서가 없습니다</p>
           <p className="text-[11px] text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
         </div>
-      )}
-
-      {/* 탭별 뷰 */}
-      {reports.length > 0 && (
+      ) : (
         <>
-          {tab === 'all'      && <AllView      reports={reports} />}
-          {tab === 'team'     && <TeamView     reports={reports} />}
-          {tab === 'brand'    && <BrandView    reports={reports} />}
-          {tab === 'assignee' && <AssigneeView reports={reports} />}
+          <FilterBar
+            compareMode={compareMode}
+            onCompareModeChange={setCompareMode}
+            filter={filter}
+            onFilterChange={setFilter}
+            counts={counts}
+          />
+
+          {filtered.length === 0 ? (
+            <div className="text-center py-12 text-xs text-ink-400">
+              해당 카테고리 항목이 없습니다
+            </div>
+          ) : (
+            SECTION_ORDER.map(key => (
+              <ChangeSection
+                key={key}
+                changeKey={key}
+                items={filtered.filter(it => it.change === key)}
+                compareMode={compareMode}
+              />
+            ))
+          )}
         </>
       )}
-    </div>
+    </>
   )
 }

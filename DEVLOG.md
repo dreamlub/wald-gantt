@@ -1,5 +1,21 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-19) — Gantt 날짜 입력 UX 개선
+
+### 1. 날짜 직접 타이핑 입력 (`ProjectFormDialog.tsx`)
+- `DatePickerButton`을 텍스트 입력 + 달력 아이콘 병행 방식으로 재작성
+- `MM/DD` 또는 `YYYY.MM.DD` 형식으로 직접 타이핑 가능
+- blur / Enter 시 파싱 → 유효하면 반영, 잘못된 입력은 이전 값으로 복원
+- 달력 선택 시 input 텍스트 자동 동기화
+
+### 2. 그리드 클릭으로 바 즉시 생성 (`_GanttRows.tsx`, `GanttChart.tsx`)
+- 날짜 없는 프로젝트 행에 마우스 올리면 crosshair 커서 + ghost bar 미리보기
+- 클릭한 위치 기준으로 start/end 날짜 자동 계산 (월뷰 30일, 주/일뷰 7일 기본 범위)
+- `EmptyBarHint` 서브 컴포넌트로 hover 상태 분리 (hooks-in-loops 방지)
+- `colIndexToDate()` — 열 인덱스를 뷰 모드별로 날짜 문자열로 변환
+
+---
+
 ## 최근 변경 (2026-05-19) — 캘린더 UX 개선 + Summary 버그 수정
 
 ### 1. 캘린더 그리드 시작 시각 06:00으로 확장 (`_constants.ts`)

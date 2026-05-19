@@ -123,8 +123,9 @@ export interface WeeklyReportItem {
   status?: string | null
   // 비교 필드 (AI가 전주 대비 채움)
   prev_status?: string | null
-  change?: 'new' | 'continued' | 'completed' | 'blocked' | null
+  change?: 'new' | 'continued' | 'completed' | 'blocked' | 'dropped' | null
   prev_title?: string | null
+  block_reason?: string | null
 }
 
 export interface WeeklyDiffSummary {
@@ -133,6 +134,7 @@ export interface WeeklyDiffSummary {
   continued: number
   blocked: number
   dropped: number
+  dropped_items?: WeeklyReportItem[]
 }
 
 export interface WeeklyReportSummary {

@@ -1,21 +1,27 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings, CalendarDays, Sparkles, ArrowUpRight } from 'lucide-react'
 import type { WeeklyTeam } from '../_lib/types'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
-import { WeeklyDashboard, DASHBOARD_TABS } from './weekly-dashboard'
-import type { DashboardTab } from './weekly-dashboard'
+import { WeeklyDashboard } from './weekly-dashboard'
 import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
 
-function getWeekLabel(isoDate: string): string {
+function fmtHeader(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00')
-  const month = d.getMonth() + 1
-  const dow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
-  const firstMon = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
-  const weekNum = Math.floor((d.getDate() - firstMon) / 7) + 1
-  return `${month}월 ${weekNum}주 보고`
+  return `${d.getFullYear()}.${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+function fmtPrev(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  return `${String(d.getMonth() + 1).padStart(2, '0')}.${String(d.getDate()).padStart(2, '0')}`
+}
+
+function prevWeekOf(isoDate: string): string {
+  const d = new Date(isoDate + 'T00:00:00')
+  d.setDate(d.getDate() - 7)
+  return d.toISOString().slice(0, 10)
 }
 
 export function WeeklyShell() {
@@ -26,14 +32,14 @@ export function WeeklyShell() {
   const [sidebarOpen, setSidebarOpen]   = useState(true)
   const [weeksLoading, setWeeksLoading] = useState(false)
   const [weeksError, setWeeksError]     = useState<string | null>(null)
-  const [tab, setTab]                   = useState<DashboardTab>('all')
+  const [showInsight, setShowInsight]   = useState(false)
 
-  // 대시보드 데이터
-  const [reports, setReports]       = useState<WeeklyReport[]>([])
-  const [insight, setInsight]       = useState<WeeklyInsight | null>(null)
+  const [reports, setReports]         = useState<WeeklyReport[]>([])
+  const [insight, setInsight]         = useState<WeeklyInsight | null>(null)
   const [dashLoading, setDashLoading] = useState(false)
 
-  // 팀 목록 로드
+  const prevWeekStart = selectedIso ? prevWeekOf(selectedIso) : ''
+
   useEffect(() => {
     fetch('/api/weekly/teams')
       .then(r => r.json())
@@ -44,7 +50,6 @@ export function WeeklyShell() {
       .catch(() => setTeams([]))
   }, [])
 
-  // 팀 선택 시 DB에서 주차 목록 fetch
   const fetchWeeks = useCallback(async (teamLabel: string) => {
     setWeeksLoading(true)
     setWeeksError(null)
@@ -67,7 +72,6 @@ export function WeeklyShell() {
     if (team) fetchWeeks(team.label)
   }, [selectedTeam, teams, fetchWeeks])
 
-  // 주차 선택 시 DB에서 reports + insight fetch
   const fetchDashData = useCallback(async (weekStart: string) => {
     setDashLoading(true)
     setReports([])
@@ -80,7 +84,7 @@ export function WeeklyShell() {
       setReports(r)
       setInsight(i)
     } catch {
-      // 빈 상태 → 대시보드에서 처리
+      // 빈 상태 유지
     } finally {
       setDashLoading(false)
     }
@@ -94,6 +98,24 @@ export function WeeklyShell() {
     if (selectedIso) fetchDashData(selectedIso)
   }, [selectedIso, fetchDashData])
 
+  const [importing, setImporting] = useState(false)
+  const handleImportDx1 = useCallback(async () => {
+    setImporting(true)
+    try {
+      const res = await fetch('/api/weekly/import-dx1')
+      const data = await res.json()
+      if (data.ok) {
+        alert(`✅ 임포트 완료: ${data.team} ${data.week_start}`)
+        const team = teams.find(t => t.id === selectedTeam)
+        if (team) fetchWeeks(team.label)
+      } else {
+        alert(`❌ 실패: ${data.error}`)
+      }
+    } finally {
+      setImporting(false)
+    }
+  }, [teams, selectedTeam, fetchWeeks])
+
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* 사이드바 */}
@@ -103,6 +125,14 @@ export function WeeklyShell() {
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
           <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
+          <button
+            onClick={handleImportDx1}
+            disabled={importing}
+            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 whitespace-nowrap"
+            title="DX기획1팀 데이터 임포트 (임시)"
+          >
+            {importing ? '...' : 'DX1'}
+          </button>
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
@@ -150,26 +180,35 @@ export function WeeklyShell() {
               <PanelLeftOpen size={15} />
             </button>
           )}
-          <span className="text-sm font-semibold text-foreground shrink-0">
-            {selectedIso ? getWeekLabel(selectedIso) : 'Weekly'}
-          </span>
 
-          {selectedIso && (
-            <div className="ml-auto flex items-center">
-              {DASHBOARD_TABS.map(t => (
-                <button
-                  key={t.key}
-                  onClick={() => setTab(t.key)}
-                  className={`px-3 h-12 text-xs font-medium border-b-2 transition-colors ${
-                    tab === t.key
-                      ? 'border-lilac-500 text-lilac-600'
-                      : 'border-transparent text-muted-foreground hover:text-foreground'
-                  }`}
-                >
-                  {t.label}
-                </button>
-              ))}
-            </div>
+          {selectedIso ? (
+            <>
+              {/* 금주 날짜 */}
+              <div className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1 rounded-md">
+                <CalendarDays size={11} className="text-ink-400" />
+                <span className="font-medium text-foreground">{fmtHeader(selectedIso)}</span>
+              </div>
+
+              {/* 전주 날짜 */}
+              {prevWeekStart && (
+                <div className="flex items-center gap-1.5 text-xs text-ink-400 px-2.5 py-1 rounded-md border border-border">
+                  <CalendarDays size={11} />
+                  <span>전주 {fmtPrev(prevWeekStart)}</span>
+                </div>
+              )}
+
+              {/* AI 요약 버튼 */}
+              <button
+                onClick={() => setShowInsight(v => !v)}
+                className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-ink-800 transition-colors"
+              >
+                <Sparkles size={11} />
+                AI 요약
+                <ArrowUpRight size={11} />
+              </button>
+            </>
+          ) : (
+            <span className="text-sm font-semibold text-foreground">Weekly</span>
           )}
         </div>
 
@@ -214,10 +253,12 @@ export function WeeklyShell() {
             <div className="p-6 max-w-[1200px] mx-auto">
               <WeeklyDashboard
                 weekStart={selectedIso}
+                prevWeekStart={prevWeekStart}
                 reports={reports}
                 insight={insight}
                 reportsLoading={dashLoading}
-                tab={tab}
+                showInsight={showInsight}
+                onCloseInsight={() => setShowInsight(false)}
                 onInsightUpdate={setInsight}
                 onRefresh={handleRefresh}
               />
