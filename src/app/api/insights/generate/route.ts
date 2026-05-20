@@ -244,7 +244,7 @@ ${JSON_SCHEMA}`
 
         const message = await anthropic.messages.create({
           model: 'claude-sonnet-4-6',
-          max_tokens: 8192,
+          max_tokens: 16384,
           system: SYSTEM_PROMPT,
           messages: [{ role: 'user', content: userPrompt }],
         })
@@ -255,9 +255,15 @@ ${JSON_SCHEMA}`
         const jsonMatch = raw.match(/\{[\s\S]*\}/)
         if (!jsonMatch) throw new Error('Claude did not return valid JSON')
 
+        // 문자열 내부의 리터럴 개행 문자 이스케이프 처리
+        const repaired = jsonMatch[0].replace(
+          /"((?:[^"\\]|\\.)*)"/g,
+          (_m, inner: string) => `"${inner.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')}"`
+        )
+
         let jsonParsed: unknown
         try {
-          jsonParsed = JSON.parse(jsonMatch[0])
+          jsonParsed = JSON.parse(repaired)
         } catch (e) {
           const msg = e instanceof Error ? e.message : String(e)
           throw new Error(`JSON 파싱 실패 (응답이 잘렸을 수 있음): ${msg}`)
