@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import {
-  CalendarIcon, X, ChevronDown, Check, LayoutList,
+  CalendarIcon, X, Check, LayoutList,
   ChevronLeft, ChevronRight,
 } from 'lucide-react'
 import { Calendar } from '@/components/ui/calendar'
@@ -127,14 +127,6 @@ export function HistorySidebar({
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
           onPresetClick={onPresetClick} onDateModeChange={onDateModeChange}
         />
-      )}
-
-      {/* ── 브랜드 (인사이트 탭 제외 — 인사이트는 자체 칩 행으로 선택) ── */}
-      {view !== 'insight' && (
-        <div className="mt-3">
-          <GroupTitle>브랜드</GroupTitle>
-          <BrandCombobox clients={clients} history={history} brandId={brandId} onChange={onBrandChange} />
-        </div>
       )}
 
       {/* ── 태그·중요도 (인사이트 탭 제외) ─────────────────── */}
@@ -304,78 +296,6 @@ function DatePickerSection({ dateFrom, dateTo, dateMode, onDateFromChange, onDat
         ))}
       </div>
     </div>
-  )
-}
-
-// ── 브랜드 콤보박스 ─────────────────────────────────────────
-function BrandCombobox({ clients, history, brandId, onChange }: {
-  clients: Client[]
-  history: HistoryItem[]
-  brandId: string | 'all'
-  onChange: (id: string | 'all') => void
-}) {
-  const [open, setOpen] = useState(false)
-  const [query, setQuery] = useState('')
-
-  const counts = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const h of history) m.set(h.client_id, (m.get(h.client_id) ?? 0) + 1)
-    return m
-  }, [history])
-
-  const selected = clients.find(c => c.id === brandId) ?? null
-  const filtered = useMemo(() => {
-    const q = query.trim().toLowerCase()
-    const sorted = [...clients].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0))
-    if (!q) return sorted
-    return sorted.filter(c => c.name.toLowerCase().includes(q) || c.name_en.toLowerCase().includes(q))
-  }, [clients, counts, query])
-
-  return (
-    <Popover open={open} onOpenChange={o => { setOpen(o); if (!o) setQuery('') }}>
-      <PopoverTrigger className="w-full inline-flex items-center gap-2 px-2 py-1.5 rounded text-xs text-ink-700 bg-card border border-border hover:border-ink-300 transition-colors">
-        {selected ? (
-          <>
-            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: selected.color }} />
-            <span className="flex-1 truncate text-left">{selected.name}</span>
-            <span className="text-xs text-ink-400">{counts.get(selected.id) ?? 0}</span>
-          </>
-        ) : (
-          <>
-            <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
-            <span className="flex-1 truncate text-left text-muted-foreground">전체 브랜드</span>
-          </>
-        )}
-        <ChevronDown size={12} className="shrink-0 text-ink-400" />
-      </PopoverTrigger>
-      <PopoverContent className="w-[220px] p-0" align="start">
-        <div className="p-2 border-b border-border">
-          <input autoFocus type="text" value={query} onChange={e => setQuery(e.target.value)}
-            placeholder="브랜드 검색"
-            className="w-full text-[11px] px-2 py-1 border border-border rounded bg-card text-foreground outline-none focus:border-lilac-300 placeholder:text-ink-300"
-          />
-        </div>
-        <div className="max-h-60 overflow-y-auto p-1">
-          <button onClick={() => { onChange('all'); setOpen(false); setQuery('') }}
-            className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}>
-            <LayoutList size={12} className="shrink-0" />
-            <span className="flex-1 truncate text-left">전체</span>
-            <span className="text-xs text-ink-400">{history.length}</span>
-          </button>
-          {filtered.map(c => {
-            const active = brandId === c.id
-            return (
-              <button key={c.id} onClick={() => { onChange(c.id); setOpen(false); setQuery('') }}
-                className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
-                <span className="flex-1 truncate text-left">{c.name}</span>
-                <span className="text-xs text-ink-400">{counts.get(c.id) ?? 0}</span>
-              </button>
-            )
-          })}
-        </div>
-      </PopoverContent>
-    </Popover>
   )
 }
 
