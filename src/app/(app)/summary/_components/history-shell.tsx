@@ -4,8 +4,9 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Table2, Sparkles, BarChart2,
+  Table2, Sparkles, BarChart2, Download, RefreshCw,
 } from 'lucide-react'
+import { toast } from 'sonner'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
@@ -90,6 +91,88 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
+
+  // ── 생성 다이얼로그 ────────────────────────────────────────────
+  // ── 슬랙 수집 ─────────────────────────────────────────────────
+  const [collectDate,    setCollectDate]    = useState<string>(() => {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  })
+  const [collectStatus,  setCollectStatus]  = useState<string>('')
+  const [isCollecting,   setIsCollecting]   = useState(false)
+  const [isUpdating,     setIsUpdating]     = useState(false)
+
+  async function runSSE(url: string, body: unknown, onDone: (msg: string) => void) {
+    const res = await fetch(url, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(body),
+    })
+    if (!res.ok || !res.body) {
+      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
+      throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`)
+    }
+    const reader = res.body.getReader()
+    const decoder = new TextDecoder()
+    let buffer = ''
+    while (true) {
+      const { done, value } = await reader.read()
+      if (done) break
+      buffer += decoder.decode(value, { stream: true })
+      const parts = buffer.split('\n\n')
+      buffer = parts.pop() ?? ''
+      for (const part of parts) {
+        const lines = part.split('\n')
+        let eventType = ''
+        let eventData = ''
+        for (const line of lines) {
+          if (line.startsWith('event: ')) eventType = line.slice(7).trim()
+          else if (line.startsWith('data: ')) eventData = line.slice(6)
+        }
+        if (!eventData) continue
+        const data = JSON.parse(eventData) as Record<string, unknown>
+        if (eventType === 'status') setCollectStatus(data.message as string)
+        else if (eventType === 'result') onDone(data.message as string)
+        else if (eventType === 'error') throw new Error(data.message as string)
+      }
+    }
+  }
+
+  async function handleCollect() {
+    if (isCollecting || isUpdating) return
+    setIsCollecting(true)
+    setCollectStatus('준비 중...')
+    try {
+      await runSSE('/api/slack/collect', { date: collectDate }, (msg) => {
+        toast.success(msg)
+        setCollectStatus('')
+        startTransition(() => router.refresh())
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '수집 실패')
+      setCollectStatus('')
+    } finally {
+      setIsCollecting(false)
+    }
+  }
+
+  async function handleUpdateThreads() {
+    if (isCollecting || isUpdating) return
+    setIsUpdating(true)
+    setCollectStatus('스레드 업데이트 준비 중...')
+    try {
+      await runSSE('/api/slack/update-threads', {}, (msg) => {
+        toast.success(msg)
+        setCollectStatus('')
+        startTransition(() => router.refresh())
+      })
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '업데이트 실패')
+      setCollectStatus('')
+    } finally {
+      setIsUpdating(false)
+    }
+  }
 
   // ── 생성 다이얼로그 ────────────────────────────────────────────
   const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
@@ -324,10 +407,39 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            <span className="text-[11px] text-ink-400">
-              수집은 Claude Desktop MCP로 실행
-            </span>
+          <div className="ml-auto flex items-center gap-2">
+            {(isCollecting || isUpdating) && collectStatus && (
+              <span className="text-[11px] text-ink-400 max-w-48 truncate">{collectStatus}</span>
+            )}
+            <input
+              type="date"
+              value={collectDate}
+              onChange={e => setCollectDate(e.target.value)}
+              disabled={isCollecting || isUpdating}
+              className="text-[11px] px-2 py-1 border rounded bg-card text-muted-foreground outline-none focus:ring-1 focus:ring-lilac-300 disabled:opacity-50"
+            />
+            <button
+              onClick={handleCollect}
+              disabled={isCollecting || isUpdating}
+              title="슬랙 수집"
+              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border bg-card text-muted-foreground hover:text-ink-700 hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isCollecting
+                ? <RefreshCw size={11} className="animate-spin" />
+                : <Download size={11} />}
+              수집
+            </button>
+            <button
+              onClick={handleUpdateThreads}
+              disabled={isCollecting || isUpdating}
+              title="in_progress 스레드 업데이트"
+              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border bg-card text-muted-foreground hover:text-ink-700 hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+            >
+              {isUpdating
+                ? <RefreshCw size={11} className="animate-spin" />
+                : <RefreshCw size={11} />}
+              스레드
+            </button>
           </div>
         </div>
 
