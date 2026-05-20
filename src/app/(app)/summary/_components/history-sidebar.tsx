@@ -1,14 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
-import {
-  CalendarIcon, X, Check, LayoutList,
-  ChevronLeft, ChevronRight,
-} from 'lucide-react'
-import { Calendar } from '@/components/ui/calendar'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
+import { Check, LayoutList, ChevronLeft, ChevronRight } from 'lucide-react'
 
 import type { Client, Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
@@ -78,26 +71,6 @@ interface Props {
   onPriorityChange: (p: PriorityKey) => void
 }
 
-const PRESETS: { key: 'today' | 'week' | 'month' | 'all'; label: string }[] = [
-  { key: 'today', label: '오늘' },
-  { key: 'week',  label: '이번 주' },
-  { key: 'month', label: '한 달' },
-  { key: 'all',   label: '전체' },
-]
-
-function activePreset(from: string, to: string): 'today' | 'week' | 'month' | 'all' | null {
-  if (!from && !to) return 'all'
-  const now = new Date()
-  const today = dateStr(now)
-  if (from === today && to === today) return 'today'
-  if (to === today) {
-    const week = dateStr(new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000))
-    if (from === week) return 'week'
-    const month = dateStr(new Date(now.getFullYear(), now.getMonth() - 1, now.getDate()))
-    if (from === month) return 'month'
-  }
-  return null
-}
 
 export function HistorySidebar({
   view,
@@ -122,10 +95,10 @@ export function HistorySidebar({
       {view === 'insight' ? (
         <WeekNavSection weekStart={weekStart} onWeekChange={onWeekChange} />
       ) : (
-        <DatePickerSection
-          dateFrom={dateFrom} dateTo={dateTo} dateMode={dateMode}
+        <MonthGridSection
+          dateFrom={dateFrom} dateMode={dateMode}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-          onPresetClick={onPresetClick} onDateModeChange={onDateModeChange}
+          onDateModeChange={onDateModeChange}
         />
       )}
 
@@ -253,23 +226,42 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
   )
 }
 
-// ── 날짜 피커 (테이블/요약 전용) ────────────────────────────
+// ── 월 그리드 피커 (테이블/요약 전용) ───────────────────────
 const DATE_MODES: { key: DateMode; label: string }[] = [
   { key: 'occurred', label: '발생일' },
   { key: 'updated',  label: '수정일' },
 ]
 
-function DatePickerSection({ dateFrom, dateTo, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange }: {
-  dateFrom: string; dateTo: string; dateMode: DateMode
+function MonthGridSection({ dateFrom, dateMode, onDateFromChange, onDateToChange, onDateModeChange }: {
+  dateFrom: string; dateMode: DateMode
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
-  onPresetClick: (preset: 'today' | 'week' | 'month' | 'all') => void
   onDateModeChange: (mode: DateMode) => void
 }) {
-  const active = activePreset(dateFrom, dateTo)
+  const today = new Date()
+  const thisYear  = today.getFullYear()
+  const thisMonth = today.getMonth() + 1
+  const thisDate  = today.getDate()
+
+  const [calYear, setCalYear] = useState(() =>
+    dateFrom ? parseInt(dateFrom.slice(0, 4)) : thisYear
+  )
+
+  const selYear  = dateFrom ? parseInt(dateFrom.slice(0, 4)) : null
+  const selMonth = dateFrom ? parseInt(dateFrom.slice(5, 7)) : null
+
+  function selectMonth(year: number, month: number) {
+    const mm   = String(month).padStart(2, '0')
+    const last = new Date(year, month, 0).getDate()
+    onDateFromChange(`${year}-${mm}-01`)
+    onDateToChange(`${year}-${mm}-${String(last).padStart(2, '0')}`)
+  }
+
   return (
-    <div className="px-2 pt-0.5 pb-1 flex flex-col gap-1.5">
-      <div className="mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">필터</div>
-      <div className="flex items-center gap-0.5 bg-muted rounded-md p-0.5">
+    <div className="pb-1">
+      <div className="px-2 mb-1.5 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">기간</div>
+
+      {/* 발생일 / 수정일 토글 */}
+      <div className="mx-2 flex items-center gap-0.5 bg-muted rounded-md p-0.5 mb-2">
         {DATE_MODES.map(({ key, label }) => (
           <button key={key} onClick={() => onDateModeChange(key)}
             className={`flex-1 text-[11px] py-0.5 rounded transition-colors text-center ${
@@ -281,19 +273,60 @@ function DatePickerSection({ dateFrom, dateTo, dateMode, onDateFromChange, onDat
           </button>
         ))}
       </div>
-      <DateField label="시작" value={dateFrom} onChange={onDateFromChange} />
-      <DateField label="끝"   value={dateTo}   onChange={onDateToChange} />
-      <div className="flex flex-wrap gap-1 pt-1">
-        {PRESETS.map(({ key, label }) => (
-          <button key={key} onClick={() => onPresetClick(key)}
-            className={`text-[11px] px-2 py-0.5 rounded transition-colors ${
-              active === key
-                ? 'bg-foreground text-background font-medium'
-                : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-            }`}>
-            {label}
-          </button>
-        ))}
+
+      {/* 연도 네비게이터 */}
+      <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
+        <button onClick={() => setCalYear(y => y - 1)}
+          className="w-7 flex items-center justify-center text-ink-400 border-r border-border hover:bg-muted hover:text-foreground transition-colors">
+          <ChevronLeft size={13} />
+        </button>
+        <div className="flex-1 flex items-center justify-center gap-1.5 py-1.5">
+          <span className="text-xs font-semibold text-foreground">{calYear}</span>
+          {calYear === thisYear && (
+            <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
+          )}
+        </div>
+        <button onClick={() => setCalYear(y => y + 1)} disabled={calYear >= thisYear}
+          className="w-7 flex items-center justify-center text-ink-400 border-l border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
+          <ChevronRight size={13} />
+        </button>
+      </div>
+
+      {/* 월 그리드 (3행 × 4열) */}
+      <div className="mx-2 grid grid-cols-4 gap-1">
+        {Array.from({ length: 12 }, (_, i) => {
+          const m        = i + 1
+          const isSelected = selYear === calYear && selMonth === m
+          const isCurrent  = calYear === thisYear && m === thisMonth
+          const isFuture   = calYear > thisYear || (calYear === thisYear && m > thisMonth)
+
+          return (
+            <button key={m}
+              onClick={() => { if (!isFuture) selectMonth(calYear, m) }}
+              disabled={isFuture}
+              className={[
+                'relative flex flex-col items-center justify-center rounded py-2 text-xs font-medium transition-colors',
+                isSelected ? 'bg-foreground text-background' : '',
+                !isSelected && !isFuture ? 'hover:bg-muted text-foreground' : '',
+                isFuture ? 'text-ink-200 cursor-not-allowed' : '',
+              ].join(' ')}>
+              {/* 현재 날짜 뱃지 (상단 우측) */}
+              {isCurrent && (
+                <span className={[
+                  'absolute top-0.5 right-1 text-[9px] font-semibold leading-none',
+                  isSelected ? 'text-background/60' : 'text-lilac-500',
+                ].join(' ')}>
+                  {thisDate}
+                </span>
+              )}
+              <span>{m}</span>
+              {/* 현재 월 점 (하단) */}
+              {isCurrent && (
+                <span className={['w-1 h-1 rounded-full mt-0.5', isSelected ? 'bg-background/60' : 'bg-foreground'].join(' ')} />
+              )}
+            </button>
+          )
+        })}
       </div>
     </div>
   )
@@ -301,47 +334,4 @@ function DatePickerSection({ dateFrom, dateTo, dateMode, onDateFromChange, onDat
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
   return <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
-}
-
-function DateField({ label, value, onChange }: { label: string; value: string; onChange: (v: string) => void }) {
-  const [open, setOpen] = useState(false)
-  const dateValue = value ? new Date(value + 'T00:00:00') : undefined
-  return (
-    <div className="flex items-center gap-2 text-[11px] text-ink-700">
-      <span className="w-7 text-ink-400 font-medium shrink-0">{label}</span>
-      <Popover open={open} onOpenChange={setOpen}>
-        <PopoverTrigger className="flex-1 min-w-0 inline-flex items-center gap-1.5 rounded border border-border bg-card px-2 h-7 text-[11px] font-normal text-foreground transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
-          <CalendarIcon size={11} className="text-muted-foreground shrink-0" />
-          {dateValue
-            ? <span className="flex-1 text-left truncate">{format(dateValue, 'yyyy.MM.dd', { locale: ko })}</span>
-            : <span className="flex-1 text-left text-ink-300">날짜 선택</span>
-          }
-          {dateValue && (
-            <span role="button" tabIndex={0}
-              onClick={e => { e.stopPropagation(); onChange('') }}
-              onKeyDown={e => { if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); onChange('') } }}
-              className="text-ink-300 hover:text-muted-foreground">
-              <X size={10} />
-            </span>
-          )}
-        </PopoverTrigger>
-        <PopoverContent className="w-auto p-0" align="start">
-          <Calendar mode="single" selected={dateValue} defaultMonth={dateValue}
-            onSelect={d => {
-              if (d) {
-                const y = d.getFullYear()
-                const m = String(d.getMonth() + 1).padStart(2, '0')
-                const day = String(d.getDate()).padStart(2, '0')
-                onChange(`${y}-${m}-${day}`)
-              } else {
-                onChange('')
-              }
-              setOpen(false)
-            }}
-            locale={ko}
-          />
-        </PopoverContent>
-      </Popover>
-    </div>
-  )
 }
