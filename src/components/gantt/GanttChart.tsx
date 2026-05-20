@@ -261,13 +261,20 @@ export function GanttChart({
   let todayX: number | null = null
   if (viewMode === 'month') {
     const col = monthOffset(viewStart, todayYM)
-    todayX = col >= 0 && col < totalCols ? col * colW + colW / 2 : null
+    if (col >= 0 && col < totalCols) {
+      const dayOfMonth  = today.getDate()
+      const daysInMonth = new Date(today.getFullYear(), today.getMonth() + 1, 0).getDate()
+      todayX = col * colW + (dayOfMonth - 1) / daysInMonth * colW
+    }
   } else if (viewMode === 'week') {
     const idx = weeks.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 7); return today >= w.weekStart && today < e })
-    todayX = idx >= 0 ? idx * colW + colW / 2 : null
+    if (idx >= 0) {
+      const dayOfWeek = (today.getDay() + 6) % 7 // Mon=0 … Sun=6
+      todayX = idx * colW + (dayOfWeek / 7) * colW
+    }
   } else {
     const idx = days.findIndex(d => d.key === todayStr)
-    todayX = idx >= 0 ? idx * colW + colW / 2 : null
+    todayX = idx >= 0 ? idx * colW : null // 일 뷰는 컬럼 좌측 경계
   }
 
   // 스크롤 동기화
