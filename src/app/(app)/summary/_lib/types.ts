@@ -72,6 +72,12 @@ export interface Client {
   keywords: string[]
 }
 
+export interface ThreadReply {
+  author: string
+  occurred_at: string
+  text: string
+}
+
 export interface HistoryItem {
   id: string
   client_id: string
@@ -88,4 +94,5 @@ export interface HistoryItem {
   status_kind: StatusKind | null
   priority: Priority | null
   author: string | null
+  thread_replies?: ThreadReply[]
 }

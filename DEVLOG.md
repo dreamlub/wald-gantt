@@ -1,48 +1,27 @@
 # Wald Gantt — 개발 로그
 
-<<<<<<< HEAD
-## 최근 변경 (2026-05-19) — Gantt 날짜 입력 UX 개선
+## 최근 변경 (2026-05-21) — Summary 테이블 뷰 → 스플릿 패널 스레드 뷰어로 재설계
 
-### 1. 날짜 직접 타이핑 입력 (`ProjectFormDialog.tsx`)
-- `DatePickerButton`을 텍스트 입력 + 달력 아이콘 병행 방식으로 재작성
-- `MM/DD` 또는 `YYYY.MM.DD` 형식으로 직접 타이핑 가능
-- blur / Enter 시 파싱 → 유효하면 반영, 잘못된 입력은 이전 값으로 복원
-- 달력 선택 시 input 텍스트 자동 동기화
+### 1. `HistoryItem` 타입 확장 (`_lib/types.ts`)
+- `ThreadReply` 인터페이스 추가: `{ author, occurred_at, text }`
+- `HistoryItem.thread_replies?: ThreadReply[]` 옵셔널 필드 추가
 
-### 2. 그리드 클릭으로 바 즉시 생성 (`_GanttRows.tsx`, `GanttChart.tsx`)
-- 날짜 없는 프로젝트 행에 마우스 올리면 crosshair 커서 + ghost bar 미리보기
-- 클릭한 위치 기준으로 start/end 날짜 자동 계산 (월뷰 30일, 주/일뷰 7일 기본 범위)
-- `EmptyBarHint` 서브 컴포넌트로 hover 상태 분리 (hooks-in-loops 방지)
-- `colIndexToDate()` — 열 인덱스를 뷰 모드별로 날짜 문자열로 변환
+### 2. `table-view.tsx` 완전 재작성 — 스플릿 패널 구조
+- **왼쪽 패널 (380px 고정)**: 날짜별 그룹 헤더(오늘/어제/날짜) + 스레드 카드 목록
+  - 카드: 브랜드 dot+이름, 채널, 시간, 제목(중요도 스타일), 태그 pill
+  - 선택 항목: 보라 좌측 보더 + 배경 강조
+- **오른쪽 패널 (flex-1)**: 인라인 디테일 (서랍 없음)
+  - 헤더 바: 채널 칩, 중요도 배지, 브랜드, 날짜, 항목 카운터, 이전/다음 버튼
+  - 본문: 대제목, 태그(클릭 시 필터), 본문 텍스트, 스레드 답글 섹션
+  - 메타 푸터: 작성자/브랜드/채널 (클릭 시 필터)
+  - 액션 버튼: Slack에서 열기, 할 일로 등록, 일정 만들기
+  - 하단 키보드 힌트: ↑↓ 또는 J/K
+- 키보드 내비게이션: ↑/K (이전), ↓/J (다음), input 포커스 중일 때 비활성
+- 선택 아이템 변경 시 목록 scrollIntoView 자동 처리
+- 기존 `onOpenItem` prop은 optional로 유지 (HistoryDetailDrawer와의 호환성)
 
 ---
 
-## 최근 변경 (2026-05-19) — 캘린더 UX 개선 + Summary 버그 수정
-
-### 1. 캘린더 그리드 시작 시각 06:00으로 확장 (`_constants.ts`)
-- `START_H` 7 → 6 변경, 06:00 시간대 표시
-
-### 2. 현재시각 빨간 선 헤더 뒤로 숨김 (`calendar-shell.tsx`)
-- 날짜 헤더 / 업무가능 통계 / 올데이 sticky 행 z-index `z-20` → `z-30`
-- 스크롤 시 현재시각 라인(`z-20`)이 헤더 위로 올라오던 버그 수정
-
-### 3. Gantt 바 텍스트 색상 자동 전환 (`_GanttRows.tsx`, `gantt-utils.ts`)
-- `isLightColor(hex)` 유틸을 `gantt-utils.ts`에 추가
-- 밝은 배경(노란색 등)에서 흰 텍스트가 안 보이던 문제 수정
-- 밝은 바 → `rgba(0,0,0,0.75)` / 어두운 바 → `#fff` 자동 선택
-
-### 4. Summary — `SummaryView` 계산 useMemo 적용 (`summary-view.tsx`)
-- `tagCounts`, `priorityCounts`, `brandStats`, `topAuthors`, `topChannels` 5개 계산에 `useMemo` 추가
-- `items` / `clients` 변경 시에만 재계산
-
-### 5. Summary — 한 달 프리셋 날짜 계산 오류 수정 (`history-shell.tsx`, `history-sidebar.tsx`)
-- 29일 고정(`now - 29 * MS`) → `new Date(year, month-1, date)` 방식으로 정확한 1개월 전 계산
-- 월별 일수(28~31일)에 관계없이 동일 일자 기준 정확히 1개월 전 반환
-
-### 6. Summary — URL 파라미터 타입 검증 추가 (`history-shell.tsx`)
-- `view` / `dateMode` / `priority` / `tags` 4개 파라미터에 파서 함수 적용
-- 유효하지 않은 값은 기본값으로 폴백, `tags`는 개별 항목 단위로 검증
-=======
 ## 최근 변경 (2026-05-20) — Weekly 대시보드 UI 확장 (변경사항 탭 + 집계 표시)
 
 ### 1. `ItemRow` 개선 (`weekly-dashboard.tsx`)
@@ -106,7 +85,50 @@
 - 금주 items의 change 값 집계 → new/completed/continued/blocked 카운트
 - `dropped` = 전주 전체 항목 수 - (continued + completed + blocked)
 - `weekly_insights.content`에 포함해서 저장
->>>>>>> 5a7b266 (feat: 태스크 상태 블릿/셀 음영 프로젝트 측과 통일 + Weekly 전주 비교 분석)
+
+---
+
+## 최근 변경 (2026-05-19) — Gantt 날짜 입력 UX 개선
+
+### 1. 날짜 직접 타이핑 입력 (`ProjectFormDialog.tsx`)
+- `DatePickerButton`을 텍스트 입력 + 달력 아이콘 병행 방식으로 재작성
+- `MM/DD` 또는 `YYYY.MM.DD` 형식으로 직접 타이핑 가능
+- blur / Enter 시 파싱 → 유효하면 반영, 잘못된 입력은 이전 값으로 복원
+- 달력 선택 시 input 텍스트 자동 동기화
+
+### 2. 그리드 클릭으로 바 즉시 생성 (`_GanttRows.tsx`, `GanttChart.tsx`)
+- 날짜 없는 프로젝트 행에 마우스 올리면 crosshair 커서 + ghost bar 미리보기
+- 클릭한 위치 기준으로 start/end 날짜 자동 계산 (월뷰 30일, 주/일뷰 7일 기본 범위)
+- `EmptyBarHint` 서브 컴포넌트로 hover 상태 분리 (hooks-in-loops 방지)
+- `colIndexToDate()` — 열 인덱스를 뷰 모드별로 날짜 문자열로 변환
+
+---
+
+## 최근 변경 (2026-05-19) — 캘린더 UX 개선 + Summary 버그 수정
+
+### 1. 캘린더 그리드 시작 시각 06:00으로 확장 (`_constants.ts`)
+- `START_H` 7 → 6 변경, 06:00 시간대 표시
+
+### 2. 현재시각 빨간 선 헤더 뒤로 숨김 (`calendar-shell.tsx`)
+- 날짜 헤더 / 업무가능 통계 / 올데이 sticky 행 z-index `z-20` → `z-30`
+- 스크롤 시 현재시각 라인(`z-20`)이 헤더 위로 올라오던 버그 수정
+
+### 3. Gantt 바 텍스트 색상 자동 전환 (`_GanttRows.tsx`, `gantt-utils.ts`)
+- `isLightColor(hex)` 유틸을 `gantt-utils.ts`에 추가
+- 밝은 배경(노란색 등)에서 흰 텍스트가 안 보이던 문제 수정
+- 밝은 바 → `rgba(0,0,0,0.75)` / 어두운 바 → `#fff` 자동 선택
+
+### 4. Summary — `SummaryView` 계산 useMemo 적용 (`summary-view.tsx`)
+- `tagCounts`, `priorityCounts`, `brandStats`, `topAuthors`, `topChannels` 5개 계산에 `useMemo` 추가
+- `items` / `clients` 변경 시에만 재계산
+
+### 5. Summary — 한 달 프리셋 날짜 계산 오류 수정 (`history-shell.tsx`, `history-sidebar.tsx`)
+- 29일 고정(`now - 29 * MS`) → `new Date(year, month-1, date)` 방식으로 정확한 1개월 전 계산
+- 월별 일수(28~31일)에 관계없이 동일 일자 기준 정확히 1개월 전 반환
+
+### 6. Summary — URL 파라미터 타입 검증 추가 (`history-shell.tsx`)
+- `view` / `dateMode` / `priority` / `tags` 4개 파라미터에 파서 함수 적용
+- 유효하지 않은 값은 기본값으로 폴백, `tags`는 개별 항목 단위로 검증
 
 ---
 
