@@ -94,5 +94,7 @@ export interface HistoryItem {
   status_kind: StatusKind | null
   priority: Priority | null
   author: string | null
+  raw_message_id: string | null
+  thread_count: number
   thread_replies?: ThreadReply[]
 }

@@ -3,9 +3,11 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ExternalLink, ListTodo, CalendarRange, ChevronUp, ChevronDown } from 'lucide-react'
+import { ExternalLink, ListTodo, CalendarRange, ChevronUp, ChevronDown, MessageSquare } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
+import { createClient } from '@/lib/supabase/client'
+import type { RawJson } from '@/lib/slack-service'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars, ChannelBadge } from './badges'
 
@@ -275,6 +277,7 @@ export function TableView({
   const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
+  const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
   const selectedRowRef = useRef<HTMLDivElement>(null)
 
   // 날짜별 그룹 (items는 이미 날짜 내림차순 정렬)
@@ -314,6 +317,24 @@ export function TableView({
     if (idx < 0 || idx >= flatItems.length) return
     setSelectedId(flatItems[idx].id)
   }, [flatItems])
+
+  // 선택된 아이템의 스레드 replies lazy-fetch
+  useEffect(() => {
+    if (!selectedItem?.raw_message_id) { setThreadReplies([]); return }
+    const sb = createClient()
+    sb.from('slack_raw_messages')
+      .select('raw_json')
+      .eq('id', selectedItem.raw_message_id)
+      .single()
+      .then(({ data }) => {
+        const replies = (data?.raw_json as RawJson | null)?.replies ?? []
+        setThreadReplies(replies.map(r => ({
+          author: r.user_name || r.user,
+          occurred_at: new Date(parseFloat(r.ts) * 1000).toISOString(),
+          text: r.text,
+        })))
+      })
+  }, [selectedItem?.id, selectedItem?.raw_message_id])
 
   // 선택 아이템 변경 시 목록에서 스크롤
   useEffect(() => {
@@ -395,6 +416,12 @@ export function TableView({
                         {client?.name ?? '—'}
                       </span>
                       <span className="text-[10px] text-ink-400 shrink-0">#{item.channel}</span>
+                      {item.thread_count > 0 && (
+                        <span className="inline-flex items-center gap-0.5 text-[10px] text-lilac-500 shrink-0">
+                          <MessageSquare size={9} />
+                          {item.thread_count}
+                        </span>
+                      )}
                       <span className="text-[10px] text-ink-400 shrink-0 tabular-nums ml-1">
                         {fmtTime(item.occurred_at)}
                       </span>
@@ -433,7 +460,7 @@ export function TableView({
       {/* 오른쪽 패널 — 인라인 디테일 */}
       {selectedItem ? (
         <DetailPanel
-          item={selectedItem}
+          item={{ ...selectedItem, thread_replies: threadReplies }}
           client={clientMap.get(selectedItem.client_id)}
           selectedIdx={selectedIdx}
           totalCount={flatItems.length}

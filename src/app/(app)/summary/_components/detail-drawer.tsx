@@ -5,7 +5,9 @@ import { ko } from 'date-fns/locale'
 import { X, ExternalLink, Copy, Check, Plus, Pencil, ChevronDown } from 'lucide-react'
 import { useEffect, useRef, useState } from 'react'
 
-import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
+import { createClient } from '@/lib/supabase/client'
+import type { RawJson } from '@/lib/slack-service'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
@@ -37,7 +39,26 @@ export function HistoryDetailDrawer({
   const [isSaving,      setIsSaving]      = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [brandDropOpen, setBrandDropOpen] = useState(false)
+  const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
   const brandDropRef = useRef<HTMLDivElement>(null)
+
+  // 슬랙 스레드 답글 lazy-fetch
+  useEffect(() => {
+    if (!item?.raw_message_id) { setThreadReplies([]); return }
+    const sb = createClient()
+    sb.from('slack_raw_messages')
+      .select('raw_json')
+      .eq('id', item.raw_message_id)
+      .single()
+      .then(({ data }) => {
+        const replies = (data?.raw_json as RawJson | null)?.replies ?? []
+        setThreadReplies(replies.map(r => ({
+          author: r.user_name || r.user,
+          occurred_at: new Date(parseFloat(r.ts) * 1000).toISOString(),
+          text: r.text,
+        })))
+      })
+  }, [item?.id, item?.raw_message_id])
 
   useEffect(() => {
     if (!brandDropOpen) return
@@ -307,6 +328,28 @@ export function HistoryDetailDrawer({
                 <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
                 <div className="text-xs text-foreground leading-[1.7] whitespace-pre-wrap break-words">
                   {item.body}
+                </div>
+              </div>
+            )}
+
+            {/* 스레드 답글 */}
+            {threadReplies.length > 0 && (
+              <div>
+                <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">
+                  스레드 답글 <span className="text-ink-300 font-normal">({threadReplies.length})</span>
+                </div>
+                <div className="space-y-2">
+                  {threadReplies.map((r, i) => (
+                    <div key={i} className="bg-muted rounded-md px-3 py-2 space-y-1">
+                      <div className="flex items-center justify-between gap-2">
+                        <span className="text-[11px] font-medium text-foreground">{r.author}</span>
+                        <span className="text-[10px] text-ink-400 tabular-nums shrink-0">
+                          {format(new Date(r.occurred_at), 'MM/dd HH:mm', { locale: ko })}
+                        </span>
+                      </div>
+                      <p className="text-[11px] text-muted-foreground leading-[1.6] whitespace-pre-wrap break-words">{r.text}</p>
+                    </div>
+                  ))}
                 </div>
               </div>
             )}

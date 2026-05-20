@@ -31,6 +31,8 @@ interface DbHistory {
   status_kind: StatusKind | null
   priority: Priority | null
   author: string | null
+  raw_message_id: string | null
+  thread_count: number
   deleted_at: string | null
 }
 
@@ -61,6 +63,8 @@ function toHistory(r: DbHistory): HistoryItem {
     status_kind: r.status_kind,
     priority: r.priority,
     author: r.author,
+    raw_message_id: r.raw_message_id,
+    thread_count: r.thread_count ?? 0,
   }
 }
 

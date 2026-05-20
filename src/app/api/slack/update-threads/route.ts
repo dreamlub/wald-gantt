@@ -137,6 +137,7 @@ export async function POST(_req: NextRequest) {
                 workspace_id: workspaceId,
                 client_id: clientId,
                 raw_message_id: raw.id,
+                thread_count: replies.length,
                 type: 'slack',
                 tags: result.tags,
                 channel: updatedRj.channel,
