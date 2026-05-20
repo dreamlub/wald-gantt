@@ -5,7 +5,7 @@ import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Che
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { STATUS_COLOR, STATUS_LABEL } from '../_constants'
+import { STATUS_COLOR, STATUS_BG_COLOR, STATUS_LABEL, STATUS_ABBR } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
@@ -215,6 +215,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             key={task.id}
             onClick={() => selectionMode ? onSelect?.(task.id) : onEdit(task)}
             className={`group flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''}`}
+            style={!isSub && !isDone && !(selectionMode && selectedIds?.has(task.id)) ? { backgroundColor: STATUS_BG_COLOR[task.status] } : undefined}
           >
             <div className="w-6 shrink-0 flex items-center">
               {selectionMode ? (
@@ -318,7 +319,12 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               )}
             </div>
             <div className="w-28 shrink-0 flex items-center gap-1.5">
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
+              <span
+                className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                style={{ backgroundColor: STATUS_COLOR[task.status] }}
+              >
+                {STATUS_ABBR[task.status]}
+              </span>
               <span className="text-[11px] text-muted-foreground truncate">{STATUS_LABEL[task.status]}</span>
             </div>
             <div className="w-32 shrink-0 flex items-center gap-1.5">

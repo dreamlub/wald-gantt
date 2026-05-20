@@ -1,5 +1,6 @@
 # Wald Gantt — 개발 로그
 
+<<<<<<< HEAD
 ## 최근 변경 (2026-05-19) — Gantt 날짜 입력 UX 개선
 
 ### 1. 날짜 직접 타이핑 입력 (`ProjectFormDialog.tsx`)
@@ -41,6 +42,71 @@
 ### 6. Summary — URL 파라미터 타입 검증 추가 (`history-shell.tsx`)
 - `view` / `dateMode` / `priority` / `tags` 4개 파라미터에 파서 함수 적용
 - 유효하지 않은 값은 기본값으로 폴백, `tags`는 개별 항목 단위로 검증
+=======
+## 최근 변경 (2026-05-20) — Weekly 대시보드 UI 확장 (변경사항 탭 + 집계 표시)
+
+### 1. `ItemRow` 개선 (`weekly-dashboard.tsx`)
+- change 배지 표시 (신규/계속/완료/중단) — `CHANGE_META` 색상 시스템 추가
+- status 필드 표시 (회색 pill 형태)
+
+### 2. `extractEntries` → `assignee` 필드 추가
+- `item.assignee ?? r.author` (item-level 우선, fallback 보고자)
+
+### 3. `DiffSummaryRow` 컴포넌트 신규
+- 전주 대비 변경 집계 pill: 신규/계속/완료/중단/사라짐 (count > 0만 표시)
+
+### 4. `ChangesView` 컴포넌트 신규 — "변경사항" 탭
+- change 기준 그루핑: 신규 → 계속 → 중단 → 완료
+- change 없는 항목 → "분류 없음"
+
+### 5. 뷰별 assignee 반영
+- AllView/BrandView: `e.assignee` 사용
+- TeamView: `item.assignee` 있을 때만 표시
+- AssigneeView: `e.assignee` 기준 그루핑
+
+### 6. "변경사항" 탭 추가 — 탭 2번째 위치
+
+---
+
+## 최근 변경 (2026-05-20) — 태스크 상태 블릿 + 셀 음영 프로젝트 측과 통일
+
+### 1. `STATUS_ABBR` 추가 + `STATUS_GROUPS`에 `abbr` 필드 (`_constants.tsx`)
+- 각 상태 약자: B(Backlog) / T(To-Do) / I(In Progress) / D(Done) / P(Pending)
+
+### 2. 상태 블릿 스타일 통일
+- **NormalView** 그룹 헤더: `w-2 h-2` 점 → `w-3.5 h-3.5` 색상 원+약자 (`bg-muted` → 상태 bgColor 배경)
+- **NormalView** 지연 그룹 헤더: 동일 스타일, 약자 `!`, `var(--task-status-overdue-bg)` 배경
+- **ListView** 상태 컬럼: `w-2 h-2` 점 → `w-3.5 h-3.5` 색상 원+약자 (텍스트 라벨 유지)
+- **KanbanView** 컬럼 헤더: `w-2.5 h-2.5` 점 → `w-3.5 h-3.5` 색상 원+약자
+- Circle/CheckCircle2 완료 토글 버튼은 변경 없음
+
+### 3. 셀 음영 추가
+- **NormalView** 그룹 헤더 행: 상태 bgColor 적용 (개별 태스크 행은 유지)
+- **ListView** 행: 완료·하위·선택 상태 제외 시 `STATUS_BG_COLOR` 배경 적용
+- **KanbanView** 컬럼 본문: drag-over 아닐 때 `bgColor` CSS var 배경 적용
+
+---
+
+## 최근 변경 (2026-05-20) — Weekly 분석 로직 확장 (전주 비교 + 항목 추적)
+
+### 1. `WeeklyReportItem` 스키마 확장 (`src/types/index.ts`)
+- 추가 필드: `assignee`, `task_type`, `status`
+- 비교 필드: `prev_status`, `change ('new'|'continued'|'completed'|'blocked')`, `prev_title`
+- `WeeklyItemChange` 유니온 타입 추가
+- `WeeklyDiffSummary` 인터페이스 추가: `{ new, completed, continued, blocked, dropped }`
+- `WeeklyInsightContent`에 `diff_summary` 필드 추가
+
+### 2. Phase 1 AI 프롬프트 개선 (`src/app/api/weekly/analyze/route.ts`)
+- 전주 보고서를 `prevReportMap`(`source::team` 키)으로 빠르게 조회
+- AI 프롬프트에 금주 + 전주 원문 동시 입력 → AI가 change/prev_status/prev_title 직접 채움
+- 전주 보고서 없는 경우 모든 항목을 `change: "new"` 처리
+- 스킵 조건: 기존 summary에 `change` 필드가 있으면 재분석 생략 (`hasComparisonFields()`)
+
+### 3. diff_summary 집계 추가 (`computeDiffSummary()`)
+- 금주 items의 change 값 집계 → new/completed/continued/blocked 카운트
+- `dropped` = 전주 전체 항목 수 - (continued + completed + blocked)
+- `weekly_insights.content`에 포함해서 저장
+>>>>>>> 5a7b266 (feat: 태스크 상태 블릿/셀 음영 프로젝트 측과 통일 + Weekly 전주 비교 분석)
 
 ---
 

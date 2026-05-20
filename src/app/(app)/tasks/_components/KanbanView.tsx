@@ -179,7 +179,7 @@ function DraggableCard({ task, ...props }: {
 
 // ── 컬럼 ─────────────────────────────────────────────────────
 function KanbanColumn({
-  status, label, color, bgColor, tasks, allTasks, assigneeColorMap, getAssigneeKey,
+  status, label, color, bgColor, abbr, tasks, allTasks, assigneeColorMap, getAssigneeKey,
   orderedIds, onEdit, onMemoHover, onMemoLeave,
   quickAddOpen, quickAddTitle, onQuickAddStart, onQuickAddChange, onQuickAddCommit, onQuickAddCancel,
 }: {
@@ -187,6 +187,7 @@ function KanbanColumn({
   label: string
   color: string
   bgColor: string
+  abbr: string
   tasks: GanttTask[]
   allTasks: GanttTask[]
   assigneeColorMap: Map<string, string>
@@ -207,7 +208,12 @@ function KanbanColumn({
   return (
     <div className="flex flex-col shrink-0 w-64">
       <div className="flex items-center gap-2 px-3 py-2.5 sticky top-0 bg-muted z-10">
-        <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
+        <span
+          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+          style={{ backgroundColor: color }}
+        >
+          {abbr}
+        </span>
         <span className="text-xs font-semibold text-ink-700">{label}</span>
         <span
           className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-0.5"
@@ -222,6 +228,7 @@ function KanbanColumn({
           ref={setNodeRef}
           className={`flex-1 flex flex-col gap-2 px-2 py-2 rounded-lg min-h-[120px] transition-colors
             ${isOver ? 'bg-accent/60 ring-1 ring-lilac-200 ring-inset' : ''}`}
+          style={{ backgroundColor: isOver ? undefined : bgColor }}
         >
           {tasks.map(task => {
             const subs = allTasks.filter(t => t.parent_id === task.id)
@@ -373,7 +380,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
     >
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
         <div className="flex gap-3 px-4 py-3 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 272 }}>
-          {STATUS_GROUPS.map(({ status, label, color, bgColor }) => {
+          {STATUS_GROUPS.map(({ status, label, color, bgColor, abbr }) => {
             const orderedIds  = columnOrder.get(status) ?? []
             const taskIds     = new Set(tasks.map(t => t.id))
           const taskMap     = new Map(tasks.filter(t => t.status === status && (!t.parent_id || !taskIds.has(t.parent_id))).map(t => [t.id, t]))
@@ -385,6 +392,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
                 label={label}
                 color={color}
                 bgColor={bgColor}
+                abbr={abbr}
                 tasks={columnTasks}
                 allTasks={tasks}
                 orderedIds={orderedIds}

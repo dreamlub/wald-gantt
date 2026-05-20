@@ -218,12 +218,18 @@ export function NormalView(props: NormalViewProps) {
               <div>
                 <button
                   onClick={() => toggleCollapse('__overdue__')}
-                  className="w-full flex items-center gap-2 px-4 py-2 bg-muted border-b hover:bg-accent/40 transition-colors"
+                  className="w-full flex items-center gap-2 px-4 py-2 border-b transition-colors"
+                  style={{ backgroundColor: 'var(--task-status-overdue-bg)' }}
                 >
                   {collapsed.has('__overdue__')
                     ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
                     : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
-                  <span className="w-2 h-2 rounded-full shrink-0 bg-status-late" />
+                  <span
+                    className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                    style={{ backgroundColor: 'var(--color-status-late)' }}
+                  >
+                    !
+                  </span>
                   <span className="text-xs font-semibold text-status-late">지연</span>
                   <span className="text-[10px] text-ink-400">{overdueGroup.length}</span>
                   {avgOverdueDays > 0 && (
@@ -242,19 +248,25 @@ export function NormalView(props: NormalViewProps) {
               </div>
             )}
 
-            {STATUS_GROUPS.map(({ status, label, color }) => {
+            {STATUS_GROUPS.map(({ status, label, color, bgColor, abbr }) => {
               const group = getGroup(status)
               const isCollapsed = collapsed.has(status)
               return (
                 <DroppableGroup key={status} status={status}>
                   <button
                     onClick={() => toggleCollapse(status)}
-                    className="w-full flex items-center gap-2 px-4 py-2 bg-muted border-b hover:bg-accent/40 transition-colors"
+                    className="w-full flex items-center gap-2 px-4 py-2 border-b transition-colors"
+                    style={{ backgroundColor: bgColor }}
                   >
                     {isCollapsed
                       ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
                       : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                    <span
+                      className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                      style={{ backgroundColor: color }}
+                    >
+                      {abbr}
+                    </span>
                     <span className="text-xs font-semibold text-muted-foreground">{label}</span>
                     <span className="text-[10px] text-ink-400">{group.length}</span>
                     {status === 'in-progress' && avgIPDays > 0 && (

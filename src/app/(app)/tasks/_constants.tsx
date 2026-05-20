@@ -2,13 +2,17 @@ import React from 'react'
 import { LayoutGrid, List, GanttChartSquare, CalendarDays, Columns3 } from 'lucide-react'
 import type { TaskStatus, Priority } from '@/types'
 
-export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string; bgColor: string }[] = [
-  { status: 'backlog',     label: 'Backlog',     color: 'var(--task-status-backlog)',     bgColor: 'var(--task-status-backlog-bg)' },
-  { status: 'to-do',       label: 'To-Do',       color: 'var(--task-status-todo)',        bgColor: 'var(--task-status-todo-bg)' },
-  { status: 'in-progress', label: 'In Progress', color: 'var(--task-status-in-progress)', bgColor: 'var(--task-status-in-progress-bg)' },
-  { status: 'done',        label: 'Done',        color: 'var(--task-status-done)',        bgColor: 'var(--task-status-done-bg)' },
-  { status: 'pending',     label: 'Pending',     color: 'var(--task-status-pending)',     bgColor: 'var(--task-status-pending-bg)' },
+export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string; bgColor: string; abbr: string }[] = [
+  { status: 'backlog',     label: 'Backlog',     color: 'var(--task-status-backlog)',     bgColor: 'var(--task-status-backlog-bg)',     abbr: 'B' },
+  { status: 'to-do',       label: 'To-Do',       color: 'var(--task-status-todo)',        bgColor: 'var(--task-status-todo-bg)',        abbr: 'T' },
+  { status: 'in-progress', label: 'In Progress', color: 'var(--task-status-in-progress)', bgColor: 'var(--task-status-in-progress-bg)', abbr: 'I' },
+  { status: 'done',        label: 'Done',        color: 'var(--task-status-done)',        bgColor: 'var(--task-status-done-bg)',        abbr: 'D' },
+  { status: 'pending',     label: 'Pending',     color: 'var(--task-status-pending)',     bgColor: 'var(--task-status-pending-bg)',     abbr: 'P' },
 ]
+
+export const STATUS_ABBR: Record<TaskStatus, string> = {
+  backlog: 'B', 'to-do': 'T', 'in-progress': 'I', done: 'D', pending: 'P',
+}
 
 export const STATUS_COLOR: Record<TaskStatus, string> = {
   backlog:       'var(--task-status-backlog)',
