@@ -174,7 +174,7 @@ export interface WeeklySource {
   created_at: string
 }
 
-export type WeeklyReportSource = 'biz_lead' | 'team_doc'
+export type WeeklyReportSource = 'biz_lead' | 'team_doc' | 'outline'
 
 export interface WeeklyReport {
   id: string

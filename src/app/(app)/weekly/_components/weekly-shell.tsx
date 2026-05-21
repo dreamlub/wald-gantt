@@ -1,12 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings, CalendarDays, Sparkles, ArrowUpRight } from 'lucide-react'
+import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings, CalendarDays, Sparkles, ArrowUpRight, CloudDownload } from 'lucide-react'
 import type { WeeklyTeam } from '../_lib/types'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
 import { WeeklyDashboard } from './weekly-dashboard'
 import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
+import { toast } from 'sonner'
 
 function fmtHeader(isoDate: string): string {
   const d = new Date(isoDate + 'T00:00:00')
@@ -99,18 +100,21 @@ export function WeeklyShell() {
   }, [selectedIso, fetchDashData])
 
   const [importing, setImporting] = useState(false)
-  const handleImportDx1 = useCallback(async () => {
+  const handleImportOutline = useCallback(async () => {
     setImporting(true)
     try {
-      const res = await fetch('/api/weekly/import-dx1')
+      const res = await fetch('/api/weekly/import-outline', { method: 'POST' })
       const data = await res.json()
       if (data.ok) {
-        alert(`✅ 임포트 완료: ${data.team} ${data.week_start}`)
+        const total: number = data.total ?? 0
+        toast.success(`수집 완료 — ${total}건 저장`)
         const team = teams.find(t => t.id === selectedTeam)
         if (team) fetchWeeks(team.label)
       } else {
-        alert(`❌ 실패: ${data.error}`)
+        toast.error(`수집 실패: ${data.error}`)
       }
+    } catch {
+      toast.error('수집 중 오류가 발생했습니다')
     } finally {
       setImporting(false)
     }
@@ -126,12 +130,15 @@ export function WeeklyShell() {
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
           <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
           <button
-            onClick={handleImportDx1}
+            onClick={handleImportOutline}
             disabled={importing}
-            className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 hover:bg-amber-200 transition-colors disabled:opacity-50 whitespace-nowrap"
-            title="DX기획1팀 데이터 임포트 (임시)"
+            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            title="Outline에서 주간보고 수집"
           >
-            {importing ? '...' : 'DX1'}
+            {importing
+              ? <RefreshCw size={14} className="animate-spin" />
+              : <CloudDownload size={14} />
+            }
           </button>
           <button
             onClick={() => setSidebarOpen(false)}
