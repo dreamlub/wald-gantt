@@ -3,7 +3,9 @@ import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
   matchBrand, classifyMessage, fetchClientsForWorkspace,
-  buildSourceRef, tsToISO, delay, type RawJson,
+  buildSourceRef, tsToISO, delay, isObviousNoise,
+  fetchUserDirectory, resolveUserName,
+  type RawJson, type RawReply,
 } from '@/lib/slack-service'
 
 const WORKSPACE_DOMAIN_REGEX = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
@@ -53,9 +55,12 @@ export async function POST(req: NextRequest) {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        // 1. 클라이언트 목록 조회 (브랜드 매칭용)
-        send('status', { message: '클라이언트 목록 조회 중...' })
-        const clients = await fetchClientsForWorkspace(sb, workspaceId)
+        // 1. 클라이언트 목록 + Slack 사용자 디렉토리 조회
+        send('status', { message: '클라이언트 목록 / 사용자 디렉토리 조회 중...' })
+        const [clients, userDir] = await Promise.all([
+          fetchClientsForWorkspace(sb, workspaceId),
+          fetchUserDirectory(slack),
+        ])
         const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
 
         // 2. Slack 메시지 검색 (전체 채널, 해당 날짜)
@@ -87,29 +92,60 @@ export async function POST(req: NextRequest) {
           allMatches.push(...(result.messages.matches as SlackMatch[]))
           if (page >= (result.messages.paging?.pages ?? 1)) break
           page++
-          await delay(1200)
+          await delay(800)
         }
 
-        // 3. 노이즈 제거 + 부모 메시지만 추출 (thread replies 별도 수집)
-        const seen = new Set<string>()
-        const parents = allMatches
-          .filter(m =>
-            !m.bot_id &&
-            m.subtype !== 'channel_join' &&
-            m.subtype !== 'channel_leave' &&
-            m.subtype !== 'bot_message' &&
-            (!m.thread_ts || m.thread_ts === m.ts)
-          )
+        // 3. 노이즈 제거
+        const cleanMatches = allMatches.filter(m =>
+          !m.bot_id &&
+          m.subtype !== 'channel_join' &&
+          m.subtype !== 'channel_leave' &&
+          m.subtype !== 'bot_message'
+        )
+
+        // 4-a. search 결과에서 직접 발견된 부모 메시지
+        const seenKeys = new Set<string>()
+        const parents = cleanMatches
+          .filter(m => !m.thread_ts || m.thread_ts === m.ts)
           .filter(m => {
             const key = `${m.channel.id}:${m.ts}`
-            if (seen.has(key)) return false
-            seen.add(key)
+            if (seenKeys.has(key)) return false
+            seenKeys.add(key)
             return true
           })
 
-        send('status', { message: `${parents.length}건 부모 메시지 발견. 스레드 수집 중...` })
+        // 4-b. orphan 답글 → 부모 ts 추출 (오늘 답글, 다른 날 부모)
+        type OrphanParent = { channelId: string; channelName: string; ts: string }
+        const orphanParents: OrphanParent[] = []
+        for (const m of cleanMatches) {
+          if (!m.thread_ts || m.thread_ts === m.ts) continue
+          const key = `${m.channel.id}:${m.thread_ts}`
+          if (seenKeys.has(key)) continue
+          seenKeys.add(key)
+          orphanParents.push({
+            channelId: m.channel.id,
+            channelName: m.channel.name,
+            ts: m.thread_ts,
+          })
+        }
 
-        // 4. 스레드 replies 수집 + raw_json 조립
+        send('status', {
+          message: `부모 ${parents.length}건 + 외부 부모 ${orphanParents.length}건 발견. 스레드 수집 중...`,
+        })
+
+        // 5. 기존 raw_json 사전 조회 (스레드 fetch 실패 시 fallback)
+        const allParentTs = [...parents.map(p => p.ts), ...orphanParents.map(o => o.ts)]
+        const { data: existingRows } = await sb
+          .from('slack_raw_messages')
+          .select('channel, parent_ts, raw_json')
+          .eq('workspace_id', workspaceId)
+          .in('parent_ts', allParentTs)
+
+        const existingMap = new Map<string, RawJson>(
+          (existingRows ?? []).map(e => [`${e.channel}:${e.parent_ts}`, e.raw_json as RawJson])
+        )
+
+        // 6. raw_json 조립
         const rawMessages: Array<{
           channel: string
           channel_id: string
@@ -117,9 +153,40 @@ export async function POST(req: NextRequest) {
           raw_json: RawJson
         }> = []
 
-        for (const m of parents) {
-          // 수집 단계: 스레드 fetch 없이 빠르게 원본만 저장
-          // 스레드 내용은 [스레드 업데이트] 버튼으로 별도 수집
+        // 6-a. search 부모: reply_count > 0인 경우 스레드 fetch
+        for (let i = 0; i < parents.length; i++) {
+          const m = parents[i]
+          if (i % 5 === 0 || i === parents.length - 1) {
+            send('status', { message: `스레드 수집 중... (${i + 1}/${parents.length})` })
+          }
+
+          let replies: RawReply[] = []
+          if ((m.reply_count ?? 0) > 0) {
+            try {
+              const thread = await slack.conversations.replies({
+                channel: m.channel.id,
+                ts: m.ts,
+              })
+              if (thread.ok && thread.messages) {
+                for (const r of thread.messages.slice(1)) {
+                  if ((r as { bot_id?: string }).bot_id) continue
+                  const rMsg = r as { ts?: string; text?: string; user?: string; username?: string }
+                  replies.push({
+                    ts: rMsg.ts ?? '',
+                    text: rMsg.text ?? '',
+                    user: rMsg.user ?? '',
+                    user_name: resolveUserName(userDir, rMsg.user, rMsg.username),
+                  })
+                }
+              }
+              await delay(200)
+            } catch (e) {
+              console.error(`[slack/collect] thread fetch error (${m.channel.name}:${m.ts}):`, e)
+              const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
+              replies = existing?.replies ?? []
+            }
+          }
+
           rawMessages.push({
             channel: m.channel.name,
             channel_id: m.channel.id,
@@ -128,17 +195,88 @@ export async function POST(req: NextRequest) {
               ts: m.ts,
               text: m.text,
               user: m.user,
-              user_name: m.username,
+              user_name: resolveUserName(userDir, m.user, m.username),
               channel: m.channel.name,
               channel_id: m.channel.id,
               permalink: m.permalink,
-              reply_count: m.reply_count ?? 0,
-              replies: [],
+              reply_count: replies.length,
+              replies,
             },
           })
         }
 
-        // 5. slack_raw_messages upsert
+        // 6-b. orphan 부모: 부모 메시지 + 스레드 전체 fetch
+        for (let i = 0; i < orphanParents.length; i++) {
+          const op = orphanParents[i]
+          if (i % 5 === 0 || i === orphanParents.length - 1) {
+            send('status', { message: `외부 부모 스레드 수집 중... (${i + 1}/${orphanParents.length})` })
+          }
+
+          try {
+            const thread = await slack.conversations.replies({
+              channel: op.channelId,
+              ts: op.ts,
+            })
+            await delay(300)
+
+            if (!thread.ok || !thread.messages || thread.messages.length === 0) continue
+
+            const parentMsg = thread.messages[0] as {
+              ts?: string
+              text?: string
+              user?: string
+              username?: string
+              bot_id?: string
+              subtype?: string
+            }
+            // 부모가 봇/시스템 메시지면 스킵
+            if (parentMsg.bot_id || parentMsg.subtype === 'bot_message') continue
+
+            const replies: RawReply[] = []
+            for (const r of thread.messages.slice(1)) {
+              if ((r as { bot_id?: string }).bot_id) continue
+              const rMsg = r as { ts?: string; text?: string; user?: string; username?: string }
+              replies.push({
+                ts: rMsg.ts ?? '',
+                text: rMsg.text ?? '',
+                user: rMsg.user ?? '',
+                user_name: resolveUserName(userDir, rMsg.user, rMsg.username),
+              })
+            }
+
+            const parentTs = parentMsg.ts ?? op.ts
+            rawMessages.push({
+              channel: op.channelName,
+              channel_id: op.channelId,
+              parent_ts: parentTs,
+              raw_json: {
+                ts: parentTs,
+                text: parentMsg.text ?? '',
+                user: parentMsg.user ?? '',
+                user_name: resolveUserName(userDir, parentMsg.user, parentMsg.username),
+                channel: op.channelName,
+                channel_id: op.channelId,
+                permalink: buildSourceRef(op.channelId, parentTs),
+                reply_count: replies.length,
+                replies,
+              },
+            })
+          } catch (e) {
+            console.error(`[slack/collect] orphan thread fetch error (${op.channelName}:${op.ts}):`, e)
+            // 기존 데이터 있으면 보존
+            const existing = existingMap.get(`${op.channelName}:${op.ts}`)
+            if (existing) {
+              rawMessages.push({
+                channel: op.channelName,
+                channel_id: op.channelId,
+                parent_ts: op.ts,
+                raw_json: existing,
+              })
+            }
+          }
+        }
+
+        // 6. slack_raw_messages upsert
         send('status', { message: `${rawMessages.length}건 raw 저장 중...` })
 
         const upsertData = rawMessages.map(m => ({
@@ -157,26 +295,49 @@ export async function POST(req: NextRequest) {
 
         if (upsertErr) throw upsertErr
 
-        // 6. AI 분류 → client_history upsert
+        // 7. AI 분류 → client_history upsert (배치 5건씩 병렬)
         send('status', { message: 'AI 분류 중...' })
 
         let classified = 0
         let skipped = 0
+        const BATCH_SIZE = 5
+        const rawList = rawRows ?? []
 
-        for (let i = 0; i < (rawRows ?? []).length; i++) {
-          const raw = rawRows![i]
-          const rj = raw.raw_json as RawJson
-          const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
-          const clientId = matchBrand(rj.channel, fullText, clients) ?? fallbackClientId
+        type UpsertRow = {
+          workspace_id: string
+          client_id: string | null
+          raw_message_id: string
+          thread_count: number
+          type: string
+          tags: string[]
+          channel: string
+          source_id: string
+          source_ref: string
+          title: string
+          body: string
+          priority: 'high' | 'medium' | 'low'
+          author: string
+          occurred_at: string
+        }
 
-          send('status', { message: `AI 분류 중... (${i + 1}/${rawRows!.length})` })
+        for (let bIdx = 0; bIdx < rawList.length; bIdx += BATCH_SIZE) {
+          const batch = rawList.slice(bIdx, bIdx + BATCH_SIZE)
+          const endIdx = Math.min(bIdx + BATCH_SIZE, rawList.length)
+          send('status', { message: `AI 분류 중... (${endIdx}/${rawList.length})` })
 
-          try {
-            const result = await classifyMessage(rj, clientId, clients)
-            if (!result) { skipped++; await delay(80); continue }
+          const results = await Promise.all(batch.map(async (raw): Promise<UpsertRow | null> => {
+            const rj = raw.raw_json as RawJson
 
-            await sb.from('client_history').upsert(
-              {
+            // 사전 필터: 명백한 노이즈는 AI 호출 생략
+            if (isObviousNoise(rj)) return null
+
+            const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
+            const clientId = matchBrand(rj.channel, fullText, clients) ?? fallbackClientId
+
+            try {
+              const result = await classifyMessage(rj, clientId, clients)
+              if (!result) return null
+              return {
                 workspace_id: workspaceId,
                 client_id: clientId,
                 raw_message_id: raw.id,
@@ -189,18 +350,33 @@ export async function POST(req: NextRequest) {
                 title: result.title,
                 body: result.body,
                 priority: result.priority,
-                author: result.author,
+                // 디렉토리 lookup이 가장 신뢰 가능 (한국어 display_name). AI 추출은 fallback
+                author: resolveUserName(userDir, rj.user, result.author || rj.user_name),
                 occurred_at: tsToISO(rj.ts),
-              },
-              { onConflict: 'workspace_id,source_id' }
-            )
-            classified++
-          } catch (e) {
-            console.error(`[slack/collect] classify error (${rj.channel}:${rj.ts}):`, e)
-            skipped++
+              }
+            } catch (e) {
+              console.error(`[slack/collect] classify error (${rj.channel}:${rj.ts}):`, e)
+              return null
+            }
+          }))
+
+          const valid = results.filter((r): r is UpsertRow => r !== null)
+          skipped += results.length - valid.length
+
+          if (valid.length > 0) {
+            const { error: batchErr } = await sb
+              .from('client_history')
+              .upsert(valid, { onConflict: 'workspace_id,source_id' })
+            if (batchErr) {
+              console.error('[slack/collect] batch upsert error:', batchErr)
+              skipped += valid.length
+            } else {
+              classified += valid.length
+            }
           }
 
-          await delay(120)
+          // 배치 간 짧은 대기 (Anthropic rate limit 안전 마진)
+          if (endIdx < rawList.length) await delay(200)
         }
 
         send('result', {

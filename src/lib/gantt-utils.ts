@@ -140,7 +140,7 @@ export function dayOffset(viewStart: string, dateStr: string, edge: 'start' | 'e
 
 /** YYYY-MM-DD → fractional week column from weeks array */
 export function dayOffsetInWeeks(weeks: WeekInfo[], dateStr: string, edge: 'start' | 'end'): number {
-  const target = new Date(dateStr)
+  const target = parseDateStr(dateStr)  // local midnight (not UTC) to match weekStart
   for (let i = 0; i < weeks.length; i++) {
     const weekEnd = new Date(weeks[i].weekStart)
     weekEnd.setDate(weekEnd.getDate() + 6)

@@ -270,11 +270,11 @@ export function GanttChart({
     const idx = weeks.findIndex(w => { const e = new Date(w.weekStart); e.setDate(e.getDate() + 7); return today >= w.weekStart && today < e })
     if (idx >= 0) {
       const dayOfWeek = (today.getDay() + 6) % 7 // Mon=0 … Sun=6
-      todayX = idx * colW + (dayOfWeek / 7) * colW
+      todayX = idx * colW + (dayOfWeek + 0.5) / 7 * colW  // 해당 요일 셀 중앙
     }
   } else {
     const idx = days.findIndex(d => d.key === todayStr)
-    todayX = idx >= 0 ? idx * colW : null // 일 뷰는 컬럼 좌측 경계
+    todayX = idx >= 0 ? idx * colW + colW / 2 : null  // 오늘 컬럼 중앙
   }
 
   // 스크롤 동기화
@@ -811,7 +811,7 @@ export function GanttChart({
                   </div>
                 ) : viewMode === 'week' ? (
                   weeks.map((w, i) => {
-                    const isToday = todayX !== null && Math.round(i * colW + colW / 2) === Math.round(todayX)
+                    const isToday = todayX !== null && todayX >= i * colW && todayX < (i + 1) * colW
                     return (
                       <div
                         key={w.key}
@@ -824,7 +824,7 @@ export function GanttChart({
                   })
                 ) : (
                   days.map((d, i) => {
-                    const isToday = todayX !== null && i * colW + colW / 2 === todayX
+                    const isToday = d.key === todayStr
                     return (
                       <div
                         key={d.key}

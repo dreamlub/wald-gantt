@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Table2, Sparkles, BarChart2, Download, RefreshCw,
+  Sparkles, LayoutList, RefreshCw, UserCog,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -28,6 +28,7 @@ import {
 type ViewKey = 'table' | 'insight' | 'summary'
 
 const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary']
+// 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
 const VALID_DATE_MODES: readonly DateMode[]  = ['occurred', 'updated']
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
@@ -45,11 +46,24 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
-const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Table2 }[] = [
-  { key: 'table',   label: '테이블',   icon: Table2 },
+const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
   { key: 'insight', label: '인사이트', icon: Sparkles },
-  { key: 'summary', label: '요약',     icon: BarChart2 },
+  { key: 'table',   label: '타임라인', icon: LayoutList },
 ]
+
+function relativeCollectedLabel(latest: string | null): string {
+  if (!latest) return '수집 기록 없음'
+  const d = new Date(latest).getTime()
+  const now = Date.now()
+  const diffMs = now - d
+  const m = Math.round(diffMs / 60000)
+  const h = Math.round(diffMs / 3600000)
+  const days = Math.round(diffMs / 86400000)
+  if (m < 1) return '방금 수집'
+  if (m < 60) return `마지막 수집 ${m}분 전`
+  if (h < 24) return `마지막 수집 ${h}시간 전`
+  return `마지막 수집 ${days}일 전`
+}
 
 function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
   const now = new Date()
@@ -73,7 +87,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
-  const [isRefreshing, startTransition] = useTransition()
+  const [, startTransition] = useTransition()
 
   // URL → 초기 state
   const [view,         setView]         = useState<ViewKey>(() => parseView(searchParams.get('view')))
@@ -100,7 +114,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   })
   const [collectStatus,  setCollectStatus]  = useState<string>('')
   const [isCollecting,   setIsCollecting]   = useState(false)
-  const [isUpdating,     setIsUpdating]     = useState(false)
+  const [isMigrating,    setIsMigrating]    = useState(false)
 
   async function runSSE(url: string, body: unknown, onDone: (msg: string) => void) {
     const res = await fetch(url, {
@@ -138,8 +152,29 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
   }
 
+  async function handleMigrateUserNames() {
+    if (isCollecting || isMigrating) return
+    setIsMigrating(true)
+    try {
+      const res = await fetch('/api/slack/migrate-user-names', { method: 'POST' })
+      const data = await res.json() as {
+        directory_size?: number
+        raw_updated?: number
+        history_updated?: number
+        error?: string
+      }
+      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
+      toast.success(`이름 동기화 완료 — raw ${data.raw_updated ?? 0}건, history ${data.history_updated ?? 0}건 갱신`)
+      startTransition(() => router.refresh())
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '이름 동기화 실패')
+    } finally {
+      setIsMigrating(false)
+    }
+  }
+
   async function handleCollect() {
-    if (isCollecting || isUpdating) return
+    if (isCollecting) return
     setIsCollecting(true)
     setCollectStatus('준비 중...')
     try {
@@ -153,24 +188,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       setCollectStatus('')
     } finally {
       setIsCollecting(false)
-    }
-  }
-
-  async function handleUpdateThreads() {
-    if (isCollecting || isUpdating) return
-    setIsUpdating(true)
-    setCollectStatus('스레드 업데이트 준비 중...')
-    try {
-      await runSSE('/api/slack/update-threads', {}, (msg) => {
-        toast.success(msg)
-        setCollectStatus('')
-        startTransition(() => router.refresh())
-      })
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '업데이트 실패')
-      setCollectStatus('')
-    } finally {
-      setIsUpdating(false)
     }
   }
 
@@ -252,6 +269,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
   const hasFilters = brandId !== 'all' || selectedTags.size > 0 || priorityKey !== 'all'
                   || authorKey !== 'all' || !!dateFrom || !!dateTo || !!searchQuery.trim()
+
+  // 마지막 수집 시점: 전체 history에서 최대 updated_at
+  const latestCollectedAt = useMemo<string | null>(() => {
+    if (initialHistory.length === 0) return null
+    let max = initialHistory[0].updated_at
+    for (const h of initialHistory) if (h.updated_at > max) max = h.updated_at
+    return max
+  }, [initialHistory])
 
   function applyPreset(preset: 'today' | 'week' | 'month' | 'all') {
     const { from, to } = presetDates(preset)
@@ -407,38 +432,37 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            {(isCollecting || isUpdating) && collectStatus && (
-              <span className="text-[11px] text-ink-400 max-w-48 truncate">{collectStatus}</span>
+          <div className="ml-auto flex items-center gap-3">
+            {(isCollecting) ? (
+              <span className="text-[11px] text-ink-400 max-w-56 truncate">{collectStatus}</span>
+            ) : (
+              <span className="text-[11px] text-ink-400">{relativeCollectedLabel(latestCollectedAt)}</span>
             )}
             <input
               type="date"
               value={collectDate}
               onChange={e => setCollectDate(e.target.value)}
-              disabled={isCollecting || isUpdating}
+              disabled={isCollecting}
               className="text-[11px] px-2 py-1 border rounded bg-card text-muted-foreground outline-none focus:ring-1 focus:ring-lilac-300 disabled:opacity-50"
+              title="수집할 날짜"
             />
             <button
-              onClick={handleCollect}
-              disabled={isCollecting || isUpdating}
-              title="슬랙 수집"
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border bg-card text-muted-foreground hover:text-ink-700 hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleMigrateUserNames}
+              disabled={isCollecting || isMigrating}
+              title="기존 데이터의 작성자를 Slack display name으로 동기화 (한 번만 실행)"
+              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded border bg-card text-muted-foreground hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isCollecting
-                ? <RefreshCw size={11} className="animate-spin" />
-                : <Download size={11} />}
-              수집
+              <UserCog size={12} className={isMigrating ? 'animate-spin' : ''} />
+              이름 동기화
             </button>
             <button
-              onClick={handleUpdateThreads}
-              disabled={isCollecting || isUpdating}
-              title="in_progress 스레드 업데이트"
-              className="flex items-center gap-1 text-[11px] px-2.5 py-1 rounded border bg-card text-muted-foreground hover:text-ink-700 hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              onClick={handleCollect}
+              disabled={isCollecting}
+              title="슬랙 메시지 수집"
+              className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded bg-foreground text-background hover:bg-ink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
-              {isUpdating
-                ? <RefreshCw size={11} className="animate-spin" />
-                : <RefreshCw size={11} />}
-              스레드
+              <RefreshCw size={12} className={isCollecting ? 'animate-spin' : ''} />
+              새로고침
             </button>
           </div>
         </div>
@@ -458,19 +482,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             </div>
           ) : (
             <>
-              {/* 브랜드 셀렉터 — 스크롤 밖 고정 */}
-              <div className="shrink-0 px-6 pt-5 bg-card">
-                <BrandSelector
-                  clients={initialClients}
-                  brandId={brandId}
-                  history={initialHistory}
-                  onBrandChange={setBrandId}
-                />
-              </div>
-
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
               {view !== 'summary' && (
-                <div className="shrink-0 px-6 bg-card border-b border-ink-150">
+                <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
@@ -602,57 +616,3 @@ function FilterChip({ children, onClear }: { children: React.ReactNode; onClear:
   )
 }
 
-// ── BrandSelector (상단 모든 브랜드 칩) ───────────────────────
-interface BrandSelectorProps {
-  clients: Client[]
-  history: HistoryItem[]
-  brandId: string | 'all'
-  onBrandChange: (id: string | 'all') => void
-}
-
-function BrandSelector({ clients, history, brandId, onBrandChange }: BrandSelectorProps) {
-  const counts = useMemo(() => {
-    const m = new Map<string, number>()
-    for (const h of history) m.set(h.client_id, (m.get(h.client_id) ?? 0) + 1)
-    return m
-  }, [history])
-  const sorted = useMemo(
-    () => [...clients].sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0)),
-    [clients, counts]
-  )
-
-  return (
-    <div className="flex flex-wrap items-center gap-1.5 mb-2 pb-2">
-      <button
-        onClick={() => onBrandChange('all')}
-        className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
-          ${brandId === 'all'
-            ? 'bg-foreground text-white border-foreground'
-            : 'bg-card text-muted-foreground border-border hover:border-ink-400 hover:text-ink-700'}`}
-      >
-        전체
-        <span className={`text-[10px] ${brandId === 'all' ? 'text-white/70' : 'text-ink-400'}`}>
-          {history.length}
-        </span>
-      </button>
-      {sorted.map(c => {
-        const count = counts.get(c.id) ?? 0
-        const active = brandId === c.id
-        return (
-          <button
-            key={c.id}
-            onClick={() => onBrandChange(active ? 'all' : c.id)}
-            className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap ${
-              active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400 hover:text-ink-700'
-            }`}
-            style={active ? { backgroundColor: c.color, borderColor: c.color } : undefined}
-          >
-            <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : c.color }} />
-            {c.name}
-            <span className={`text-[10px] ${active ? 'text-white/70' : 'text-ink-400'}`}>{count}</span>
-          </button>
-        )
-      })}
-    </div>
-  )
-}

@@ -22,6 +22,7 @@
 
 import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
+import type { WebClient } from '@slack/web-api'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
@@ -103,6 +104,28 @@ export function delay(ms: number) {
   return new Promise(r => setTimeout(r, ms))
 }
 
+/**
+ * AI 분류 전 명백한 노이즈 사전 필터
+ * - 스레드가 있으면 항상 false (답글에 의미 있을 수 있음)
+ * - 빈 텍스트, 한 단어 답변, 이모지 only는 true
+ */
+export function isObviousNoise(rj: RawJson): boolean {
+  if (rj.replies.length > 0) return false
+
+  const text = rj.text.trim()
+  if (text === '') return true
+
+  // 한 단어/짧은 한국어·영어 답변
+  const SHORT_ANSWER = /^(네+|넵+|넹+|ㅇㅋ+|확인|확인했어요|좋아요|좋습니다|감사|감사합니다|굿|good|ok|okay|thanks?|thx|\^\^|ㅎㅎ+|ㅋㅋ+|👍|🙏|💯)[.!?]*$/i
+  if (SHORT_ANSWER.test(text)) return true
+
+  // Slack 이모지 코드 또는 유니코드 이모지만 있는 경우
+  const EMOJI_ONLY = /^(\s*(:[\w+-]+:|[\u{1F000}-\u{1FFFF}\u{2600}-\u{27BF}])\s*)+$/u
+  if (EMOJI_ONLY.test(text)) return true
+
+  return false
+}
+
 // ── 브랜드 매칭 (코드 기반) ───────────────────────────────────────
 
 /**
@@ -124,6 +147,60 @@ export function matchBrand(
     if (c.keywords?.some(kw => kw && lower.includes(kw.toLowerCase()))) return c.id
   }
   return null
+}
+
+// ── 사용자 디렉토리 (Slack users.list) ─────────────────────────
+
+export type UserDirectory = Map<string, string>
+
+/**
+ * Slack 워크스페이스 전체 사용자 ID → 표시 이름 매핑.
+ * 우선순위: profile.display_name > profile.real_name > name > user_id
+ *
+ * 필요 scope: users:read
+ * 실패 시(missing_scope 등) 빈 Map 반환 — 호출자는 fallback 동작 유지.
+ */
+export async function fetchUserDirectory(slack: WebClient): Promise<UserDirectory> {
+  const map: UserDirectory = new Map()
+  let cursor: string | undefined
+  let safety = 0
+  try {
+    do {
+      const res = await slack.users.list({ limit: 200, cursor })
+      if (!res.ok || !res.members) break
+      for (const m of res.members) {
+        const u = m as {
+          id?: string
+          name?: string
+          deleted?: boolean
+          profile?: { display_name?: string; real_name?: string }
+        }
+        if (!u.id || u.deleted) continue
+        const display = (u.profile?.display_name ?? '').trim()
+        const real = (u.profile?.real_name ?? '').trim()
+        const name = display || real || u.name || u.id
+        map.set(u.id, name)
+      }
+      cursor = res.response_metadata?.next_cursor || undefined
+      safety++
+      if (cursor) await delay(300)
+    } while (cursor && safety < 20)
+  } catch (e) {
+    const msg = e instanceof Error ? e.message : String(e)
+    console.warn(`[slack/users.list] 디렉토리 fetch 실패 (scope 부족 가능 — users:read 필요): ${msg}`)
+    return new Map()
+  }
+  return map
+}
+
+/** user_id → 표시 이름. 디렉토리에 없으면 fallback chain. */
+export function resolveUserName(
+  dir: UserDirectory,
+  userId: string | undefined | null,
+  fallback?: string | null,
+): string {
+  if (userId && dir.has(userId)) return dir.get(userId)!
+  return (fallback ?? '').trim() || userId || ''
 }
 
 // ── 클라이언트 조회 ───────────────────────────────────────────────

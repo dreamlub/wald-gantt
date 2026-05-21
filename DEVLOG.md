@@ -1,5 +1,257 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-22) — Summary 목록 단순화: burst 그룹 제거 + 스레드만 디테일에 표시
+
+### 배경
+- 사용자 정리: "본문글만 목록에 올라오고, 스레드는 본문글에 딸려서 관련 메시지로 나오는거야"
+- burst 그룹화(같은 채널 ±30분 sliding window)는 추측 기반이라 부정확. 실제 Slack 스레드 관계만 사용하기로
+
+### 1. `table-view.tsx` — burst grouping 완전 제거
+- `groupByBurst`, `representatives`, `childrenByRep`, `burstMembers` 로직 제거
+- `dateGroups`는 다시 `items`(client_history의 모든 본문/parent) 기준
+- DetailPanel에서 burstMembers prop 제거 → `thread_replies`(raw_json.replies) 박스만 표시
+- 카드 우측 도트: `thread_count > 0` 일 때만 (라일락 색)
+- 미사용 import 제거 (`Layers`, `groupByBurst`)
+
+### 2. 마이그레이션 UI 버튼 추가 (history-shell.tsx)
+- DevTools console paste 제한(self-XSS 보호) 대응
+- 새로고침 버튼 옆에 **`UserCog` 아이콘 + "이름 동기화"** 보조 버튼
+- 클릭 → `POST /api/slack/migrate-user-names` 호출 → 토스트로 갱신 카운트 표시 → 페이지 새로고침
+- `isMigrating` 로컬 state로 중복 클릭 방지
+
+### 영향
+- `ext-snowflake-etl` 같은 burst 채널은 다시 모든 메시지가 각각 목록에 표시 (Slack 데이터 그대로)
+- 실제 thread_count > 0 본문만 우측에 스레드 답변 박스로 보임
+- `_lib/related.ts`의 `groupByBurst`는 코드만 보존 (호출 안 함)
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 이전 변경 (2026-05-22) — 기존 데이터 작성자 표시 이름 마이그레이션 API
+
+### 신규 라우트: `POST /api/slack/migrate-user-names`
+- `fetchUserDirectory(slack)` 호출 → users.list 매핑 확보
+- `slack_raw_messages` 전체 조회 (workspace 범위, limit 10000)
+  - `raw_json.user_name` + `raw_json.replies[].user_name` 모두 `resolveUserName(userDir, user, fallback)` 으로 재계산
+  - 메모리에서 변경 감지 후 실제 변경된 행만 UPDATE (배치 5건 병렬)
+- `client_history` 전체 조회 (`raw_message_id` 있는 것, limit 20000)
+  - raw_json의 user_id로 디렉토리 lookup → author 갱신
+  - 변경된 행만 UPDATE
+- 응답: `{ directory_size, raw_scanned, raw_updated, history_scanned, history_updated }`
+
+### 호출 방법
+브라우저 DevTools Console (로그인 세션 사용):
+```js
+fetch('/api/slack/migrate-user-names', { method: 'POST' })
+  .then(r => r.json()).then(console.log)
+```
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 이전 변경 (2026-05-22) — 작성자 표시 이름 디렉토리 매핑
+
+### 배경
+- AI 분류가 생성한 `author` 또는 search 결과의 `username`(영문 handle, e.g. `shindoohwa`)이 그대로 표시됨
+- 사용자는 Slack에서 실제 보이는 한국어 표시 이름(예: `신두화`, `김형종`) 원함
+
+### 1. `slack-service.ts` — `fetchUserDirectory()` + `resolveUserName()` 추가
+- `users.list` paginated 호출 (200건씩, cursor 기반, max 20페이지)
+- 우선순위: `profile.display_name` > `profile.real_name` > `name` > `user_id`
+- `resolveUserName(dir, userId, fallback)` — 디렉토리 hit 우선, miss면 fallback chain
+
+### 2. `collect/route.ts` 적용
+- Step 1에서 `fetchClientsForWorkspace` + `fetchUserDirectory` 병렬 호출
+- 부모/orphan 부모/replies 모두 `user_name` 채울 때 `resolveUserName(userDir, user, username)` 적용
+- `client_history.author`도 `resolveUserName(userDir, rj.user, result.author || rj.user_name)` — AI 결과는 fallback으로 활용
+
+### 3. `update-threads/route.ts` 동일 처리
+- `fetchUserDirectory` 추가
+- replies와 `client_history.author` lookup 적용
+
+### 영향
+- 신규 수집/업데이트되는 메시지부터 한국어 display_name으로 표시
+- 기존 데이터는 다음 collect/update-threads 시 점진적 개선
+- `users.list` 1회당 워크스페이스 멤버수에 따라 200/페이지 — 보통 200~400ms
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 이전 변경 (2026-05-22) — Summary burst 그룹 강제 묶기 + 도트 표시 + 일별 캘린더
+
+### 배경
+- 직전 변경(burst 토글)에서 좌측 목록에 burst 멤버가 모두 노출됨 → "스레드는 목록에 있으면 안 되고 본문에 하위로 있어야 한다"는 피드백
+- 사이드바 캘린더가 월 그리드(4×3)였는데, 디자인은 일별 그리드(요일 헤더 + 6주)
+
+### 1. `_lib/related.ts` — `groupByBurst()` 추가
+- sliding window(±N분) 기반으로 같은 채널 인접 메시지를 한 그룹으로 묶음
+- 그룹 "대표"는 시간상 가장 빠른 메시지
+- 결과: `{ representative, members }[]` (대표 occurred_at 내림차순)
+
+### 2. `table-view.tsx` — 강제 그룹화 + 도트
+- `items`를 `groupByBurst(items, 30)` 통과시켜 **대표만 목록에 표시**
+- 키보드 J/K 내비게이션도 대표 단위로 동작
+- 카드 우측에 **`bg-lilac-500` 도트**: `thread_count + burst child count > 0` 인 항목 표시
+- 디테일 패널에 **"관련 메시지 N" 박스 자동 노출** (토글 제거) — 각 멤버: 작성자·시간·제목·본문 카드
+- `allItems` prop · `onSelectItem` · `onOpenItem` · `relatedOpen` 상태 제거
+- `findRelatedItems` import 제거 (이제 `groupByBurst`만 사용)
+
+### 3. `history-sidebar.tsx` — 일별 캘린더로 교체
+- `MonthGridSection`: 12개 월 그리드 → **요일 헤더(일/월/화/수/목/금/토) + 6주 일별 그리드**
+- 일요일 빨강(`text-rose-500`), 토요일 파랑(`text-blue-500`), 다른 달 dim
+- 선택된 날: `bg-lilac-500 text-white`
+- **이력 있는 날 하단에 작은 도트** (일별 `dayCounts` 카운트)
+- 오늘 날짜에 작은 점(`text-lilac-500`) 표시
+- 월 네비게이션: `< 2026년 5월 NOW >` 형태
+- `history` prop 추가 (일별 카운트 계산용)
+
+### 검증
+- `npx tsc --noEmit` 통과
+- ESLint: 새 코드 0 경고 (pre-existing `useEffect setState` 1건 제외)
+
+---
+
+## 이전 변경 (2026-05-22) — Summary 페이지 디자인 개편 + burst 대화 그룹화
+
+### 배경
+- 디자인 요청: 더 깔끔한 사이드바(브랜드 리스트 통합) + 상단 단순화(2 탭 + 새로고침) + 디테일 패널 강화
+- UX 이슈: Slack 스레드 미사용 채널(예: `ext-snowflake-etl`)에서 사람들이 채널 본문에 줄줄이 답변 → DB엔 정확히 별도 행으로 저장되지만, 사용자는 한 흐름으로 보고 싶어 함 ("본문과 스레드가 분리돼 보임")
+
+### 1. `_lib/related.ts` 신규 — `findRelatedItems()`
+- 같은 채널 + occurred_at 윈도우(기본 ±30분) + 자기 제외
+- 결과를 시간 오름차순 정렬
+
+### 2. `table-view.tsx` 디테일 패널 개편
+- 헤더: 채널 칩 제거 → 우선순위 칩 + 브랜드 칩, 날짜 `M/d HH:mm` 간결화
+- 제목: `text-sm` → `text-base`
+- 본문/스레드 답글: `text-[13px]`, leading 1.6 통일
+- 스레드 박스 헤더에 `MessageSquare` 아이콘 추가
+- 메타 푸터 작성자 표시: `[브랜드명] 이름` prefix
+- **`+ 관련 이력 N` 액션 버튼 추가** — burst 대화 카드 토글 (브랜드 도트 + 작성자 + 시간 + 제목)
+- TableView main에 `allItems` prop (필터 무관 전체 풀에서 관련 이력 검색)
+
+### 3. `history-shell.tsx` 상단 바 개편
+- 뷰 탭: `테이블/인사이트/요약` → `인사이트/타임라인` (요약 탭 제거, 테이블→타임라인 리네임. URL 'table' 키는 호환 유지)
+- 우측: 상대 시간 표시 + dark 새로고침 버튼 (collect만 호출)
+- `[스레드]` 버튼·`handleUpdateThreads`·`isUpdating` state 제거 (Phase 1-A 이후 거의 불필요)
+- 상단 `BrandSelector` 칩 바 제거 → 사이드바로 이동
+
+### 4. `history-sidebar.tsx` 사이드바 재구성
+- "오늘" preset 빠른 버튼 (오늘 카운트 표시)
+- **브랜드 섹션 신규**: 도트 + 이름 + 카운트, 활성 토글
+- 태그/중요도 섹션 유지
+
+### 검증
+- `npx tsc --noEmit` 통과
+- ESLint: 새 코드 0 경고 (기존 `useEffect setState` 1건은 pre-existing)
+
+---
+
+## 이전 변경 (2026-05-22) — 프로젝트 간트 오늘 날짜 선 위치 수정
+
+### 문제
+- 월/주/일 뷰 모두 오늘 날짜 선(보라색 세로선)이 헤더의 오늘 지표와 시각적으로 안 맞는 문제
+
+### 원인 및 수정
+1. **주 뷰** — `todayX = idx * colW + dayOfWeek / 7 * colW`: 월요일(dayOfWeek=0)이면 선이 컬럼 좌측 경계(전주 경계선 위)에 그려져 시각적으로 이 주 컬럼 안에 없는 것처럼 보임
+   - 수정: `(dayOfWeek + 0.5) / 7 * colW` — 오늘 요일 슬롯의 **중앙**에 위치
+2. **일 뷰** — `todayX = idx * colW`: 컬럼 좌측 경계(어제/오늘 경계선)에 그려져 헤더 날짜 숫자(컬럼 중앙)와 14px 어긋남
+   - 수정: `idx * colW + colW / 2` — 오늘 컬럼 **중앙**
+3. **`dayOffsetInWeeks` 타임존 버그** — `new Date(dateStr)`이 UTC 자정으로 파싱(KST에서 +9시간 오프셋)되어 바 위치가 ~2px 우측으로 밀림
+   - 수정: `parseDateStr(dateStr)` 사용(로컬 자정 파싱)
+
+### 변경 파일
+- `src/components/gantt/GanttChart.tsx` — 주·일 뷰 `todayX` 계산 수정
+- `src/lib/gantt-utils.ts` — `dayOffsetInWeeks` UTC 파싱 버그 수정
+
+---
+
+## 이전 변경 (2026-05-22) — Slack 수집 속도 최적화 (Phase 2)
+
+### 배경 — 50건 기준 약 110초 → 목표 ~15초
+- 가장 큰 병목: AI 분류 (Claude Haiku) 호출이 완전 sequential, 50건이면 ~100초
+- 부차 병목: search delay 1200ms × 5페이지, 스레드 fetch delay 300ms × N
+
+### 1. `slack-service.ts` — `isObviousNoise()` 사전 필터 추가
+- AI 호출 전 명백한 노이즈 사전 차단:
+  - 빈/공백 텍스트
+  - 한 단어 답변 (네, 넵, 확인, 감사합니다, ok, thanks 등)
+  - 이모지 only (Slack `:emoji:` 코드 또는 유니코드 이모지)
+- **스레드가 있으면 항상 false** (짧은 부모라도 답글에 핵심 내용 있을 수 있음)
+- `src/lib/slack-service.test.ts` 추가 — 5개 케이스 vitest 검증 (`@vitest-environment node`)
+
+### 2. `collect/route.ts` — AI 분류 배치 병렬화 (Phase 2-A)
+- 기존 `for` 루프 sequential → `BATCH_SIZE=5`로 `Promise.all` 병렬
+- 각 배치 결과를 `UpsertRow[]`로 모은 뒤 한 번에 `client_history.upsert` (Phase 2-D 부분)
+- 사전 필터 통과한 항목만 AI 호출, 통과 못 한 건 즉시 skipped++
+- 배치 간 200ms delay (Anthropic rate limit 안전 마진)
+- 기존 `await delay(120)` 메시지당 대기 제거
+
+### 3. delay 단축 (Phase 2-C, 2-D)
+- search 페이지 간 delay: 1200ms → 800ms
+- 스레드 fetch delay: 300ms → 200ms (parent 루프 + orphan 루프 양쪽)
+
+### 영향
+- 예상: 50건 기준 ~110초 → ~15초 (약 7배)
+- API 호출 패턴: Anthropic은 배치 5개 동시, Slack은 sequential 유지
+
+### 검증
+- `npx tsc --noEmit` 통과
+- `npx vitest run src/lib/slack-service.test.ts` 통과 (5 tests)
+
+---
+
+## 최근 변경 (2026-05-21) — Slack 수집 로직 3차 수정 (Phase 1-C: update-threads SKIP 조건 개선)
+
+### 배경 — 길이만 비교하던 SKIP의 빈틈
+- 기존 `update-threads`는 `replies.length === prevRj.replies.length`로만 SKIP 판정
+- 답글 5개 → 누군가 1개 삭제 후 1개 추가 → 여전히 5개지만 내용 달라짐 → SKIP되어 DB 갱신 안 됨
+- 결과: client_history의 body와 raw_json의 replies가 부정합
+
+### 1. `update-threads/route.ts` SKIP 조건 강화
+- 길이 + 마지막 reply의 `ts` 둘 다 같을 때만 SKIP
+- `prevLastTs = prevRj.replies[last]?.ts`, `newLastTs = replies[last]?.ts` 추출 후 비교
+- 길이 같지만 마지막 ts 다르면 → 편집/삭제+추가 → UPDATE 실행
+
+### 영향
+- 답글 편집/대체 시 데이터 부정합 해소
+- SKIP 빈도는 거의 그대로 (보통은 마지막 ts도 같음)
+
+---
+
+## 최근 변경 (2026-05-21) — Slack 수집 로직 2차 수정 (Phase 1-B: orphan 답글 부모 fetch)
+
+### 배경 — search 범위 밖 부모로 인한 데이터 누락
+- `search.messages` 결과는 메시지가 발생한 날짜 기준이라, 오늘 답글이 달렸어도 부모가 어제면 부모는 검색에 안 잡힘
+- 기존 코드는 `thread_ts !== ts`인 답글을 그냥 필터로 버려서, 오늘 들어온 중요한 답글이 완전히 소실되는 케이스 발생
+
+### 1. `collect/route.ts` — 노이즈 필터 분리 + orphan 부모 추출
+- 기존 통합 필터를 `cleanMatches` (노이즈만 제거) → `parents` (search 부모) → `orphanParents` (orphan 답글의 부모 ts)로 3단계 분리
+- `orphanParents`: search 결과에서 `thread_ts !== ts`인 답글들의 `thread_ts`를 unique하게 수집
+- 이미 `parents`에 포함된 ts는 `seenKeys` 셋으로 중복 제거
+
+### 2. orphan 부모 별도 fetch 루프 (6-b)
+- 각 orphan parent에 대해 `conversations.replies(channel, ts: thread_ts)` 호출
+- 결과의 `messages[0]`을 부모로 추출, `slice(1)`을 replies로 처리
+- 부모가 봇/시스템 메시지면 스킵 (`bot_id`, `subtype === 'bot_message'`)
+- permalink는 search 결과가 없으므로 `buildSourceRef(channelId, ts)`로 직접 생성
+- fetch 실패 시 기존 `existingMap`의 데이터로 fallback
+
+### 3. existingMap 조회 범위 확장
+- `slack_raw_messages` 사전 조회 시 `parents + orphanParents`의 ts를 모두 포함
+
+### 영향
+- 어제 부모 + 오늘 답글 케이스의 데이터 누락 해결
+- API 호출 증가: orphan parent 수 × 1회 (`conversations.replies`) — Tier 3 한도 50 req/min 내, delay 300ms
+
+---
+
 ## 최근 변경 (2026-05-21) — Slack 수집 로직 1차 수정 (Phase 1-A: 스레드 fetch 통합)
 
 ### 배경 — 본문과 스레드가 분리되던 버그

@@ -75,7 +75,7 @@ interface Props {
 export function HistorySidebar({
   view,
   clients, history,
-  dateFrom, dateTo, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange,
+  dateFrom, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange,
   weekStart, onWeekChange,
   brandId, selectedTags, priorityKey,
   onBrandChange, onToggleTag, onPriorityChange,
@@ -88,6 +88,10 @@ export function HistorySidebar({
   for (const p of PRIORITY_KEYS) priCounts[p] = 0
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
 
+  const brandCounts: Record<string, number> = {}
+  for (const h of history) brandCounts[h.client_id] = (brandCounts[h.client_id] ?? 0) + 1
+  const sortedClients = [...clients].sort((a, b) => (brandCounts[b.id] ?? 0) - (brandCounts[a.id] ?? 0))
+
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
 
@@ -95,12 +99,58 @@ export function HistorySidebar({
       {view === 'insight' ? (
         <WeekNavSection weekStart={weekStart} onWeekChange={onWeekChange} />
       ) : (
-        <MonthGridSection
-          dateFrom={dateFrom} dateMode={dateMode}
-          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-          onDateModeChange={onDateModeChange}
-        />
+        <>
+          <MonthGridSection
+            dateFrom={dateFrom} dateMode={dateMode} history={history}
+            onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+            onDateModeChange={onDateModeChange}
+          />
+          {/* "오늘" 빠른 preset */}
+          <button
+            onClick={() => onPresetClick('today')}
+            className="sidebar-btn mt-1"
+            title="오늘 날짜로 필터"
+          >
+            <LayoutList size={12} className="shrink-0" />
+            <span className="flex-1 truncate text-left">오늘</span>
+            <span className="text-xs text-ink-400">{
+              (() => {
+                const today = new Date()
+                const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
+                return history.filter(h => h.occurred_at.slice(0, 10) === ymd).length
+              })()
+            }</span>
+          </button>
+        </>
       )}
+
+      {/* ── 브랜드 (모든 뷰 공통) ─────────────────────────── */}
+      <div className="mt-3">
+        <GroupTitle>브랜드</GroupTitle>
+        <button
+          onClick={() => onBrandChange('all')}
+          className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
+        >
+          <span className="w-2 h-2 rounded-full shrink-0 ring-1 ring-ink-300" />
+          <span className="flex-1 truncate text-left font-medium">전체</span>
+          <span className="text-xs text-ink-400">{history.length}</span>
+        </button>
+        {sortedClients.map(c => {
+          const count = brandCounts[c.id] ?? 0
+          const active = brandId === c.id
+          return (
+            <button
+              key={c.id}
+              onClick={() => onBrandChange(active ? 'all' : c.id)}
+              className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
+            >
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+              <span className="flex-1 truncate text-left">{c.name}</span>
+              <span className="text-xs text-ink-400">{count}</span>
+            </button>
+          )
+        })}
+      </div>
 
       {/* ── 태그·중요도 (인사이트 탭 제외) ─────────────────── */}
       {view !== 'insight' && (
@@ -226,34 +276,64 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
   )
 }
 
-// ── 월 그리드 피커 (테이블/요약 전용) ───────────────────────
+// ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
 const DATE_MODES: { key: DateMode; label: string }[] = [
   { key: 'occurred', label: '발생일' },
   { key: 'updated',  label: '수정일' },
 ]
 
-function MonthGridSection({ dateFrom, dateMode, onDateFromChange, onDateToChange, onDateModeChange }: {
-  dateFrom: string; dateMode: DateMode
+const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDateToChange, onDateModeChange }: {
+  dateFrom: string; dateMode: DateMode; history: HistoryItem[]
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
   onDateModeChange: (mode: DateMode) => void
 }) {
   const today = new Date()
-  const thisYear  = today.getFullYear()
-  const thisMonth = today.getMonth() + 1
-  const thisDate  = today.getDate()
+  const todayYmd = dateStr(today)
+  const todayY = today.getFullYear()
+  const todayM = today.getMonth()
+  const todayMs = new Date(todayY, todayM, today.getDate()).getTime()
 
-  const [calYear, setCalYear] = useState(() =>
-    dateFrom ? parseInt(dateFrom.slice(0, 4)) : thisYear
-  )
+  const [calYear, setCalYear]   = useState(() => dateFrom ? parseInt(dateFrom.slice(0, 4)) : todayY)
+  const [calMonth, setCalMonth] = useState(() => dateFrom ? parseInt(dateFrom.slice(5, 7)) - 1 : todayM)
 
-  const selYear  = dateFrom ? parseInt(dateFrom.slice(0, 4)) : null
-  const selMonth = dateFrom ? parseInt(dateFrom.slice(5, 7)) : null
+  // 일별 카운트 (점 표시)
+  const dayCounts = (() => {
+    const m: Record<string, number> = {}
+    for (const h of history) {
+      const ymd = h.occurred_at.slice(0, 10)
+      m[ymd] = (m[ymd] ?? 0) + 1
+    }
+    return m
+  })()
 
-  function selectMonth(year: number, month: number) {
-    const mm   = String(month).padStart(2, '0')
-    const last = new Date(year, month, 0).getDate()
-    onDateFromChange(`${year}-${mm}-01`)
-    onDateToChange(`${year}-${mm}-${String(last).padStart(2, '0')}`)
+  // 6주 × 7일 = 42 셀
+  const cells = (() => {
+    const firstDow = new Date(calYear, calMonth, 1).getDay()
+    const start = new Date(calYear, calMonth, 1 - firstDow)
+    return Array.from({ length: 42 }, (_, i) => {
+      const d = new Date(start.getFullYear(), start.getMonth(), start.getDate() + i)
+      return d
+    })
+  })()
+
+  function selectDay(d: Date) {
+    const ymd = dateStr(d)
+    onDateFromChange(ymd)
+    onDateToChange(ymd)
+  }
+
+  function prevMonth() {
+    if (calMonth === 0) { setCalYear(y => y - 1); setCalMonth(11) }
+    else setCalMonth(m => m - 1)
+  }
+
+  const atCurrentMonth = calYear === todayY && calMonth === todayM
+  function nextMonth() {
+    if (atCurrentMonth) return
+    if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
+    else setCalMonth(m => m + 1)
   }
 
   return (
@@ -274,55 +354,79 @@ function MonthGridSection({ dateFrom, dateMode, onDateFromChange, onDateToChange
         ))}
       </div>
 
-      {/* 연도 네비게이터 */}
-      <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
-        <button onClick={() => setCalYear(y => y - 1)}
-          className="w-7 flex items-center justify-center text-ink-400 border-r border-border hover:bg-muted hover:text-foreground transition-colors">
+      {/* 월 네비게이터 */}
+      <div className="mx-2 flex items-center mb-1">
+        <button onClick={prevMonth}
+          className="w-7 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors">
           <ChevronLeft size={13} />
         </button>
-        <div className="flex-1 flex items-center justify-center gap-1.5 py-1.5">
-          <span className="text-xs font-semibold text-foreground">{calYear}</span>
-          {calYear === thisYear && (
+        <div className="flex-1 flex items-center justify-center gap-1.5">
+          <span className="text-xs font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
+          {atCurrentMonth && (
             <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
           )}
         </div>
-        <button onClick={() => setCalYear(y => y + 1)} disabled={calYear >= thisYear}
-          className="w-7 flex items-center justify-center text-ink-400 border-l border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
+        <button onClick={nextMonth} disabled={atCurrentMonth}
+          className="w-7 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
           <ChevronRight size={13} />
         </button>
       </div>
 
-      {/* 월 그리드 (3행 × 4열) */}
-      <div className="mx-2 grid grid-cols-4 gap-1">
-        {Array.from({ length: 12 }, (_, i) => {
-          const m        = i + 1
-          const isSelected = selYear === calYear && selMonth === m
-          const isCurrent  = calYear === thisYear && m === thisMonth
-          const isFuture   = calYear > thisYear || (calYear === thisYear && m > thisMonth)
+      {/* 요일 헤더 */}
+      <div className="mx-2 grid grid-cols-7 mb-1">
+        {DAY_HEADERS.map((d, i) => (
+          <div
+            key={d}
+            className={`text-[10px] text-center py-1 ${
+              i === 0 ? 'text-rose-400' : i === 6 ? 'text-blue-400' : 'text-ink-400'
+            }`}
+          >
+            {d}
+          </div>
+        ))}
+      </div>
+
+      {/* 날짜 그리드 */}
+      <div className="mx-2 grid grid-cols-7 gap-y-0.5">
+        {cells.map((d, i) => {
+          const dow      = d.getDay()
+          const inMonth  = d.getMonth() === calMonth
+          const ymd      = dateStr(d)
+          const isSelected = ymd === dateFrom
+          const isToday    = ymd === todayYmd
+          const isFuture   = d.getTime() > todayMs
+          const hasItems   = (dayCounts[ymd] ?? 0) > 0
+
+          let colorClass = ''
+          if (isFuture) colorClass = 'text-ink-200'
+          else if (!inMonth) colorClass = dow === 0 ? 'text-rose-200' : dow === 6 ? 'text-blue-200' : 'text-ink-200'
+          else colorClass = dow === 0 ? 'text-rose-500' : dow === 6 ? 'text-blue-500' : 'text-foreground'
 
           return (
-            <button key={m}
-              onClick={() => { if (!isFuture) selectMonth(calYear, m) }}
+            <button
+              key={i}
+              onClick={() => !isFuture && selectDay(d)}
               disabled={isFuture}
               className={[
-                'relative flex flex-col items-center justify-center rounded py-2 text-xs font-medium transition-colors',
-                isSelected ? 'bg-foreground text-background' : '',
-                !isSelected && !isFuture ? 'hover:bg-muted text-foreground' : '',
-                isFuture ? 'text-ink-200 cursor-not-allowed' : '',
-              ].join(' ')}>
-              {/* 현재 날짜 뱃지 (상단 우측) */}
-              {isCurrent && (
-                <span className={[
-                  'absolute top-0.5 right-1 text-[9px] font-semibold leading-none',
-                  isSelected ? 'text-background/60' : 'text-lilac-500',
-                ].join(' ')}>
-                  {thisDate}
-                </span>
+                'relative h-7 flex items-center justify-center rounded text-xs transition-colors',
+                isSelected
+                  ? 'bg-lilac-500 text-white font-semibold hover:bg-lilac-500'
+                  : isFuture
+                    ? 'cursor-not-allowed'
+                    : 'hover:bg-muted',
+                !isSelected ? colorClass : '',
+              ].join(' ')}
+              title={ymd}
+            >
+              <span>{d.getDate()}</span>
+              {isToday && !isSelected && (
+                <span className="absolute -top-0.5 right-1 text-[8px] font-bold text-lilac-500 leading-none">·</span>
               )}
-              <span>{m}</span>
-              {/* 현재 월 점 (하단) */}
-              {isCurrent && (
-                <span className={['w-1 h-1 rounded-full mt-0.5', isSelected ? 'bg-background/60' : 'bg-foreground'].join(' ')} />
+              {hasItems && (
+                <span className={[
+                  'absolute bottom-0.5 w-1 h-1 rounded-full',
+                  isSelected ? 'bg-white/70' : 'bg-current opacity-40',
+                ].join(' ')} />
               )}
             </button>
           )

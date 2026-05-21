@@ -3,7 +3,9 @@ import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
   matchBrand, classifyMessage, fetchClientsForWorkspace,
-  buildSourceRef, tsToISO, delay, type RawJson,
+  buildSourceRef, tsToISO, delay,
+  fetchUserDirectory, resolveUserName,
+  type RawJson,
 } from '@/lib/slack-service'
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
@@ -73,7 +75,10 @@ export async function POST(_req: NextRequest) {
 
         send('status', { message: `${rawRows.length}건 스레드 업데이트 중...` })
 
-        const clients = await fetchClientsForWorkspace(sb, workspaceId)
+        const [clients, userDir] = await Promise.all([
+          fetchClientsForWorkspace(sb, workspaceId),
+          fetchUserDirectory(slack),
+        ])
         const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
 
         let updated = 0
@@ -100,7 +105,7 @@ export async function POST(_req: NextRequest) {
                   ts: rMsg.ts ?? '',
                   text: rMsg.text ?? '',
                   user: rMsg.user ?? '',
-                  user_name: rMsg.username ?? rMsg.user ?? '',
+                  user_name: resolveUserName(userDir, rMsg.user, rMsg.username),
                 })
               }
             }
@@ -111,8 +116,13 @@ export async function POST(_req: NextRequest) {
             continue
           }
 
-          // 이전과 동일하면 SKIP
-          if (replies.length === prevRj.replies.length) { skipped++; continue }
+          // 이전과 동일하면 SKIP (길이 + 마지막 reply ts 둘 다 같을 때만)
+          const prevLastTs = prevRj.replies[prevRj.replies.length - 1]?.ts ?? ''
+          const newLastTs = replies[replies.length - 1]?.ts ?? ''
+          if (replies.length === prevRj.replies.length && prevLastTs === newLastTs) {
+            skipped++
+            continue
+          }
 
           // 4. raw_json upsert (replies 업데이트)
           const updatedRj: RawJson = { ...prevRj, replies, reply_count: replies.length }
@@ -146,7 +156,7 @@ export async function POST(_req: NextRequest) {
                 title: result.title,
                 body: result.body,
                 priority: result.priority,
-                author: result.author,
+                author: resolveUserName(userDir, updatedRj.user, result.author || updatedRj.user_name),
                 occurred_at: tsToISO(updatedRj.ts),
                 updated_at: new Date().toISOString(),
               },

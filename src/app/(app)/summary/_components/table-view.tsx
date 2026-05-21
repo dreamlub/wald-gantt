@@ -9,7 +9,7 @@ import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/ty
 import { createClient } from '@/lib/supabase/client'
 import type { RawJson } from '@/lib/slack-service'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { PriorityBars, ChannelBadge } from './badges'
+import { PriorityBars } from './badges'
 
 const PRIORITY_TITLE_CLASS: Record<Priority, string> = {
   high:   'font-semibold text-rose-500',
@@ -91,11 +91,11 @@ function DetailPanel({
   onPrev, onNext, onToggleTag, onSelectBrand, onSelectAuthor,
   onCreateTask, onCreateProject,
 }: DetailPanelProps) {
+
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
       {/* 헤더 바 */}
       <div className="shrink-0 flex items-center gap-2 px-5 py-2.5 border-b bg-muted flex-wrap">
-        <ChannelBadge channel={`#${item.channel}`} href={item.source_ref} />
         {item.priority && (
           <span
             className="inline-flex items-center gap-1 text-[11px] px-2 py-0.5 rounded font-medium"
@@ -116,7 +116,7 @@ function DetailPanel({
           </button>
         )}
         <span className="ml-auto text-[11px] text-ink-400 tabular-nums">
-          {format(new Date(item.occurred_at), 'yyyy.MM.dd HH:mm', { locale: ko })}
+          {format(new Date(item.occurred_at), 'M/d HH:mm', { locale: ko })}
         </span>
         <span className="text-[10px] text-ink-400 shrink-0">{selectedIdx + 1}/{totalCount}</span>
         <button
@@ -138,9 +138,9 @@ function DetailPanel({
       </div>
 
       {/* 본문 스크롤 */}
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+      <div className="flex-1 overflow-y-auto px-7 py-6 space-y-5">
         {/* 제목 */}
-        <h2 className={`text-sm leading-[1.5] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-semibold text-foreground'}`}>
+        <h2 className={`text-base leading-[1.4] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-semibold text-foreground'}`}>
           {item.title}
         </h2>
 
@@ -168,7 +168,7 @@ function DetailPanel({
 
         {/* 본문 텍스트 */}
         {item.body && (
-          <div className="text-xs text-foreground leading-[1.75] whitespace-pre-wrap break-words">
+          <div className="text-[13px] text-foreground leading-[1.75] whitespace-pre-wrap break-words">
             {item.body}
           </div>
         )}
@@ -177,7 +177,8 @@ function DetailPanel({
         {item.thread_replies && item.thread_replies.length > 0 && (
           <div className="border border-border rounded-lg overflow-hidden">
             <div className="px-4 py-2.5 bg-muted border-b border-border flex items-center justify-between">
-              <span className="text-[11px] font-semibold text-ink-600">
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-600">
+                <MessageSquare size={11} />
                 스레드 답변 {item.thread_replies.length}
               </span>
               <span className="text-[10px] text-ink-400 tabular-nums">
@@ -191,7 +192,7 @@ function DetailPanel({
                     <span className="text-[11px] font-semibold text-foreground">{reply.author}</span>
                     <span className="text-[10px] text-ink-400 tabular-nums">{fmtReplyTime(reply.occurred_at)}</span>
                   </div>
-                  <div className="text-xs text-foreground leading-[1.6] whitespace-pre-wrap break-words">
+                  <div className="text-[13px] text-foreground leading-[1.6] whitespace-pre-wrap break-words">
                     {reply.text}
                   </div>
                 </div>
@@ -199,6 +200,7 @@ function DetailPanel({
             </div>
           </div>
         )}
+
 
         {/* 메타 푸터 */}
         <div className="grid grid-cols-3 gap-4 py-4 border-t border-ink-150">
@@ -210,7 +212,7 @@ function DetailPanel({
                 className="text-xs text-foreground hover:text-lilac-500 transition-colors truncate block max-w-full text-left"
                 title={`${item.author}로 필터`}
               >
-                {item.author}
+                {client ? `[${client.name}] ` : ''}{item.author}
               </button>
             ) : <span className="text-xs text-ink-300">—</span>}
           </div>
@@ -278,7 +280,7 @@ function DetailPanel({
 // ── 메인 컴포넌트 ──────────────────────────────────────────────
 
 export function TableView({
-  items, clients, selectedTags, searchQuery, hasFilters,
+  items, clients, searchQuery, hasFilters,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
   onCreateTask, onCreateProject,
 }: Props) {
@@ -288,7 +290,7 @@ export function TableView({
   const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
   const selectedRowRef = useRef<HTMLDivElement>(null)
 
-  // 날짜별 그룹 (items는 이미 날짜 내림차순 정렬)
+  // 날짜별 그룹 — items는 이미 날짜 내림차순 정렬, 모든 본문(parent) 표시
   const dateGroups = useMemo(() => {
     const groups: { dateKey: string; label: string; items: HistoryItem[] }[] = []
     const seen = new Map<string, (typeof groups)[0]>()
@@ -307,7 +309,6 @@ export function TableView({
   // 평탄화된 리스트 (키보드 nav용)
   const flatItems = useMemo(() => dateGroups.flatMap(g => g.items), [dateGroups])
 
-  // 선택 아이템: selectedId가 없거나 사라졌으면 첫 번째 항목
   const selectedItem = useMemo<HistoryItem | null>(() => {
     if (selectedId) {
       const found = flatItems.find(i => i.id === selectedId)
@@ -424,15 +425,15 @@ export function TableView({
                         {client?.name ?? '—'}
                       </span>
                       <span className="text-[10px] text-ink-400 shrink-0">#{item.channel}</span>
-                      {item.thread_count > 0 && (
-                        <span className="inline-flex items-center gap-0.5 text-[10px] text-lilac-500 shrink-0">
-                          <MessageSquare size={9} />
-                          {item.thread_count}
-                        </span>
-                      )}
                       <span className="text-[10px] text-ink-400 shrink-0 tabular-nums ml-1">
                         {fmtTime(item.occurred_at)}
                       </span>
+                      {item.thread_count > 0 && (
+                        <span
+                          className="ml-1 w-1.5 h-1.5 rounded-full bg-lilac-500 shrink-0"
+                          title={`스레드 답변 ${item.thread_count}건`}
+                        />
+                      )}
                     </div>
                     {/* 제목 */}
                     <div className={`text-xs leading-[1.4] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-normal text-foreground'}`}>
