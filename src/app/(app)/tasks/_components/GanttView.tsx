@@ -7,7 +7,7 @@ import {
   type WeekInfo,
 } from '@/lib/gantt-utils'
 import type { GanttTask } from '@/types'
-import { STATUS_COLOR } from '../_constants'
+import { STATUS_COLOR, PriorityBars } from '../_constants'
 import { isOverdue, isStartDelayed, clampTooltipPos } from '../_utils'
 
 interface Props {
@@ -317,17 +317,12 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
                 <button
                   onClick={() => onEdit(task)}
-                  className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${
-                    isDone ? 'line-through font-medium text-ink-400' :
-                    task.priority === 3 ? 'font-semibold text-rose-500' :
-                    task.priority === 2 ? 'font-medium text-foreground' :
-                    task.priority === 1 ? 'font-normal text-muted-foreground' :
-                    'font-normal text-ink-400'
-                  }`}
+                  className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
                   title={task.title}
                 >
                   {task.title}
                 </button>
+                {(task.priority ?? 0) > 0 && <PriorityBars priority={task.priority} />}
                 {task.memo && (
                   <StickyNote
                     size={10}

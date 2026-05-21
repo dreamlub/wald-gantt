@@ -1,5 +1,34 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-21) — Slack 수집 로직 1차 수정 (Phase 1-A: 스레드 fetch 통합)
+
+### 배경 — 본문과 스레드가 분리되던 버그
+- 기존 `collect` 단계는 `replies: []`로 raw_json 저장 → AI 분류가 부모 메시지만 보고 `body` 요약 작성
+- `update-threads`로 스레드를 채워도 `body`는 이미 부모만 보고 작성된 상태로 남아 UI에서 분리되어 보임
+- `collect` 재실행 시 raw_json 통째로 덮어써서 기존 replies 손실
+
+### 1. `collect/route.ts` — 스레드 fetch를 collect 안으로 통합
+- parents 루프에서 `m.reply_count > 0`인 경우 `conversations.replies` 즉시 호출
+- 봇 메시지 필터 + `slice(1)`(부모 제외) 후 replies 배열에 채움
+- AI 분류가 자동으로 스레드 컨텍스트 포함된 상태에서 동작 (`classifyMessage`의 `raw.replies` 사용)
+- delay 300ms (Slack Tier 3 한도 50 req/min 안전 마진)
+- 진행 상태 메시지 추가: "스레드 수집 중... (i/N)"
+
+### 2. fetch 실패 시 기존 replies 보존 (재실행 시 데이터 손실 방지)
+- 루프 전에 `slack_raw_messages`에서 동일한 `parent_ts` 기존 행을 미리 조회
+- `existingMap`에 `${channel}:${parent_ts}` 키로 저장
+- `conversations.replies` 호출 실패 시 fallback으로 기존 replies 사용
+- `reply_count` 필드는 실제 fetch된 `replies.length`로 갱신
+
+### 3. import 추가
+- `RawReply` 타입을 `@/lib/slack-service`에서 import
+
+### 영향
+- `update-threads`는 여전히 동작 (오래된 스레드에 새 답글 달린 경우 수동 새로고침용)
+- 다음 단계 Plan 1-B (어제 부모 + 오늘 답글 누락 처리), 1-C (SKIP 조건 개선), Phase 2 (병렬화) 대기
+
+---
+
 ## 최근 변경 (2026-05-21) — Summary 테이블 뷰 → 스플릿 패널 스레드 뷰어로 재설계
 
 ### 1. `HistoryItem` 타입 확장 (`_lib/types.ts`)

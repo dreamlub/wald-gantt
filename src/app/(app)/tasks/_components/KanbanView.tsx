@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { STATUS_GROUPS } from '../_constants'
+import { STATUS_GROUPS, PriorityBars } from '../_constants'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { labelColor } from './TaskDetailDrawer'
@@ -62,24 +62,21 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
 
   return (
     <div
-      className={`bg-card rounded-md ring-1 ring-gray-100 px-3.5 py-3 group
-        hover:ring-gray-300 transition-all cursor-pointer
+      className={`bg-card rounded-lg border border-border/60 px-3.5 py-3 group
+        hover:bg-muted/60 transition-colors cursor-pointer
         ${isDone ? 'opacity-55' : ''}
         ${isDragging ? 'opacity-0' : ''}`}
       onClick={() => onEdit(task)}
     >
-      <div className={`text-xs leading-snug mb-2 break-words ${
-        isDone ? 'line-through font-medium text-ink-400' :
-        task.priority === 3 ? 'font-semibold text-rose-500' :
-        task.priority === 2 ? 'font-medium text-foreground' :
-        task.priority === 1 ? 'font-normal text-muted-foreground' :
-        'font-normal text-ink-400'
-      }`}>
+      {/* 제목 */}
+      <div className={`text-xs leading-snug break-words ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}>
         {task.title}
       </div>
 
-      {(overdue || startDelayed || noUpdate || labels.length > 0 || (task.projects && task.projects.length > 0)) && (
-        <div className="flex flex-wrap items-center gap-1 mb-2.5">
+      {/* 우선순위 + 상태 뱃지 + 라벨 */}
+      {((task.priority ?? 0) > 0 || overdue || startDelayed || noUpdate || labels.length > 0 || (task.projects && task.projects.length > 0)) && (
+        <div className="flex flex-wrap items-center gap-1 mt-1.5 mb-2">
+          {(task.priority ?? 0) > 0 && <PriorityBars priority={task.priority} />}
           {overdue && (
             <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
               지연 {overdueDays(task.due_date)}일
@@ -119,7 +116,8 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         </div>
       )}
 
-      <div className="flex items-center gap-1.5">
+      {/* 푸터: 담당자 · 메모 · 하위태스크 · 마감일 */}
+      <div className="flex items-center gap-1.5 mt-2">
         {assigneeName ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -206,29 +204,21 @@ function KanbanColumn({
   const { setNodeRef, isOver } = useDroppable({ id: status })
 
   return (
-    <div className="flex flex-col shrink-0 w-64">
-      <div className="flex items-center gap-2 px-3 py-2.5 sticky top-0 bg-muted z-10">
+    <div className="flex flex-col shrink-0 w-72 h-full border-r border-border/30 last:border-r-0">
+      <div className="flex items-center gap-2 px-3 py-3">
         <span
-          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+          className="shrink-0 w-2 h-2 rounded-full"
           style={{ backgroundColor: color }}
-        >
-          {abbr}
-        </span>
-        <span className="text-xs font-semibold text-ink-700">{label}</span>
-        <span
-          className="text-[10px] font-semibold px-1.5 py-0.5 rounded-full ml-0.5"
-          style={{ backgroundColor: bgColor, color }}
-        >
-          {tasks.length}
-        </span>
+        />
+        <span className="text-xs font-semibold text-foreground">{label}</span>
+        <span className="text-[11px] text-muted-foreground">{tasks.length}</span>
       </div>
 
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
         <div
           ref={setNodeRef}
-          className={`flex-1 flex flex-col gap-2 px-2 py-2 rounded-lg min-h-[120px] transition-colors
-            ${isOver ? 'bg-accent/60 ring-1 ring-lilac-200 ring-inset' : ''}`}
-          style={{ backgroundColor: isOver ? undefined : bgColor }}
+          className={`flex-1 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden flex flex-col gap-2 px-2 pb-2 min-h-0 transition-colors
+            ${isOver ? 'bg-accent/60 ring-1 ring-lilac-200 ring-inset rounded-lg' : ''}`}
         >
           {tasks.map(task => {
             const subs = allTasks.filter(t => t.parent_id === task.id)
@@ -266,7 +256,7 @@ function KanbanColumn({
           ) : (
             <button
               onClick={() => onQuickAddStart(status)}
-              className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-ink-400 hover:text-foreground hover:bg-card rounded-md border border-dashed border-border hover:border-ink-400 transition-colors mt-0.5"
+              className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
             >
               <Plus size={11} /> 태스크 추가
             </button>
@@ -379,7 +369,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
       onDragEnd={handleDragEnd}
     >
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
-        <div className="flex gap-3 px-4 py-3 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 272 }}>
+        <div className="flex gap-3 px-4 py-4 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 304 }}>
           {STATUS_GROUPS.map(({ status, label, color, bgColor, abbr }) => {
             const orderedIds  = columnOrder.get(status) ?? []
             const taskIds     = new Set(tasks.map(t => t.id))

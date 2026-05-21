@@ -106,7 +106,7 @@ export function TasksActionBar({
         </div>
 
         <div className="ml-auto flex items-center gap-2">
-          <div
+          {view !== 'kanban' && <div
             className="flex items-center gap-1.5 cursor-pointer select-none"
             onClick={() => onHideDoneChange(!hideDone)}
             title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
@@ -119,7 +119,7 @@ export function TasksActionBar({
             >
               <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
             </div>
-          </div>
+          </div>}
           {(view === 'normal' || view === 'list') && (
             <button
               onClick={onToggleSelection}

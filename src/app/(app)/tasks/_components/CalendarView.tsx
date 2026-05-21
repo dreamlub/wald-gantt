@@ -14,6 +14,7 @@ interface Props {
 }
 
 export function CalendarView({ tasks, onEdit }: Props) {
+  const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
   const [cur, setCur] = useState(() => {
     const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
     return { year: kst.getUTCFullYear(), month: kst.getUTCMonth() }
@@ -169,7 +170,12 @@ export function CalendarView({ tasks, onEdit }: Props) {
                     )
                   })}
                   {dayTasks.length > 3 && (
-                    <span className="text-[9px] text-ink-400 px-1.5 py-0.5">+{dayTasks.length - 3}개 더</span>
+                    <button
+                      onClick={e => { e.stopPropagation(); setOverflow({ key, x: e.clientX, y: e.clientY }) }}
+                      className="text-[9px] text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
+                    >
+                      +{dayTasks.length - 3}개 더
+                    </button>
                   )}
                 </div>
               </div>
@@ -177,6 +183,49 @@ export function CalendarView({ tasks, onEdit }: Props) {
           })}
         </div>
       </div>
+
+      {/* 날짜 오버플로우 팝오버 */}
+      {overflow && (() => {
+        const popTasks = tasksForDay(overflow.key)
+        const [y, m, d] = overflow.key.split('-').map(Number)
+        const label = `${m}월 ${d}일`
+        const left = Math.min(overflow.x, window.innerWidth - 220)
+        const top  = overflow.y + 8 + (window.innerHeight - overflow.y < 260 ? -260 : 0)
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOverflow(null)} />
+            <div
+              className="fixed z-50 w-52 bg-card border border-border rounded-xl shadow-lg py-2 overflow-hidden"
+              style={{ left, top }}
+            >
+              <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
+                <span className="text-[11px] font-semibold text-foreground">{label}</span>
+                <span className="text-[10px] text-muted-foreground">{popTasks.length}개</span>
+              </div>
+              <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {popTasks.map(task => {
+                  const isDone  = task.status === 'done'
+                  const overdue = isOverdue(task.due_date, task.status)
+                  const stripeColor = overdue ? 'var(--color-status-late)' : STATUS_COLOR[task.status]
+                  const filledBg    = overdue ? 'var(--task-status-overdue-bg)' : STATUS_BG_COLOR[task.status]
+                  return (
+                    <button
+                      key={task.id}
+                      onClick={() => { setOverflow(null); onEdit(task) }}
+                      className={`flex items-center gap-1 text-left text-[10px] px-1.5 py-[3px] rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
+                      style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
+                    >
+                      <span className={`truncate flex-1 leading-tight ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
+                        {task.title}
+                      </span>
+                    </button>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }

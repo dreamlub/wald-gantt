@@ -200,6 +200,7 @@ export function NormalView(props: NormalViewProps) {
       <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
         <div className="w-5 shrink-0 mr-3" />
         <div className="flex-1 mr-4">태스크</div>
+        <div className="w-8 shrink-0">우선</div>
         <div className="w-10 shrink-0">메모</div>
         <div className="w-28 shrink-0">담당자</div>
         <div className="w-24 shrink-0">일정</div>

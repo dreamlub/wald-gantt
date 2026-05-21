@@ -5,7 +5,7 @@ import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Che
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { STATUS_COLOR, STATUS_BG_COLOR, STATUS_LABEL, STATUS_ABBR } from '../_constants'
+import { STATUS_COLOR, STATUS_LABEL, STATUS_ABBR, PriorityBars } from '../_constants'
 import { labelColor } from './TaskDetailDrawer'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
@@ -188,6 +188,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
         </div>
         <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-8 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">메모</div>
+        <div className="w-8 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
@@ -214,8 +215,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           <div
             key={task.id}
             onClick={() => selectionMode ? onSelect?.(task.id) : onEdit(task)}
-            className={`group flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''}`}
-            style={!isSub && !isDone && !(selectionMode && selectedIds?.has(task.id)) ? { backgroundColor: STATUS_BG_COLOR[task.status] } : undefined}
+            className={`group flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''} ${overdue && !isSub ? 'bg-status-late/5' : ''}`}
           >
             <div className="w-6 shrink-0 flex items-center">
               {selectionMode ? (
@@ -240,13 +240,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               )}
             </div>
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
-              <span className={`text-xs truncate min-w-0 ${
-                isDone ? 'line-through text-ink-400' :
-                task.priority === 3 ? 'font-semibold text-rose-500' :
-                task.priority === 2 ? 'font-medium text-foreground' :
-                task.priority === 1 ? 'font-normal text-muted-foreground' :
-                'font-normal text-ink-400'
-              }`}>{task.title}</span>
+              <span className={`text-xs truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
               {overdue && (
                 <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                   지연 {overdueDays(task.due_date)}일
@@ -317,6 +311,9 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                   <StickyNote size={12} />
                 </button>
               )}
+            </div>
+            <div className="w-8 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
+              <PriorityBars priority={task.priority} />
             </div>
             <div className="w-28 shrink-0 flex items-center gap-1.5">
               <span

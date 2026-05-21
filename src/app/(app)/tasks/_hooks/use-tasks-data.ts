@@ -33,7 +33,7 @@ export function useTasksData() {
       setArchiveCount(arcCnt)
       const statuses: TaskStatus[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
       setCollapsed(new Set(
-        statuses.filter(s => s === 'done' || s === 'pending' || list.filter(t => t.status === s).length === 0)
+        statuses.filter(s => s === 'pending' || list.filter(t => t.status === s).length === 0)
       ))
       const parentIds = new Set(list.filter(t => t.parent_id).map(t => t.parent_id as string))
       setExpandedParents(parentIds)

@@ -12,6 +12,7 @@ import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor, clampTooltipPos } from '../_utils'
 import { labelColor } from './TaskDetailDrawer'
+import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
   const d = new Date(iso)
@@ -96,13 +97,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {/* 제목 — 클릭 시 드로어 */}
         <button
           onClick={() => onEdit(task)}
-          className={`text-xs min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${
-            isDone ? 'line-through font-medium text-ink-400' :
-            task.priority === 3 ? 'font-semibold text-rose-500' :
-            task.priority === 2 ? 'font-medium text-foreground' :
-            task.priority === 1 ? 'font-normal text-muted-foreground' :
-            'font-normal text-ink-400'
-          }`}
+          className={`text-xs min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
         >
           {task.title}
         </button>
@@ -211,6 +206,11 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         >
           <Trash2 size={11} />
         </button>
+      </div>
+
+      {/* 우선순위 컬럼 */}
+      <div className="w-8 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
+        <PriorityBars priority={task.priority} />
       </div>
 
       {/* 메모 컬럼 */}
