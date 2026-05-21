@@ -1,7 +1,7 @@
 /* ── Calendar 공통 상수 ── */
 
 // 타임그리드
-export const HOUR_H   = 80   // 1시간 = 80px
+export const HOUR_H   = 60   // 1시간 = 60px
 export const START_H  = 6    // 그리드 시작 시각
 export const END_H    = 23   // 그리드 끝 시각
 export const TOTAL_H  = END_H - START_H

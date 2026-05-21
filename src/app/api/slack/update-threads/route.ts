@@ -42,20 +42,19 @@ export async function POST(_req: NextRequest) {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        send('status', { message: 'in_progress 항목 조회 중...' })
+        send('status', { message: '스레드 업데이트 대상 조회 중...' })
 
-        // 1. in_progress 태그 달린 client_history (raw_message_id 있는 것만)
+        // 1. raw_message_id 있는 전체 client_history
         const { data: historyItems, error: histErr } = await sb
           .from('client_history')
           .select('id, source_id, raw_message_id')
           .eq('workspace_id', workspaceId)
-          .contains('tags', ['in_progress'])
           .is('deleted_at', null)
           .not('raw_message_id', 'is', null)
 
         if (histErr) throw histErr
         if (!historyItems || historyItems.length === 0) {
-          send('result', { updated: 0, message: 'in_progress 항목 없음' })
+          send('result', { updated: 0, message: '업데이트 대상 없음' })
           return
         }
 
@@ -75,6 +74,7 @@ export async function POST(_req: NextRequest) {
         send('status', { message: `${rawRows.length}건 스레드 업데이트 중...` })
 
         const clients = await fetchClientsForWorkspace(sb, workspaceId)
+        const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
 
         let updated = 0
         let skipped = 0
@@ -126,7 +126,7 @@ export async function POST(_req: NextRequest) {
 
           // 5. 재분류 → client_history 업데이트
           const fullText = updatedRj.text + ' ' + updatedRj.replies.map(r => r.text).join(' ')
-          const clientId = matchBrand(updatedRj.channel, fullText, clients)
+          const clientId = matchBrand(updatedRj.channel, fullText, clients) ?? fallbackClientId
 
           try {
             const result = await classifyMessage(updatedRj, clientId, clients)

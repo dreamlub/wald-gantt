@@ -37,6 +37,11 @@ function fmtTime(iso: string): string {
   return `${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
 }
 
+function fmtReplyTime(iso: string): string {
+  const d = new Date(iso)
+  return `${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
+}
+
 function getDateLabel(iso: string): string {
   const todayMs = new Date().setHours(0, 0, 0, 0)
   const itemMs = new Date(iso.slice(0, 10) + 'T00:00:00').getTime()
@@ -168,22 +173,25 @@ function DetailPanel({
           </div>
         )}
 
-        {/* 스레드 답글 */}
+        {/* 스레드 답변 */}
         {item.thread_replies && item.thread_replies.length > 0 && (
           <div className="border border-border rounded-lg overflow-hidden">
-            <div className="px-4 py-2 bg-muted border-b border-border">
-              <span className="text-[10px] font-semibold text-ink-500 uppercase tracking-wider">
-                스레드 답글 {item.thread_replies.length}
+            <div className="px-4 py-2.5 bg-muted border-b border-border flex items-center justify-between">
+              <span className="text-[11px] font-semibold text-ink-600">
+                스레드 답변 {item.thread_replies.length}
+              </span>
+              <span className="text-[10px] text-ink-400 tabular-nums">
+                마지막 활동 {fmtReplyTime(item.thread_replies[item.thread_replies.length - 1].occurred_at)}
               </span>
             </div>
             <div className="divide-y divide-border">
               {item.thread_replies.map((reply, i) => (
                 <div key={i} className="px-4 py-3">
-                  <div className="flex items-center gap-2 mb-1">
-                    <span className="text-[11px] font-medium text-foreground">{reply.author}</span>
-                    <span className="text-[10px] text-ink-400 tabular-nums">{fmtTime(reply.occurred_at)}</span>
+                  <div className="flex items-center justify-between mb-1.5">
+                    <span className="text-[11px] font-semibold text-foreground">{reply.author}</span>
+                    <span className="text-[10px] text-ink-400 tabular-nums">{fmtReplyTime(reply.occurred_at)}</span>
                   </div>
-                  <div className="text-xs text-muted-foreground leading-[1.6] whitespace-pre-wrap break-words">
+                  <div className="text-xs text-foreground leading-[1.6] whitespace-pre-wrap break-words">
                     {reply.text}
                   </div>
                 </div>

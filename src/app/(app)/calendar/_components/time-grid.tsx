@@ -13,6 +13,7 @@ import { getActiveDragOffsetY } from './drag-state'
 
 interface DayColumnProps {
   date: string
+  isToday: boolean
   events: CalendarEvent[]
   tasks: GanttTask[]
   getMinutesFromY: (clientY: number) => number
@@ -26,7 +27,7 @@ interface DayColumnProps {
   onTaskClick: (task: GanttTask) => void
 }
 
-function DayColumn({ date, events, tasks, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
+function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -124,6 +125,24 @@ function DayColumn({ date, events, tasks, getMinutesFromY, highlightTaskId, onHi
           style={{ top: minutesToPx((h - START_H) * 60 + 30) }}
         />
       ))}
+
+      {/* 현재 시각 라인 (오늘 컬럼에만) */}
+      {(() => {
+        if (!isToday) return null
+        const now = new Date()
+        const nowMin = now.getHours() * 60 + now.getMinutes()
+        if (nowMin < START_H * 60 || nowMin > END_H * 60) return null
+        const nowTop = minutesToPx(nowMin - START_H * 60)
+        return (
+          <div
+            className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
+            style={{ top: nowTop }}
+          >
+            <div className="w-1.5 h-1.5 rounded-full bg-status-late -ml-0.5 shrink-0" />
+            <div className="flex-1 border-t border-status-late" />
+          </div>
+        )
+      })()}
 
       {/* 드래그 스냅 가이드라인 */}
       {dragOver && snapMinutes !== null && (
@@ -238,6 +257,7 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
         <DayColumn
           key={date}
           date={date}
+          isToday={date === today}
           events={events.filter(e => localDateStr(e.start) === date)}
           tasks={tasks.filter(t => !!t.scheduled_at && localDateStr(t.scheduled_at) === date)}
           getMinutesFromY={getMinutesFromY}

@@ -165,39 +165,49 @@ export async function classifyMessage(
     ] : []),
   ].join('\n')
 
-  const prompt = `슬랙 메시지를 분류하세요.
+  const isDmChannel = /^[UW][A-Z0-9]{8,}$/.test(raw.channel)
 
+  const prompt = `당신은 에이전시의 PM입니다. 슬랙 메시지를 클라이언트 업무 히스토리로 기록할지 판단하세요.
+
+=== 메시지 ===
 ${fullText}
 
-매칭된 브랜드: ${clientName}
-멘션 감지 ID: ${MENTION_USER_ID} (이 ID가 메시지/답글에 포함되면 mention 태그 추가)
+=== 컨텍스트 ===
+브랜드: ${clientName}${isDmChannel ? '\n채널 유형: DM (1:1 대화 — 업무 관련 내용일 가능성 높음)' : ''}
+멘션 대상 ID: ${MENTION_USER_ID}
 
-다음 기준으로 분류하고 JSON만 반환하세요:
+=== 판단 기준 ===
+**기록 제외 (skip: true) — 아래 조건 중 하나라도 해당되면 제외:**
+- 봇/자동화 시스템이 보낸 메시지 (ETL, 모니터링 알림, 배포 자동화 등)
+- 채널 입장·퇴장 알림
+- 단순 이모지 반응만 있는 메시지
+- "네", "넵", "ㅇㅋ", "확인" 한 단어로만 구성된 답변 (스레드 없이)
+- Google Calendar / 캘린더 봇 알림
 
-제외 기준 (skip: true):
-- 단순 인사/이모지/잡담, 채널 입장·퇴장, 단순 근태(반차/연차), "넵"/"확인" 단독 답변
+**기록 포함 (skip: false) — 아래 조건 중 하나라도 해당되면 반드시 포함:**
+- 클라이언트/프로젝트 관련 실무 내용 (질문, 요청, 보고, 논의)
+- 이슈 제기, 문제 공유, 오류 보고
+- 계약/정책/방향 결정 관련 내용
+- 미팅·일정 협의
+- 운영 관련 문의 (CS, 서버, 배포 등)
+- R&R, 역할 분담, 담당자 논의
+- DM에서 오가는 업무 대화
 
-태그 (해당하는 것만, 복수 가능):
+태그 (복수 가능, 해당 없으면 빈 배열):
 - issue: 버그/오류/CS/장애
 - decision: 정책/계약/방향 확정
-- mention: ${MENTION_USER_ID} 멘션 포함
-- in_progress: 미해결 이슈/검토/협의중
-- done: 명시적 완료 표현
-- schedule: 미팅/배포 일정 확정
+- mention: 메시지에 <@${MENTION_USER_ID}> 포함
+- in_progress: 미해결/검토중/협의중
+- done: 명시적 완료
+- schedule: 미팅/배포 일정
 
-중요도:
+우선순위:
 - high: 운영장애/CS다발/계약/긴급
-- medium: 일반 이슈/정책변경/프로젝트 진행 (기본값)
+- medium: 일반 이슈/정책/프로젝트 진행 (기본값)
 - low: 단순공유/완료보고/일정조율
 
-{
-  "skip": false,
-  "tags": [],
-  "priority": "medium",
-  "title": "30자 이내",
-  "body": "• 맥락(날짜·대상)\n• 무슨 일이 있었는지\n• 액션/결과",
-  "author": "이름만"
-}`
+반드시 아래 JSON만 반환 (다른 텍스트 없이):
+{"skip":false,"tags":[],"priority":"medium","title":"30자 이내 제목","body":"어떤 상황에서 무슨 일이 발생했는지 1~2문장으로 요약. 스레드 내용이 있으면 핵심 결론/액션 포함.","author":"작성자 이름"}`
 
   let msg: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -217,16 +227,23 @@ ${fullText}
   if (!msg) return null
 
   const rawText = (msg.content[0] as { type: string; text: string }).text.trim()
+  console.log(`[classify] channel=${raw.channel} ts=${raw.ts} response=${rawText.slice(0, 200)}`)
+
   const match = rawText.match(/\{[\s\S]*\}/)
-  if (!match) return null
+  if (!match) {
+    console.log(`[classify] JSON 파싱 실패 (no match): ${rawText.slice(0, 100)}`)
+    return null
+  }
 
   let parsed: Record<string, unknown>
   try {
     parsed = JSON.parse(repairJson(match[0]))
-  } catch {
+  } catch (e) {
+    console.log(`[classify] JSON.parse 실패: ${e}`)
     return null
   }
 
+  console.log(`[classify] skip=${parsed.skip} tags=${JSON.stringify(parsed.tags)} title=${parsed.title}`)
   if (parsed.skip === true) return null
 
   return {

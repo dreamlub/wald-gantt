@@ -32,7 +32,7 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
       <TooltipTrigger
         render={
           <div
-            className="absolute rounded px-2 py-1 overflow-hidden select-none z-10"
+            className="absolute rounded px-1.5 py-0.5 overflow-hidden select-none z-10"
             style={{
               top,
               height: height - 2,
@@ -50,11 +50,6 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
             {event.title}
           </p>
         </div>
-        {height >= 36 && (
-          <p className="text-[10px] text-muted-foreground mt-0.5">
-            {fmtTime(event.start)} – {fmtTime(event.end)}
-          </p>
-        )}
       </TooltipTrigger>
       <TooltipContent side="top">
         <p className="font-medium">{event.title}</p>

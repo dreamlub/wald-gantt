@@ -144,7 +144,7 @@ export function TaskBlock({
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
-            className={`absolute rounded px-2 py-1 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0.5 ${
+            className={`absolute rounded px-1.5 py-0.5 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0 ${
               highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
             }`}
             style={{
@@ -159,7 +159,7 @@ export function TaskBlock({
         }
       >
         {/* 1행: 체크 + 태스크명 */}
-        <div className="flex items-center gap-1 pr-5">
+        <div className="flex items-center gap-1 leading-tight pr-5">
           <button
             onMouseDown={e => e.stopPropagation()}
             onClick={handleToggleDone}
@@ -168,23 +168,16 @@ export function TaskBlock({
           >
             {isDone && <Check size={6} className="text-white stroke-[3]" />}
           </button>
-          <p className={`text-[10px] font-medium line-clamp-1 leading-tight ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+          <p className={`text-[11px] font-medium truncate flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
             {task.title}
           </p>
         </div>
-        {/* 2행: 시간 */}
-        {task.scheduled_at && (
-          <span className="text-[10px] text-muted-foreground flex items-center gap-1 min-w-0">
-            {fmtTime(task.scheduled_at)}
-            {task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
-          </span>
-        )}
 
         {/* 스케줄 해제 버튼 */}
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); onUnschedule(task.id) }}
-          className="absolute top-1 right-1 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
         >
           <X size={10} />
         </button>

@@ -11,7 +11,7 @@ import { Button } from '@/components/ui/button'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/TaskDetailDrawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
-import { DAY_LABELS, WORK_HOURS_PER_DAY, DRAG_OVER_BG } from '../_constants'
+import { DAY_LABELS, WORK_HOURS_PER_DAY, DRAG_OVER_BG, HOUR_H } from '../_constants'
 import {
   toDateStr, getSundayOf, getWeekDates, calcDayHours, fmtHrs,
   isAllDayScheduled,
@@ -78,7 +78,6 @@ export function CalendarShell() {
     if (task.scheduled_at && scrollContainerRef.current) {
       const d = new Date(task.scheduled_at)
       const taskMinutes = d.getHours() * 60 + d.getMinutes()
-      const HOUR_H = 80
       const START_H = 7
       const STICKY_H = 67
       const scrollTo = ((taskMinutes - START_H * 60) / 60) * HOUR_H + STICKY_H - 80

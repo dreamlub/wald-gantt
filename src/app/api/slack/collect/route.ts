@@ -56,6 +56,7 @@ export async function POST(req: NextRequest) {
         // 1. 클라이언트 목록 조회 (브랜드 매칭용)
         send('status', { message: '클라이언트 목록 조회 중...' })
         const clients = await fetchClientsForWorkspace(sb, workspaceId)
+        const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
 
         // 2. Slack 메시지 검색 (전체 채널, 해당 날짜)
         send('status', { message: `${date} 슬랙 메시지 검색 중...` })
@@ -117,32 +118,8 @@ export async function POST(req: NextRequest) {
         }> = []
 
         for (const m of parents) {
-          const replies: RawJson['replies'] = []
-
-          if (m.reply_count && m.reply_count > 0) {
-            try {
-              const thread = await slack.conversations.replies({
-                channel: m.channel.id,
-                ts: m.ts,
-              })
-              if (thread.ok && thread.messages) {
-                for (const r of thread.messages.slice(1)) {
-                  const rMsg = r as { ts?: string; text?: string; user?: string; username?: string; bot_id?: string; subtype?: string }
-                  if (rMsg.bot_id || rMsg.subtype === 'bot_message') continue
-                  replies.push({
-                    ts: rMsg.ts ?? '',
-                    text: rMsg.text ?? '',
-                    user: rMsg.user ?? '',
-                    user_name: rMsg.username ?? rMsg.user ?? '',
-                  })
-                }
-              }
-              await delay(300)
-            } catch (e) {
-              console.error(`[slack/collect] thread fetch error (${m.channel.name}:${m.ts}):`, e)
-            }
-          }
-
+          // 수집 단계: 스레드 fetch 없이 빠르게 원본만 저장
+          // 스레드 내용은 [스레드 업데이트] 버튼으로 별도 수집
           rawMessages.push({
             channel: m.channel.name,
             channel_id: m.channel.id,
@@ -156,7 +133,7 @@ export async function POST(req: NextRequest) {
               channel_id: m.channel.id,
               permalink: m.permalink,
               reply_count: m.reply_count ?? 0,
-              replies,
+              replies: [],
             },
           })
         }
@@ -190,7 +167,7 @@ export async function POST(req: NextRequest) {
           const raw = rawRows![i]
           const rj = raw.raw_json as RawJson
           const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
-          const clientId = matchBrand(rj.channel, fullText, clients)
+          const clientId = matchBrand(rj.channel, fullText, clients) ?? fallbackClientId
 
           send('status', { message: `AI 분류 중... (${i + 1}/${rawRows!.length})` })
 
