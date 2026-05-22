@@ -3,7 +3,7 @@
 import { useState, useRef } from 'react'
 import { useRouter } from 'next/navigation'
 import {
-  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2,
+  Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2, RotateCw,
 } from 'lucide-react'
 import Link from 'next/link'
 import { useDroppable } from '@dnd-kit/core'
@@ -185,6 +185,16 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           >
             {subTaskStats.done}/{subTaskStats.total}
           </button>
+        )}
+
+        {/* 반복 뱃지 */}
+        {task.recurrence_rule && (
+          <span
+            className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap"
+            title={`반복: ${{ daily: '매일', weekly: '매주', monthly: '매월', yearly: '매년' }[task.recurrence_rule]}${task.recurrence_interval && task.recurrence_interval > 1 ? ` (${task.recurrence_interval}${task.recurrence_rule === 'daily' ? '일' : task.recurrence_rule === 'weekly' ? '주' : '개월'}마다)` : ''}`}
+          >
+            <RotateCw size={8} className="shrink-0" />
+          </span>
         )}
 
         {/* 하위 태스크 추가 — 호버 시 표시 */}

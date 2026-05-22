@@ -138,8 +138,8 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
             className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
             style={{ top: nowTop }}
           >
-            <div className="w-1.5 h-1.5 rounded-full bg-status-late -ml-0.5 shrink-0" />
-            <div className="flex-1 border-t border-status-late" />
+            <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
+            <div className="flex-1 border-t-2 border-status-late" />
           </div>
         )
       })()}
@@ -221,10 +221,6 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
   const hours = Array.from({ length: TOTAL_H + 1 }, (_, i) => START_H + i)
   const today = localDateStr(new Date().toISOString())
 
-  const now    = new Date()
-  const nowMin = now.getHours() * 60 + now.getMinutes()
-  const nowTop = minutesToPx(nowMin - START_H * 60)
-  const showNowLine = dates.includes(today) && nowMin >= START_H * 60 && nowMin <= END_H * 60
 
   return (
     <div ref={gridRef} className="relative flex w-full">
@@ -240,17 +236,6 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
           </div>
         ))}
       </div>
-
-      {/* 현재 시각 라인 (전체 컬럼 폭) */}
-      {showNowLine && (
-        <div
-          className="absolute flex items-center pointer-events-none z-20"
-          style={{ top: nowTop, left: 48, right: 0 }}
-        >
-          <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
-          <div className="flex-1 border-t border-status-late" />
-        </div>
-      )}
 
       {/* 요일 컬럼 */}
       {dates.map(date => (

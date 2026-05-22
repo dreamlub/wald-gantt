@@ -1,12 +1,12 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, ChevronDown, CalendarIcon, Tag } from 'lucide-react'
+import { X, Search, ChevronDown, CalendarIcon, Tag, RotateCw } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import { Calendar } from '@/components/ui/calendar'
-import type { GanttTask, TaskStatus, TaskType, Priority } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
@@ -22,11 +22,18 @@ interface ProjectOption {
   board_name: string
 }
 
+const RECURRENCE_OPTIONS: { value: RecurrenceRule; label: string }[] = [
+  { value: 'daily',   label: '매일' },
+  { value: 'weekly',  label: '매주' },
+  { value: 'monthly', label: '매월' },
+  { value: 'yearly',  label: '매년' },
+]
+
 interface Props {
   open: boolean
   onClose: () => void
   onSave: (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[] },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[]; recurrence_rule: RecurrenceRule | null; recurrence_interval: number | null },
     projectIds: string[]
   ) => Promise<void>
   editTask?: GanttTask | null
@@ -94,6 +101,8 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
   const [labelInput, setLabelInput] = useState('')
   const [labelOpen,  setLabelOpen]  = useState(false)
   const [saving,    setSaving]    = useState(false)
+  const [recurrenceRule,     setRecurrenceRule]     = useState<RecurrenceRule | null>(null)
+  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(1)
 
   const [linkedProjects, setLinkedProjects] = useState<ProjectOption[]>([])
   const [projSearch,     setProjSearch]     = useState('')
@@ -136,12 +145,15 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
       setMemo(editTask.memo ?? '')
       setLabels(editTask.labels ?? [])
       setLinkedProjects(editTask.projects ?? [])
+      setRecurrenceRule(editTask.recurrence_rule ?? null)
+      setRecurrenceInterval(editTask.recurrence_interval ?? 1)
     } else {
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
       // eslint-disable-next-line react-hooks/exhaustive-deps
       setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
       setLabels([]); setLinkedProjects(defaultProjects ?? [])
+      setRecurrenceRule(null); setRecurrenceInterval(1)
     }
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput(''); setLabelOpen(false)
     /* eslint-enable react-hooks/set-state-in-effect */
@@ -183,6 +195,8 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           memo: memo.trim() || null,
           priority,
           labels,
+          recurrence_rule: recurrenceRule,
+          recurrence_interval: recurrenceRule ? recurrenceInterval : null,
         },
         linkedProjects.map(p => p.id)
       )
@@ -478,6 +492,59 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               )}
             </div>
+          </div>
+
+          {/* 반복 */}
+          <div className="pt-2 border-t border-border">
+            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+              <RotateCw size={10} /> 반복
+            </label>
+            <div className="flex items-center gap-2">
+              {/* 반복 없음 버튼 */}
+              <button
+                type="button"
+                onClick={() => setRecurrenceRule(null)}
+                className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
+                  recurrenceRule === null
+                    ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
+                    : 'border-border text-muted-foreground hover:border-ink-300'
+                }`}
+              >
+                없음
+              </button>
+              {RECURRENCE_OPTIONS.map(opt => (
+                <button
+                  key={opt.value}
+                  type="button"
+                  onClick={() => setRecurrenceRule(opt.value)}
+                  className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
+                    recurrenceRule === opt.value
+                      ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
+                      : 'border-border text-muted-foreground hover:border-ink-300'
+                  }`}
+                >
+                  {opt.label}
+                </button>
+              ))}
+            </div>
+            {recurrenceRule && recurrenceRule !== 'yearly' && (
+              <div className="flex items-center gap-2 mt-2">
+                <span className="text-[11px] text-muted-foreground">
+                  {recurrenceRule === 'daily' ? '매' : recurrenceRule === 'weekly' ? '매' : '매'}
+                </span>
+                <input
+                  type="number"
+                  min={1}
+                  max={99}
+                  value={recurrenceInterval}
+                  onChange={e => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
+                  className="w-14 text-xs text-center border border-border rounded px-2 py-1 outline-none focus:border-lilac-300"
+                />
+                <span className="text-[11px] text-muted-foreground">
+                  {recurrenceRule === 'daily' ? '일마다' : recurrenceRule === 'weekly' ? '주마다' : '개월마다'}
+                </span>
+              </div>
+            )}
           </div>
 
           {/* 상위 태스크 */}

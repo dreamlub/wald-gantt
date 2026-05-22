@@ -153,7 +153,14 @@ export async function POST(req: NextRequest) {
           raw_json: RawJson
         }> = []
 
-        // 6-a. search 부모: reply_count > 0인 경우 스레드 fetch
+        // 6-a. search 부모: conversations.replies로 스레드 fetch + 가짜 부모 감지
+        // search.messages가 thread_ts 없이 답글을 반환하면 부모로 오분류됨
+        // → conversations.replies 응답의 thread_ts 확인으로 실제 답글 감지
+        type DiscoveredParent = { channelId: string; channelName: string; ts: string }
+        const discoveredParents: DiscoveredParent[] = []
+        const discoveredKeys = new Set<string>()
+        let skippedReplies = 0
+
         for (let i = 0; i < parents.length; i++) {
           const m = parents[i]
           if (i % 5 === 0 || i === parents.length - 1) {
@@ -161,13 +168,33 @@ export async function POST(req: NextRequest) {
           }
 
           let replies: RawReply[] = []
-          if ((m.reply_count ?? 0) > 0) {
-            try {
-              const thread = await slack.conversations.replies({
-                channel: m.channel.id,
-                ts: m.ts,
-              })
-              if (thread.ok && thread.messages) {
+          let isActuallyReply = false
+
+          try {
+            const thread = await slack.conversations.replies({
+              channel: m.channel.id,
+              ts: m.ts,
+            })
+
+            if (thread.ok && thread.messages && thread.messages.length > 0) {
+              const firstMsg = thread.messages[0] as {
+                thread_ts?: string; ts?: string
+              }
+
+              // thread_ts가 현재 ts와 다르면 → 이 메시지는 실제로 스레드 답글
+              if (firstMsg.thread_ts && firstMsg.thread_ts !== m.ts) {
+                isActuallyReply = true
+                const realParentKey = `${m.channel.id}:${firstMsg.thread_ts}`
+                if (!seenKeys.has(realParentKey) && !discoveredKeys.has(realParentKey)) {
+                  discoveredKeys.add(realParentKey)
+                  discoveredParents.push({
+                    channelId: m.channel.id,
+                    channelName: m.channel.name,
+                    ts: firstMsg.thread_ts,
+                  })
+                }
+              } else if (thread.messages.length > 1) {
+                // 진짜 부모 — 답글 수집
                 for (const r of thread.messages.slice(1)) {
                   if ((r as { bot_id?: string }).bot_id) continue
                   const rMsg = r as { ts?: string; text?: string; user?: string; username?: string }
@@ -179,12 +206,18 @@ export async function POST(req: NextRequest) {
                   })
                 }
               }
-              await delay(200)
-            } catch (e) {
-              console.error(`[slack/collect] thread fetch error (${m.channel.name}:${m.ts}):`, e)
-              const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
-              replies = existing?.replies ?? []
             }
+            await delay(200)
+          } catch (e) {
+            console.error(`[slack/collect] thread fetch error (${m.channel.name}:${m.ts}):`, e)
+            const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
+            replies = existing?.replies ?? []
+          }
+
+          // 답글로 판명된 메시지는 rawMessages에 추가하지 않음
+          if (isActuallyReply) {
+            skippedReplies++
+            continue
           }
 
           rawMessages.push({
@@ -203,6 +236,14 @@ export async function POST(req: NextRequest) {
               replies,
             },
           })
+        }
+
+        // 6-a-2. 가짜 부모에서 발견된 진짜 부모를 orphanParents에 추가
+        if (discoveredParents.length > 0) {
+          send('status', {
+            message: `답글 ${skippedReplies}건 제외, 진짜 부모 ${discoveredParents.length}건 추가 발견`,
+          })
+          orphanParents.push(...discoveredParents)
         }
 
         // 6-b. orphan 부모: 부모 메시지 + 스레드 전체 fetch

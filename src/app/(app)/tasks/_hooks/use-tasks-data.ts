@@ -7,8 +7,9 @@ import {
   getDeletedTasksCount, restoreTask, duplicateTask,
   bulkSoftDeleteTasks, bulkUpdateTaskStatus,
   autoArchiveTasks, getArchivedTasksCount,
+  createNextRecurringInstance,
 } from '@/lib/gantt-service'
-import type { GanttTask, TaskStatus, TaskType, Priority, Workspace } from '@/types'
+import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule, Workspace } from '@/types'
 
 const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
 
@@ -45,7 +46,7 @@ export function useTasksData() {
   useEffect(() => { load() }, [load])
 
   const handleSave = useCallback(async (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[] },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[]; recurrence_rule: RecurrenceRule | null; recurrence_interval: number | null },
     projectIds: string[],
     parentId: string | null,
   ) => {
@@ -106,9 +107,22 @@ export function useTasksData() {
           toast('하위 태스크가 모두 완료되어 상위 태스크도 완료했어요')
         }
       }
+
+      // 반복 태스크 완료 시 다음 인스턴스 생성
+      if (status === 'done' && workspace && changedTask?.recurrence_rule) {
+        const next = await createNextRecurringInstance(workspace.id, changedTask)
+        if (next) {
+          await load()
+          const label = { daily: '매일', weekly: '매주', monthly: '매월', yearly: '매년' }[changedTask.recurrence_rule]
+          const nextDate = next.due_date ?? next.start_date
+          const dateStr = nextDate ? ` (${nextDate.slice(5).replace('-', '/')})` : ''
+          toast(`반복 태스크 완료 — 다음 인스턴스를 생성했어요${dateStr}`, { description: label })
+          return
+        }
+      }
     }
     catch (e) { toast.error(errMsg(e)); await load() }
-  }, [tasks, load])
+  }, [tasks, workspace, load])
 
   const handleDuplicate = useCallback(async (task: GanttTask) => {
     if (!workspace) return
@@ -128,7 +142,7 @@ export function useTasksData() {
 
   const handleDrawerSave = useCallback(async (
     task: GanttTask,
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority },
+    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority; recurrence_rule: RecurrenceRule | null; recurrence_interval: number | null },
     projectIds: string[]
   ) => {
     try {

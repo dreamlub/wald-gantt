@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { GanttBoard, GanttCategory, GanttProject, GanttTask, Priority, ProjectHistoryEntry, TaskHistoryEntry, TaskStatus, TaskType, Workspace } from '@/types'
+import type { GanttBoard, GanttCategory, GanttProject, GanttTask, Priority, ProjectHistoryEntry, RecurrenceRule, TaskHistoryEntry, TaskStatus, TaskType, Workspace } from '@/types'
 
 const db = () => createClient()
 
@@ -370,7 +370,7 @@ export async function getDeletedTasks(workspaceId: string): Promise<GanttTask[]>
 
 export async function addTask(
   workspaceId: string,
-  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels?: string[] | null; parent_id?: string | null; priority?: Priority | null },
+  fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels?: string[] | null; parent_id?: string | null; priority?: Priority | null; recurrence_rule?: RecurrenceRule | null; recurrence_interval?: number | null; series_id?: string | null },
   projectIds: string[] = []
 ): Promise<GanttTask> {
   const { data: existing } = await db()
@@ -402,7 +402,7 @@ export async function addTask(
 
 export async function updateTask(
   id: string,
-  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'priority' | 'sort_order'>>,
+  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'priority' | 'sort_order' | 'recurrence_rule' | 'recurrence_interval' | 'series_id'>>,
   projectIds?: string[]
 ): Promise<void> {
   const { error } = await db()
@@ -470,6 +470,81 @@ export async function duplicateTask(workspaceId: string, task: GanttTask): Promi
     labels: task.labels,
     priority: task.priority,
     parent_id: task.parent_id,
+  }, task.projects?.map(p => p.id) ?? [])
+}
+
+// ── 반복 태스크 ────────────────────────────────────────────
+
+function addDays(dateStr: string, days: number): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  d.setDate(d.getDate() + days)
+  return d.toISOString().slice(0, 10)
+}
+
+function calcNextDates(
+  start_date: string | null,
+  due_date: string | null,
+  rule: RecurrenceRule,
+  interval: number
+): { next_start: string | null; next_due: string | null } {
+  const unit = rule === 'daily' ? interval
+    : rule === 'weekly' ? interval * 7
+    : rule === 'monthly' ? null  // 월 단위는 별도 처리
+    : null  // 연 단위는 별도 처리
+
+  if (rule === 'daily' || rule === 'weekly') {
+    return {
+      next_start: start_date ? addDays(start_date, unit!) : null,
+      next_due: due_date ? addDays(due_date, unit!) : null,
+    }
+  }
+
+  // monthly / yearly
+  function shiftMonth(dateStr: string, months: number): string {
+    const d = new Date(dateStr + 'T00:00:00')
+    d.setMonth(d.getMonth() + months)
+    return d.toISOString().slice(0, 10)
+  }
+
+  const months = rule === 'monthly' ? interval : interval * 12
+  return {
+    next_start: start_date ? shiftMonth(start_date, months) : null,
+    next_due: due_date ? shiftMonth(due_date, months) : null,
+  }
+}
+
+export async function createNextRecurringInstance(
+  workspaceId: string,
+  task: GanttTask
+): Promise<GanttTask | null> {
+  if (!task.recurrence_rule) return null
+
+  const interval = task.recurrence_interval ?? 1
+  const { next_start, next_due } = calcNextDates(
+    task.start_date,
+    task.due_date,
+    task.recurrence_rule,
+    interval
+  )
+
+  // 날짜가 아예 없으면 생성 불가
+  if (!next_start && !next_due) return null
+
+  const seriesId = task.series_id ?? task.id
+
+  return addTask(workspaceId, {
+    title: task.title,
+    status: 'to-do',
+    type: task.type,
+    assignee: task.assignee,
+    start_date: next_start,
+    due_date: next_due,
+    memo: task.memo,
+    labels: task.labels,
+    priority: task.priority,
+    recurrence_rule: task.recurrence_rule,
+    recurrence_interval: interval,
+    series_id: seriesId,
   }, task.projects?.map(p => p.id) ?? [])
 }
 

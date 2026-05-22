@@ -55,6 +55,7 @@ export interface TaskHistoryEntry {
 
 export type TaskStatus = 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
 export type TaskType   = 'mine' | 'delegated'
+export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly'
 
 export interface GanttTask {
   id: string
@@ -76,6 +77,10 @@ export interface GanttTask {
   archived_at: string | null
   scheduled_at: string | null   // ISO 8601, time blocking 시작 시각
   duration_minutes: number | null
+  // 반복 설정
+  recurrence_rule: RecurrenceRule | null
+  recurrence_interval: number | null  // N일/N주/N개월마다
+  series_id: string | null            // 같은 반복 시리즈 연결
   // 연결된 프로젝트 (join 후 포함)
   projects?: { id: string; name: string; board_name: string }[]
 }

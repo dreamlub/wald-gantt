@@ -1,5 +1,52 @@
 # Wald Gantt — 개발 로그
 
+## 2026-05-22 — 슬랙 리마인더 (Vercel Cron)
+
+### 개요
+매일 09:00 KST에 Vercel Cron이 `/api/reminders/slack`을 호출 → 지연/오늘 마감/내일 마감 태스크를 슬랙 DM으로 발송
+
+### 변경 파일
+- `src/app/api/reminders/slack/route.ts` 신규: Supabase admin client로 태스크 조회, Slack Block Kit 메시지 작성, `chat.postMessage`로 DM 발송
+- `vercel.json` 신규: `schedule: "0 0 * * *"` (UTC 00:00 = KST 09:00)
+
+### 필요한 환경변수 (추가 필요)
+- `SUPABASE_SERVICE_ROLE_KEY`: Supabase 대시보드 → Settings → API → service_role key
+- `CRON_SECRET`: Vercel 대시보드 자동 생성 (배포 시)
+- Slack 봇에 `chat:write` 스코프 추가 필요
+
+### 메시지 형식
+- 🔴 지연 (N일 초과)
+- 📅 오늘 마감
+- ⏰ 내일 마감
+- 🔺 높은 우선순위 태스크 플래그
+
+---
+
+## 2026-05-22 — 반복 태스크 기능 추가
+
+### 개요
+태스크를 완료하면 자동으로 다음 인스턴스를 생성하는 반복 기능 추가 (매일/매주/매월/매년, N단위 간격 지원)
+
+### DB
+- `gantt_tasks`에 컬럼 3개 추가 (Supabase migration)
+  - `recurrence_rule`: 'daily' | 'weekly' | 'monthly' | 'yearly'
+  - `recurrence_interval`: N일/N주/N개월마다 (기본 1)
+  - `series_id`: uuid — 같은 반복 시리즈 인스턴스 연결
+
+### 변경 파일
+- `types/index.ts`: `RecurrenceRule` 타입 추가, `GanttTask`에 반복 필드 3개 추가
+- `lib/gantt-service.ts`: `addTask`/`updateTask` 시그니처 확장, `createNextRecurringInstance()` 함수 신규 추가
+- `components/tasks/TaskFormDialog.tsx`: info 탭 하단에 반복 설정 섹션 추가 (없음/매일/매주/매월/매년 + 간격 입력)
+- `tasks/_components/TaskDetailDrawer.tsx`: 동일한 반복 설정 섹션 추가
+- `tasks/_hooks/use-tasks-data.ts`: 완료 시 `createNextRecurringInstance` 호출 + 토스트 알림
+- `tasks/_components/TaskRow.tsx`: 반복 아이콘(`RotateCw`) 뱃지 추가
+
+### 동작 방식
+1. 태스크 생성/수정 시 반복 규칙 설정
+2. 완료(done) 클릭 → 다음 날짜 계산 → 동일 필드(제목/담당자/우선순위/라벨/프로젝트 등)로 신규 태스크 생성
+3. 토스트: "반복 태스크 완료 — 다음 인스턴스를 생성했어요 (MM/DD)"
+4. 간격 설정: daily/weekly는 N일/N주 단위, monthly는 N개월 단위, yearly는 1년 고정
+
 ## 최근 변경 (2026-05-22) — Summary 목록 단순화: burst 그룹 제거 + 스레드만 디테일에 표시
 
 ### 배경
