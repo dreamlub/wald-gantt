@@ -19,6 +19,7 @@ import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
 import { TimelineView } from './timeline-view'
+import { DailyReportView } from './daily-report-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -465,16 +466,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           {view === 'rawdata' ? (
             <RawDataView />
           ) : view === 'insight' ? (
-            <div className="flex-1 overflow-y-auto">
-              <div className="px-6 py-5">
-                <InsightView
-                  weekStart={weekStart}
-                  clients={initialClients}
-                  brandId={brandId}
-                  onBrandChange={setBrandId}
-                />
-              </div>
-            </div>
+            <DailyReportView
+              clients={initialClients}
+              selectedDate={dateFrom || todayStr()}
+            />
           ) : (
             <>
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
