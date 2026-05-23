@@ -86,61 +86,112 @@ export function HistorySidebar({
     return <RawDataSidebarPanel />
   }
 
+  if (view === 'insight') {
+    const selectedDate = dateFrom || dateStr(new Date())
+    const dayItems = history.filter(h => h.occurred_at.slice(0, 10) === selectedDate)
+    const dayTagCounts: Record<string, number> = {}
+    for (const t of TAG_KEYS) dayTagCounts[t] = 0
+    for (const h of dayItems) for (const t of h.tags ?? []) dayTagCounts[t] = (dayTagCounts[t] ?? 0) + 1
+
+    const brandCounts: Record<string, number> = {}
+    for (const h of dayItems) {
+      const b = h.brand_name ?? '미분류'
+      brandCounts[b] = (brandCounts[b] ?? 0) + 1
+    }
+    const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+
+    return (
+      <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
+        <MonthGridSection
+          dateFrom={dateFrom} history={history}
+          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        />
+
+        <div className="mt-3 mx-2 rounded-lg border border-border bg-card p-3">
+          <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">
+            {selectedDate} 요약
+          </div>
+          <div className="text-xs text-foreground font-semibold mb-2">전체 {dayItems.length}건</div>
+          <div className="space-y-0.5">
+            {TAG_KEYS.filter(t => dayTagCounts[t] > 0).map(t => {
+              const meta = TAG_META[t]
+              return (
+                <div key={t} className="flex items-center gap-1.5 text-[11px]">
+                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
+                  <span className="text-ink-500">{meta.label}</span>
+                  <span className="ml-auto text-ink-400">{dayTagCounts[t]}</span>
+                </div>
+              )
+            })}
+          </div>
+        </div>
+
+        {topBrands.length > 0 && (
+          <div className="mt-2 mx-2 rounded-lg border border-border bg-card p-3">
+            <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">브랜드</div>
+            <div className="space-y-0.5">
+              {topBrands.map(([name, count]) => (
+                <button
+                  key={name}
+                  onClick={() => onDateFromChange(selectedDate)}
+                  className="w-full flex items-center gap-1.5 text-[11px] py-0.5 hover:text-foreground transition-colors"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full bg-ink-300 shrink-0" />
+                  <span className="flex-1 text-left text-ink-600 truncate">{name}</span>
+                  <span className="text-ink-400">{count}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+        )}
+      </div>
+    )
+  }
+
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
 
-      {/* ── 기간 (뷰에 따라 다름) ─────────────────────────── */}
-      {view === 'insight' ? (
-        <WeekNavSection weekStart={weekStart} onWeekChange={onWeekChange} />
-      ) : (
-        <>
-          <MonthGridSection
-            dateFrom={dateFrom} history={history}
-            onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-          />
-        </>
-      )}
+      {/* ── 기간 ─────────────────────────── */}
+      <MonthGridSection
+        dateFrom={dateFrom} history={history}
+        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+      />
 
-
-      {/* ── 태그·중요도 (인사이트 탭 제외) ─────────────────── */}
-      {view !== 'insight' && (
-        <>
-          <div className="mt-3">
-            <GroupTitle>태그</GroupTitle>
-            {TAG_KEYS.map(t => {
-              const meta = TAG_META[t]
-              const active = selectedTags.has(t)
-              return (
-                <button key={t} onClick={() => onToggleTag(t)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
-                  <span className="flex-1 truncate text-left">{meta.label}</span>
-                  {active && <Check size={12} className="shrink-0" />}
-                  <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>
-                </button>
-              )
-            })}
-          </div>
-
-          <div className="mt-3">
-            <GroupTitle>중요도</GroupTitle>
-            <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
-              <LayoutList size={12} className="shrink-0" />
-              <span className="flex-1 truncate text-left">전체</span>
-              <span className="text-xs text-ink-400">{priCounts.all}</span>
+      {/* ── 태그·중요도 ─────────────────── */}
+      <div className="mt-3">
+        <GroupTitle>태그</GroupTitle>
+        {TAG_KEYS.map(t => {
+          const meta = TAG_META[t]
+          const active = selectedTags.has(t)
+          return (
+            <button key={t} onClick={() => onToggleTag(t)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
+              <span className="flex-1 truncate text-left">{meta.label}</span>
+              {active && <Check size={12} className="shrink-0" />}
+              <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>
             </button>
-            {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
-              const meta = PRIORITY_META[p]
-              return (
-                <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
-                  <PriorityBars priority={p} />
-                  <span className="flex-1 truncate text-left">{meta.label}</span>
-                  <span className="text-xs text-ink-400">{priCounts[p]}</span>
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
+          )
+        })}
+      </div>
+
+      <div className="mt-3">
+        <GroupTitle>중요도</GroupTitle>
+        <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
+          <LayoutList size={12} className="shrink-0" />
+          <span className="flex-1 truncate text-left">전체</span>
+          <span className="text-xs text-ink-400">{priCounts.all}</span>
+        </button>
+        {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
+          const meta = PRIORITY_META[p]
+          return (
+            <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
+              <PriorityBars priority={p} />
+              <span className="flex-1 truncate text-left">{meta.label}</span>
+              <span className="text-xs text-ink-400">{priCounts[p]}</span>
+            </button>
+          )
+        })}
+      </div>
     </div>
   )
 }
