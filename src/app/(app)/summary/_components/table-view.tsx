@@ -147,7 +147,7 @@ export function TableView({
       </div>
 
       <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-xs">
+        <table className="w-full border-collapse text-xs table-fixed">
           <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
             <tr>
               <th className="text-left px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[110px]">날짜</th>
@@ -156,7 +156,7 @@ export function TableView({
               <th className="text-left px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[120px]">태그</th>
               <th className="text-center px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[60px]">중요도</th>
               <th className="text-left px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[80px]">작성자</th>
-              <th className="text-left px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[100px]">채널</th>
+              <th className="text-left px-3 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-[160px]">채널</th>
             </tr>
           </thead>
           <tbody>
@@ -187,7 +187,7 @@ export function TableView({
                       )}
                     </div>
                     {item.body && (
-                      <MarkdownBody text={item.body} className="text-[11px] text-ink-400 leading-[1.6]" />
+                      <MarkdownBody text={item.body} className="text-xs text-ink-400 leading-[1.6]" />
                     )}
                     {/* 호버 액션 */}
                     {isHovered && (
@@ -233,7 +233,7 @@ export function TableView({
 
                   {/* 태그 */}
                   <td className="px-3 py-2.5">
-                    <div className="flex flex-wrap gap-1">
+                    <div className="flex flex-wrap gap-1.5">
                       {(item.tags ?? []).map(t => {
                         const meta = TAG_META[t]
                         if (!meta) return null
@@ -274,11 +274,11 @@ export function TableView({
                   </td>
 
                   {/* 채널 */}
-                  <td className="px-3 py-2.5">
-                    <span className="inline-flex items-center gap-0.5 text-[11px] text-ink-500 truncate max-w-[90px]">
+                  <td className="px-3 py-2.5 max-w-[160px]">
+                    <div className="flex items-center gap-0.5 text-[11px] text-ink-500 min-w-0">
                       <Hash size={10} className="shrink-0 text-ink-300" />
-                      {item.channel}
-                    </span>
+                      <span className="truncate">{item.channel}</span>
+                    </div>
                   </td>
 
                 </tr>

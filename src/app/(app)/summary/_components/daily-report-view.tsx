@@ -97,8 +97,8 @@ function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[]
               <BrandBadge brandName={a.brand} clients={clients} />
               <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
-            <p className="text-xs font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
-            <p className="text-[11px] text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
+            <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
+            <p className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
             <div className="flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed"
               style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
@@ -249,27 +249,29 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
           </section>
         )}
 
-        {/* 일정 + 응답 대기 — 50:50 */}
+        {/* 일정 + 응답 대기 — 항상 50:50 */}
         {(content.upcoming.length > 0 || content.pending.length > 0) && (
           <div className="grid grid-cols-2 border-t border-border">
-            <section className={content.pending.length > 0 ? 'border-r border-border' : 'col-span-2'}>
-              {content.upcoming.length > 0 ? (
+            <section className="border-r border-border">
+              {content.upcoming.length > 0 && (
                 <>
                   <SectionHead icon={CalendarDays} title="다가오는 일정" count={content.upcoming.length} />
                   <div className="p-4">
                     <UpcomingList items={content.upcoming} clients={clients} />
                   </div>
                 </>
-              ) : null}
+              )}
             </section>
-            {content.pending.length > 0 && (
-              <section className={content.upcoming.length === 0 ? 'col-span-2' : ''}>
-                <SectionHead icon={Clock} title="응답 대기" count={content.pending.reduce((s, p) => s + p.count, 0)} />
-                <div className="p-4">
-                  <PendingList items={content.pending} clients={clients} />
-                </div>
-              </section>
-            )}
+            <section>
+              {content.pending.length > 0 && (
+                <>
+                  <SectionHead icon={Clock} title="응답 대기" count={content.pending.reduce((s, p) => s + p.count, 0)} />
+                  <div className="p-4">
+                    <PendingList items={content.pending} clients={clients} />
+                  </div>
+                </>
+              )}
+            </section>
           </div>
         )}
 
