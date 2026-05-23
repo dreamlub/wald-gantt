@@ -276,23 +276,21 @@ ${fullText}
 
 브랜드: ${clientName}${isDmChannel ? '\n채널 유형: DM (업무 관련 가능성 높음)' : ''}
 
-제외 기준 (skip: true):
-- 봇/자동화/캘린더 알림, 채널 입장·퇴장
+제외 (skip: true):
+- 봇/자동화/캘린더 알림, 채널 입퇴장
 - 단순 인사/이모지/잡담, "넵"/"확인" 단독 답변
 
 태그 (해당하는 것만, 복수 가능):
-- issue: 버그/오류/CS/장애
+- issue: 버그/오류/CS/장애/문의
 - decision: 정책/계약/방향 확정
-- in_progress: 명시적으로 "확인중", "검토중", "진행중" 표현이 있을 때만
-- done: 명시적 완료 표현 ("완료", "해결", "배포했습니다" 등)
-- schedule: 미팅/배포 일정 확정
+- schedule: 미팅/배포/오픈 일정 + 구체적 날짜
 
 중요도:
 - high: 운영장애/CS다발/계약/긴급
-- medium: 일반 이슈/정책/프로젝트 진행 (기본값)
+- medium: 일반 이슈/프로젝트 진행 (기본값)
 - low: 단순공유/완료보고/일정조율
 
-{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"무슨 일이 있었는지 1~2문장 요약","author":"작성자 이름"}`
+{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"1~3문장 요약","author":"작성자 이름"}`
 
   let msg: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {

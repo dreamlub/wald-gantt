@@ -31,9 +31,9 @@ type ViewKey = 'table' | 'insight' | 'summary' | 'rawdata'
 const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary', 'rawdata']
 // 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
-const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
+const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'schedule']
 
-function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'table'    }
+function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'rawdata'  }
 function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
 function parseTags(v: string | null): Set<Tag> {
   if (!v) return new Set()
@@ -46,9 +46,9 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
+  { key: 'rawdata', label: 'Raw Data', icon: Database },
   { key: 'table',   label: '타임라인', icon: LayoutList },
   { key: 'insight', label: '인사이트', icon: Sparkles },
-  { key: 'rawdata', label: 'Raw Data', icon: Database },
 ]
 
 function relativeCollectedLabel(latest: string | null): string {

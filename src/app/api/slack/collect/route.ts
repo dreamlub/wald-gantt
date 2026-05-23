@@ -2,10 +2,9 @@ import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
-  matchBrand, classifyMessage, fetchBrandMappings, getExcludedChannelIds,
-  buildSourceRef, tsToISO, delay, isObviousNoise,
+  fetchBrandMappings, getExcludedChannelIds,
+  buildSourceRef, tsToISO, delay,
   fetchUserDirectory, resolveUserName, resolveChannelName,
-  getReplySourceIds, softDeleteReplyHistoryRows,
   type RawJson, type RawReply,
 } from '@/lib/slack-service'
 
@@ -372,179 +371,10 @@ export async function POST(req: NextRequest) {
 
         if (upsertErr) throw upsertErr
 
-        // 7. AI 분류 → client_history upsert (배치 5건씩 병렬)
-        send('status', { message: 'AI 분류 중...' })
-
-        let classified = 0
-        let skipped = 0
-        const BATCH_SIZE = 5
-        const rawList = rawRows ?? []
-        let deletedReplyRows = 0
-
-        // 이미 분류된 항목 조회 — thread_count 변경 시 재분류 대상 포함
-        const allRawIds = rawList.map(r => r.id)
-        const { data: existingHist } = allRawIds.length > 0
-          ? await sb
-              .from('client_history')
-              .select('id, raw_message_id, thread_count, title, body')
-              .in('raw_message_id', allRawIds)
-              .is('deleted_at', null)
-          : { data: [] }
-
-        type ExistingEntry = { id: string; raw_message_id: string; thread_count: number; title: string; body: string | null }
-        const existingHistMap = new Map<string, ExistingEntry>(
-          (existingHist ?? []).map(h => [h.raw_message_id as string, h as ExistingEntry])
-        )
-
-        const newRawList = rawList.filter(r => {
-          const existing = existingHistMap.get(r.id)
-          if (!existing) return true  // 신규
-          const rj = r.raw_json as RawJson
-          return rj.reply_count !== existing.thread_count  // 스레드 수 변경 → 재분류
-        })
-
-        const reclassifyCount = newRawList.filter(r => existingHistMap.has(r.id)).length
-        const newCount = newRawList.length - reclassifyCount
-        const skipCount = rawList.length - newRawList.length
-        send('status', { message: `신규 ${newCount}건, 재분류 ${reclassifyCount}건, 스킵 ${skipCount}건` })
-
-        const replySourceIds = getReplySourceIds(rawList.map(raw => raw.raw_json as RawJson))
-        if (replySourceIds.length > 0) {
-          send('status', { message: `스레드 답글 중복 이력 ${replySourceIds.length}건 정리 중...` })
-          deletedReplyRows = await softDeleteReplyHistoryRows(sb, workspaceId, replySourceIds)
-        }
-
-        type UpsertRow = {
-          workspace_id: string
-          brand_name: string
-          raw_message_id: string
-          thread_count: number
-          type: string
-          tags: string[]
-          channel: string
-          source_id: string
-          source_ref: string
-          title: string
-          body: string
-          priority: 'high' | 'medium' | 'low'
-          author: string
-          occurred_at: string
-          reclassified_at?: string
-        }
-
-        let totalNoise = 0
-        let totalAiSkip = 0
-        let totalError = 0
-
-        for (let bIdx = 0; bIdx < newRawList.length; bIdx += BATCH_SIZE) {
-          const batch = newRawList.slice(bIdx, bIdx + BATCH_SIZE)
-          const endIdx = Math.min(bIdx + BATCH_SIZE, newRawList.length)
-          send('status', { message: `AI 분류 중... (${endIdx}/${newRawList.length})` })
-
-          let noiseCount = 0
-          let aiSkipCount = 0
-
-          const results = await Promise.all(batch.map(async (raw): Promise<UpsertRow | null> => {
-            const rj = raw.raw_json as RawJson
-
-            // 사전 필터: 명백한 노이즈는 AI 호출 생략
-            if (isObviousNoise(rj)) { noiseCount++; return null }
-
-            const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
-            const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
-
-            try {
-              const result = await classifyMessage(rj, brandName)
-              if (!result) {
-                aiSkipCount++
-                send('status', { message: `AI 제외: #${rj.channel} "${rj.text.slice(0, 40)}..."` })
-                return null
-              }
-              return {
-                workspace_id: workspaceId,
-                brand_name: brandName,
-                raw_message_id: raw.id,
-                thread_count: rj.reply_count,
-                type: 'slack',
-                tags: result.tags,
-                channel: rj.channel,
-                source_id: rj.ts,
-                source_ref: buildSourceRef(rj.channel_id, rj.ts),
-                title: result.title,
-                body: result.body,
-                priority: result.priority,
-                author: resolveUserName(userDir, rj.user, result.author || rj.user_name),
-                occurred_at: tsToISO(rj.ts),
-              }
-            } catch (e) {
-              totalError++
-              const errMsg = e instanceof Error ? e.message : String(e)
-              send('status', { message: `분류 오류: #${rj.channel} — ${errMsg.slice(0, 60)}` })
-              return null
-            }
-          }))
-
-          const valid = results.filter((r): r is UpsertRow => r !== null)
-          skipped += results.length - valid.length
-
-          totalNoise += noiseCount
-          totalAiSkip += aiSkipCount
-
-          if (valid.length > 0) {
-            const now = new Date().toISOString()
-
-            // 재분류 항목: 이전 요약을 client_history_summaries에 아카이브
-            const oldSummaries = valid
-              .filter(r => existingHistMap.has(r.raw_message_id))
-              .map(r => {
-                const old = existingHistMap.get(r.raw_message_id)!
-                return {
-                  workspace_id: workspaceId,
-                  client_history_id: old.id,
-                  thread_count: old.thread_count,
-                  title: old.title,
-                  body: old.body ?? '',
-                }
-              })
-            if (oldSummaries.length > 0) {
-              await sb.from('client_history_summaries').insert(oldSummaries)
-            }
-
-            // 재분류 항목에만 reclassified_at 추가
-            const validWithMeta = valid.map(r => ({
-              ...r,
-              ...(existingHistMap.has(r.raw_message_id) ? { reclassified_at: now } : {}),
-            }))
-
-            const { error: batchErr } = await sb
-              .from('client_history')
-              .upsert(validWithMeta, { onConflict: 'workspace_id,source_id' })
-            if (batchErr) {
-              console.error('[slack/collect] batch upsert error:', batchErr)
-              skipped += valid.length
-            } else {
-              classified += valid.length
-            }
-          }
-
-          // 배치 간 짧은 대기 (Anthropic rate limit 안전 마진)
-          if (endIdx < newRawList.length) await delay(200)
-        }
-
-        const skipDetail = [
-          skipCount > 0 ? `기존 ${skipCount}` : '',
-          totalNoise > 0 ? `노이즈 ${totalNoise}` : '',
-          totalAiSkip > 0 ? `AI제외 ${totalAiSkip}` : '',
-          totalError > 0 ? `오류 ${totalError}` : '',
-        ].filter(Boolean).join(', ')
-
         send('result', {
           date,
           raw_count: rawRows?.length ?? 0,
-          classified,
-          skipped: skipped + skipCount,
-          deleted_reply_rows: deletedReplyRows,
-          message: `완료 — raw ${rawRows?.length ?? 0}건, 분류 ${classified}건${skipDetail ? `, 제외(${skipDetail})` : ''}, 답글중복 ${deletedReplyRows}건`,
+          message: `완료 — raw ${rawRows?.length ?? 0}건 저장`,
         })
 
       } catch (err) {

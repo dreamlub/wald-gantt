@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, LayoutList, ChevronLeft, ChevronRight } from 'lucide-react'
+import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap } from 'lucide-react'
 
 import type { Client, Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
@@ -83,13 +83,7 @@ export function HistorySidebar({
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
 
   if (view === 'rawdata') {
-    return (
-      <div className="flex flex-col flex-1 min-h-0 p-4">
-        <p className="text-[11px] text-ink-400 leading-relaxed">
-          날짜별 수집 현황을 확인하고 재수집을 실행합니다.
-        </p>
-      </div>
-    )
+    return <RawDataSidebarPanel />
   }
 
   return (
@@ -379,4 +373,97 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
 
 function GroupTitle({ children }: { children: React.ReactNode }) {
   return <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
+}
+
+// ── Raw Data 전용 사이드바 ───────────────────────────────────
+function RawDataSidebarPanel() {
+  const [from, setFrom] = useState('2026-04-01')
+  const [to, setTo]     = useState('2026-04-30')
+  const [status, setStatus] = useState<string | null>(null)
+  const [busy, setBusy]     = useState(false)
+
+  async function handleCollectRaw() {
+    if (busy) return
+    setBusy(true)
+    setStatus('준비 중...')
+    try {
+      const res = await fetch('/api/slack/collect-raw', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ from, to }),
+      })
+      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
+      const reader = res.body.getReader()
+      const decoder = new TextDecoder()
+      let buffer = ''
+      while (true) {
+        const { done, value } = await reader.read()
+        if (done) break
+        buffer += decoder.decode(value, { stream: true })
+        const parts = buffer.split('\n\n')
+        buffer = parts.pop() ?? ''
+        for (const part of parts) {
+          let eventType = '', eventData = ''
+          for (const line of part.split('\n')) {
+            if (line.startsWith('event: ')) eventType = line.slice(7).trim()
+            else if (line.startsWith('data: ')) eventData = line.slice(6)
+          }
+          if (!eventData) continue
+          const data = JSON.parse(eventData) as Record<string, unknown>
+          if (eventType === 'status') setStatus(data.message as string)
+          else if (eventType === 'result') setStatus(`✓ ${data.message as string}`)
+          else if (eventType === 'error') setStatus(`오류: ${data.message as string}`)
+        }
+      }
+    } catch (e) {
+      setStatus(`오류: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
+
+  return (
+    <div className="flex flex-col gap-3 p-4">
+      <p className="text-[11px] text-ink-400 leading-relaxed">
+        날짜별 수집 현황을 확인하고 재수집을 실행합니다.
+      </p>
+
+      <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
+        <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
+        <div className="flex flex-col gap-1.5">
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-ink-400 w-6 shrink-0">from</span>
+            <input
+              type="date"
+              value={from}
+              onChange={e => setFrom(e.target.value)}
+              disabled={busy}
+              className="flex-1 text-[11px] bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+            />
+          </div>
+          <div className="flex items-center gap-1.5">
+            <span className="text-[10px] text-ink-400 w-6 shrink-0">to</span>
+            <input
+              type="date"
+              value={to}
+              onChange={e => setTo(e.target.value)}
+              disabled={busy}
+              className="flex-1 text-[11px] bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+            />
+          </div>
+        </div>
+        <button
+          onClick={handleCollectRaw}
+          disabled={busy || !from || !to || from > to}
+          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-[11px] font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <DatabaseZap size={11} className={busy ? 'animate-pulse' : ''} />
+          {busy ? 'Raw 수집 중...' : 'Raw 수집'}
+        </button>
+        {status && (
+          <p className="text-[10px] text-ink-400 leading-relaxed break-all">{status}</p>
+        )}
+      </div>
+    </div>
+  )
 }

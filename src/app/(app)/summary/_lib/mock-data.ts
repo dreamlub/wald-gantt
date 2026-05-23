@@ -5,12 +5,10 @@ export const TAG_META: Record<Tag, { label: string; emoji: string; bg: string; c
   'issue':       { label: '이슈',      emoji: '🔴', bg: 'var(--color-tag-issue-bg)',        color: 'var(--color-tag-issue-text)',       dot: 'var(--color-tag-issue-dot)' },
   'decision':    { label: '의사결정',  emoji: '🟡', bg: 'var(--color-tag-decision-bg)',     color: 'var(--color-tag-decision-text)',    dot: 'var(--color-tag-decision-dot)' },
   'mention':     { label: '나를 멘션', emoji: '🔵', bg: 'var(--color-tag-mention-bg)',      color: 'var(--color-tag-mention-text)',     dot: 'var(--color-tag-mention-dot)' },
-  'in_progress': { label: '진행중',    emoji: '🟢', bg: 'var(--color-tag-in-progress-bg)',  color: 'var(--color-tag-in-progress-text)', dot: 'var(--color-tag-in-progress-dot)' },
-  'done':        { label: '진행완료',  emoji: '✅', bg: 'var(--color-tag-done-bg)',         color: 'var(--color-tag-done-text)',        dot: 'var(--color-tag-done-dot)' },
   'schedule':    { label: '일정수립',  emoji: '📅', bg: 'var(--color-tag-schedule-bg)',     color: 'var(--color-tag-schedule-text)',    dot: 'var(--color-tag-schedule-dot)' },
 }
 
-export const TAG_KEYS: Tag[] = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
+export const TAG_KEYS: Tag[] = ['issue', 'decision', 'mention', 'schedule']
 
 export const PRIORITY_META: Record<Priority, { label: string; color: string; bg: string }> = {
   high:   { label: '높음', color: 'var(--color-status-late)',   bg: 'var(--color-priority-high-bg)' },

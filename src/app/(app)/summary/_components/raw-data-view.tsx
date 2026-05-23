@@ -78,8 +78,15 @@ export function RawDataView() {
       }
     }
 
-    // 두 맵 병합
+    // 두 맵 병합 + 미수집 날짜 채우기 (2026-01-01 ~ 오늘)
     const allDates = new Set([...rawMap.keys(), ...histMap.keys()])
+    const today = new Date(); today.setHours(0, 0, 0, 0)
+    const cur = new Date('2026-01-01T00:00:00')
+    while (cur <= today) {
+      allDates.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`)
+      cur.setDate(cur.getDate() + 1)
+    }
+
     const result: DayRow[] = Array.from(allDates)
       .map(date => {
         const raw  = rawMap.get(date)

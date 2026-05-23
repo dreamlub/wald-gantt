@@ -53,8 +53,6 @@ export type Tag =
   | 'issue'        // 🔴 이슈
   | 'decision'     // 🟡 의사결정
   | 'mention'      // 🔵 나를 멘션
-  | 'in_progress'  // 🟢 진행중
-  | 'done'         // ✅ 진행완료
   | 'schedule'     // 📅 일정수립
 
 // 기존 type 컬럼은 호환용 (deprecated)
