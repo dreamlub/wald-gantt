@@ -10,13 +10,16 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 
-import type { Client, InsightContent, ActionItem, Priority } from '../_lib/types'
+import type { Client, InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 
 interface Props {
   clients: Client[]
   selectedDate: string
+  filterBrands: Set<string>
+  filterTags: Set<Tag>
+  filterPriorities: Set<Priority>
 }
 
 interface DailyReport {
@@ -62,21 +65,15 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
 }
 
 function HeadlineCard({ content, report }: { content: InsightContent; report: DailyReport & { dateLabel: string } }) {
-  const d = new Date(report.analyzed_at)
-  const genLabel = `생성 ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   return (
     <section className="border-t border-border overflow-hidden">
-      <div className="px-4 py-2.5 flex items-center gap-2">
-        <Newspaper size={14} className="text-ink-500" />
-        <h3 className="text-xs font-semibold tracking-tight">HEADLINE</h3>
-        <span className="text-[10px] text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드 · {genLabel}</span>
-        <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium bg-lilac-100 text-lilac-600 px-2 py-0.5 rounded-full">
-          <Sparkles size={10} />
-          AI 분석
-        </span>
+      <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
+        <Newspaper size={13} className="text-ink-400" />
+        <h3 className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <span className="text-[10px] text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
-      <div className="px-4 pb-4">
-        <p className="text-xs leading-relaxed text-foreground">
+      <div className="px-4 py-5">
+        <p className="text-sm leading-[1.8] text-foreground">
           {renderBold(content.headline)}
         </p>
       </div>
@@ -102,7 +99,8 @@ function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[]
             </div>
             <p className="text-xs font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <p className="text-[11px] text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
-            <div className="flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed border-border text-ink-500">
+            <div className="flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed"
+              style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
               <span>{a.action}</span>
             </div>
@@ -173,7 +171,12 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
   )
 }
 
-export function DailyReportView({ clients, selectedDate }: Props) {
+function filterByBrand<T extends { brand: string }>(items: T[], brands: Set<string>): T[] {
+  if (brands.size === 0) return items
+  return items.filter(item => brands.has(item.brand))
+}
+
+export function DailyReportView({ clients, selectedDate, filterBrands, filterTags, filterPriorities }: Props) {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
 
@@ -218,7 +221,16 @@ export function DailyReportView({ clients, selectedDate }: Props) {
     )
   }
 
-  const content = report.content
+  const raw = report.content
+  const filteredActions = filterByBrand(raw.action_items, filterBrands)
+    .filter(a => filterPriorities.size === 0 || filterPriorities.has(SEV_TO_PRIORITY[a.severity] ?? 'medium'))
+  const content: InsightContent = {
+    headline: raw.headline,
+    action_items: filteredActions,
+    upcoming: filterByBrand(raw.upcoming, filterBrands),
+    pending: filterByBrand(raw.pending, filterBrands),
+    decisions: filterByBrand(raw.decisions, filterBrands),
+  }
   const reportWithLabel = { ...report, dateLabel }
 
   return (

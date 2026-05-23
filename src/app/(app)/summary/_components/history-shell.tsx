@@ -105,6 +105,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
+  const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
+  const [dailyTags,       setDailyTags]       = useState<Set<Tag>>(new Set())
+  const [dailyPriorities, setDailyPriorities] = useState<Set<Priority>>(new Set())
+  const toggleDailyBrand = (b: string) => setDailyBrands(prev => { const next = new Set(prev); next.has(b) ? next.delete(b) : next.add(b); return next })
+  const toggleDailyTag = (t: Tag) => setDailyTags(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next })
+  const toggleDailyPriority = (p: Priority) => setDailyPriorities(prev => { const next = new Set(prev); next.has(p) ? next.delete(p) : next.add(p); return next })
+
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
 
@@ -354,6 +361,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           onWeekChange={setWeekStart}
           onToggleTag={toggleTag}
           onPriorityChange={setPriorityKey}
+          dailyBrands={dailyBrands}
+          dailyTags={dailyTags}
+          dailyPriorities={dailyPriorities}
+          onToggleDailyBrand={toggleDailyBrand}
+          onToggleDailyTag={toggleDailyTag}
+          onToggleDailyPriority={toggleDailyPriority}
         />
       </div>
 
@@ -469,6 +482,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             <DailyReportView
               clients={initialClients}
               selectedDate={dateFrom || todayStr()}
+              filterBrands={dailyBrands}
+              filterTags={dailyTags}
+              filterPriorities={dailyPriorities}
             />
           ) : (
             <>

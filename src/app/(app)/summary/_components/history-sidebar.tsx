@@ -6,6 +6,7 @@ import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap } from 'lucid
 import type { Client, Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
+import { brandColor } from '@/lib/history-service'
 
 export type PriorityKey = 'all' | Priority
 
@@ -63,6 +64,13 @@ interface Props {
   priorityKey: PriorityKey
   onToggleTag: (t: Tag) => void
   onPriorityChange: (p: PriorityKey) => void
+  // 데일리 리포트 필터
+  dailyBrands: Set<string>
+  dailyTags: Set<Tag>
+  dailyPriorities: Set<Priority>
+  onToggleDailyBrand: (b: string) => void
+  onToggleDailyTag: (t: Tag) => void
+  onToggleDailyPriority: (p: Priority) => void
 }
 
 
@@ -73,6 +81,8 @@ export function HistorySidebar({
   weekStart, onWeekChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
+  dailyBrands, dailyTags, dailyPriorities,
+  onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
 }: Props) {
   const tagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) tagCounts[t] = 0
@@ -108,15 +118,19 @@ export function HistorySidebar({
         />
 
         <div className="mt-3">
-          <GroupTitle>요약 · 전체 {dayItems.length}건</GroupTitle>
-          {TAG_KEYS.filter(t => dayTagCounts[t] > 0).map(t => {
-            const meta = TAG_META[t]
+          <GroupTitle>전체 {dayItems.length}건</GroupTitle>
+          {PRIORITY_KEYS.map(p => {
+            const dayPriCount = dayItems.filter(h => h.priority === p).length
+            if (dayPriCount === 0) return null
+            const meta = PRIORITY_META[p]
+            const active = dailyPriorities.has(p)
             return (
-              <div key={t} className="sidebar-btn">
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
+              <button key={p} onClick={() => onToggleDailyPriority(p)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
+                <PriorityBars priority={p} />
                 <span className="flex-1 truncate text-left">{meta.label}</span>
-                <span className="text-xs text-ink-400">{dayTagCounts[t]}</span>
-              </div>
+                {active && <Check size={12} className="shrink-0" />}
+                <span className="text-xs text-ink-400">{dayPriCount}</span>
+              </button>
             )
           })}
         </div>
@@ -124,17 +138,22 @@ export function HistorySidebar({
         {topBrands.length > 0 && (
           <div className="mt-3">
             <GroupTitle>브랜드</GroupTitle>
-            {topBrands.map(([name, count]) => (
-              <button
-                key={name}
-                onClick={() => onDateFromChange(selectedDate)}
-                className="sidebar-btn"
-              >
-                <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
-                <span className="flex-1 truncate text-left">{name}</span>
-                <span className="text-xs text-ink-400">{count}</span>
-              </button>
-            ))}
+            {topBrands.map(([name, count]) => {
+              const active = dailyBrands.has(name)
+              const color = brandColor(name)
+              return (
+                <button
+                  key={name}
+                  onClick={() => onToggleDailyBrand(name)}
+                  className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="flex-1 truncate text-left">{name}</span>
+                  {active && <Check size={12} className="shrink-0" />}
+                  <span className="text-xs text-ink-400">{count}</span>
+                </button>
+              )
+            })}
           </div>
         )}
       </div>
