@@ -290,7 +290,7 @@ ${fullText}
 - medium: 일반 이슈/프로젝트 진행 (기본값)
 - low: 단순공유/완료보고/일정조율
 
-{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"1~3문장 요약","author":"작성자 이름"}`
+{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"• **배경**: 어떤 상황인지\\n• **경과**: 어떻게 진행되었는지\\n• **조치/결과**: 어떤 액션이 필요하거나 결론이 났는지\\n(해당 단계가 없으면 생략. 중요 키워드는 **볼드**로 표기)","author":"작성자 이름"}`
 
   let msg: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
