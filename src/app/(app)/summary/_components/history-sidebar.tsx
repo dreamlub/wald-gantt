@@ -107,41 +107,34 @@ export function HistorySidebar({
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
         />
 
-        <div className="mt-3 mx-2 rounded-lg border border-border bg-card p-3">
-          <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">
-            {selectedDate} 요약
-          </div>
-          <div className="text-xs text-foreground font-semibold mb-2">전체 {dayItems.length}건</div>
-          <div className="space-y-0.5">
-            {TAG_KEYS.filter(t => dayTagCounts[t] > 0).map(t => {
-              const meta = TAG_META[t]
-              return (
-                <div key={t} className="flex items-center gap-1.5 text-[11px]">
-                  <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
-                  <span className="text-ink-500">{meta.label}</span>
-                  <span className="ml-auto text-ink-400">{dayTagCounts[t]}</span>
-                </div>
-              )
-            })}
-          </div>
+        <div className="mt-3">
+          <GroupTitle>요약 · 전체 {dayItems.length}건</GroupTitle>
+          {TAG_KEYS.filter(t => dayTagCounts[t] > 0).map(t => {
+            const meta = TAG_META[t]
+            return (
+              <div key={t} className="sidebar-btn">
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
+                <span className="flex-1 truncate text-left">{meta.label}</span>
+                <span className="text-xs text-ink-400">{dayTagCounts[t]}</span>
+              </div>
+            )
+          })}
         </div>
 
         {topBrands.length > 0 && (
-          <div className="mt-2 mx-2 rounded-lg border border-border bg-card p-3">
-            <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">브랜드</div>
-            <div className="space-y-0.5">
-              {topBrands.map(([name, count]) => (
-                <button
-                  key={name}
-                  onClick={() => onDateFromChange(selectedDate)}
-                  className="w-full flex items-center gap-1.5 text-[11px] py-0.5 hover:text-foreground transition-colors"
-                >
-                  <span className="w-1.5 h-1.5 rounded-full bg-ink-300 shrink-0" />
-                  <span className="flex-1 text-left text-ink-600 truncate">{name}</span>
-                  <span className="text-ink-400">{count}</span>
-                </button>
-              ))}
-            </div>
+          <div className="mt-3">
+            <GroupTitle>브랜드</GroupTitle>
+            {topBrands.map(([name, count]) => (
+              <button
+                key={name}
+                onClick={() => onDateFromChange(selectedDate)}
+                className="sidebar-btn"
+              >
+                <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+                <span className="flex-1 truncate text-left">{name}</span>
+                <span className="text-xs text-ink-400">{count}</span>
+              </button>
+            ))}
           </div>
         )}
       </div>

@@ -462,7 +462,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         </div>
 
         {/* 본문 */}
-        <div className="flex-1 flex flex-col overflow-hidden bg-card">
+        <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {view === 'rawdata' ? (
             <RawDataView />
           ) : view === 'insight' ? (

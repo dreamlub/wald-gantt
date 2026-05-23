@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Sparkles, AlertCircle, Eye, Info,
+  Sparkles, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target, Newspaper,
   ArrowRight,
 } from 'lucide-react'
@@ -11,6 +11,8 @@ import { ko } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 
 import type { Client, InsightContent, ActionItem, Priority } from '../_lib/types'
+import { PRIORITY_META } from '../_lib/mock-data'
+import { PriorityBars } from './badges'
 
 interface Props {
   clients: Client[]
@@ -32,12 +34,6 @@ function renderBold(text: string) {
   )
 }
 
-const SEV_META = {
-  urgent: { label: '긴급', Icon: AlertCircle, cls: 'bg-status-late/10 text-status-late', border: 'border-l-status-late', actionCls: 'bg-status-late/8 text-status-late border-status-late/20' },
-  watch:  { label: '주시', Icon: Eye,          cls: 'bg-status-warn/10 text-status-warn', border: 'border-l-status-warn', actionCls: 'bg-status-warn/8 text-status-warn border-status-warn/20' },
-  info:   { label: '진행', Icon: Info,          cls: 'bg-status-future/10 text-status-future', border: 'border-l-status-future', actionCls: 'bg-status-future/8 text-status-future border-status-future/20' },
-} as const
-
 const PRI_CLS: Record<Priority, string> = {
   high:   'bg-status-late/10 text-status-late',
   medium: 'bg-status-warn/10 text-status-warn',
@@ -57,10 +53,10 @@ function BrandBadge({ brandName, clients }: { brandName: string; clients: Client
 
 function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; title: string; count: number }) {
   return (
-    <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
-      <Icon size={14} className="text-ink-500" />
-      <h3 className="text-xs font-semibold tracking-tight">{title}</h3>
-      <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{count}건</span>
+    <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
+      <Icon size={13} className="text-ink-400" />
+      <h3 className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <span className="text-[10px] text-ink-400">{count}건</span>
     </div>
   )
 }
@@ -69,44 +65,44 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
   const d = new Date(report.analyzed_at)
   const genLabel = `생성 ${d.getMonth() + 1}/${d.getDate()} ${String(d.getHours()).padStart(2, '0')}:${String(d.getMinutes()).padStart(2, '0')}`
   return (
-    <div className="relative bg-card border border-border rounded-lg px-5 py-4 mb-6">
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-lilac-400 rounded-l-lg" />
-      <div className="flex items-center gap-2 mb-1 text-[10px] uppercase tracking-[0.06em] text-orange-500 font-semibold">
-        <Newspaper size={12} />
-        <span>Headline</span>
-        <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal text-[10px] font-medium bg-lilac-100 text-lilac-600 px-2 py-0.5 rounded-full">
+    <section className="border-t border-border overflow-hidden">
+      <div className="px-4 py-2.5 flex items-center gap-2">
+        <Newspaper size={14} className="text-ink-500" />
+        <h3 className="text-xs font-semibold tracking-tight">HEADLINE</h3>
+        <span className="text-[10px] text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드 · {genLabel}</span>
+        <span className="ml-auto inline-flex items-center gap-1 text-[10px] font-medium bg-lilac-100 text-lilac-600 px-2 py-0.5 rounded-full">
           <Sparkles size={10} />
           AI 분석
         </span>
       </div>
-      <div className="text-[10px] text-ink-400 mb-2.5">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드 · {genLabel}</div>
-      <p className="text-xs leading-relaxed text-foreground">
-        {renderBold(content.headline)}
-      </p>
-    </div>
+      <div className="px-4 pb-4">
+        <p className="text-xs leading-relaxed text-foreground">
+          {renderBold(content.headline)}
+        </p>
+      </div>
+    </section>
   )
 }
+
+const SEV_TO_PRIORITY: Record<string, Priority> = { urgent: 'high', watch: 'medium', info: 'low' }
 
 function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[] }) {
   if (items.length === 0) return null
   return (
     <div className="grid grid-cols-2 gap-2">
       {items.map(a => {
-        const sev = SEV_META[a.severity]
-        const SevIcon = sev.Icon
+        const pri = SEV_TO_PRIORITY[a.severity] ?? 'medium'
         return (
-          <div key={a.id} className={`bg-card border border-l-[3px] ${sev.border} border-border rounded-lg p-3.5 flex flex-col`}>
+          <div key={a.id} className="bg-card border border-l-[3px] border-border rounded-lg p-3.5 flex flex-col"
+            style={{ borderLeftColor: PRIORITY_META[pri]?.color }}>
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[3px] uppercase tracking-[0.04em] ${sev.cls}`}>
-                <SevIcon size={11} />
-                {sev.label}
-              </span>
+              <PriorityBars priority={pri} />
               <BrandBadge brandName={a.brand} clients={clients} />
               <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-xs font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <p className="text-[11px] text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
-            <div className={`flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed ${sev.actionCls}`}>
+            <div className="flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed border-border text-ink-500">
               <ArrowRight size={12} className="shrink-0" />
               <span>{a.action}</span>
             </div>
@@ -226,32 +222,40 @@ export function DailyReportView({ clients, selectedDate }: Props) {
   const reportWithLabel = { ...report, dateLabel }
 
   return (
-    <div className="flex-1 overflow-y-auto">
-      <div className="px-6 py-5 max-w-[960px] mx-auto">
+    <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      <div className="space-y-0">
         {/* 헤드라인 */}
         <HeadlineCard content={content} report={reportWithLabel} />
 
         {/* 지금 챙겨야 할 것 */}
         {content.action_items.length > 0 && (
-          <section className="mb-7">
+          <section className="border-t border-border">
             <SectionHead icon={AlertCircle} title="지금 챙겨야 할 것" count={content.action_items.length} />
-            <ActionGrid items={content.action_items} clients={clients} />
+            <div className="p-4">
+              <ActionGrid items={content.action_items} clients={clients} />
+            </div>
           </section>
         )}
 
-        {/* 2-col: 일정 + 대기 */}
+        {/* 일정 + 응답 대기 — 50:50 */}
         {(content.upcoming.length > 0 || content.pending.length > 0) && (
-          <div className="grid grid-cols-2 gap-4 mb-7">
-            {content.upcoming.length > 0 && (
-              <section>
-                <SectionHead icon={CalendarDays} title="다가오는 일정" count={content.upcoming.length} />
-                <UpcomingList items={content.upcoming} clients={clients} />
-              </section>
-            )}
+          <div className="grid grid-cols-2 border-t border-border">
+            <section className={content.pending.length > 0 ? 'border-r border-border' : 'col-span-2'}>
+              {content.upcoming.length > 0 ? (
+                <>
+                  <SectionHead icon={CalendarDays} title="다가오는 일정" count={content.upcoming.length} />
+                  <div className="p-4">
+                    <UpcomingList items={content.upcoming} clients={clients} />
+                  </div>
+                </>
+              ) : null}
+            </section>
             {content.pending.length > 0 && (
-              <section>
+              <section className={content.upcoming.length === 0 ? 'col-span-2' : ''}>
                 <SectionHead icon={Clock} title="응답 대기" count={content.pending.reduce((s, p) => s + p.count, 0)} />
-                <PendingList items={content.pending} clients={clients} />
+                <div className="p-4">
+                  <PendingList items={content.pending} clients={clients} />
+                </div>
               </section>
             )}
           </div>
@@ -259,9 +263,11 @@ export function DailyReportView({ clients, selectedDate }: Props) {
 
         {/* 결정 사항 */}
         {content.decisions.length > 0 && (
-          <section className="mb-7">
+          <section className="border-t border-border">
             <SectionHead icon={Target} title="결정 사항" count={content.decisions.length} />
-            <DecisionGrid items={content.decisions} clients={clients} />
+            <div className="p-4">
+              <DecisionGrid items={content.decisions} clients={clients} />
+            </div>
           </section>
         )}
       </div>
