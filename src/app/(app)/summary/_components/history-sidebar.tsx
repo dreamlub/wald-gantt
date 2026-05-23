@@ -47,7 +47,7 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'table' | 'insight' | 'summary' | 'rawdata'
+  view: 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
   history: HistoryItem[]
   // table/summary용
   dateFrom: string

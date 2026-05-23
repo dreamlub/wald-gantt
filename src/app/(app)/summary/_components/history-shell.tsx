@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, RefreshCw, Database,
+  Sparkles, LayoutList, RefreshCw, Database, GitBranch,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -18,6 +18,7 @@ import { TableView } from './table-view'
 import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
+import { TimelineView } from './timeline-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -26,14 +27,14 @@ import {
   addTask, addProject, searchProjects,
 } from '@/lib/gantt-service'
 
-type ViewKey = 'table' | 'insight' | 'summary' | 'rawdata'
+type ViewKey = 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
 
-const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary', 'rawdata']
+const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'timeline', 'insight', 'summary', 'rawdata']
 // 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'schedule']
 
-function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'rawdata'  }
+function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'table'    }
 function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
 function parseTags(v: string | null): Set<Tag> {
   if (!v) return new Set()
@@ -46,9 +47,10 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
-  { key: 'rawdata', label: 'Raw Data', icon: Database },
-  { key: 'table',   label: '타임라인', icon: LayoutList },
-  { key: 'insight', label: '인사이트', icon: Sparkles },
+  { key: 'rawdata',  label: 'Raw Data',  icon: Database },
+  { key: 'table',    label: '테이블',    icon: LayoutList },
+  { key: 'timeline', label: '타임라인',  icon: GitBranch },
+  { key: 'insight',  label: '인사이트',  icon: Sparkles },
 ]
 
 function relativeCollectedLabel(latest: string | null): string {
@@ -525,6 +527,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   onClearFilters={resetFilters}
                   onCreateTask={handleOpenCreateTask}
                   onCreateProject={handleOpenCreateProject}
+                />
+              )}
+              {view === 'timeline' && (
+                <TimelineView
+                  clients={initialClients}
+                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                 />
               )}
               {view === 'summary' && (
