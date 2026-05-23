@@ -12,11 +12,6 @@ import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { SlackText } from './slack-text'
 
-const PRIORITY_TITLE_CLASS: Record<Priority, string> = {
-  high:   'font-semibold text-rose-500',
-  medium: 'font-medium text-foreground',
-  low:    'font-normal text-muted-foreground',
-}
 
 interface Props {
   items: HistoryItem[]
@@ -110,7 +105,7 @@ function DetailPanel({
         )}
         {client && (
           <button
-            onClick={() => onSelectBrand(item.client_id)}
+            onClick={() => onSelectBrand(item.brand_name ?? '')}
             className="inline-flex items-center gap-1.5 text-[11px] text-ink-500 hover:text-foreground transition-colors"
             title={`${client.name}로 필터`}
           >
@@ -143,7 +138,7 @@ function DetailPanel({
       {/* 본문 스크롤 */}
       <div className="flex-1 overflow-y-auto px-7 py-6 space-y-5">
         {/* 제목 */}
-        <h2 className={`text-base leading-[1.4] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-semibold text-foreground'}`}>
+        <h2 className="text-base leading-[1.4] font-semibold text-foreground">
           {item.title}
         </h2>
 
@@ -263,7 +258,7 @@ function DetailPanel({
             <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-1">브랜드</div>
             {client ? (
               <button
-                onClick={() => onSelectBrand(item.client_id)}
+                onClick={() => onSelectBrand(item.brand_name ?? '')}
                 className="inline-flex items-center gap-1.5 text-xs text-foreground hover:text-lilac-500 transition-colors"
                 title={`${client.name}로 필터`}
               >
@@ -327,7 +322,7 @@ export function TableView({
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
   onCreateTask, onCreateProject,
 }: Props) {
-  const clientMap = useMemo(() => new Map(clients.map(c => [c.id, c])), [clients])
+  const brandMap = useMemo(() => new Map(clients.map(c => [c.name, c])), [clients])
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
@@ -449,7 +444,7 @@ export function TableView({
               </div>
               {/* 아이템 카드 */}
               {group.items.map(item => {
-                const client = clientMap.get(item.client_id)
+                const client = brandMap.get(item.brand_name ?? '')
                 const isSelected = selectedItem?.id === item.id
                 return (
                   <div
@@ -490,7 +485,7 @@ export function TableView({
                       )}
                     </div>
                     {/* 제목 */}
-                    <div className={`text-xs leading-[1.4] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-normal text-foreground'}`}>
+                    <div className="text-sm leading-[1.4] font-medium text-foreground">
                       <Highlight text={item.title} query={searchQuery} />
                     </div>
                     {/* 태그 */}
@@ -524,7 +519,7 @@ export function TableView({
       {selectedItem ? (
         <DetailPanel
           item={{ ...selectedItem, thread_replies: threadReplies }}
-          client={clientMap.get(selectedItem.client_id)}
+          client={brandMap.get(selectedItem.brand_name ?? '')}
           selectedIdx={selectedIdx}
           totalCount={flatItems.length}
           summaryVersions={summaryVersions}

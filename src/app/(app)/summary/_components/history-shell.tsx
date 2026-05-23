@@ -13,7 +13,7 @@ import type { Client, HistoryItem, Tag } from '../_lib/types'
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, type DateMode, getCurrentWeekStart } from './history-sidebar'
+import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
 import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
@@ -29,12 +29,10 @@ type ViewKey = 'table' | 'insight' | 'summary'
 
 const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary']
 // 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
-const VALID_DATE_MODES: readonly DateMode[]  = ['occurred', 'updated']
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
 
 function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'table'    }
-function parseDateMode(v: string | null): DateMode   { return VALID_DATE_MODES.includes(v as DateMode)       ? (v as DateMode)       : 'occurred' }
 function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
 function parseTags(v: string | null): Set<Tag> {
   if (!v) return new Set()
@@ -93,7 +91,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [view,         setView]         = useState<ViewKey>(() => parseView(searchParams.get('view')))
   const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
   const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
-  const [dateMode,     setDateMode]     = useState<DateMode>(() => parseDateMode(searchParams.get('dateMode')))
   const [weekStart,    setWeekStart]    = useState<string>(searchParams.get('week') ?? getCurrentWeekStart())
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => parseTags(searchParams.get('tags')))
@@ -241,7 +238,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (view !== 'table')     p.set('view', view)
     if (dateFrom)             p.set('from', dateFrom)
     if (dateTo)               p.set('to', dateTo)
-    if (dateMode !== 'occurred') p.set('dateMode', dateMode)
     if (weekStart !== getCurrentWeekStart()) p.set('week', weekStart)
     if (brandId !== 'all')    p.set('brand', brandId)
     if (selectedTags.size > 0) p.set('tags', [...selectedTags].join(','))
@@ -250,7 +246,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (searchQuery.trim())   p.set('q', searchQuery)
     const qs = p.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
-  }, [view, dateFrom, dateTo, dateMode, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
+  }, [view, dateFrom, dateTo, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
 
   useEffect(() => { if (searchOpen) searchInputRef.current?.focus() }, [searchOpen])
   useEffect(() => {
@@ -294,8 +290,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : 0
     const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER
     let list = initialHistory.filter(h => {
-      const dateField = dateMode === 'updated' ? h.updated_at : h.occurred_at
-      const t = new Date(dateField).getTime()
+      const t = new Date(h.occurred_at).getTime()
       return t >= fromMs && t <= toMs
     })
     // 태그: AND — 선택된 모든 태그를 포함해야 함
@@ -306,7 +301,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         return true
       })
     }
-    if (brandId !== 'all')     list = list.filter(h => h.client_id === brandId)
+    if (brandId !== 'all')     list = list.filter(h => h.brand_name === brandId)
     if (priorityKey !== 'all') list = list.filter(h => h.priority === priorityKey)
     if (authorKey !== 'all')   list = list.filter(h => h.author === authorKey)
     if (searchQuery.trim()) {
@@ -319,7 +314,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       )
     }
     return list.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
-  }, [initialHistory, dateFrom, dateTo, dateMode, selectedTags, brandId, priorityKey, authorKey, searchQuery])
+  }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -342,21 +337,16 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
         <HistorySidebar
           view={view}
-          clients={initialClients}
           history={initialHistory}
           dateFrom={dateFrom}
           dateTo={dateTo}
-          dateMode={dateMode}
           weekStart={weekStart}
-          brandId={brandId}
           selectedTags={selectedTags}
           priorityKey={priorityKey}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
-          onDateModeChange={setDateMode}
           onPresetClick={applyPreset}
           onWeekChange={setWeekStart}
-          onBrandChange={setBrandId}
           onToggleTag={toggleTag}
           onPriorityChange={setPriorityKey}
         />
@@ -472,12 +462,11 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                       전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
                     </span>
                     {brandId !== 'all' && (() => {
-                      const c = initialClients.find(x => x.id === brandId)
-                      if (!c) return null
+                      const c = initialClients.find(x => x.name === brandId)
                       return (
                         <FilterChip onClear={() => setBrandId('all')}>
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />
-                          브랜드: {c.name}
+                          {c && <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />}
+                          브랜드: {brandId}
                         </FilterChip>
                       )
                     })()}

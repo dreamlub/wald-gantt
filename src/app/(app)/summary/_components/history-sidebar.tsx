@@ -8,7 +8,6 @@ import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-d
 import { PriorityBars } from './badges'
 
 export type PriorityKey = 'all' | Priority
-export type DateMode = 'occurred' | 'updated'
 
 // ── 주 유틸 (export — shell에서도 사용) ─────────────────────
 export function getMondayOfDate(d: Date): Date {
@@ -49,24 +48,19 @@ export function isCurrentWeek(weekStart: string): boolean {
 // ── Props ────────────────────────────────────────────────────
 interface Props {
   view: 'table' | 'insight' | 'summary'
-  clients: Client[]
   history: HistoryItem[]
   // table/summary용
   dateFrom: string
   dateTo: string
-  dateMode: DateMode
   onDateFromChange: (s: string) => void
   onDateToChange: (s: string) => void
   onPresetClick: (preset: 'today' | 'week' | 'month' | 'all') => void
-  onDateModeChange: (mode: DateMode) => void
   // insight용
   weekStart: string
   onWeekChange: (weekStart: string) => void
   // 공통
-  brandId: string | 'all'
   selectedTags: Set<Tag>
   priorityKey: PriorityKey
-  onBrandChange: (id: string | 'all') => void
   onToggleTag: (t: Tag) => void
   onPriorityChange: (p: PriorityKey) => void
 }
@@ -74,11 +68,11 @@ interface Props {
 
 export function HistorySidebar({
   view,
-  clients, history,
-  dateFrom, dateMode, onDateFromChange, onDateToChange, onPresetClick, onDateModeChange,
+  history,
+  dateFrom, onDateFromChange, onDateToChange, onPresetClick,
   weekStart, onWeekChange,
-  brandId, selectedTags, priorityKey,
-  onBrandChange, onToggleTag, onPriorityChange,
+  selectedTags, priorityKey,
+  onToggleTag, onPriorityChange,
 }: Props) {
   const tagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) tagCounts[t] = 0
@@ -87,10 +81,6 @@ export function HistorySidebar({
   const priCounts: Record<string, number> = { all: history.length }
   for (const p of PRIORITY_KEYS) priCounts[p] = 0
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
-
-  const brandCounts: Record<string, number> = {}
-  for (const h of history) brandCounts[h.client_id] = (brandCounts[h.client_id] ?? 0) + 1
-  const sortedClients = [...clients].sort((a, b) => (brandCounts[b.id] ?? 0) - (brandCounts[a.id] ?? 0))
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
@@ -101,56 +91,12 @@ export function HistorySidebar({
       ) : (
         <>
           <MonthGridSection
-            dateFrom={dateFrom} dateMode={dateMode} history={history}
+            dateFrom={dateFrom} history={history}
             onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-            onDateModeChange={onDateModeChange}
           />
-          {/* "오늘" 빠른 preset */}
-          <button
-            onClick={() => onPresetClick('today')}
-            className="sidebar-btn mt-1"
-            title="오늘 날짜로 필터"
-          >
-            <LayoutList size={12} className="shrink-0" />
-            <span className="flex-1 truncate text-left">오늘</span>
-            <span className="text-xs text-ink-400">{
-              (() => {
-                const today = new Date()
-                const ymd = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}-${String(today.getDate()).padStart(2, '0')}`
-                return history.filter(h => h.occurred_at.slice(0, 10) === ymd).length
-              })()
-            }</span>
-          </button>
         </>
       )}
 
-      {/* ── 브랜드 (모든 뷰 공통) ─────────────────────────── */}
-      <div className="mt-3">
-        <GroupTitle>브랜드</GroupTitle>
-        <button
-          onClick={() => onBrandChange('all')}
-          className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
-        >
-          <span className="w-2 h-2 rounded-full shrink-0 ring-1 ring-ink-300" />
-          <span className="flex-1 truncate text-left font-medium">전체</span>
-          <span className="text-xs text-ink-400">{history.length}</span>
-        </button>
-        {sortedClients.map(c => {
-          const count = brandCounts[c.id] ?? 0
-          const active = brandId === c.id
-          return (
-            <button
-              key={c.id}
-              onClick={() => onBrandChange(active ? 'all' : c.id)}
-              className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
-            >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-              <span className="flex-1 truncate text-left">{c.name}</span>
-              <span className="text-xs text-ink-400">{count}</span>
-            </button>
-          )
-        })}
-      </div>
 
       {/* ── 태그·중요도 (인사이트 탭 제외) ─────────────────── */}
       {view !== 'insight' && (
@@ -230,7 +176,6 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
 
   return (
     <div className="pb-1">
-      <div className="px-2 mb-1.5 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">기간</div>
 
       {/* 상단 네비게이터 */}
       <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
@@ -277,17 +222,11 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
 }
 
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
-const DATE_MODES: { key: DateMode; label: string }[] = [
-  { key: 'occurred', label: '발생일' },
-  { key: 'updated',  label: '수정일' },
-]
-
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
-function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDateToChange, onDateModeChange }: {
-  dateFrom: string; dateMode: DateMode; history: HistoryItem[]
+function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange }: {
+  dateFrom: string; history: HistoryItem[]
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
-  onDateModeChange: (mode: DateMode) => void
 }) {
   const today = new Date()
   const todayYmd = dateStr(today)
@@ -320,8 +259,13 @@ function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDat
 
   function selectDay(d: Date) {
     const ymd = dateStr(d)
-    onDateFromChange(ymd)
-    onDateToChange(ymd)
+    if (ymd === dateFrom) {
+      onDateFromChange('')
+      onDateToChange('')
+    } else {
+      onDateFromChange(ymd)
+      onDateToChange(ymd)
+    }
   }
 
   function prevMonth() {
@@ -338,56 +282,42 @@ function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDat
 
   return (
     <div className="pb-1">
-      <div className="px-2 mb-1.5 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">기간</div>
+      <div className="mx-2 rounded-lg border border-border bg-card p-2">
 
-      {/* 발생일 / 수정일 토글 */}
-      <div className="mx-2 flex items-center gap-0.5 bg-muted rounded-md p-0.5 mb-2">
-        {DATE_MODES.map(({ key, label }) => (
-          <button key={key} onClick={() => onDateModeChange(key)}
-            className={`flex-1 text-[11px] py-0.5 rounded transition-colors text-center ${
-              dateMode === key
-                ? 'bg-card text-foreground font-medium shadow-sm'
-                : 'text-muted-foreground hover:text-foreground'
-            }`}>
-            {label}
+        {/* 월 네비게이터 */}
+        <div className="flex items-center mb-1">
+          <button onClick={prevMonth}
+            className="w-6 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors">
+            <ChevronLeft size={12} />
           </button>
-        ))}
-      </div>
-
-      {/* 월 네비게이터 */}
-      <div className="mx-2 flex items-center mb-1">
-        <button onClick={prevMonth}
-          className="w-7 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors">
-          <ChevronLeft size={13} />
-        </button>
-        <div className="flex-1 flex items-center justify-center gap-1.5">
-          <span className="text-xs font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
-          {atCurrentMonth && (
-            <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
-          )}
-        </div>
-        <button onClick={nextMonth} disabled={atCurrentMonth}
-          className="w-7 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
-          <ChevronRight size={13} />
-        </button>
-      </div>
-
-      {/* 요일 헤더 */}
-      <div className="mx-2 grid grid-cols-7 mb-1">
-        {DAY_HEADERS.map((d, i) => (
-          <div
-            key={d}
-            className={`text-[10px] text-center py-1 ${
-              i === 0 ? 'text-rose-400' : i === 6 ? 'text-blue-400' : 'text-ink-400'
-            }`}
-          >
-            {d}
+          <div className="flex-1 flex items-center justify-center gap-1.5">
+            <span className="text-[11px] font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
+            {atCurrentMonth && (
+              <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
+            )}
           </div>
-        ))}
-      </div>
+          <button onClick={nextMonth} disabled={atCurrentMonth}
+            className="w-6 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
+            <ChevronRight size={12} />
+          </button>
+        </div>
 
-      {/* 날짜 그리드 */}
-      <div className="mx-2 grid grid-cols-7 gap-y-0.5">
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 mb-0.5">
+          {DAY_HEADERS.map((d, i) => (
+            <div
+              key={d}
+              className={`text-[9px] text-center py-0.5 ${
+                i === 0 ? 'text-rose-400' : i === 6 ? 'text-blue-400' : 'text-ink-400'
+              }`}
+            >
+              {d}
+            </div>
+          ))}
+        </div>
+
+        {/* 날짜 그리드 */}
+        <div className="grid grid-cols-7 gap-y-1">
         {cells.map((d, i) => {
           const dow      = d.getDay()
           const inMonth  = d.getMonth() === calMonth
@@ -408,7 +338,7 @@ function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDat
               onClick={() => !isFuture && selectDay(d)}
               disabled={isFuture}
               className={[
-                'relative h-7 flex items-center justify-center rounded text-xs transition-colors',
+                'relative h-6 flex items-center justify-center rounded text-[11px] transition-colors',
                 isSelected
                   ? 'bg-lilac-500 text-white font-semibold hover:bg-lilac-500'
                   : isFuture
@@ -431,6 +361,7 @@ function MonthGridSection({ dateFrom, dateMode, history, onDateFromChange, onDat
             </button>
           )
         })}
+        </div>
       </div>
     </div>
   )
