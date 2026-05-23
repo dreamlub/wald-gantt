@@ -39,13 +39,12 @@ const PRI_CLS: Record<Priority, string> = {
 }
 const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', low: '낮음' }
 
-// brand 필드는 client_id를 저장 (API 응답 정규화 후 저장)
-function BrandBadge({ clientId, clients }: { clientId: string; clients: Client[] }) {
-  const client = clients.find(c => c.id === clientId)
+function BrandBadge({ brandName, clients }: { brandName: string; clients: Client[] }) {
+  const client = clients.find(c => c.name === brandName)
   return (
     <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: client?.color ?? 'var(--color-ink-300)' }} />
-      {client?.name ?? clientId}
+      {client?.name ?? brandName}
     </span>
   )
 }
@@ -136,7 +135,7 @@ function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[]
                 <SevIcon size={11} />
                 {sev.label}
               </span>
-              <BrandBadge clientId={a.brand} clients={clients} />
+              <BrandBadge brandName={a.brand} clients={clients} />
               <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-xs font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
@@ -166,7 +165,7 @@ function UpcomingList({ items, clients }: { items: InsightContent['upcoming']; c
           <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
-          <BrandBadge clientId={s.brand} clients={clients} />
+          <BrandBadge brandName={s.brand} clients={clients} />
         </div>
       ))}
     </div>
@@ -178,7 +177,7 @@ function PendingList({ items, clients }: { items: InsightContent['pending']; cli
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((p, i) => {
-        const c = clients.find(x => x.id === p.brand)
+        const c = clients.find(x => x.name === p.brand)
         return (
           <div key={i} className="flex items-start gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
             <span className="min-w-[90px] text-xs font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
@@ -205,7 +204,7 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
             <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
           <p className="text-[11px] text-ink-500 leading-relaxed mb-2">{d.desc}</p>
-          <BrandBadge clientId={d.brand} clients={clients} />
+          <BrandBadge brandName={d.brand} clients={clients} />
         </div>
       ))}
     </div>
@@ -279,14 +278,13 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
       ...insight.content.decisions.map(d => d.brand),
     ]
     for (const b of allBrands) {
-      const c = clients.find(x => x.id === b)
-      if (c) m.set(c.id, (m.get(c.id) ?? 0) + 1)
+      if (b) m.set(b, (m.get(b) ?? 0) + 1)
     }
     return m
   }, [insight, clients])
 
   const sortedClients = useMemo(
-    () => [...clients].filter(c => counts.has(c.id)).sort((a, b) => (counts.get(b.id) ?? 0) - (counts.get(a.id) ?? 0)),
+    () => [...clients].filter(c => counts.has(c.name)).sort((a, b) => (counts.get(b.name) ?? 0) - (counts.get(a.name) ?? 0)),
     [clients, counts]
   )
 
@@ -356,18 +354,18 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
             </span>
           </button>
           {sortedClients.map(c => {
-            const active = brandId === c.id
+            const active = brandId === c.name
             return (
               <button
-                key={c.id}
-                onClick={() => onBrandChange(active ? 'all' : c.id)}
+                key={c.name}
+                onClick={() => onBrandChange(active ? 'all' : c.name)}
                 className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
                   ${active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400 hover:text-ink-700'}`}
                 style={active ? { backgroundColor: c.color, borderColor: c.color } : undefined}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : c.color }} />
                 {c.name}
-                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-ink-400'}`}>{counts.get(c.id) ?? 0}</span>
+                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-ink-400'}`}>{counts.get(c.name) ?? 0}</span>
               </button>
             )
           })}

@@ -4,20 +4,25 @@ import type { Client, HistoryItem, HistoryType, StatusKind, Priority, Tag } from
 
 type Sb = SupabaseClient
 
-interface DbClient {
-  id: string
-  workspace_id: string
-  name: string
-  name_en: string | null
-  color: string
-  keywords: string[]
-  sort_order: number
+// 브랜드명 → 색상 결정론적 할당 (팔레트 기반 해시)
+const BRAND_PALETTE = [
+  '#818cf8', '#34d399', '#fb7185', '#fbbf24',
+  '#60a5fa', '#fb923c', '#a78bfa', '#4ade80',
+  '#f472b6', '#38bdf8', '#e879f9', '#2dd4bf',
+]
+
+export function brandColor(name: string): string {
+  let hash = 0
+  for (let i = 0; i < name.length; i++) {
+    hash = (hash * 31 + name.charCodeAt(i)) & 0xffffffff
+  }
+  return BRAND_PALETTE[Math.abs(hash) % BRAND_PALETTE.length]
 }
 
 interface DbHistory {
   id: string
   workspace_id: string
-  client_id: string
+  brand_name: string | null
   type: HistoryType
   tags: Tag[] | null
   channel: string
@@ -37,20 +42,10 @@ interface DbHistory {
   deleted_at: string | null
 }
 
-function toClient(r: DbClient): Client {
-  return {
-    id: r.id,
-    name: r.name,
-    name_en: r.name_en ?? '',
-    color: r.color,
-    keywords: r.keywords ?? [],
-  }
-}
-
 function toHistory(r: DbHistory): HistoryItem {
   return {
     id: r.id,
-    client_id: r.client_id,
+    brand_name: r.brand_name,
     type: r.type,
     tags: r.tags ?? [],
     channel: r.channel,
@@ -70,43 +65,8 @@ function toHistory(r: DbHistory): HistoryItem {
   }
 }
 
-async function getWorkspaceId(sb: Sb): Promise<string> {
-  const { data: { user } } = await sb.auth.getUser()
-  if (!user) throw new Error('Not authenticated')
-  const { data: member } = await sb
-    .from('workspace_members')
-    .select('workspace_id')
-    .eq('user_id', user.id)
-    .single()
-  if (!member) throw new Error('No workspace found')
-  return member.workspace_id
-}
-
-// ── 클라이언트 ───────────────────────────────────────────────
-
-export async function getClients(sb?: Sb): Promise<Client[]> {
-  const client = sb ?? createBrowserClient()
-  const { data, error } = await client
-    .from('clients')
-    .select('*')
-    .order('sort_order', { ascending: true })
-  if (error) throw error
-  return (data ?? []).map(toClient)
-}
-
-export async function updateClientKeywords(clientId: string, keywords: string[]): Promise<void> {
-  const sb = createBrowserClient()
-  const { error } = await sb
-    .from('clients')
-    .update({ keywords })
-    .eq('id', clientId)
-  if (error) throw error
-}
-
-// ── 히스토리 ─────────────────────────────────────────────────
-
 // Slack permalink에 ?thread_ts=X&... 가 있고 X !== ts 이면 스레드 답글
-function isThreadReplyPermalink(permalink: string, ts: string): boolean {
+export function isThreadReplyPermalink(permalink: string, ts: string): boolean {
   try {
     const threadTs = new URL(permalink).searchParams.get('thread_ts')
     return !!threadTs && threadTs !== ts
@@ -132,7 +92,6 @@ export async function listHistory(sb?: Sb): Promise<HistoryItem[]> {
   if (histResult.error) throw histResult.error
   if (rawResult.error) throw rawResult.error
 
-  // raw_json.permalink 기반으로 스레드 답글인 raw_message_id Set 구성
   const threadReplyRawIds = new Set<string>()
   for (const row of rawResult.data ?? []) {
     const rj = row.raw_json as { permalink?: string; ts?: string } | null
@@ -149,9 +108,19 @@ export async function listHistory(sb?: Sb): Promise<HistoryItem[]> {
   return filtered.map(toHistory)
 }
 
-// Insert는 Make 시나리오가 Supabase에 직접 수행. 앱은 읽기만.
-// 서버 컴포넌트용 헬퍼는 `@/lib/history-service-server` 참조
+// 히스토리에서 distinct 브랜드명 추출 → Client 배열 반환
+export async function getDistinctBrands(sb?: Sb): Promise<Client[]> {
+  const client = sb ?? createBrowserClient()
+  const { data, error } = await client
+    .from('client_history')
+    .select('brand_name')
+    .is('deleted_at', null)
+    .not('brand_name', 'is', null)
 
-// getWorkspaceId가 미사용이 되긴 했지만, 향후 service_role 없는 클라이언트 측 insert가
-// 다시 필요해질 때를 위해 export하지 않은 채로 남겨둠.
-void getWorkspaceId
+  if (error) throw error
+
+  const names = [...new Set((data ?? []).map(r => r.brand_name as string).filter(Boolean))]
+  names.sort((a, b) => a.localeCompare(b, 'ko'))
+
+  return names.map(name => ({ name, color: brandColor(name) }))
+}

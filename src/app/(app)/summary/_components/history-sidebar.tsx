@@ -47,7 +47,7 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'table' | 'insight' | 'summary'
+  view: 'table' | 'insight' | 'summary' | 'rawdata'
   history: HistoryItem[]
   // table/summary용
   dateFrom: string
@@ -81,6 +81,16 @@ export function HistorySidebar({
   const priCounts: Record<string, number> = { all: history.length }
   for (const p of PRIORITY_KEYS) priCounts[p] = 0
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
+
+  if (view === 'rawdata') {
+    return (
+      <div className="flex flex-col flex-1 min-h-0 p-4">
+        <p className="text-[11px] text-ink-400 leading-relaxed">
+          날짜별 수집 현황을 확인하고 재수집을 실행합니다.
+        </p>
+      </div>
+    )
+  }
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">

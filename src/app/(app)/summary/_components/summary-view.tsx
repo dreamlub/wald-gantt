@@ -32,7 +32,7 @@ export function SummaryView({ items, clients }: Props) {
   // 브랜드별
   const brandStats = useMemo(() =>
     clients.map(c => {
-      const own = items.filter(i => i.client_id === c.id)
+      const own = items.filter(i => i.brand_name === c.name)
       return {
         client: c,
         total: own.length,
@@ -138,7 +138,7 @@ export function SummaryView({ items, clients }: Props) {
         <Section icon={<Hash size={13} className="text-ink-400" />} label="브랜드별 요약" badge={`${brandStats.length}개`}>
           <div className="flex flex-col gap-2">
             {brandStats.map(b => (
-              <div key={b.client.id} className="bg-card border border-border rounded-lg px-4 py-3.5">
+              <div key={b.client.name} className="bg-card border border-border rounded-lg px-4 py-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-semibold">
                     <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.client.color }} />

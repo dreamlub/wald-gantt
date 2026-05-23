@@ -28,7 +28,7 @@ export async function PATCH(
       })
     }
 
-    const allowed = ['client_id', 'author', 'priority', 'tags'] as const
+    const allowed = ['brand_name', 'author', 'priority', 'tags'] as const
     const updates: Record<string, unknown> = {}
     for (const key of allowed) {
       if (key in body) updates[key] = body[key]

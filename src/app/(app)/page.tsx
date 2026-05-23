@@ -16,7 +16,8 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '@/types'
-import type { Client, HistoryItem, Priority, Tag } from './summary/_lib/types'
+import type { HistoryItem, Priority, Tag } from './summary/_lib/types'
+import { brandColor } from '@/lib/history-service'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
 import { TAG_META, PRIORITY_META } from './summary/_lib/mock-data'
 
@@ -130,7 +131,7 @@ export default async function CommandCenterPage() {
     )
   }
 
-  const [tasksRes, projectsRes, historyRes, clientsRes, weeklyRes] = await Promise.all([
+  const [tasksRes, projectsRes, historyRes, weeklyRes] = await Promise.all([
     sb
       .from('gantt_tasks')
       .select('id, workspace_id, title, status, type, assignee, start_date, due_date, memo, labels, parent_id, priority, sort_order, created_at, updated_at, deleted_at, archived_at, scheduled_at, duration_minutes')
@@ -154,11 +155,6 @@ export default async function CommandCenterPage() {
       .order('occurred_at', { ascending: false })
       .limit(80),
     sb
-      .from('clients')
-      .select('id, name, name_en, color, keywords')
-      .eq('workspace_id', workspaceId)
-      .order('sort_order', { ascending: true }),
-    sb
       .from('weekly_insights')
       .select('week_start, content, analyzed_at')
       .eq('workspace_id', workspaceId)
@@ -170,9 +166,7 @@ export default async function CommandCenterPage() {
   const tasks = ((tasksRes.data ?? []) as GanttTask[])
   const projects = ((projectsRes.data ?? []) as GanttProject[])
   const history = ((historyRes.data ?? []) as HistoryItem[])
-  const clients = ((clientsRes.data ?? []) as Client[])
   const latestWeekly = (weeklyRes.data as WeeklyInsightRow | null) ?? null
-  const clientById = new Map(clients.map(c => [c.id, c]))
 
   const openTasks = tasks.filter(t => t.status !== 'done')
   const scheduledToday = tasks.filter(t => t.scheduled_at?.slice(0, 10) === today)
@@ -293,7 +287,7 @@ export default async function CommandCenterPage() {
             <Panel title="고객 신호" href={summaryHref({ priority: 'high' })} icon={<MessageSquare size={13} />}>
               <div className="space-y-2">
                 {highHistory.map(item => (
-                  <HistoryRow key={item.id} item={item} client={clientById.get(item.client_id)} />
+                  <HistoryRow key={item.id} item={item} />
                 ))}
                 {highHistory.length === 0 && <EmptyLine label="최근 high priority 이슈가 없습니다." />}
               </div>
@@ -302,7 +296,7 @@ export default async function CommandCenterPage() {
             <Panel title="결정 대기" href="/summary?tags=decision" icon={<Target size={13} />}>
               <div className="space-y-2">
                 {decisionItems.map(item => (
-                  <DecisionRow key={item.id} item={item} client={clientById.get(item.client_id)} />
+                  <DecisionRow key={item.id} item={item} />
                 ))}
                 {decisionItems.length === 0 && <EmptyLine label="최근 결정 태그 항목이 없습니다." />}
               </div>
@@ -372,7 +366,7 @@ export default async function CommandCenterPage() {
             <Panel title="나를 부른 일" href={summaryHref({ tag: 'mention' })} icon={<CheckCircle2 size={13} />}>
               <div className="space-y-2">
                 {mentionItems.map(item => (
-                  <HistoryRow key={item.id} item={item} client={clientById.get(item.client_id)} />
+                  <HistoryRow key={item.id} item={item} />
                 ))}
                 {mentionItems.length === 0 && <EmptyLine label="최근 멘션 항목이 없습니다." />}
               </div>
@@ -483,33 +477,35 @@ function TaskRow({ task, today, compact = false }: { task: GanttTask; today?: st
   )
 }
 
-function HistoryRow({ item, client }: { item: HistoryItem; client?: Client }) {
+function HistoryRow({ item }: { item: HistoryItem }) {
   const p = priorityLabel(item.priority)
+  const color = item.brand_name ? brandColor(item.brand_name) : null
   return (
     <Link href={summaryHref({ priority: item.priority ?? undefined, query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-2 min-w-0">
-        {client && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />}
+        {color && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
         <span className="text-xs font-semibold text-foreground truncate">{item.title}</span>
         {p && <span className="ml-auto shrink-0 text-[10px] font-medium" style={{ color: p.color }}>{p.label}</span>}
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-400">
-        <span className="truncate">{client?.name ?? item.channel}</span>
+        <span className="truncate">{item.brand_name ?? item.channel}</span>
         <span>{fmtDay(item.occurred_at)}</span>
       </div>
     </Link>
   )
 }
 
-function DecisionRow({ item, client }: { item: HistoryItem; client?: Client }) {
+function DecisionRow({ item }: { item: HistoryItem }) {
   const tags = (item.tags ?? []).filter((tag): tag is Tag => tag in TAG_META).slice(0, 2)
+  const color = item.brand_name ? brandColor(item.brand_name) : null
   return (
     <Link href={summaryHref({ tag: 'decision', query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
       <div className="text-xs font-semibold text-foreground truncate">{item.title}</div>
       <div className="mt-2 flex items-center gap-1.5 min-w-0">
-        {client && (
+        {item.brand_name && (
           <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
-            <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
-            <span className="truncate">{client.name}</span>
+            {color && <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+            <span className="truncate">{item.brand_name}</span>
           </span>
         )}
         <span className="ml-auto flex gap-1 shrink-0">

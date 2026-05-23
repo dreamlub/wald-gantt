@@ -13,7 +13,7 @@ import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 
 interface EditDraft {
-  client_id: string
+  brand_name: string | null
   author: string | null
   priority: Priority | null
   tags: Tag[]
@@ -87,7 +87,7 @@ export function HistoryDetailDrawer({
     })
   }, [open, item?.id])
 
-  const client = clients.find(c => c.id === (isEditing && draft ? draft.client_id : item?.client_id))
+  const client = clients.find(c => c.name === (isEditing && draft ? draft.brand_name : item?.brand_name))
 
   async function copyBody() {
     if (!item?.body) return
@@ -101,10 +101,10 @@ export function HistoryDetailDrawer({
   function startEdit() {
     if (!item) return
     setDraft({
-      client_id: item.client_id,
-      author:    item.author,
-      priority:  item.priority,
-      tags:      [...(item.tags ?? [])],
+      brand_name: item.brand_name,
+      author:     item.author,
+      priority:   item.priority,
+      tags:       [...(item.tags ?? [])],
     })
     setSaveError(null)
     setIsEditing(true)
@@ -181,7 +181,7 @@ export function HistoryDetailDrawer({
                       className="w-full inline-flex items-center gap-2 px-2 py-1 rounded text-xs bg-card border border-border hover:border-ink-300 transition-colors text-foreground"
                     >
                       {(() => {
-                        const c = clients.find(x => x.id === draft.client_id)
+                        const c = clients.find(x => x.name === draft.brand_name)
                         return c ? (
                           <>
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
@@ -195,10 +195,10 @@ export function HistoryDetailDrawer({
                       <div className="absolute top-full left-0 mt-1 w-full bg-card border border-border rounded shadow-lg z-10 max-h-48 overflow-y-auto p-1">
                         {clients.map(c => (
                           <button
-                            key={c.id}
-                            onClick={() => { setDraft(d => ({ ...d!, client_id: c.id })); setBrandDropOpen(false) }}
+                            key={c.name}
+                            onClick={() => { setDraft(d => ({ ...d!, brand_name: c.name })); setBrandDropOpen(false) }}
                             className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors ${
-                              draft.client_id === c.id ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted'
+                              draft.brand_name === c.name ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted'
                             }`}
                           >
                             <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />

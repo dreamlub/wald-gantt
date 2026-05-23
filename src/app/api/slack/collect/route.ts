@@ -2,9 +2,9 @@ import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
-  matchBrand, classifyMessage, fetchClientsForWorkspace,
+  matchBrand, classifyMessage, fetchBrandMappings, getExcludedChannelIds,
   buildSourceRef, tsToISO, delay, isObviousNoise,
-  fetchUserDirectory, resolveUserName,
+  fetchUserDirectory, resolveUserName, resolveChannelName,
   getReplySourceIds, softDeleteReplyHistoryRows,
   type RawJson, type RawReply,
 } from '@/lib/slack-service'
@@ -56,13 +56,14 @@ export async function POST(req: NextRequest) {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        // 1. 클라이언트 목록 + Slack 사용자 디렉토리 조회
-        send('status', { message: '클라이언트 목록 / 사용자 디렉토리 조회 중...' })
-        const [clients, userDir] = await Promise.all([
-          fetchClientsForWorkspace(sb, workspaceId),
+        // 1. 브랜드 매핑 + Slack 사용자 디렉토리 조회
+        send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
+        const [brandMappings, userDir] = await Promise.all([
+          fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
         ])
-        const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
+        const excludedChannels = getExcludedChannelIds(brandMappings)
+        const FALLBACK_BRAND = '미분류'
 
         // 2. Slack 메시지 검색 (전체 채널, 해당 날짜)
         send('status', { message: `${date} 슬랙 메시지 검색 중...` })
@@ -96,12 +97,13 @@ export async function POST(req: NextRequest) {
           await delay(800)
         }
 
-        // 3. 노이즈 제거
+        // 3. 노이즈 + 제외 채널 제거
         const cleanMatches = allMatches.filter(m =>
           !m.bot_id &&
           m.subtype !== 'channel_join' &&
           m.subtype !== 'channel_leave' &&
-          m.subtype !== 'bot_message'
+          m.subtype !== 'bot_message' &&
+          !excludedChannels.has(m.channel.id)
         )
 
         // 4-a. search 결과에서 직접 발견된 부모 메시지
@@ -232,8 +234,9 @@ export async function POST(req: NextRequest) {
             continue
           }
 
+          const chName = resolveChannelName(userDir, m.channel.name)
           rawMessages.push({
-            channel: m.channel.name,
+            channel: chName,
             channel_id: m.channel.id,
             parent_ts: m.ts,
             raw_json: {
@@ -241,7 +244,7 @@ export async function POST(req: NextRequest) {
               text: m.text,
               user: m.user,
               user_name: resolveUserName(userDir, m.user, m.username),
-              channel: m.channel.name,
+              channel: chName,
               channel_id: m.channel.id,
               permalink: m.permalink,
               reply_count: replies.length,
@@ -298,8 +301,9 @@ export async function POST(req: NextRequest) {
             }
 
             const parentTs = parentMsg.ts ?? op.ts
+            const opChName = resolveChannelName(userDir, op.channelName)
             rawMessages.push({
-              channel: op.channelName,
+              channel: opChName,
               channel_id: op.channelId,
               parent_ts: parentTs,
               raw_json: {
@@ -307,7 +311,7 @@ export async function POST(req: NextRequest) {
                 text: parentMsg.text ?? '',
                 user: parentMsg.user ?? '',
                 user_name: resolveUserName(userDir, parentMsg.user, parentMsg.username),
-                channel: op.channelName,
+                channel: opChName,
                 channel_id: op.channelId,
                 permalink: buildSourceRef(op.channelId, parentTs),
                 reply_count: replies.length,
@@ -392,7 +396,7 @@ export async function POST(req: NextRequest) {
 
         type UpsertRow = {
           workspace_id: string
-          client_id: string | null
+          brand_name: string
           raw_message_id: string
           thread_count: number
           type: string
@@ -420,14 +424,14 @@ export async function POST(req: NextRequest) {
             if (isObviousNoise(rj)) return null
 
             const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
-            const clientId = matchBrand(rj.channel, fullText, clients) ?? fallbackClientId
+            const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
             try {
-              const result = await classifyMessage(rj, clientId, clients)
+              const result = await classifyMessage(rj, brandName)
               if (!result) return null
               return {
                 workspace_id: workspaceId,
-                client_id: clientId,
+                brand_name: brandName,
                 raw_message_id: raw.id,
                 thread_count: rj.reply_count,
                 type: 'slack',
@@ -438,7 +442,6 @@ export async function POST(req: NextRequest) {
                 title: result.title,
                 body: result.body,
                 priority: result.priority,
-                // 디렉토리 lookup이 가장 신뢰 가능 (한국어 display_name). AI 추출은 fallback
                 author: resolveUserName(userDir, rj.user, result.author || rj.user_name),
                 occurred_at: tsToISO(rj.ts),
               }

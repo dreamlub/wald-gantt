@@ -2,7 +2,7 @@ import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
-  matchBrand, classifyMessage, fetchClientsForWorkspace,
+  matchBrand, classifyMessage, fetchBrandMappings, getExcludedChannelIds,
   buildSourceRef, tsToISO, delay,
   fetchUserDirectory, resolveUserName,
   getReplySourceIds, softDeleteReplyHistoryRows,
@@ -76,27 +76,37 @@ export async function POST(_req: NextRequest) {
 
         send('status', { message: `${rawRows.length}건 스레드 업데이트 중...` })
 
-        const [clients, userDir] = await Promise.all([
-          fetchClientsForWorkspace(sb, workspaceId),
+        const [brandMappings, userDir] = await Promise.all([
+          fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
         ])
-        const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
+        const excludedChannels = getExcludedChannelIds(brandMappings)
+        const FALLBACK_BRAND = '미분류'
 
         let updated = 0
         let skipped = 0
         let deletedReplyRows = 0
 
-        const initialReplySourceIds = getReplySourceIds(rawRows.map(raw => raw.raw_json as RawJson))
+        // 제외 채널 필터링
+        const filteredRows = rawRows.filter(raw => {
+          const rj = raw.raw_json as RawJson
+          return !excludedChannels.has(rj.channel_id)
+        })
+        if (filteredRows.length < rawRows.length) {
+          send('status', { message: `제외 채널 ${rawRows.length - filteredRows.length}건 스킵` })
+        }
+
+        const initialReplySourceIds = getReplySourceIds(filteredRows.map(raw => raw.raw_json as RawJson))
         if (initialReplySourceIds.length > 0) {
           send('status', { message: `기존 스레드 답글 중복 이력 ${initialReplySourceIds.length}건 정리 중...` })
           deletedReplyRows += await softDeleteReplyHistoryRows(sb, workspaceId, initialReplySourceIds)
         }
 
-        for (let i = 0; i < rawRows.length; i++) {
-          const raw = rawRows[i]
+        for (let i = 0; i < filteredRows.length; i++) {
+          const raw = filteredRows[i]
           const prevRj = raw.raw_json as RawJson
 
-          send('status', { message: `스레드 업데이트 중... (${i + 1}/${rawRows.length})` })
+          send('status', { message: `스레드 업데이트 중... (${i + 1}/${filteredRows.length})` })
 
           // 3. 최신 replies 재수집
           const replies: RawJson['replies'] = []
@@ -150,16 +160,16 @@ export async function POST(_req: NextRequest) {
 
           // 5. 재분류 → client_history 업데이트
           const fullText = updatedRj.text + ' ' + updatedRj.replies.map(r => r.text).join(' ')
-          const clientId = matchBrand(updatedRj.channel, fullText, clients) ?? fallbackClientId
+          const brandName = matchBrand(updatedRj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
           try {
-            const result = await classifyMessage(updatedRj, clientId, clients)
+            const result = await classifyMessage(updatedRj, brandName)
             if (!result) { skipped++; await delay(80); continue }
 
             await sb.from('client_history').upsert(
               {
                 workspace_id: workspaceId,
-                client_id: clientId,
+                brand_name: brandName,
                 raw_message_id: raw.id,
                 thread_count: replies.length,
                 type: 'slack',

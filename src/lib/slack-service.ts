@@ -60,11 +60,10 @@ export interface ClassifyResult {
   author: string
 }
 
-interface DbClient {
-  id: string
-  name: string
-  keywords: string[]
-  channels: string[]
+export interface BrandMapping {
+  channel_id: string
+  brand_name: string | null
+  excluded: boolean
 }
 
 // ── 유틸 ─────────────────────────────────────────────────────────
@@ -156,27 +155,31 @@ export async function softDeleteReplyHistoryRows(
   return data?.length ?? 0
 }
 
-// ── 브랜드 매칭 (코드 기반) ───────────────────────────────────────
+// ── 브랜드 매칭 ──────────────────────────────────────────────────
 
-/**
- * 채널명 → 클라이언트 ID 매칭
- * 우선순위: channels 배열 → keywords 본문 매칭
- */
+/** 채널 ID → 브랜드명 매핑. brand_name이 없으면 fallback(미분류) 사용. */
 export function matchBrand(
-  channel: string,
-  text: string,
-  clients: DbClient[],
+  channelId: string,
+  brandMappings: BrandMapping[],
 ): string | null {
-  // 1. clients.channels에 현재 채널명 포함 → 확정
-  for (const c of clients) {
-    if (c.channels?.includes(channel)) return c.id
-  }
-  // 2. 본문에서 keywords 매칭
-  const lower = text.toLowerCase()
-  for (const c of clients) {
-    if (c.keywords?.some(kw => kw && lower.includes(kw.toLowerCase()))) return c.id
-  }
-  return null
+  const mapping = brandMappings.find(m => m.channel_id === channelId)
+  return mapping?.brand_name ?? null
+}
+
+export async function fetchBrandMappings(
+  sb: SupabaseClient,
+  workspaceId: string,
+): Promise<BrandMapping[]> {
+  const { data, error } = await sb
+    .from('slack_channel_mappings')
+    .select('channel_id, brand_name, excluded')
+    .eq('workspace_id', workspaceId)
+  if (error) throw error
+  return (data ?? []) as BrandMapping[]
+}
+
+export function getExcludedChannelIds(mappings: BrandMapping[]): Set<string> {
+  return new Set(mappings.filter(m => m.excluded).map(m => m.channel_id))
 }
 
 // ── 사용자 디렉토리 (Slack users.list) ─────────────────────────
@@ -233,18 +236,14 @@ export function resolveUserName(
   return (fallback ?? '').trim() || userId || ''
 }
 
-// ── 클라이언트 조회 ───────────────────────────────────────────────
+const USER_ID_RE = /^U[A-Z0-9]{8,}$/
 
-export async function fetchClientsForWorkspace(
-  sb: SupabaseClient,
-  workspaceId: string,
-): Promise<DbClient[]> {
-  const { data, error } = await sb
-    .from('clients')
-    .select('id, name, keywords, channels')
-    .eq('workspace_id', workspaceId)
-  if (error) throw error
-  return (data ?? []) as DbClient[]
+export function resolveChannelName(dir: UserDirectory, name: string): string {
+  if (USER_ID_RE.test(name)) {
+    const resolved = dir.get(name)
+    if (resolved) return `${resolved} (DM)`
+  }
+  return name
 }
 
 // ── AI 분류 ──────────────────────────────────────────────────────
@@ -255,12 +254,9 @@ export async function fetchClientsForWorkspace(
  */
 export async function classifyMessage(
   raw: RawJson,
-  clientId: string | null,
-  clients: DbClient[],
+  brandName: string,
 ): Promise<ClassifyResult | null> {
-  const clientName = clientId
-    ? (clients.find(c => c.id === clientId)?.name ?? '미분류')
-    : '미분류'
+  const clientName = brandName || '미분류'
 
   const fullText = [
     `채널: #${raw.channel}`,

@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import {
-  User, Link2, Monitor, Database, Layers,
+  User, Link2, Monitor, Database,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
-  Download, ChevronRight, Plus, BookOpen, Trash2, GripVertical,
+  Download, ChevronRight, Plus, BookOpen, Trash2, GripVertical, Hash,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
@@ -13,7 +13,7 @@ import { toast } from 'sonner'
 import type { Client } from '../../summary/_lib/types'
 import { useVaultHandle } from '@/hooks/use-vault-handle'
 import { getPathPattern, setPathPattern } from '@/lib/daily-note'
-import { BrandDrawer } from './brand-drawer'
+import { ChannelMappingSection } from './channel-mapping-section'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -24,7 +24,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 
-type Section = 'account' | 'integrations' | 'display' | 'brands' | 'weekly' | 'data'
+type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'data'
 
 type WeeklySource = {
   id: string
@@ -38,7 +38,7 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'account',      label: '계정',        icon: User },
   { key: 'integrations', label: '연동',        icon: Link2 },
   { key: 'display',      label: '화면',        icon: Monitor },
-  { key: 'brands',       label: '브랜드',      icon: Layers },
+  { key: 'channels',     label: 'Slack 채널',  icon: Hash },
   { key: 'weekly',       label: 'Weekly 연동', icon: BookOpen },
   { key: 'data',         label: '데이터',      icon: Database },
 ]
@@ -106,21 +106,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   const [vaultPattern, setVaultPattern] = useState('')
   useEffect(() => { setVaultPattern(getPathPattern()) }, [])
   const saveVaultPattern = (v: string) => { const p = v.trim() || 'Daily Notes/YYYY-MM-DD'; setVaultPattern(p); setPathPattern(p) }
-
-  const [brands, setBrands] = useState<Client[]>(clients)
-  const [drawerTarget, setDrawerTarget] = useState<Client | null>(null)
-  const [drawerOpen, setDrawerOpen] = useState(false)
-
-  const handleSaveBrand = (brand: Client, isNew: boolean) => {
-    if (isNew) {
-      setBrands(prev => [...prev, brand])
-    } else {
-      setBrands(prev => prev.map(b => b.id === brand.id ? brand : b))
-    }
-  }
-  const handleDeleteBrand = (id: string) => setBrands(prev => prev.filter(b => b.id !== id))
-
-  const openDrawer = (brand: Client | null) => { setDrawerTarget(brand); setDrawerOpen(true) }
 
   const [weeklySources, setWeeklySources] = useState<WeeklySource[]>(initialWeeklySources)
   const [weeklyForm, setWeeklyForm] = useState({ label: '', collection_id: '' })
@@ -223,7 +208,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
     account:      '계정',
     integrations: '연동',
     display:      '화면 설정',
-    brands:       '브랜드 관리',
+    channels:     'Slack 채널 관리',
     weekly:       'Weekly 문서 연동',
     data:         '데이터',
   }
@@ -351,35 +336,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                 <p className="text-[10px] text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
-              <SettingCard title="Slack 채널 → 브랜드 매핑">
-                <p className="text-[11px] text-muted-foreground leading-relaxed">
-                  Slack 채널명과 클라이언트 브랜드를 연결합니다.<br />
-                  슬랙 수집 시 자동으로 매핑됩니다.
-                </p>
-                {clients.length === 0 ? (
-                  <p className="text-xs text-ink-400">클라이언트가 없습니다.</p>
-                ) : (
-                  <div className="space-y-2">
-                    {clients.map(c => (
-                      <div key={c.id} className="flex items-center gap-3 py-2 border-b border-border last:border-0">
-                        <span
-                          className="w-2 h-2 rounded-full shrink-0"
-                          style={{ backgroundColor: c.color }}
-                        />
-                        <span className="text-xs font-medium text-foreground w-24 shrink-0 truncate">{c.name}</span>
-                        <input
-                          type="text"
-                          placeholder="#채널명"
-                          defaultValue=""
-                          className="flex-1 text-[11px] bg-background border border-border rounded px-2 py-1 text-foreground placeholder:text-ink-300 focus:outline-none focus:border-lilac-300 opacity-50 cursor-not-allowed"
-                          disabled
-                        />
-                      </div>
-                    ))}
-                  </div>
-                )}
-                <p className="text-[10px] text-ink-400">* 채널 매핑 저장 기능은 준비 중입니다.</p>
-              </SettingCard>
             </>
           )}
 
@@ -453,40 +409,11 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
             </>
           )}
 
-          {/* ── 브랜드 ── */}
-          {section === 'brands' && (
-            <>
-              <div className="flex items-center justify-end">
-                <button
-                  onClick={() => openDrawer(null)}
-                  className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity"
-                >
-                  <Plus size={12} /> 브랜드 추가
-                </button>
-              </div>
-              {brands.length === 0 ? (
-                <p className="text-xs text-ink-400 py-8 text-center">등록된 브랜드가 없습니다.</p>
-              ) : (
-                <div className="grid grid-cols-2 gap-2.5">
-                  {brands.map(b => (
-                    <button
-                      key={b.id}
-                      onClick={() => openDrawer(b)}
-                      className="text-left bg-card border border-border rounded-lg p-4 hover:border-lilac-300 hover:shadow-sm transition-all"
-                    >
-                      <div className="flex items-center gap-2 mb-2">
-                        <span className="w-3 h-3 rounded-full shrink-0" style={{ backgroundColor: b.color }} />
-                        <span className="text-xs font-semibold text-foreground truncate">{b.name}</span>
-                      </div>
-                      {b.name_en && (
-                        <div className="text-[11px] text-muted-foreground mb-1.5 truncate">{b.name_en}</div>
-                      )}
-                      <div className="text-[10px] text-ink-400">{b.keywords.length}개 키워드</div>
-                    </button>
-                  ))}
-                </div>
-              )}
-            </>
+          {/* ── Slack 채널 ── */}
+          {section === 'channels' && (
+            <SettingCard title="채널 → 브랜드 매핑">
+              <ChannelMappingSection clients={clients} />
+            </SettingCard>
           )}
 
           {/* ── Weekly 연동 ── */}
@@ -571,14 +498,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
         </div>
       </div>
 
-      <BrandDrawer
-        brand={drawerTarget}
-        workspaceId={workspaceId}
-        open={drawerOpen}
-        onClose={() => setDrawerOpen(false)}
-        onSaved={handleSaveBrand}
-        onDeleted={handleDeleteBrand}
-      />
     </div>
   )
 }
