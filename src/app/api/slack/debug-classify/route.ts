@@ -1,6 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
-import { classifyMessage, matchBrand, fetchClientsForWorkspace, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
+import { classifyMessage, matchBrand, fetchBrandMappings, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
 
 export async function GET(_req: NextRequest) {
   try {
@@ -29,15 +29,13 @@ export async function GET(_req: NextRequest) {
     if (error) return Response.json({ error: error.message }, { status: 500 })
     if (!rows?.length) return Response.json({ error: 'No raw messages found' }, { status: 404 })
 
-    const clients = await fetchClientsForWorkspace(sb, workspaceId)
-    const fallbackClientId = clients.find(c => c.name === '미분류')?.id ?? null
+    const brandMappings = await fetchBrandMappings(sb, workspaceId)
+    const FALLBACK_BRAND = '미분류'
 
     const results = []
     for (const row of rows) {
       const rj = row.raw_json as RawJson
-      const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
-      const clientId = matchBrand(rj.channel, fullText, clients) ?? fallbackClientId
-      const clientName = clients.find(c => c.id === clientId)?.name ?? '미분류'
+      const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
       let classifyResult = null
       let classifyError = null
@@ -45,15 +43,15 @@ export async function GET(_req: NextRequest) {
       let upsertData = null
 
       try {
-        classifyResult = await classifyMessage(rj, clientId, clients)
+        classifyResult = await classifyMessage(rj, brandName)
       } catch (e) {
         classifyError = e instanceof Error ? e.message : String(e)
       }
 
-      if (classifyResult && clientId) {
+      if (classifyResult) {
         upsertData = {
           workspace_id: workspaceId,
-          client_id: clientId,
+          brand_name: brandName,
           raw_message_id: row.id,
           thread_count: rj.reply_count,
           type: 'slack',
@@ -78,8 +76,7 @@ export async function GET(_req: NextRequest) {
         id: row.id,
         channel: rj.channel,
         text: rj.text.slice(0, 100),
-        matched_brand: clientName,
-        client_id: clientId,
+        brand_name: brandName,
         classify_result: classifyResult,
         classify_error: classifyError,
         upsert_data: upsertData,
@@ -87,7 +84,7 @@ export async function GET(_req: NextRequest) {
       })
     }
 
-    return Response.json({ fallback_client_id: fallbackClientId, results })
+    return Response.json({ results })
   } catch (e) {
     return Response.json({ error: e instanceof Error ? e.message : String(e) }, { status: 500 })
   }

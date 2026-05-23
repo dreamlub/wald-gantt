@@ -98,6 +98,10 @@ export async function POST(req: NextRequest) {
         }
 
         // 3. 노이즈 + 제외 채널 제거
+        const botCount = allMatches.filter(m => m.bot_id || m.subtype === 'bot_message').length
+        const joinLeaveCount = allMatches.filter(m => m.subtype === 'channel_join' || m.subtype === 'channel_leave').length
+        const excludedCount = allMatches.filter(m => excludedChannels.has(m.channel.id)).length
+
         const cleanMatches = allMatches.filter(m =>
           !m.bot_id &&
           m.subtype !== 'channel_join' &&
@@ -105,6 +109,22 @@ export async function POST(req: NextRequest) {
           m.subtype !== 'bot_message' &&
           !excludedChannels.has(m.channel.id)
         )
+
+        if (excludedCount > 0) {
+          const excludedByChannel: Record<string, number> = {}
+          for (const m of allMatches) {
+            if (excludedChannels.has(m.channel.id)) {
+              const name = m.channel.name || m.channel.id
+              excludedByChannel[name] = (excludedByChannel[name] ?? 0) + 1
+            }
+          }
+          const detail = Object.entries(excludedByChannel).map(([ch, n]) => `${ch}(${n})`).join(', ')
+          send('status', { message: `제외 채널: ${detail}` })
+        }
+
+        send('status', {
+          message: `검색 ${allMatches.length}건 → 봇 ${botCount}, 입퇴장 ${joinLeaveCount}, 제외채널 ${excludedCount} 제거 → ${cleanMatches.length}건 처리`,
+        })
 
         // 4-a. search 결과에서 직접 발견된 부모 메시지
         const seenKeys = new Set<string>()
@@ -412,23 +432,34 @@ export async function POST(req: NextRequest) {
           reclassified_at?: string
         }
 
+        let totalNoise = 0
+        let totalAiSkip = 0
+        let totalError = 0
+
         for (let bIdx = 0; bIdx < newRawList.length; bIdx += BATCH_SIZE) {
           const batch = newRawList.slice(bIdx, bIdx + BATCH_SIZE)
           const endIdx = Math.min(bIdx + BATCH_SIZE, newRawList.length)
           send('status', { message: `AI 분류 중... (${endIdx}/${newRawList.length})` })
 
+          let noiseCount = 0
+          let aiSkipCount = 0
+
           const results = await Promise.all(batch.map(async (raw): Promise<UpsertRow | null> => {
             const rj = raw.raw_json as RawJson
 
             // 사전 필터: 명백한 노이즈는 AI 호출 생략
-            if (isObviousNoise(rj)) return null
+            if (isObviousNoise(rj)) { noiseCount++; return null }
 
             const fullText = rj.text + ' ' + rj.replies.map(r => r.text).join(' ')
             const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
             try {
               const result = await classifyMessage(rj, brandName)
-              if (!result) return null
+              if (!result) {
+                aiSkipCount++
+                send('status', { message: `AI 제외: #${rj.channel} "${rj.text.slice(0, 40)}..."` })
+                return null
+              }
               return {
                 workspace_id: workspaceId,
                 brand_name: brandName,
@@ -446,13 +477,18 @@ export async function POST(req: NextRequest) {
                 occurred_at: tsToISO(rj.ts),
               }
             } catch (e) {
-              console.error(`[slack/collect] classify error (${rj.channel}:${rj.ts}):`, e)
+              totalError++
+              const errMsg = e instanceof Error ? e.message : String(e)
+              send('status', { message: `분류 오류: #${rj.channel} — ${errMsg.slice(0, 60)}` })
               return null
             }
           }))
 
           const valid = results.filter((r): r is UpsertRow => r !== null)
           skipped += results.length - valid.length
+
+          totalNoise += noiseCount
+          totalAiSkip += aiSkipCount
 
           if (valid.length > 0) {
             const now = new Date().toISOString()
@@ -495,13 +531,20 @@ export async function POST(req: NextRequest) {
           if (endIdx < newRawList.length) await delay(200)
         }
 
+        const skipDetail = [
+          skipCount > 0 ? `기존 ${skipCount}` : '',
+          totalNoise > 0 ? `노이즈 ${totalNoise}` : '',
+          totalAiSkip > 0 ? `AI제외 ${totalAiSkip}` : '',
+          totalError > 0 ? `오류 ${totalError}` : '',
+        ].filter(Boolean).join(', ')
+
         send('result', {
           date,
           raw_count: rawRows?.length ?? 0,
           classified,
-          skipped,
+          skipped: skipped + skipCount,
           deleted_reply_rows: deletedReplyRows,
-          message: `완료 — raw ${rawRows?.length ?? 0}건 저장, 분류 ${classified}건, 제외 ${skipped}건, 답글 중복 ${deletedReplyRows}건 정리`,
+          message: `완료 — raw ${rawRows?.length ?? 0}건, 분류 ${classified}건${skipDetail ? `, 제외(${skipDetail})` : ''}, 답글중복 ${deletedReplyRows}건`,
         })
 
       } catch (err) {

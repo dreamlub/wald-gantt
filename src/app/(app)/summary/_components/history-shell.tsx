@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, RefreshCw,
+  Sparkles, LayoutList, RefreshCw, Database,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -17,6 +17,7 @@ import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history
 import { TableView } from './table-view'
 import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
+import { RawDataView } from './raw-data-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -25,9 +26,9 @@ import {
   addTask, addProject, searchProjects,
 } from '@/lib/gantt-service'
 
-type ViewKey = 'table' | 'insight' | 'summary'
+type ViewKey = 'table' | 'insight' | 'summary' | 'rawdata'
 
-const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary']
+const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'insight', 'summary', 'rawdata']
 // 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'in_progress', 'done', 'schedule']
@@ -45,8 +46,9 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
-  { key: 'insight', label: '인사이트', icon: Sparkles },
   { key: 'table',   label: '타임라인', icon: LayoutList },
+  { key: 'insight', label: '인사이트', icon: Sparkles },
+  { key: 'rawdata', label: 'Raw Data', icon: Database },
 ]
 
 function relativeCollectedLabel(latest: string | null): string {
@@ -106,6 +108,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   // ── 슬랙 수집 ─────────────────────────────────────────────────
   const [collectStatus,  setCollectStatus]  = useState<string>('')
   const [isCollecting,   setIsCollecting]   = useState(false)
+  const [collectFrom,    setCollectFrom]    = useState('')
+  const [collectTo,      setCollectTo]      = useState('')
 
   function todayStr() {
     const d = new Date()
@@ -154,11 +158,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     setCollectStatus('준비 중...')
     try {
       const today = todayStr()
-      // 최초 수집이면 당월 1일부터, 이후엔 마지막 수집일부터
-      const fromDate = latestCollectedAt
-        ? latestCollectedAt.slice(0, 10)
-        : `${today.slice(0, 7)}-01`
-      const dates = getDateRange(fromDate, today)
+      const from = collectFrom || (latestCollectedAt ? latestCollectedAt.slice(0, 10) : `${today.slice(0, 7)}-01`)
+      const to = collectTo || today
+      const dates = getDateRange(from, to)
       for (const date of dates) {
         await runSSE('/api/slack/collect', { date }, (msg) => {
           toast.success(dates.length > 1 ? `[${date}] ${msg}` : msg)
@@ -421,11 +423,28 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-3">
-            {(isCollecting) ? (
+          <div className="ml-auto flex items-center gap-2">
+            {isCollecting ? (
               <span className="text-[11px] text-ink-400 max-w-56 truncate">{collectStatus}</span>
             ) : (
-              <span className="text-[11px] text-ink-400">{relativeCollectedLabel(latestCollectedAt)}</span>
+              <>
+                <span className="text-[11px] text-ink-400">{relativeCollectedLabel(latestCollectedAt)}</span>
+                <input
+                  type="date"
+                  value={collectFrom}
+                  onChange={e => setCollectFrom(e.target.value)}
+                  placeholder="시작일"
+                  className="text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground w-[110px] focus:outline-none focus:border-lilac-300"
+                />
+                <span className="text-[10px] text-ink-400">~</span>
+                <input
+                  type="date"
+                  value={collectTo}
+                  onChange={e => setCollectTo(e.target.value)}
+                  placeholder="종료일"
+                  className="text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground w-[110px] focus:outline-none focus:border-lilac-300"
+                />
+              </>
             )}
             <button
               onClick={handleCollect}
@@ -441,7 +460,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
         {/* 본문 */}
         <div className="flex-1 flex flex-col overflow-hidden bg-card">
-          {view === 'insight' ? (
+          {view === 'rawdata' ? (
+            <RawDataView />
+          ) : view === 'insight' ? (
             <div className="flex-1 overflow-y-auto">
               <div className="px-6 py-5">
                 <InsightView
