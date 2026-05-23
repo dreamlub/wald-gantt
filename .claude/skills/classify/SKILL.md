@@ -49,7 +49,7 @@ WHERE workspace_id = (SELECT workspace_id FROM workspace_members LIMIT 1)
 
 | 필드 | 규칙 |
 |------|------|
-| brand_name | 채널 매핑 기준, 없으면 "미분류" |
+| brand_name | 채널 매핑 기준. 매핑 없는 채널이라도 본문에 브랜드명이 명시되어 있으면 해당 브랜드로 분류 (예: "더리터 김해큐시티점 매출 오류" → 더리터). 둘 다 없으면 "미분류" |
 | title | 30자 이내. "어디서 무슨 일" 형태 |
 | body | 개조식 블릿으로 기승전결 요약 (아래 형식 참조) |
 

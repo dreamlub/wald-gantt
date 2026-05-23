@@ -12,6 +12,22 @@ import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 
+function MarkdownBody({ text, className }: { text: string; className?: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className={className}>
+      {lines.map((line, i) => {
+        const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+          part.startsWith('**') && part.endsWith('**')
+            ? <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+            : <span key={j}>{part}</span>
+        )
+        return <div key={i}>{parts}</div>
+      })}
+    </div>
+  )
+}
+
 interface EditDraft {
   brand_name: string | null
   author: string | null
@@ -327,9 +343,7 @@ export function HistoryDetailDrawer({
             {item.body && (
               <div>
                 <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
-                <div className="text-xs text-foreground leading-[1.7] whitespace-pre-wrap break-words">
-                  {item.body}
-                </div>
+                <MarkdownBody text={item.body} className="text-xs text-ink-700 leading-[1.7] break-words" />
               </div>
             )}
 

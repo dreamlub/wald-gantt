@@ -47,6 +47,22 @@ function getDateLabel(iso: string): string {
   return format(new Date(iso), 'M월 d일 (eee)', { locale: ko })
 }
 
+function MarkdownBody({ text, className }: { text: string; className?: string }) {
+  const lines = text.split('\n')
+  return (
+    <div className={className}>
+      {lines.map((line, i) => {
+        const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
+          part.startsWith('**') && part.endsWith('**')
+            ? <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
+            : <span key={j}>{part}</span>
+        )
+        return <div key={i}>{parts}</div>
+      })}
+    </div>
+  )
+}
+
 function Highlight({ text, query }: { text: string; query?: string }) {
   const q = query?.trim()
   if (!q) return <>{text}</>
@@ -166,9 +182,7 @@ function DetailPanel({
 
         {/* 본문 텍스트 */}
         {item.body && (
-          <div className="text-[13px] text-foreground leading-[1.75] whitespace-pre-wrap break-words">
-            {item.body}
-          </div>
+          <MarkdownBody text={item.body} className="text-[13px] text-ink-700 leading-[1.75] break-words" />
         )}
 
         {/* 요약 이력 */}
@@ -198,7 +212,7 @@ function DetailPanel({
                     </div>
                     <p className="text-[12px] font-medium text-ink-600">{v.title}</p>
                     {v.body && (
-                      <p className="text-[12px] text-ink-500 leading-[1.6] whitespace-pre-wrap break-words">{v.body}</p>
+                      <MarkdownBody text={v.body} className="text-[12px] text-ink-500 leading-[1.6] break-words" />
                     )}
                   </div>
                 ))}

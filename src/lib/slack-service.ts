@@ -58,6 +58,7 @@ export interface ClassifyResult {
   title: string
   body: string
   author: string
+  brand?: string
 }
 
 export interface BrandMapping {
@@ -274,7 +275,7 @@ export async function classifyMessage(
 
 ${fullText}
 
-브랜드: ${clientName}${isDmChannel ? '\n채널 유형: DM (업무 관련 가능성 높음)' : ''}
+브랜드: ${clientName}${clientName === '미분류' ? ' (본문에 브랜드명이 있으면 brand 필드에 해당 브랜드명 반환)' : ''}${isDmChannel ? '\n채널 유형: DM (업무 관련 가능성 높음)' : ''}
 
 제외 (skip: true):
 - 봇/자동화/캘린더 알림, 채널 입퇴장
@@ -290,7 +291,7 @@ ${fullText}
 - medium: 일반 이슈/프로젝트 진행 (기본값)
 - low: 단순공유/완료보고/일정조율
 
-{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"• **배경**: 어떤 상황인지\\n• **경과**: 어떻게 진행되었는지\\n• **조치/결과**: 어떤 액션이 필요하거나 결론이 났는지\\n(해당 단계가 없으면 생략. 중요 키워드는 **볼드**로 표기)","author":"작성자 이름"}`
+{"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"• **배경**: 어떤 상황인지\\n• **경과**: 어떻게 진행되었는지\\n• **조치/결과**: 어떤 액션이 필요하거나 결론이 났는지\\n(해당 단계가 없으면 생략. 중요 키워드는 **볼드**로 표기)","author":"작성자 이름","brand":"본문에서 추정된 브랜드명 (미분류일 때만, 아니면 생략)"}`
 
   let msg: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
@@ -343,5 +344,6 @@ ${fullText}
     title:    typeof parsed.title === 'string' ? parsed.title.slice(0, 60) : '',
     body:     typeof parsed.body  === 'string' ? parsed.body  : '',
     author:   typeof parsed.author === 'string' ? parsed.author : '',
+    brand:    typeof parsed.brand === 'string' && parsed.brand ? parsed.brand : undefined,
   }
 }

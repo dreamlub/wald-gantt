@@ -118,7 +118,7 @@ export async function POST(req: NextRequest) {
               if (!result) { totalAiSkip++; return null }
               return {
                 workspace_id: workspaceId,
-                brand_name: brandName,
+                brand_name: result.brand || brandName,
                 raw_message_id: raw.id,
                 thread_count: rj.reply_count,
                 type: 'slack',
