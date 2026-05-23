@@ -211,12 +211,11 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
   if (!report) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-10 h-10 rounded-full bg-lilac-100 flex items-center justify-center mb-4">
-          <Sparkles size={18} className="text-lilac-500" />
+        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-4">
+          <Sparkles size={18} className="text-ink-400" />
         </div>
-        <p className="text-xs font-medium text-foreground mb-1">{dateLabel}</p>
-        <p className="text-[11px] text-ink-400">데일리 리포트가 아직 생성되지 않았습니다</p>
-        <p className="text-[11px] text-ink-300 mt-1">MCP로 데일리 리포트를 생성해주세요</p>
+        <p className="text-sm font-semibold text-foreground mb-1">{dateLabel}</p>
+        <p className="text-xs text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>
       </div>
     )
   }
