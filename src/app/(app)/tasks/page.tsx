@@ -1,6 +1,6 @@
 'use client'
 
-import React, { useState } from 'react'
+import React, { Suspense, useState } from 'react'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { TaskTrashPanel } from '@/components/tasks/TaskTrashPanel'
 import { TaskArchivePanel } from '@/components/tasks/TaskArchivePanel'
@@ -24,6 +24,14 @@ import { KanbanView } from './_components/KanbanView'
 import { TaskDetailDrawer } from './_components/TaskDetailDrawer'
 
 export default function TasksPage() {
+  return (
+    <Suspense fallback={<div className="flex-1 flex items-center justify-center text-ink-400 text-xs">로딩 중...</div>}>
+      <TasksPageContent />
+    </Suspense>
+  )
+}
+
+function TasksPageContent() {
   const data = useTasksData()
   const filters = useTaskFilters(data.workspace, data.tasks)
   const drag = useTaskDrag(data.tasks, data.setTasks, data.expandedParents, data.setExpandedParents, data.handleStatusChange, data.load)

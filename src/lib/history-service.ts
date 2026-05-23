@@ -33,6 +33,7 @@ interface DbHistory {
   author: string | null
   raw_message_id: string | null
   thread_count: number
+  reclassified_at: string | null
   deleted_at: string | null
 }
 
@@ -65,6 +66,7 @@ function toHistory(r: DbHistory): HistoryItem {
     author: r.author,
     raw_message_id: r.raw_message_id,
     thread_count: r.thread_count ?? 0,
+    reclassified_at: r.reclassified_at,
   }
 }
 
@@ -103,15 +105,48 @@ export async function updateClientKeywords(clientId: string, keywords: string[])
 
 // ── 히스토리 ─────────────────────────────────────────────────
 
+// Slack permalink에 ?thread_ts=X&... 가 있고 X !== ts 이면 스레드 답글
+function isThreadReplyPermalink(permalink: string, ts: string): boolean {
+  try {
+    const threadTs = new URL(permalink).searchParams.get('thread_ts')
+    return !!threadTs && threadTs !== ts
+  } catch {
+    return false
+  }
+}
+
 export async function listHistory(sb?: Sb): Promise<HistoryItem[]> {
   const client = sb ?? createBrowserClient()
-  const { data, error } = await client
-    .from('client_history')
-    .select('*')
-    .is('deleted_at', null)
-    .order('occurred_at', { ascending: false })
-  if (error) throw error
-  return (data ?? []).map(toHistory)
+
+  const [histResult, rawResult] = await Promise.all([
+    client
+      .from('client_history')
+      .select('*')
+      .is('deleted_at', null)
+      .order('occurred_at', { ascending: false }),
+    client
+      .from('slack_raw_messages')
+      .select('id, raw_json'),
+  ])
+
+  if (histResult.error) throw histResult.error
+  if (rawResult.error) throw rawResult.error
+
+  // raw_json.permalink 기반으로 스레드 답글인 raw_message_id Set 구성
+  const threadReplyRawIds = new Set<string>()
+  for (const row of rawResult.data ?? []) {
+    const rj = row.raw_json as { permalink?: string; ts?: string } | null
+    if (rj?.permalink && rj?.ts && isThreadReplyPermalink(rj.permalink, rj.ts)) {
+      threadReplyRawIds.add(row.id)
+    }
+  }
+
+  const rows = histResult.data ?? []
+  const filtered = rows.filter(row =>
+    !row.raw_message_id || !threadReplyRawIds.has(row.raw_message_id)
+  )
+
+  return filtered.map(toHistory)
 }
 
 // Insert는 Make 시나리오가 Supabase에 직접 수행. 앱은 읽기만.

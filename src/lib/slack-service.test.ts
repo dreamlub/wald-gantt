@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { isObviousNoise, type RawJson } from './slack-service'
+import { getReplySourceIds, isObviousNoise, type RawJson } from './slack-service'
 
 function makeRj(text: string, replies: RawJson['replies'] = []): RawJson {
   return {
@@ -49,5 +49,20 @@ describe('isObviousNoise', () => {
     expect(isObviousNoise(makeRj('네', replies))).toBe(false)
     expect(isObviousNoise(makeRj('', replies))).toBe(false)
     expect(isObviousNoise(makeRj('🙏', replies))).toBe(false)
+  })
+})
+
+describe('getReplySourceIds', () => {
+  it('returns unique reply timestamps and excludes the parent timestamp', () => {
+    expect(getReplySourceIds([
+      makeRj('parent', [
+        { ts: '1716364860.000002', text: 'reply', user: 'U2', user_name: 'a' },
+        { ts: '1716364860.000002', text: 'duplicate', user: 'U2', user_name: 'a' },
+        { ts: '1716284400.001', text: 'parent echoed', user: 'U1', user_name: 'tester' },
+      ]),
+      makeRj('another parent', [
+        { ts: '1716365040.000003', text: 'reply', user: 'U3', user_name: 'b' },
+      ]),
+    ])).toEqual(['1716364860.000002', '1716365040.000003'])
   })
 })

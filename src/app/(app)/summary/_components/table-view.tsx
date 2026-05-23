@@ -3,13 +3,14 @@
 import { useMemo, useState, useEffect, useRef, useCallback } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { ExternalLink, ListTodo, CalendarRange, ChevronUp, ChevronDown, MessageSquare } from 'lucide-react'
+import { ExternalLink, ListTodo, CalendarRange, ChevronUp, ChevronDown, MessageSquare, History, ChevronRight } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority, ThreadReply, SummaryVersion } from '../_lib/types'
 import { createClient } from '@/lib/supabase/client'
-import type { RawJson } from '@/lib/slack-service'
+import { fetchThreadRepliesForItem, fetchSummaryVersions } from '../_lib/thread-replies'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
+import { SlackText } from './slack-text'
 
 const PRIORITY_TITLE_CLASS: Record<Priority, string> = {
   high:   'font-semibold text-rose-500',
@@ -77,6 +78,7 @@ interface DetailPanelProps {
   client?: Client
   selectedIdx: number
   totalCount: number
+  summaryVersions: SummaryVersion[]
   onPrev: () => void
   onNext: () => void
   onToggleTag: (t: Tag) => void
@@ -87,10 +89,11 @@ interface DetailPanelProps {
 }
 
 function DetailPanel({
-  item, client, selectedIdx, totalCount,
+  item, client, selectedIdx, totalCount, summaryVersions,
   onPrev, onNext, onToggleTag, onSelectBrand, onSelectAuthor,
   onCreateTask, onCreateProject,
 }: DetailPanelProps) {
+  const [versionsOpen, setVersionsOpen] = useState(false)
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -173,6 +176,42 @@ function DetailPanel({
           </div>
         )}
 
+        {/* 요약 이력 */}
+        {summaryVersions.length > 0 && (
+          <div className="border border-border rounded-lg overflow-hidden">
+            <button
+              onClick={() => setVersionsOpen(v => !v)}
+              className="w-full px-4 py-2.5 bg-muted border-b border-border flex items-center justify-between hover:bg-accent/20 transition-colors"
+            >
+              <span className="inline-flex items-center gap-1.5 text-[11px] font-semibold text-ink-600">
+                <History size={11} />
+                이전 요약 이력 {summaryVersions.length}건
+              </span>
+              <ChevronRight
+                size={12}
+                className={`text-ink-400 transition-transform ${versionsOpen ? 'rotate-90' : ''}`}
+              />
+            </button>
+            {versionsOpen && (
+              <div className="divide-y divide-border">
+                {summaryVersions.map(v => (
+                  <div key={v.id} className="px-4 py-3 space-y-1">
+                    <div className="flex items-center justify-between">
+                      <span className="text-[10px] text-ink-400 tabular-nums">
+                        {format(new Date(v.archived_at), 'M/d HH:mm', { locale: ko })} 기준 (스레드 {v.thread_count}개)
+                      </span>
+                    </div>
+                    <p className="text-[12px] font-medium text-ink-600">{v.title}</p>
+                    {v.body && (
+                      <p className="text-[12px] text-ink-500 leading-[1.6] whitespace-pre-wrap break-words">{v.body}</p>
+                    )}
+                  </div>
+                ))}
+              </div>
+            )}
+          </div>
+        )}
+
         {/* 스레드 답변 */}
         {item.thread_replies && item.thread_replies.length > 0 && (
           <div className="border border-border rounded-lg overflow-hidden">
@@ -192,9 +231,13 @@ function DetailPanel({
                     <span className="text-[11px] font-semibold text-foreground">{reply.author}</span>
                     <span className="text-[10px] text-ink-400 tabular-nums">{fmtReplyTime(reply.occurred_at)}</span>
                   </div>
-                  <div className="text-[13px] text-foreground leading-[1.6] whitespace-pre-wrap break-words">
-                    {reply.text}
-                  </div>
+                  {reply.ai_body ? (
+                    <p className="text-[13px] text-foreground leading-[1.75] whitespace-pre-wrap break-words">
+                      {reply.ai_body}
+                    </p>
+                  ) : (
+                    <SlackText text={reply.text} className="text-[13px] text-foreground leading-[1.6] break-words" />
+                  )}
                 </div>
               ))}
             </div>
@@ -212,7 +255,7 @@ function DetailPanel({
                 className="text-xs text-foreground hover:text-lilac-500 transition-colors truncate block max-w-full text-left"
                 title={`${item.author}로 필터`}
               >
-                {client ? `[${client.name}] ` : ''}{item.author}
+                {item.author}
               </button>
             ) : <span className="text-xs text-ink-300">—</span>}
           </div>
@@ -288,6 +331,7 @@ export function TableView({
 
   const [selectedId, setSelectedId] = useState<string | null>(null)
   const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
+  const [summaryVersions, setSummaryVersions] = useState<SummaryVersion[]>([])
   const selectedRowRef = useRef<HTMLDivElement>(null)
 
   // 날짜별 그룹 — items는 이미 날짜 내림차순 정렬, 모든 본문(parent) 표시
@@ -327,23 +371,25 @@ export function TableView({
     setSelectedId(flatItems[idx].id)
   }, [flatItems])
 
-  // 선택된 아이템의 스레드 replies lazy-fetch
+  // 선택된 아이템의 스레드 replies + 요약 이력 lazy-fetch
   useEffect(() => {
-    if (!selectedItem?.raw_message_id) { setThreadReplies([]); return }
+    if (!selectedItem) return
+    let cancelled = false
     const sb = createClient()
-    sb.from('slack_raw_messages')
-      .select('raw_json')
-      .eq('id', selectedItem.raw_message_id)
-      .single()
-      .then(({ data }) => {
-        const replies = (data?.raw_json as RawJson | null)?.replies ?? []
-        setThreadReplies(replies.map(r => ({
-          author: r.user_name || r.user,
-          occurred_at: new Date(parseFloat(r.ts) * 1000).toISOString(),
-          text: r.text,
-        })))
-      })
-  }, [selectedItem?.id, selectedItem?.raw_message_id])
+    Promise.all([
+      fetchThreadRepliesForItem(sb, selectedItem),
+      selectedItem.id ? fetchSummaryVersions(sb, selectedItem.id) : Promise.resolve([]),
+    ]).then(([replies, versions]) => {
+      if (!cancelled) {
+        setThreadReplies(replies)
+        setSummaryVersions(versions)
+      }
+    }).catch(error => {
+      console.error('[summary/table] fetch failed:', error)
+      if (!cancelled) { setThreadReplies([]); setSummaryVersions([]) }
+    })
+    return () => { cancelled = true }
+  }, [selectedItem])
 
   // 선택 아이템 변경 시 목록에서 스크롤
   useEffect(() => {
@@ -434,6 +480,14 @@ export function TableView({
                           title={`스레드 답변 ${item.thread_count}건`}
                         />
                       )}
+                      {item.reclassified_at && (
+                        <span
+                          className="ml-0.5 text-[9px] px-1 py-px rounded font-medium bg-amber-100 text-amber-700 shrink-0"
+                          title={`요약 업데이트됨: ${format(new Date(item.reclassified_at), 'M/d HH:mm', { locale: ko })}`}
+                        >
+                          업데이트
+                        </span>
+                      )}
                     </div>
                     {/* 제목 */}
                     <div className={`text-xs leading-[1.4] ${item.priority ? PRIORITY_TITLE_CLASS[item.priority] : 'font-normal text-foreground'}`}>
@@ -473,6 +527,7 @@ export function TableView({
           client={clientMap.get(selectedItem.client_id)}
           selectedIdx={selectedIdx}
           totalCount={flatItems.length}
+          summaryVersions={summaryVersions}
           onPrev={() => selectByIndex(selectedIdx - 1)}
           onNext={() => selectByIndex(selectedIdx + 1)}
           onToggleTag={onToggleTag}

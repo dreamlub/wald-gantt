@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from 'react'
 
 import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
 import { createClient } from '@/lib/supabase/client'
-import type { RawJson } from '@/lib/slack-service'
+import { fetchThreadRepliesForItem } from '../_lib/thread-replies'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
@@ -44,21 +44,17 @@ export function HistoryDetailDrawer({
 
   // 슬랙 스레드 답글 lazy-fetch
   useEffect(() => {
-    if (!item?.raw_message_id) { setThreadReplies([]); return }
+    if (!item) return
+    let cancelled = false
     const sb = createClient()
-    sb.from('slack_raw_messages')
-      .select('raw_json')
-      .eq('id', item.raw_message_id)
-      .single()
-      .then(({ data }) => {
-        const replies = (data?.raw_json as RawJson | null)?.replies ?? []
-        setThreadReplies(replies.map(r => ({
-          author: r.user_name || r.user,
-          occurred_at: new Date(parseFloat(r.ts) * 1000).toISOString(),
-          text: r.text,
-        })))
+    fetchThreadRepliesForItem(sb, item)
+      .then(replies => { if (!cancelled) setThreadReplies(replies) })
+      .catch(error => {
+        console.error('[summary/detail] thread replies fetch failed:', error)
+        if (!cancelled) setThreadReplies([])
       })
-  }, [item?.id, item?.raw_message_id])
+    return () => { cancelled = true }
+  }, [item])
 
   useEffect(() => {
     if (!brandDropOpen) return
@@ -81,9 +77,14 @@ export function HistoryDetailDrawer({
     return () => document.removeEventListener('keydown', onKey)
   }, [open, onClose, isEditing])
 
-  // eslint-disable-next-line react-hooks/exhaustive-deps
   useEffect(() => {
-    if (open) { setCopied(false); setIsEditing(false); setDraft(null); setSaveError(null) }
+    if (!open) return
+    queueMicrotask(() => {
+      setCopied(false)
+      setIsEditing(false)
+      setDraft(null)
+      setSaveError(null)
+    })
   }, [open, item?.id])
 
   const client = clients.find(c => c.id === (isEditing && draft ? draft.client_id : item?.client_id))

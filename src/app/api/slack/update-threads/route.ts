@@ -5,6 +5,7 @@ import {
   matchBrand, classifyMessage, fetchClientsForWorkspace,
   buildSourceRef, tsToISO, delay,
   fetchUserDirectory, resolveUserName,
+  getReplySourceIds, softDeleteReplyHistoryRows,
   type RawJson,
 } from '@/lib/slack-service'
 
@@ -83,6 +84,13 @@ export async function POST(_req: NextRequest) {
 
         let updated = 0
         let skipped = 0
+        let deletedReplyRows = 0
+
+        const initialReplySourceIds = getReplySourceIds(rawRows.map(raw => raw.raw_json as RawJson))
+        if (initialReplySourceIds.length > 0) {
+          send('status', { message: `기존 스레드 답글 중복 이력 ${initialReplySourceIds.length}건 정리 중...` })
+          deletedReplyRows += await softDeleteReplyHistoryRows(sb, workspaceId, initialReplySourceIds)
+        }
 
         for (let i = 0; i < rawRows.length; i++) {
           const raw = rawRows[i]
@@ -91,7 +99,7 @@ export async function POST(_req: NextRequest) {
           send('status', { message: `스레드 업데이트 중... (${i + 1}/${rawRows.length})` })
 
           // 3. 최신 replies 재수집
-          let replies: RawJson['replies'] = []
+          const replies: RawJson['replies'] = []
           try {
             const thread = await slack.conversations.replies({
               channel: raw.channel_id!,
@@ -134,6 +142,12 @@ export async function POST(_req: NextRequest) {
 
           if (rawUpsertErr) { console.error(rawUpsertErr); skipped++; continue }
 
+          deletedReplyRows += await softDeleteReplyHistoryRows(
+            sb,
+            workspaceId,
+            getReplySourceIds([updatedRj]),
+          )
+
           // 5. 재분류 → client_history 업데이트
           const fullText = updatedRj.text + ' ' + updatedRj.replies.map(r => r.text).join(' ')
           const clientId = matchBrand(updatedRj.channel, fullText, clients) ?? fallbackClientId
@@ -174,7 +188,8 @@ export async function POST(_req: NextRequest) {
         send('result', {
           updated,
           skipped,
-          message: `완료 — ${updated}건 업데이트, ${skipped}건 변경 없음/오류`,
+          deleted_reply_rows: deletedReplyRows,
+          message: `완료 — ${updated}건 업데이트, ${skipped}건 변경 없음/오류, 답글 중복 ${deletedReplyRows}건 정리`,
         })
 
       } catch (err) {

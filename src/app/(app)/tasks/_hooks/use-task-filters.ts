@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
+import { useSearchParams } from 'next/navigation'
 import { searchProjects } from '@/lib/gantt-service'
 import { todayStrKST } from '@/lib/gantt-utils'
 import type { GanttTask, Workspace } from '@/types'
@@ -9,13 +10,20 @@ import { isOverdue, isStartDelayed, isDueThisWeek, isDueNextWeek, overdueDays, d
 
 export type QuickFilterKey = 'all' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week' | 'done'
 
+const QUICK_FILTER_KEYS: QuickFilterKey[] = ['all', 'overdue', 'start-delayed', 'due-today', 'due-this-week', 'due-next-week', 'done']
+
+function parseQuickFilter(value: string | null): QuickFilterKey {
+  return QUICK_FILTER_KEYS.includes(value as QuickFilterKey) ? value as QuickFilterKey : 'all'
+}
+
 export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) {
-  const [filterProject,  setFilterProject]  = useState<string | null>(null)
-  const [filterAssignee, setFilterAssignee] = useState<string | null>(null)
-  const [filterLabel,    setFilterLabel]    = useState<string | null>(null)
-  const [quickFilter,    setQuickFilter]    = useState<QuickFilterKey>('all')
-  const [searchQuery,    setSearchQuery]    = useState('')
-  const [searchOpen,     setSearchOpen]     = useState(false)
+  const searchParams = useSearchParams()
+  const [filterProject,  setFilterProject]  = useState<string | null>(() => searchParams.get('project'))
+  const [filterAssignee, setFilterAssignee] = useState<string | null>(() => searchParams.get('assignee'))
+  const [filterLabel,    setFilterLabel]    = useState<string | null>(() => searchParams.get('label'))
+  const [quickFilter,    setQuickFilter]    = useState<QuickFilterKey>(() => parseQuickFilter(searchParams.get('quick')))
+  const [searchQuery,    setSearchQuery]    = useState(() => searchParams.get('q') ?? '')
+  const [searchOpen,     setSearchOpen]     = useState(() => !!searchParams.get('q'))
   const [assigneeSearch, setAssigneeSearch] = useState('')
   const [assigneesExpanded, setAssigneesExpanded] = useState(false)
   const [hideDone, setHideDone] = useState(() => {

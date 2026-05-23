@@ -126,6 +126,36 @@ export function isObviousNoise(rj: RawJson): boolean {
   return false
 }
 
+export function getReplySourceIds(rawMessages: RawJson[]): string[] {
+  const ids = new Set<string>()
+  for (const raw of rawMessages) {
+    for (const reply of raw.replies) {
+      if (reply.ts && reply.ts !== raw.ts) ids.add(reply.ts)
+    }
+  }
+  return [...ids]
+}
+
+export async function softDeleteReplyHistoryRows(
+  sb: SupabaseClient,
+  workspaceId: string,
+  replySourceIds: string[],
+): Promise<number> {
+  const uniqueIds = [...new Set(replySourceIds)].filter(Boolean)
+  if (uniqueIds.length === 0) return 0
+
+  const { data, error } = await sb
+    .from('client_history')
+    .update({ deleted_at: new Date().toISOString() })
+    .eq('workspace_id', workspaceId)
+    .in('source_id', uniqueIds)
+    .is('deleted_at', null)
+    .select('id')
+
+  if (error) throw error
+  return data?.length ?? 0
+}
+
 // ── 브랜드 매칭 (코드 기반) ───────────────────────────────────────
 
 /**

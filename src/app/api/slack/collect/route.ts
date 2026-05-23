@@ -5,6 +5,7 @@ import {
   matchBrand, classifyMessage, fetchClientsForWorkspace,
   buildSourceRef, tsToISO, delay, isObviousNoise,
   fetchUserDirectory, resolveUserName,
+  getReplySourceIds, softDeleteReplyHistoryRows,
   type RawJson, type RawReply,
 } from '@/lib/slack-service'
 
@@ -106,7 +107,18 @@ export async function POST(req: NextRequest) {
         // 4-a. search 결과에서 직접 발견된 부모 메시지
         const seenKeys = new Set<string>()
         const parents = cleanMatches
-          .filter(m => !m.thread_ts || m.thread_ts === m.ts)
+          .filter(m => {
+            // thread_ts 필드 체크 (Slack API가 항상 포함하지 않음)
+            if (m.thread_ts && m.thread_ts !== m.ts) return false
+            // permalink의 thread_ts 파라미터로 이중 확인 (더 신뢰도 높음)
+            if (m.permalink) {
+              try {
+                const threadTs = new URL(m.permalink).searchParams.get('thread_ts')
+                if (threadTs && threadTs !== m.ts) return false
+              } catch { /* ignore */ }
+            }
+            return true
+          })
           .filter(m => {
             const key = `${m.channel.id}:${m.ts}`
             if (seenKeys.has(key)) return false
@@ -343,6 +355,40 @@ export async function POST(req: NextRequest) {
         let skipped = 0
         const BATCH_SIZE = 5
         const rawList = rawRows ?? []
+        let deletedReplyRows = 0
+
+        // 이미 분류된 항목 조회 — thread_count 변경 시 재분류 대상 포함
+        const allRawIds = rawList.map(r => r.id)
+        const { data: existingHist } = allRawIds.length > 0
+          ? await sb
+              .from('client_history')
+              .select('id, raw_message_id, thread_count, title, body')
+              .in('raw_message_id', allRawIds)
+              .is('deleted_at', null)
+          : { data: [] }
+
+        type ExistingEntry = { id: string; raw_message_id: string; thread_count: number; title: string; body: string | null }
+        const existingHistMap = new Map<string, ExistingEntry>(
+          (existingHist ?? []).map(h => [h.raw_message_id as string, h as ExistingEntry])
+        )
+
+        const newRawList = rawList.filter(r => {
+          const existing = existingHistMap.get(r.id)
+          if (!existing) return true  // 신규
+          const rj = r.raw_json as RawJson
+          return rj.reply_count !== existing.thread_count  // 스레드 수 변경 → 재분류
+        })
+
+        const reclassifyCount = newRawList.filter(r => existingHistMap.has(r.id)).length
+        const newCount = newRawList.length - reclassifyCount
+        const skipCount = rawList.length - newRawList.length
+        send('status', { message: `신규 ${newCount}건, 재분류 ${reclassifyCount}건, 스킵 ${skipCount}건` })
+
+        const replySourceIds = getReplySourceIds(rawList.map(raw => raw.raw_json as RawJson))
+        if (replySourceIds.length > 0) {
+          send('status', { message: `스레드 답글 중복 이력 ${replySourceIds.length}건 정리 중...` })
+          deletedReplyRows = await softDeleteReplyHistoryRows(sb, workspaceId, replySourceIds)
+        }
 
         type UpsertRow = {
           workspace_id: string
@@ -359,12 +405,13 @@ export async function POST(req: NextRequest) {
           priority: 'high' | 'medium' | 'low'
           author: string
           occurred_at: string
+          reclassified_at?: string
         }
 
-        for (let bIdx = 0; bIdx < rawList.length; bIdx += BATCH_SIZE) {
-          const batch = rawList.slice(bIdx, bIdx + BATCH_SIZE)
-          const endIdx = Math.min(bIdx + BATCH_SIZE, rawList.length)
-          send('status', { message: `AI 분류 중... (${endIdx}/${rawList.length})` })
+        for (let bIdx = 0; bIdx < newRawList.length; bIdx += BATCH_SIZE) {
+          const batch = newRawList.slice(bIdx, bIdx + BATCH_SIZE)
+          const endIdx = Math.min(bIdx + BATCH_SIZE, newRawList.length)
+          send('status', { message: `AI 분류 중... (${endIdx}/${newRawList.length})` })
 
           const results = await Promise.all(batch.map(async (raw): Promise<UpsertRow | null> => {
             const rj = raw.raw_json as RawJson
@@ -405,9 +452,34 @@ export async function POST(req: NextRequest) {
           skipped += results.length - valid.length
 
           if (valid.length > 0) {
+            const now = new Date().toISOString()
+
+            // 재분류 항목: 이전 요약을 client_history_summaries에 아카이브
+            const oldSummaries = valid
+              .filter(r => existingHistMap.has(r.raw_message_id))
+              .map(r => {
+                const old = existingHistMap.get(r.raw_message_id)!
+                return {
+                  workspace_id: workspaceId,
+                  client_history_id: old.id,
+                  thread_count: old.thread_count,
+                  title: old.title,
+                  body: old.body ?? '',
+                }
+              })
+            if (oldSummaries.length > 0) {
+              await sb.from('client_history_summaries').insert(oldSummaries)
+            }
+
+            // 재분류 항목에만 reclassified_at 추가
+            const validWithMeta = valid.map(r => ({
+              ...r,
+              ...(existingHistMap.has(r.raw_message_id) ? { reclassified_at: now } : {}),
+            }))
+
             const { error: batchErr } = await sb
               .from('client_history')
-              .upsert(valid, { onConflict: 'workspace_id,source_id' })
+              .upsert(validWithMeta, { onConflict: 'workspace_id,source_id' })
             if (batchErr) {
               console.error('[slack/collect] batch upsert error:', batchErr)
               skipped += valid.length
@@ -417,7 +489,7 @@ export async function POST(req: NextRequest) {
           }
 
           // 배치 간 짧은 대기 (Anthropic rate limit 안전 마진)
-          if (endIdx < rawList.length) await delay(200)
+          if (endIdx < newRawList.length) await delay(200)
         }
 
         send('result', {
@@ -425,7 +497,8 @@ export async function POST(req: NextRequest) {
           raw_count: rawRows?.length ?? 0,
           classified,
           skipped,
-          message: `완료 — raw ${rawRows?.length ?? 0}건 저장, 분류 ${classified}건, 제외 ${skipped}건`,
+          deleted_reply_rows: deletedReplyRows,
+          message: `완료 — raw ${rawRows?.length ?? 0}건 저장, 분류 ${classified}건, 제외 ${skipped}건, 답글 중복 ${deletedReplyRows}건 정리`,
         })
 
       } catch (err) {

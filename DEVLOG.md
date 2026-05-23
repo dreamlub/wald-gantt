@@ -1,5 +1,128 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-23) — Command Center 1차 퍼블리싱
+
+### 배경
+- 제품 정의 재정리: Wald는 회사 운영자가 조직 상태를 읽고, 고객/팀/프로젝트 이슈를 놓치지 않으며, 자신의 하루 업무까지 실행으로 연결하는 **개인-조직 통합 운영 OS**
+- 기존 `/` 첫 화면이 Projects/Gantt였지만, 운영 OS 관점에서는 하루를 시작하는 **운영 브리핑 / Command Center**가 첫 화면에 더 적합
+
+### 1. `/` — Command Center 서버 컴포넌트로 교체
+- `src/app/(app)/page.tsx`
+- Supabase 서버 클라이언트로 workspace 범위 데이터 조회:
+  - `gantt_tasks`: 열린 태스크, 오늘/이번 주 마감, 지연, pending, scheduled task
+  - `gantt_projects`: 2주 내 종료/지연 프로젝트 리스크
+  - `client_history`: high priority 고객 신호, decision/mention 태그 항목
+  - `clients`: 브랜드 도트/이름 매핑
+  - `weekly_insights`: 최신 Weekly headline/stats/changes
+- 화면 섹션:
+  - 오늘 실행 / 지연 태스크 / 고객 이슈 / 이번 주 마감 metric cards
+  - “지금 볼 것” focus queue
+  - 오늘의 시간: scheduled task와 planned hours
+  - 내 실행 큐
+  - 고객 신호
+  - 결정 대기
+  - 프로젝트 리스크
+  - 팀 워크로드
+  - Weekly 인사이트
+  - 나를 부른 일
+
+### 2. 기존 Gantt 홈 보존
+- 기존 `/` Gantt 화면을 `src/app/(app)/projects/page.tsx`로 복사
+- `/projects`에서 기존 Projects/Gantt 기능 유지
+
+### 3. AppNav 수정
+- `src/components/AppNav.tsx`
+- 좌측 내비게이션 분리:
+  - `/` → `Home` (`Sparkles` 아이콘)
+  - `/projects` → `Projects` (`BarChart2` 아이콘)
+
+### 디자인 방향
+- 기존 Wald 디자인 시스템 유지:
+  - 48px 상단 바
+  - 작은 운영형 타이포그래피
+  - `bg-card`, `bg-muted`, `border-border`, `ink/lilac/status` 토큰 사용
+  - 카드 중첩 없이 패널 단위로 정보 밀도 있게 구성
+- 랜딩/마케팅 스타일이 아니라 실제 운영자가 스캔하는 업무 화면으로 구성
+
+### 검증
+- `npm.cmd run typecheck` 통과
+- `npm.cmd run test` 통과 (3 files / 16 tests)
+- `npm.cmd run build` 통과
+- `npm.cmd run lint` 실패:
+  - 이번 변경 파일 문제가 아니라 기존 Calendar/Tasks/Settings/Weekly 컴포넌트의 React 19 lint 규칙(`react-hooks/set-state-in-effect`, refs/immutability 등) 위반 다수
+- 인앱 브라우저 실제 데이터 확인:
+  - `/` → `Command Center - Wald` 정상 렌더링
+  - 주요 섹션 표시 확인: metric cards, 지금 볼 것, 오늘의 시간, 내 실행 큐, 고객 신호, 결정 대기, 프로젝트 리스크, 팀 워크로드, Weekly 인사이트, 나를 부른 일
+  - 브라우저 콘솔 error/warning 없음
+
+### 실사용 검증 후 보정 (2026-05-23)
+- `고객 이슈` metric이 표시용 5건 slice 기준으로 보이던 문제 수정 → 전체 high priority 개수 기준 표시
+- `오늘 실행` metric에서 오늘 마감/오늘 배치 태스크 중복 가능성 제거 → task id Set 기준 count
+- Weekly 인사이트의 `**bold**` 마크다운 문자가 그대로 보이던 문제 수정 → Command Center에서는 plain text로 정리해 표시
+- Summary dev overlay 원인 수정:
+  - `history-shell.tsx`의 Slack 수집 날짜 helper가 깨진 상태(`todayStr` 주변 문법 오류)였음
+  - `handleCollect`가 오늘 날짜 helper를 사용하도록 복구
+  - `npm.cmd run typecheck` 재통과
+
+### 다음 후보
+- Command Center 카드별 링크를 필터가 적용된 상세 화면으로 정교화
+- Triage Inbox: Slack/Weekly/Notes 신호를 “검토 → 위임 → 태스크화 → 결정대기 → 무시”로 처리하는 큐
+- Decision Log: decision 태그를 1급 객체로 승격
+- People/Workload: 문자열 assignee를 조직/팀/구성원 모델로 확장
+
+---
+
+## 최근 변경 (2026-05-23) — Command Center 링크 정교화
+
+### 배경
+- Command Center 1차 퍼블리싱 후 실제 데이터 확인 결과, 화면은 정상 렌더링되지만 대부분의 링크가 `/tasks`, `/summary`, `/calendar` 같은 큰 화면으로만 이동
+- 운영 브리핑 화면의 목적상 숫자/항목 클릭 시 바로 해당 문제 목록으로 이동해야 함
+
+### 1. Tasks URL 필터 초기값 지원
+- `src/app/(app)/tasks/_hooks/use-task-filters.ts`
+- `useSearchParams`로 URL 파라미터를 초기 필터 state에 반영:
+  - `quick`: `overdue`, `start-delayed`, `due-today`, `due-this-week`, `due-next-week`, `done`
+  - `project`
+  - `assignee`
+  - `label`
+  - `q`
+- `/tasks?quick=overdue` 진입 시 지연 필터가 바로 적용되는 것 확인
+
+### 2. `/tasks` Suspense boundary 추가
+- `src/app/(app)/tasks/page.tsx`
+- `useSearchParams` 사용으로 Next.js build에서 `missing-suspense-with-csr-bailout` 오류 발생
+- 기존 TasksPage 본문을 `TasksPageContent`로 분리하고 default export에서 `<Suspense>`로 감쌈
+
+### 3. Command Center 링크 교체
+- `src/app/(app)/page.tsx`
+- metric cards 클릭 가능하게 변경:
+  - 오늘 실행 → `/tasks?quick=due-today`
+  - 지연 태스크 → `/tasks?quick=overdue`
+  - 고객 이슈 → `/summary?priority=high`
+  - 이번 주 마감 → `/tasks?quick=due-this-week`
+- 패널/행 링크 정교화:
+  - 지금 볼 것 → 지연/이슈/오늘 항목별 필터 URL
+  - 오늘의 시간 → `/calendar?date=YYYY-MM-DD`
+  - scheduled task → `/calendar?date=YYYY-MM-DD&highlight=taskId`
+  - 내 실행 큐 task → quick filter + `q` 검색어
+  - 고객 신호 → `/summary?priority=...&q=...`
+  - 결정 대기 → `/summary?tags=decision&q=...`
+  - 나를 부른 일 → `/summary?tags=mention`
+  - 팀 워크로드 담당자 → `/tasks?assignee=담당자명`
+
+### 검증
+- `npm.cmd run typecheck` 통과
+- `npm.cmd run test` 통과 (3 files / 16 tests)
+- 인앱 브라우저:
+  - Command Center DOM snapshot에서 metric/row 링크 URL 확인
+  - `지연 태스크` metric 클릭 → `/tasks?quick=overdue` 이동 확인
+  - Tasks 화면에서 지연 필터 적용 확인
+- `npm.cmd run build`:
+  - 최초 시도에서 `/tasks` Suspense boundary 필요 오류 확인 후 수정
+  - 수정 후 재빌드는 sandbox escalation 사용량 제한으로 실행 불가
+
+---
+
 ## 2026-05-22 — 슬랙 리마인더 (Vercel Cron)
 
 ### 개요
@@ -15,10 +138,10 @@
 - Slack 봇에 `chat:write` 스코프 추가 필요
 
 ### 메시지 형식
-- 🔴 지연 (N일 초과)
-- 📅 오늘 마감
-- ⏰ 내일 마감
-- 🔺 높은 우선순위 태스크 플래그
+- 지연 (N일 초과)
+- 오늘 마감
+- 내일 마감
+- 높은 우선순위 태스크 플래그
 
 ---
 
@@ -46,6 +169,8 @@
 2. 완료(done) 클릭 → 다음 날짜 계산 → 동일 필드(제목/담당자/우선순위/라벨/프로젝트 등)로 신규 태스크 생성
 3. 토스트: "반복 태스크 완료 — 다음 인스턴스를 생성했어요 (MM/DD)"
 4. 간격 설정: daily/weekly는 N일/N주 단위, monthly는 N개월 단위, yearly는 1년 고정
+
+---
 
 ## 최근 변경 (2026-05-22) — Summary 목록 단순화: burst 그룹 제거 + 스레드만 디테일에 표시
 

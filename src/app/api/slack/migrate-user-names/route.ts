@@ -89,15 +89,29 @@ export async function POST(_req: NextRequest) {
       }))
     }
 
-    // 3. client_history 전체 조회 (raw_message_id 있는 것)
+    // 3. client_history 전체 조회
     const { data: historyRows, error: histErr } = await sb
       .from('client_history')
-      .select('id, author, raw_message_id')
+      .select('id, author, body, raw_message_id')
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
-      .not('raw_message_id', 'is', null)
       .limit(20000)
     if (histErr) throw histErr
+
+    // user ID → name 역방향 맵 (body 텍스트 치환용)
+    const userIdToName = new Map<string, string>()
+    for (const [userId, name] of userDir.entries()) {
+      userIdToName.set(userId, name)
+    }
+
+    // body 텍스트에서 <@USERID> 또는 단독 USERID 패턴을 이름으로 치환
+    function replaceUserIds(text: string | null): string | null {
+      if (!text) return text
+      return text.replace(/<@([A-Z0-9]+)>|(?<!\w)([UW][A-Z0-9]{8,})(?!\w)/g, (match, id1, id2) => {
+        const id = id1 ?? id2
+        return userIdToName.get(id) ?? match
+      })
+    }
 
     let histScanned = 0
     let histUpdated = 0
@@ -105,15 +119,20 @@ export async function POST(_req: NextRequest) {
       const batch = (historyRows ?? []).slice(i, i + BATCH)
       await Promise.all(batch.map(async h => {
         histScanned++
-        if (!h.raw_message_id) return
-        const rj = rawById.get(h.raw_message_id)
-        if (!rj) return
-        const newAuthor = resolveUserName(userDir, rj.user, h.author)
-        if (newAuthor === h.author) return
+        const rj = h.raw_message_id ? rawById.get(h.raw_message_id) : null
+        const newAuthor = rj ? resolveUserName(userDir, rj.user, h.author) : h.author
+        const newBody = replaceUserIds(h.body)
+
+        const changed = newAuthor !== h.author || newBody !== h.body
+        if (!changed) return
+
+        const update: Record<string, unknown> = {}
+        if (newAuthor !== h.author) update.author = newAuthor
+        if (newBody !== h.body) update.body = newBody
 
         const { error } = await sb
           .from('client_history')
-          .update({ author: newAuthor })
+          .update(update)
           .eq('id', h.id)
         if (!error) histUpdated++
       }))

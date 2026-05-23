@@ -76,6 +76,17 @@ export interface ThreadReply {
   author: string
   occurred_at: string
   text: string
+  // AI 분류 결과 (client_history에서)
+  ai_title?: string | null
+  ai_body?: string | null
+}
+
+export interface SummaryVersion {
+  id: string
+  thread_count: number
+  title: string
+  body: string
+  archived_at: string
 }
 
 export interface HistoryItem {
@@ -96,5 +107,6 @@ export interface HistoryItem {
   author: string | null
   raw_message_id: string | null
   thread_count: number
+  reclassified_at?: string | null
   thread_replies?: ThreadReply[]
 }

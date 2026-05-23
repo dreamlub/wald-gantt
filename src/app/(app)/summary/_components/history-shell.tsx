@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, RefreshCw, UserCog,
+  Sparkles, LayoutList, RefreshCw,
 } from 'lucide-react'
 import { toast } from 'sonner'
 
@@ -106,15 +106,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
 
-  // ── 생성 다이얼로그 ────────────────────────────────────────────
   // ── 슬랙 수집 ─────────────────────────────────────────────────
-  const [collectDate,    setCollectDate]    = useState<string>(() => {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  })
   const [collectStatus,  setCollectStatus]  = useState<string>('')
   const [isCollecting,   setIsCollecting]   = useState(false)
-  const [isMigrating,    setIsMigrating]    = useState(false)
+
+  function todayStr() {
+    const d = new Date()
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
 
   async function runSSE(url: string, body: unknown, onDone: (msg: string) => void) {
     const res = await fetch(url, {
@@ -152,43 +151,43 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
   }
 
-  async function handleMigrateUserNames() {
-    if (isCollecting || isMigrating) return
-    setIsMigrating(true)
-    try {
-      const res = await fetch('/api/slack/migrate-user-names', { method: 'POST' })
-      const data = await res.json() as {
-        directory_size?: number
-        raw_updated?: number
-        history_updated?: number
-        error?: string
-      }
-      if (!res.ok) throw new Error(data.error ?? `HTTP ${res.status}`)
-      toast.success(`이름 동기화 완료 — raw ${data.raw_updated ?? 0}건, history ${data.history_updated ?? 0}건 갱신`)
-      startTransition(() => router.refresh())
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '이름 동기화 실패')
-    } finally {
-      setIsMigrating(false)
-    }
-  }
-
   async function handleCollect() {
     if (isCollecting) return
     setIsCollecting(true)
     setCollectStatus('준비 중...')
     try {
-      await runSSE('/api/slack/collect', { date: collectDate }, (msg) => {
-        toast.success(msg)
-        setCollectStatus('')
-        startTransition(() => router.refresh())
-      })
+      const today = todayStr()
+      // 최초 수집이면 당월 1일부터, 이후엔 마지막 수집일부터
+      const fromDate = latestCollectedAt
+        ? latestCollectedAt.slice(0, 10)
+        : `${today.slice(0, 7)}-01`
+      const dates = getDateRange(fromDate, today)
+      for (const date of dates) {
+        await runSSE('/api/slack/collect', { date }, (msg) => {
+          toast.success(dates.length > 1 ? `[${date}] ${msg}` : msg)
+        })
+      }
+      setCollectStatus('')
+      startTransition(() => router.refresh())
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '수집 실패')
       setCollectStatus('')
     } finally {
       setIsCollecting(false)
     }
+  }
+
+  function getDateRange(from: string, to: string): string[] {
+    const dates: string[] = []
+    const cur = new Date(from)
+    const end = new Date(to)
+    cur.setHours(0, 0, 0, 0)
+    end.setHours(0, 0, 0, 0)
+    while (cur <= end) {
+      dates.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`)
+      cur.setDate(cur.getDate() + 1)
+    }
+    return dates
   }
 
   // ── 생성 다이얼로그 ────────────────────────────────────────────
@@ -270,11 +269,11 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const hasFilters = brandId !== 'all' || selectedTags.size > 0 || priorityKey !== 'all'
                   || authorKey !== 'all' || !!dateFrom || !!dateTo || !!searchQuery.trim()
 
-  // 마지막 수집 시점: 전체 history에서 최대 updated_at
+  // 마지막 수집 날짜: 슬랙 메시지 occurred_at 기준 최신 날짜
   const latestCollectedAt = useMemo<string | null>(() => {
     if (initialHistory.length === 0) return null
-    let max = initialHistory[0].updated_at
-    for (const h of initialHistory) if (h.updated_at > max) max = h.updated_at
+    let max = initialHistory[0].occurred_at
+    for (const h of initialHistory) if (h.occurred_at > max) max = h.occurred_at
     return max
   }, [initialHistory])
 
@@ -438,23 +437,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             ) : (
               <span className="text-[11px] text-ink-400">{relativeCollectedLabel(latestCollectedAt)}</span>
             )}
-            <input
-              type="date"
-              value={collectDate}
-              onChange={e => setCollectDate(e.target.value)}
-              disabled={isCollecting}
-              className="text-[11px] px-2 py-1 border rounded bg-card text-muted-foreground outline-none focus:ring-1 focus:ring-lilac-300 disabled:opacity-50"
-              title="수집할 날짜"
-            />
-            <button
-              onClick={handleMigrateUserNames}
-              disabled={isCollecting || isMigrating}
-              title="기존 데이터의 작성자를 Slack display name으로 동기화 (한 번만 실행)"
-              className="flex items-center gap-1.5 text-[11px] px-2.5 py-1.5 rounded border bg-card text-muted-foreground hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <UserCog size={12} className={isMigrating ? 'animate-spin' : ''} />
-              이름 동기화
-            </button>
             <button
               onClick={handleCollect}
               disabled={isCollecting}
@@ -462,7 +444,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded bg-foreground text-background hover:bg-ink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
             >
               <RefreshCw size={12} className={isCollecting ? 'animate-spin' : ''} />
-              새로고침
+              수집
             </button>
           </div>
         </div>
