@@ -14,7 +14,6 @@ import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { TableView } from './table-view'
-import { InsightView } from './insight-view'
 import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
 import { TimelineView } from './timeline-view'
@@ -30,6 +29,7 @@ import {
 } from '@/lib/gantt-service'
 
 import type { HistoryPage } from '@/lib/history-service'
+import { brandColor } from '@/lib/history-service'
 
 interface PageState {
   items: HistoryItem[]
@@ -333,7 +333,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         <HistorySidebar
           view={view}
           history={initialHistory}
-          clients={initialClients}
           dateFrom={dateFrom}
           dateTo={dateTo}
           weekStart={weekStart}
@@ -430,7 +429,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         {/* 본문 */}
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
           {view === 'calendar' ? (
-            <ScheduleCalendarView clients={initialClients} />
+            <ScheduleCalendarView />
           ) : view === 'timeline' ? (
             <ThreadTimelineView
               dateFrom={dateFrom || undefined}
@@ -441,7 +440,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             <RawDataView />
           ) : view === 'dailyreport' ? (
             <DailyReportView
-              clients={initialClients}
               selectedDate={dateFrom || todayStr()}
               filterBrands={dailyBrands}
               filterTags={dailyTags}
@@ -460,15 +458,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                         : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
                     </span>
-                    {brandId !== 'all' && (() => {
-                      const c = initialClients.find(x => x.name === brandId)
-                      return (
-                        <FilterChip onClear={() => setBrandId('all')}>
-                          {c && <span className="w-1.5 h-1.5 rounded-full" style={{ background: c.color }} />}
-                          브랜드: {brandId}
-                        </FilterChip>
-                      )
-                    })()}
+                    {brandId !== 'all' && (
+                      <FilterChip onClear={() => setBrandId('all')}>
+                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: brandColor(brandId) }} />
+                        브랜드: {brandId}
+                      </FilterChip>
+                    )}
                     {priorityKey !== 'all' && (
                       <FilterChip onClear={() => setPriorityKey('all')}>
                         중요도: {PRIORITY_META[priorityKey as Priority].label}
@@ -492,7 +487,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'dailylist' && (
                 <TableView
                   items={pg.items}
-                  clients={initialClients}
                   selectedTags={selectedTags}
                   searchQuery={searchQuery}
                   hasFilters={hasFilters}
@@ -512,7 +506,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               )}
               {view === 'weeklylist' && (
                 <TimelineView
-                  clients={initialClients}
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -521,7 +514,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'summary' && (
                 <div data-scrolltop className="flex-1 overflow-y-auto">
                   <div className="px-6 pb-5">
-                    <SummaryView items={filtered} clients={initialClients} />
+                    <SummaryView items={filtered} />
                   </div>
                 </div>
               )}

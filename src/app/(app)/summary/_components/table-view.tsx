@@ -5,13 +5,13 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ExternalLink, ListTodo, Hash } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import type { HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
+import { brandColor } from '@/lib/history-service'
 
 interface Props {
   items: HistoryItem[]
-  clients: Client[]
   selectedTags:     Set<Tag>
   searchQuery?:     string
   hasFilters:       boolean
@@ -73,7 +73,7 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 }
 
 export function TableView({
-  items, clients, searchQuery, hasFilters,
+  items, searchQuery, hasFilters,
   total, hasMore, loadingMore, brandCounts,
   onLoadMore,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
@@ -95,7 +95,6 @@ export function TableView({
     observer.observe(el)
     return () => observer.disconnect()
   }, [handleLoadMore, onLoadMore])
-  const brandMap = useMemo(() => new Map(clients.map(c => [c.name, c])), [clients])
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
   const brandCountList = useMemo(() => {
@@ -110,9 +109,9 @@ export function TableView({
           return [...m.entries()]
         })()
     return entries
-      .map(([name, count]) => ({ name, count, client: brandMap.get(name) }))
+      .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-  }, [items, brandMap, brandCounts])
+  }, [items, brandCounts])
 
   const [activeBrand, setActiveBrand] = useState<string | null>(null)
 
@@ -160,6 +159,7 @@ export function TableView({
         </button>
         {brandCountList.map(b => {
           const active = activeBrand === b.name
+          const color = brandColor(b.name)
           return (
             <button
               key={b.name}
@@ -169,9 +169,9 @@ export function TableView({
                   ? 'text-white border-transparent'
                   : 'bg-card text-muted-foreground border-border hover:border-ink-400'
               }`}
-              style={active && b.client ? { backgroundColor: b.client.color, borderColor: b.client.color } : undefined}
+              style={active ? { backgroundColor: color, borderColor: color } : undefined}
             >
-              {b.client && <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : b.client.color }} />}
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
               {b.name}
               <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
             </button>
@@ -195,7 +195,6 @@ export function TableView({
           </thead>
           <tbody>
             {filteredItems.map(item => {
-              const client = brandMap.get(item.brand_name ?? '')
               const isHovered = hoveredId === item.id
               return (
                 <tr
@@ -211,13 +210,13 @@ export function TableView({
 
                   {/* 브랜드 */}
                   <td className="px-3 py-2.5">
-                    {client ? (
+                    {item.brand_name ? (
                       <button
-                        onClick={() => onSelectBrand(client.name)}
+                        onClick={() => onSelectBrand(item.brand_name!)}
                         className="inline-flex items-center gap-1.5 text-xs text-ink-700 hover:text-foreground transition-colors"
                       >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
-                        <span className="truncate max-w-[70px]">{client.name}</span>
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(item.brand_name) }} />
+                        <span className="truncate max-w-[70px]">{item.brand_name}</span>
                       </button>
                     ) : (
                       <span className="text-xs text-ink-300">—</span>

@@ -2,16 +2,16 @@
 
 import { useMemo } from 'react'
 import { Sparkles, BarChart3, Tag as TagIcon, Users, Hash } from 'lucide-react'
-import type { Client, HistoryItem, Priority, Tag } from '../_lib/types'
+import type { HistoryItem, Priority, Tag } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { Avatar } from './badges'
+import { brandColor } from '@/lib/history-service'
 
 interface Props {
   items: HistoryItem[]
-  clients: Client[]
 }
 
-export function SummaryView({ items, clients }: Props) {
+export function SummaryView({ items }: Props) {
   const total = items.length
 
   // 태그별 카운트 (한 항목이 여러 태그 가지면 모두 +1)
@@ -30,17 +30,21 @@ export function SummaryView({ items, clients }: Props) {
   , [items])
 
   // 브랜드별
-  const brandStats = useMemo(() =>
-    clients.map(c => {
-      const own = items.filter(i => i.brand_name === c.name)
-      return {
-        client: c,
-        total: own.length,
-        issue: own.filter(i => i.tags?.includes('issue')).length,
-        decision: own.filter(i => i.tags?.includes('decision')).length,
-      }
-    }).filter(b => b.total > 0).sort((a, b) => b.total - a.total)
-  , [items, clients])
+  const brandStats = useMemo(() => {
+    const map = new Map<string, { total: number; issue: number; decision: number }>()
+    for (const item of items) {
+      const name = item.brand_name ?? '미분류'
+      const prev = map.get(name) ?? { total: 0, issue: 0, decision: 0 }
+      map.set(name, {
+        total: prev.total + 1,
+        issue: prev.issue + (item.tags?.includes('issue') ? 1 : 0),
+        decision: prev.decision + (item.tags?.includes('decision') ? 1 : 0),
+      })
+    }
+    return [...map.entries()]
+      .map(([name, s]) => ({ name, ...s }))
+      .sort((a, b) => b.total - a.total)
+  }, [items])
 
   // 작성자 Top
   const { topAuthors, authorMax } = useMemo(() => {
@@ -138,11 +142,11 @@ export function SummaryView({ items, clients }: Props) {
         <Section icon={<Hash size={13} className="text-ink-400" />} label="브랜드별 요약" badge={`${brandStats.length}개`}>
           <div className="flex flex-col gap-2">
             {brandStats.map(b => (
-              <div key={b.client.name} className="bg-card border border-border rounded-lg px-4 py-3.5">
+              <div key={b.name} className="bg-card border border-border rounded-lg px-4 py-3.5">
                 <div className="flex items-center justify-between mb-2">
                   <div className="flex items-center gap-2 text-xs font-semibold">
-                    <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.client.color }} />
-                    {b.client.name}
+                    <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(b.name) }} />
+                    {b.name}
                   </div>
                   <div className="flex gap-3.5 text-2xs text-ink-700">
                     {b.issue > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-late)' }}>● 이슈 {b.issue}</span>}

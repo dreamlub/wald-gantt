@@ -9,6 +9,7 @@ import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/ty
 import { createClient } from '@/lib/supabase/client'
 import { fetchThreadRepliesForItem } from '../_lib/thread-replies'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
+import { brandColor } from '@/lib/history-service'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 
@@ -196,15 +197,12 @@ export function HistoryDetailDrawer({
                       onClick={() => setBrandDropOpen(o => !o)}
                       className="w-full inline-flex items-center gap-2 px-2 py-1 rounded text-xs bg-card border border-border hover:border-ink-300 transition-colors text-foreground"
                     >
-                      {(() => {
-                        const c = clients.find(x => x.name === draft.brand_name)
-                        return c ? (
-                          <>
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
-                            <span className="flex-1 truncate text-left">{c.name}</span>
-                          </>
-                        ) : <span className="flex-1 text-left text-muted-foreground">선택</span>
-                      })()}
+                      {draft.brand_name ? (
+                        <>
+                          <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(draft.brand_name) }} />
+                          <span className="flex-1 truncate text-left">{draft.brand_name}</span>
+                        </>
+                      ) : <span className="flex-1 text-left text-muted-foreground">선택</span>}
                       <ChevronDown size={11} className="shrink-0 text-ink-400" />
                     </button>
                     {brandDropOpen && (
@@ -217,7 +215,7 @@ export function HistoryDetailDrawer({
                               draft.brand_name === c.name ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted'
                             }`}
                           >
-                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: c.color }} />
+                            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(c.name) }} />
                             {c.name}
                           </button>
                         ))}
@@ -225,10 +223,10 @@ export function HistoryDetailDrawer({
                     )}
                   </div>
                 ) : (
-                  client ? (
+                  item.brand_name ? (
                     <span className="inline-flex items-center gap-1.5 text-xs">
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: client.color }} />
-                      {client.name}
+                      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(item.brand_name) }} />
+                      {item.brand_name}
                     </span>
                   ) : <span className="text-xs text-ink-300">—</span>
                 )}

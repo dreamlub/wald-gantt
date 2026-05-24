@@ -4,7 +4,8 @@ import { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import type { Client, Priority } from '../_lib/types'
+import type { Priority } from '../_lib/types'
+import { brandColor } from '@/lib/history-service'
 
 interface UpcomingEvent {
   title: string
@@ -68,17 +69,8 @@ function dateKey(d: Date) {
 
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
-const PRI_COLOR: Record<Priority, string> = {
-  high:   'var(--color-status-late)',
-  medium: 'var(--color-status-warn)',
-  low:    'var(--color-ink-400)',
-}
 
-interface Props {
-  clients: Client[]
-}
-
-export function ScheduleCalendarView({ clients }: Props) {
+export function ScheduleCalendarView() {
   const [events, setEvents] = useState<UpcomingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(() => {
@@ -125,8 +117,6 @@ export function ScheduleCalendarView({ clients }: Props) {
     }
     load()
   }, [])
-
-  const clientMap = useMemo(() => new Map(clients.map(c => [c.name, c])), [clients])
 
   const allBrands = useMemo(() => {
     const set = new Set<string>()
@@ -224,8 +214,8 @@ export function ScheduleCalendarView({ clients }: Props) {
           전체
         </button>
         {allBrands.map(brand => {
-          const client = clientMap.get(brand)
           const active = activeBrands.has(brand)
+          const color = brandColor(brand)
           return (
             <button
               key={brand}
@@ -233,11 +223,9 @@ export function ScheduleCalendarView({ clients }: Props) {
               className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
                 active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400'
               }`}
-              style={active && client ? { backgroundColor: client.color, borderColor: client.color } : undefined}
+              style={active ? { backgroundColor: color, borderColor: color } : undefined}
             >
-              {client && (
-                <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : client.color }} />
-              )}
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
               {brand}
             </button>
           )
@@ -328,8 +316,7 @@ export function ScheduleCalendarView({ clients }: Props) {
                 {/* 이벤트 칩 */}
                 <div className="flex flex-col gap-px overflow-hidden">
                   {dayEvents.slice(0, MAX).map((e, i) => {
-                    const client = clientMap.get(e.brand)
-                    const color = client?.color ?? PRI_COLOR[e.priority]
+                    const color = brandColor(e.brand)
                     return (
                       <Tooltip key={i}>
                         <TooltipTrigger
@@ -378,8 +365,7 @@ export function ScheduleCalendarView({ clients }: Props) {
             </div>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               {undatedEvents.map((e, i) => {
-                const client = clientMap.get(e.brand)
-                const color = client?.color ?? PRI_COLOR[e.priority]
+                const color = brandColor(e.brand)
                 return (
                   <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
@@ -414,8 +400,7 @@ export function ScheduleCalendarView({ clients }: Props) {
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popEvents.map((e, i) => {
-                  const client = clientMap.get(e.brand)
-                  const color = client?.color ?? PRI_COLOR[e.priority]
+                  const color = brandColor(e.brand)
                   return (
                     <div
                       key={i}

@@ -10,13 +10,13 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { createClient } from '@/lib/supabase/client'
 
-import type { Client, InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
+import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META, TAG_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
+import { brandColor } from '@/lib/history-service'
 
 interface Props {
-  clients: Client[]
   selectedDate: string
   filterBrands: Set<string>
   filterTags: Set<Tag>
@@ -80,12 +80,11 @@ const PRI_CLS: Record<Priority, string> = {
 }
 const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', low: '낮음' }
 
-function BrandBadge({ brandName, clients }: { brandName: string; clients: Client[] }) {
-  const client = clients.find(c => c.name === brandName)
+function BrandBadge({ brandName }: { brandName: string }) {
   return (
     <span className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: client?.color ?? 'var(--color-ink-300)' }} />
-      {client?.name ?? brandName}
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(brandName) }} />
+      {brandName}
     </span>
   )
 }
@@ -225,12 +224,11 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
 }
 
 function ActionDetailDrawer({
-  open, item, date, clients, onClose, onCreateTask,
+  open, item, date, onClose, onCreateTask,
 }: {
   open: boolean
   item: ActionItem | null
   date: string
-  clients: Client[]
   onClose: () => void
   onCreateTask?: (title: string, memo: string) => void
 }) {
@@ -331,7 +329,7 @@ function ActionDetailDrawer({
       <DrawerHeader>
         <div className="flex items-start justify-between px-5 pt-4 pb-3">
           <div className="flex items-center gap-2 flex-wrap">
-            <BrandBadge brandName={item?.brand ?? ''} clients={clients} />
+            <BrandBadge brandName={item?.brand ?? ''} />
             <PriorityBars priority={pri} />
           </div>
           <button onClick={onClose} className="p-1 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors shrink-0">
@@ -442,9 +440,8 @@ function ActionDetailDrawer({
   )
 }
 
-function ActionGrid({ items, clients, onOpenDetail, onCreateTask }: {
+function ActionGrid({ items, onOpenDetail, onCreateTask }: {
   items: ActionItem[]
-  clients: Client[]
   onOpenDetail: (item: ActionItem) => void
   onCreateTask: (title: string, memo: string) => void
 }) {
@@ -471,7 +468,7 @@ function ActionGrid({ items, clients, onOpenDetail, onCreateTask }: {
 
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
               <PriorityBars priority={pri} />
-              <BrandBadge brandName={a.brand} clients={clients} />
+              <BrandBadge brandName={a.brand} />
               <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
@@ -488,7 +485,7 @@ function ActionGrid({ items, clients, onOpenDetail, onCreateTask }: {
   )
 }
 
-function UpcomingList({ items, clients }: { items: InsightContent['upcoming']; clients: Client[] }) {
+function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
   if (items.length === 0) return <EmptyState />
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -502,24 +499,23 @@ function UpcomingList({ items, clients }: { items: InsightContent['upcoming']; c
           <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
-          <BrandBadge brandName={s.brand} clients={clients} />
+          <BrandBadge brandName={s.brand} />
         </div>
       ))}
     </div>
   )
 }
 
-function PendingList({ items, clients }: { items: InsightContent['pending']; clients: Client[] }) {
+function PendingList({ items }: { items: InsightContent['pending'] }) {
   if (items.length === 0) return <EmptyState />
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((p, i) => {
-        const c = clients.find(x => x.name === p.brand)
         return (
           <div key={i} className="flex items-start gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
             <span className="min-w-[90px] text-xs font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c?.color ?? 'var(--color-ink-300)' }} />
-              {c?.name ?? p.brand}
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(p.brand) }} />
+              {p.brand}
             </span>
             <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
             <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
@@ -530,7 +526,7 @@ function PendingList({ items, clients }: { items: InsightContent['pending']; cli
   )
 }
 
-function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; clients: Client[] }) {
+function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
   if (items.length === 0) return <EmptyState />
   return (
     <div className="grid grid-cols-2 gap-2">
@@ -541,7 +537,7 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
             <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
           <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
-          <BrandBadge brandName={d.brand} clients={clients} />
+          <BrandBadge brandName={d.brand} />
         </div>
       ))}
     </div>
@@ -553,7 +549,7 @@ function filterByBrand<T extends { brand: string }>(items: T[], brands: Set<stri
   return items.filter(item => brands.has(item.brand))
 }
 
-export function DailyReportView({ clients, selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask }: Props) {
+export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask }: Props) {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
@@ -623,7 +619,6 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
             <div className="p-4">
               <ActionGrid
                 items={content.action_items}
-                clients={clients}
                 onOpenDetail={setDrawerItem}
                 onCreateTask={onCreateTask ?? (() => {})}
               />
@@ -635,13 +630,13 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
             <section className="border-r border-border">
               <SectionHead icon={CalendarDays} title="다가오는 일정" count={content.upcoming.length} />
               <div className="p-4">
-                <UpcomingList items={content.upcoming} clients={clients} />
+                <UpcomingList items={content.upcoming} />
               </div>
             </section>
             <section>
               <SectionHead icon={Clock} title="응답 대기" count={content.pending.reduce((s, p) => s + p.count, 0)} />
               <div className="p-4">
-                <PendingList items={content.pending} clients={clients} />
+                <PendingList items={content.pending} />
               </div>
             </section>
           </div>
@@ -650,7 +645,7 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
           <section className="border-t border-border">
             <SectionHead icon={Target} title="결정 사항" count={content.decisions.length} />
             <div className="p-4">
-              <DecisionGrid items={content.decisions} clients={clients} />
+              <DecisionGrid items={content.decisions} />
             </div>
           </section>
         </div>
@@ -660,7 +655,6 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
         open={!!drawerItem}
         item={drawerItem}
         date={selectedDate}
-        clients={clients}
         onClose={() => setDrawerItem(null)}
         onCreateTask={onCreateTask}
       />

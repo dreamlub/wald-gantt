@@ -6,7 +6,6 @@ import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { brandColor } from '@/lib/history-service'
 
-import type { Client } from '../_lib/types'
 import type { Tag, Priority } from '../_lib/types'
 import { PriorityBars, TagList } from './badges'
 
@@ -75,13 +74,12 @@ function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
 }
 
 interface Props {
-  clients: Client[]
   dateFrom?: string
   dateTo?: string
   onSelectBrand: (id: string) => void
 }
 
-export function TimelineView({ clients: _clients, dateFrom, dateTo, onSelectBrand }: Props) {
+export function TimelineView({ dateFrom, dateTo, onSelectBrand }: Props) {
   const [rows, setRows]               = useState<WeeklyBrandSummary[]>([])
   const [loading, setLoading]         = useState(true)
   const [activeBrand, setActiveBrand] = useState<string | null>(null)

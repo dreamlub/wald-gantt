@@ -139,7 +139,6 @@ function deriveData(rows: TimelineRow[]) {
   })
   const nowIdx = weeks.findIndex(w => w.start === nowWeek)
   if (nowIdx >= 0) weeks[nowIdx].isNow = true
-  else if (weeks.length > 0) weeks[weeks.length - 1].isNow = true
 
   // Group by thread_id
   const threadMap = new Map<string, TimelineRow[]>()

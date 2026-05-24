@@ -5,7 +5,7 @@ import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
-import type { Client, Tag, HistoryItem, Priority } from '../_lib/types'
+import type { Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
@@ -54,7 +54,6 @@ export function isCurrentWeek(weekStart: string): boolean {
 interface Props {
   view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
   history: HistoryItem[]
-  clients: Client[]
   // table/summary용
   dateFrom: string
   dateTo: string
@@ -85,7 +84,6 @@ interface Props {
 export function HistorySidebar({
   view,
   history,
-  clients,
   dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick,
   weekStart, onWeekChange,
   selectedTags, priorityKey,
@@ -134,22 +132,23 @@ export function HistorySidebar({
             {brandId === 'all' && <Check size={12} className="shrink-0" />}
             <span className="text-xs text-ink-400">{timelineTotal}</span>
           </button>
-          {clients.map(c => {
-            const active = brandId === c.name
-            const cnt = timelineBrandCounts[c.name] ?? 0
-            return (
-              <button
-                key={c.name}
-                onClick={() => onBrandChange(active ? 'all' : c.name)}
-                className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
-                <span className="flex-1 truncate text-left">{c.name}</span>
-                {active && <Check size={12} className="shrink-0" />}
-                {cnt > 0 && <span className="text-xs text-ink-400">{cnt}</span>}
-              </button>
-            )
-          })}
+          {Object.entries(timelineBrandCounts)
+            .sort((a, b) => b[1] - a[1])
+            .map(([name, cnt]) => {
+              const active = brandId === name
+              return (
+                <button
+                  key={name}
+                  onClick={() => onBrandChange(active ? 'all' : name)}
+                  className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(name) }} />
+                  <span className="flex-1 truncate text-left">{name}</span>
+                  {active && <Check size={12} className="shrink-0" />}
+                  <span className="text-xs text-ink-400">{cnt}</span>
+                </button>
+              )
+            })}
         </div>
       </div>
     )
