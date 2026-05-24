@@ -18,6 +18,7 @@ interface Props {
   total?:           number
   hasMore?:         boolean
   loadingMore?:     boolean
+  brandCounts?:     Record<string, number>
   onLoadMore?:      () => void
   onToggleTag:      (t: Tag) => void
   onSelectBrand:    (id: string) => void
@@ -73,7 +74,7 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 
 export function TableView({
   items, clients, searchQuery, hasFilters,
-  total, hasMore, loadingMore,
+  total, hasMore, loadingMore, brandCounts,
   onLoadMore,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
   onCreateTask, onCreateProject,
@@ -97,16 +98,21 @@ export function TableView({
   const brandMap = useMemo(() => new Map(clients.map(c => [c.name, c])), [clients])
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
-  const brandCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const item of items) {
-      const b = item.brand_name ?? '미분류'
-      counts.set(b, (counts.get(b) ?? 0) + 1)
-    }
-    return [...counts.entries()]
+  const brandCountList = useMemo(() => {
+    const entries = brandCounts
+      ? Object.entries(brandCounts)
+      : (() => {
+          const m = new Map<string, number>()
+          for (const item of items) {
+            const b = item.brand_name ?? '미분류'
+            m.set(b, (m.get(b) ?? 0) + 1)
+          }
+          return [...m.entries()]
+        })()
+    return entries
       .map(([name, count]) => ({ name, count, client: brandMap.get(name) }))
       .sort((a, b) => b.count - a.count)
-  }, [items, brandMap])
+  }, [items, brandMap, brandCounts])
 
   const [activeBrand, setActiveBrand] = useState<string | null>(null)
 
@@ -152,7 +158,7 @@ export function TableView({
         >
           전체 {total ?? items.length}
         </button>
-        {brandCounts.map(b => {
+        {brandCountList.map(b => {
           const active = activeBrand === b.name
           return (
             <button

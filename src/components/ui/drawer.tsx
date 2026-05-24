@@ -31,8 +31,12 @@ export function Drawer({
         onClick={closeOnBackdrop ? onClose : undefined}
       />
       <div
-        style={{ width: typeof width === 'number' ? `${width}px` : width }}
-        className={`absolute right-0 top-0 h-full bg-card flex flex-col transition-transform duration-300 ease-out ${
+        style={{
+          width: typeof width === 'number' ? `${width}px` : width,
+          boxShadow: open ? undefined : 'none',
+          transition: 'transform 300ms ease-out, box-shadow 300ms ease-out',
+        }}
+        className={`absolute right-0 top-0 h-full bg-card flex flex-col ${
           open ? 'translate-x-0' : 'translate-x-full'
         } ${panelClass ?? 'shadow-2xl'}`}
       >

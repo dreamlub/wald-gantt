@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, Database, GitBranch,
+  Sparkles, LayoutList, Database, GitBranch, GitMerge, CalendarDays,
 } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
@@ -19,6 +19,8 @@ import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
 import { TimelineView } from './timeline-view'
 import { DailyReportView } from './daily-report-view'
+import { ThreadTimelineView } from './thread-timeline-view'
+import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -35,6 +37,7 @@ interface PageState {
   total: number
   loading: boolean
   hasMore: boolean
+  brandCounts: Record<string, number>
 }
 
 type PageAction =
@@ -44,7 +47,7 @@ type PageAction =
 
 function pageReducer(state: PageState, action: PageAction): PageState {
   switch (action.type) {
-    case 'reset': return { items: [], cursor: null, total: 0, loading: true, hasMore: false }
+    case 'reset': return { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
     case 'loading': return { ...state, loading: true }
     case 'loaded': return {
       items: action.append ? [...state.items, ...action.page.items] : action.page.items,
@@ -52,20 +55,21 @@ function pageReducer(state: PageState, action: PageAction): PageState {
       total: action.page.total,
       loading: false,
       hasMore: !!action.page.nextCursor,
+      brandCounts: action.append ? state.brandCounts : (action.page.brandCounts ?? {}),
     }
   }
 }
 
-const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false }
+const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
 
-type ViewKey = 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
+type ViewKey = 'table' | 'weekly' | 'daily' | 'summary' | 'rawdata' | 'timeline' | 'schedule'
 
-const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'timeline', 'insight', 'summary', 'rawdata']
-// 'table' = 타임라인 (구 이름 유지로 URL/state 호환), 'summary' deprecated
+const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'weekly', 'daily', 'summary', 'rawdata', 'timeline', 'schedule']
+// 'summary' deprecated
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'schedule']
 
-function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'insight'  }
+function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'daily'    }
 function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
 function parseTags(v: string | null): Set<Tag> {
   if (!v) return new Set()
@@ -78,9 +82,11 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
-  { key: 'insight',  label: '데일리 리포트', icon: Sparkles },
+  { key: 'daily',    label: '데일리 리포트', icon: Sparkles },
+  { key: 'schedule', label: '일정',         icon: CalendarDays },
   { key: 'table',    label: '테이블',       icon: LayoutList },
-  { key: 'timeline', label: '타임라인',     icon: GitBranch },
+  { key: 'weekly',   label: '위클리 요약',   icon: GitBranch },
+  { key: 'timeline', label: '타임라인',      icon: GitMerge },
   { key: 'rawdata',  label: 'Raw Data',     icon: Database },
 ]
 
@@ -181,6 +187,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [createSource,      setCreateSource]      = useState<HistoryItem | null>(null)
+  const [createTaskPreset,  setCreateTaskPreset]  = useState<{ title: string; memo: string } | null>(null)
   const [workspaceId,       setWorkspaceId]       = useState<string | null>(null)
   const [allCategories,     setAllCategories]     = useState<GanttCategory[]>([])
 
@@ -193,6 +200,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
   async function handleOpenCreateTask(item: HistoryItem) {
     setCreateSource(item)
+    await loadWorkspace()
+    setCreateTaskOpen(true)
+  }
+
+  async function handleCreateTaskFromAction(title: string, memo: string) {
+    setCreateTaskPreset({ title, memo })
     await loadWorkspace()
     setCreateTaskOpen(true)
   }
@@ -320,6 +333,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         <HistorySidebar
           view={view}
           history={initialHistory}
+          clients={initialClients}
           dateFrom={dateFrom}
           dateTo={dateTo}
           weekStart={weekStart}
@@ -331,6 +345,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           onWeekChange={setWeekStart}
           onToggleTag={toggleTag}
           onPriorityChange={setPriorityKey}
+          brandId={brandId}
+          onBrandChange={setBrandId}
           dailyBrands={dailyBrands}
           dailyTags={dailyTags}
           dailyPriorities={dailyPriorities}
@@ -413,15 +429,24 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
         {/* 본문 */}
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
-          {view === 'rawdata' ? (
+          {view === 'schedule' ? (
+            <ScheduleCalendarView clients={initialClients} />
+          ) : view === 'timeline' ? (
+            <ThreadTimelineView
+              dateFrom={dateFrom || undefined}
+              dateTo={dateTo || undefined}
+              brandFilter={brandId === 'all' ? undefined : brandId}
+            />
+          ) : view === 'rawdata' ? (
             <RawDataView />
-          ) : view === 'insight' ? (
+          ) : view === 'daily' ? (
             <DailyReportView
               clients={initialClients}
               selectedDate={dateFrom || todayStr()}
               filterBrands={dailyBrands}
               filterTags={dailyTags}
               filterPriorities={dailyPriorities}
+              onCreateTask={handleCreateTaskFromAction}
             />
           ) : (
             <>
@@ -474,6 +499,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   total={pg.total}
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
+                  brandCounts={pg.brandCounts}
                   onLoadMore={handleLoadMore}
                   onToggleTag={toggleTag}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -484,7 +510,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   onCreateProject={handleOpenCreateProject}
                 />
               )}
-              {view === 'timeline' && (
+              {view === 'weekly' && (
                 <TimelineView
                   clients={initialClients}
                   dateFrom={dateFrom}
@@ -518,15 +544,16 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       {/* 태스크 생성 다이얼로그 */}
       <TaskFormDialog
         open={createTaskOpen}
-        onClose={() => { setCreateTaskOpen(false); setCreateSource(null) }}
-        initialTitle={createSource?.title ?? ''}
-        initialMemo={createSource?.body ?? ''}
+        onClose={() => { setCreateTaskOpen(false); setCreateSource(null); setCreateTaskPreset(null) }}
+        initialTitle={createSource?.title ?? createTaskPreset?.title ?? ''}
+        initialMemo={createSource?.body ?? createTaskPreset?.memo ?? ''}
         onSearchProjects={q => workspaceId ? searchProjects(workspaceId, q) : Promise.resolve([])}
         onSave={async (fields, projectIds) => {
           if (!workspaceId) return
           await addTask(workspaceId, { ...fields, type: 'mine' }, projectIds)
           setCreateTaskOpen(false)
           setCreateSource(null)
+          setCreateTaskPreset(null)
         }}
       />
 

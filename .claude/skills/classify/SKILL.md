@@ -105,7 +105,7 @@ body 형식:
 ### 참조 데이터 (필수)
 1. **당일 client_history** — 해당 날짜의 분류된 항목 전체
 2. **과거 1주일 데일리 리포트** — 이슈 연속성, 해결 여부 추적
-3. **현재 주 타임라인** — 이번 주 브랜드별 큰 그림에서 오늘의 위치
+3. **현재 주 + 직전 주 타임라인** — 이번 주 흐름과 지난 주 맥락을 함께 파악
 
 ```sql
 -- 당일 데이터
@@ -119,10 +119,11 @@ FROM daily_reports
 WHERE report_date BETWEEN '날짜'::date - 7 AND '날짜'::date - 1
 ORDER BY report_date
 
--- 현재 주 타임라인
-SELECT brand_name, topic, summary
+-- 현재 주 + 직전 주 타임라인
+SELECT brand_name, topic, summary, week_start
 FROM weekly_brand_summaries
-WHERE week_start = (해당 날짜의 월요일)
+WHERE week_start IN (해당 날짜의 월요일, 그 전주 월요일)
+ORDER BY week_start
 ```
 
 ### 작성 원칙
@@ -169,7 +170,7 @@ severity → 우선순위 매핑: urgent=high, watch=medium, info=low
 
 ### 참조 데이터 (필수)
 1. **해당 주 데일리 리포트 전체** — 월~금 데일리 리포트를 종합
-2. **이전 주 타임라인** — 브랜드별 흐름의 연속성
+2. **이전 2주 타임라인** — 브랜드별 흐름의 연속성 (2주 전 → 1주 전 순으로 제공), thread_id 포함
 
 ```sql
 -- 해당 주 데일리 리포트
@@ -178,23 +179,104 @@ FROM daily_reports
 WHERE report_date BETWEEN '월요일' AND '일요일'
 ORDER BY report_date
 
--- 이전 주 타임라인
-SELECT brand_name, topic, summary
+-- 이전 2주 타임라인 (thread_id 포함) — 기본 범위
+SELECT brand_name, topic, summary, week_start, thread_id, parent_thread_ids
 FROM weekly_brand_summaries
-WHERE week_start = '전주 월요일'
+WHERE week_start IN ('2주 전 월요일', '전주 월요일')
+ORDER BY week_start
+
+-- 인과·재발 판단 시 추가 조회 — 해당 브랜드 전체 히스토리
+-- (2주 이전에 원인 이슈가 있을 가능성이 있으면 아래 쿼리로 확장)
+SELECT brand_name, topic, summary, week_start, thread_id, parent_thread_ids
+FROM weekly_brand_summaries
+WHERE brand_name = '브랜드명'
+ORDER BY week_start
 ```
 
 ### 작성 원칙
 - **주제별 카드 분리** — 같은 브랜드라도 주제가 다르면 별도 카드 (예: "더리터 — POS 안정성", "더리터 — 브랜드 요청")
 - **추론·분석 중심** — 단순 나열이 아니라 "이번 주 이 브랜드는 어떤 국면에 있는가" 판단
 - **주제 전환 시 개행** — 맥락이 달라지면 문단 분리
+- **2주 흐름 반영** — 2주 전 → 1주 전 → 이번 주 순으로 흐름을 읽어 지속·악화·해소·신규 여부를 판단. 2주 연속 등장한 이슈는 "장기화" 또는 "반복" 표현 사용
+
+### thread_id 이월 규칙
+
+카드를 생성할 때 아래 케이스를 순서대로 판단한다. **참조 범위: 기본 이전 2주이나, 인과·재발 판단 시 관련 이슈가 2주보다 오래됐으면 해당 thread_id를 직접 조회해서 확인한다.**
+
+| 케이스 | 판단 기준 | thread_id 처리 |
+|--------|-----------|----------------|
+| **이월** | 이전 주 카드와 같은 브랜드 + 같은 주제/이슈가 이번 주에도 계속됨 | 직전 주 카드의 `thread_id`를 그대로 사용 |
+| **신규** | 이번 주에 처음 등장하는 이슈이며, 이전 이슈와 인과·재발 관계 없음 | `thread_id` 생략 (DB 기본값 `gen_random_uuid()` 자동 부여) |
+| **분기** | 하나의 이슈에서 여러 세부 이슈로 갈라짐 | 새 카드마다 `thread_id` 생략, `parent_thread_ids`에 부모 카드의 `thread_id` 배열로 기록 |
+| **인과** | 이전 이슈가 직접 원인이 되어 새로운 주제의 이슈가 발생함 (topic은 달라지지만 "~로 인해", "~에서 비롯된" 관계가 명확) | `thread_id` 생략, `parent_thread_ids`에 원인 카드의 `thread_id` 배열로 기록 |
+| **재발** | 이전에 해소된 이슈와 동일한 주제가 일정 기간 공백 후 다시 등장함 | `thread_id` 생략, `parent_thread_ids`에 이전 해소 카드의 `thread_id` 기록 |
+
+**이월 판단 기준 (엄격하게 적용):**
+- 브랜드명이 같고, topic이 실질적으로 동일한 주제를 가리킬 때만 이월
+- 이슈가 "해소"된 것으로 보이더라도 summary에 명시된 경우가 아니면 이월 유지
+- 토픽이 다르거나 전혀 새로운 맥락이면 신규·인과·재발 중 하나로 판단
+
+**인과 판단 기준:**
+- summary에 "~버그로 인해", "~전환 이후", "~에서 비롯된" 등 명시적 원인 서술이 있을 때
+- 같은 브랜드 내에서 이전 이슈의 직접적 결과로 새 이슈가 발생했음이 추론될 때
+- 인과와 분기의 차이: 인과는 A→B 직렬 연쇄, 분기는 A에서 B·C·D가 병렬로 파생
+- 원인이 여러 개면 `parent_thread_ids`에 복수 thread_id를 모두 기록 (예: `ARRAY['id_A', 'id_B']`)
+
+**재발 판단 기준:**
+- 이전 카드에서 "해소", "완료", "배포 후 종결" 등이 명시된 이후 1주 이상 공백이 있다가 같은 주제가 재등장할 때
+- 이월과의 차이: 이월은 중단 없이 이어지는 것, 재발은 해소 판정 이후 새로 터진 것
+- 재발임을 summary에 명시 (예: "이전에 해결된 것으로 판단했으나 재발")
+
+**참조 범위 확장 규칙:**
+- 기본은 이전 2주 타임라인을 참조
+- 인과·재발 판단 시 원인 이슈가 2주 이전에 있으면 해당 브랜드의 타임라인을 추가 조회해서 thread_id를 확인한다
+- 인과 체인이 길어질수록 직접 원인(immediate parent)만 `parent_thread_ids`에 기록하고, 더 위의 원인은 그 카드의 parent를 통해 추적 가능하므로 중복 기록하지 않는다
 
 ### 데이터 구조
 
 ```sql
+-- 이월 카드 (직전 주 thread_id 명시)
+INSERT INTO weekly_brand_summaries (
+  workspace_id, week_start, brand_name, topic,
+  summary, item_count, key_tags, max_priority,
+  thread_id
+) VALUES (
+  ..., '직전 주 카드의 thread_id'
+)
+
+-- 신규 카드 (thread_id 생략 → DB 자동 부여)
 INSERT INTO weekly_brand_summaries (
   workspace_id, week_start, brand_name, topic,
   summary, item_count, key_tags, max_priority
+)
+
+-- 분기 카드 (parent_thread_ids 포함) — 하나의 이슈에서 여러 이슈로 병렬 파생
+INSERT INTO weekly_brand_summaries (
+  workspace_id, week_start, brand_name, topic,
+  summary, item_count, key_tags, max_priority,
+  parent_thread_ids
+) VALUES (
+  ..., ARRAY['부모_thread_id']
+)
+
+-- 인과 카드 (parent_thread_ids 포함) — 이전 이슈가 직접 원인이 된 새 이슈
+-- 예: v1→v3 전환 버그(A)가 결제 누락(B)을 일으키고, B가 POS 안정성 위기(C)로 이어진 경우
+-- 원인이 복수일 때: ARRAY['원인_id_A', '원인_id_B']
+INSERT INTO weekly_brand_summaries (
+  workspace_id, week_start, brand_name, topic,
+  summary, item_count, key_tags, max_priority,
+  parent_thread_ids
+) VALUES (
+  ..., ARRAY['원인_thread_id']
+)
+
+-- 재발 카드 (parent_thread_ids 포함) — 이전에 해소된 이슈가 공백 후 재등장
+INSERT INTO weekly_brand_summaries (
+  workspace_id, week_start, brand_name, topic,
+  summary, item_count, key_tags, max_priority,
+  parent_thread_ids
+) VALUES (
+  ..., ARRAY['이전_해소_thread_id']
 )
 ```
 

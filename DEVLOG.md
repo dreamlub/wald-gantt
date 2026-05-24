@@ -1,5 +1,71 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-25) — 액션 아이템 드로어 + 뷰 구조 개편 + SKILL thread_id 이월 규칙
+
+### 1. 액션 아이템 클릭 드로어 (`daily-report-view.tsx`)
+- **`ActionDetailDrawer`** 신규: 챙겨야 할 것 카드 클릭 시 우측 Drawer 오픈
+  - 상단: 브랜드 뱃지 + 우선순위 바 + 제목
+  - 상황 요약 + 필요한 액션(점선 박스)
+  - **관련 내역**: 해당 날짜 · 브랜드의 `client_history` 조회 → AI 요약 + 원본 Slack 메시지(접기/펼치기)
+  - **과거 유사 내역**: 같은 태그가 겹치는 과거 5건 (날짜 + 제목 + 태그)
+  - 푸터: "태스크 생성" 버튼 (제목·메모 프리셋으로 `TaskFormDialog` 오픈)
+- 카드 호버 시 우상단에 미니 "태스크" 버튼 노출 (드로어 없이 바로 태스크 생성)
+- 섹션이 비어 있어도 항상 표시 (`—` 빈 상태 컴포넌트)
+- `slackTextClean()`: Slack mrkdwn 링크·채널·사용자 태그 정리 함수 추가
+
+### 2. 뷰 구조 개편 (`history-shell.tsx`, `history-sidebar.tsx`)
+- 뷰 키 리네이밍:
+  - `insight` → `daily` (데일리 리포트)
+  - `timeline` → `weekly` (위클리 요약, 기존 TimelineView)
+  - 신규 `timeline` — `ThreadTimelineView` (주차별 컬럼·카드·베지어 화살표)
+  - 신규 `schedule` — `ScheduleCalendarView`
+- 탭 추가: "일정(CalendarDays)", "타임라인(GitMerge)"
+- 기본 뷰 변경: `insight` → `daily`
+- `ThreadTimelineView`에 `dateFrom`, `dateTo`, `brandFilter` prop 연결
+- `ScheduleCalendarView` 렌더 연결
+
+### 3. 타임라인 사이드바 브랜드 필터 (`history-sidebar.tsx`)
+- `view === 'timeline'` 사이드바 신규: 기간 선택 + 브랜드 필터 버튼 목록
+- `clients` prop, `brandId`/`onBrandChange` prop 추가
+- 모든 사이드바 패널에 스크롤바 숨김 클래스 통일
+
+### 4. SKILL.md — thread_id 이월 규칙 + 참조 범위 확장
+- 데일리 리포트 참조: "현재 주 타임라인" → "현재 주 + 직전 주 타임라인"
+- 타임라인 생성 참조: "이전 1주" → "이전 2주 (thread_id 포함)"
+- thread_id 이월 3케이스 문서화:
+  - **이월**: 같은 브랜드 + 같은 주제 → 직전 주 `thread_id` 재사용
+  - **신규**: 처음 등장 → thread_id 생략(DB 자동)
+  - **분기**: 하나 이슈 → 여러 세부 이슈 → `parent_thread_ids` 배열 기록
+- 각 케이스별 INSERT SQL 예시 추가
+
+### 5. 전역 스크롤바 숨김 (`globals.css`)
+- `html`, `body`에 `overflow: hidden`, `scrollbar-width: none`, `::-webkit-scrollbar { display: none }` 전역 적용
+
+### 검증
+- `npx tsc --noEmit` 통과 예정 (변경 중)
+
+---
+
+## 최근 변경 (2026-05-24) — 테이블 브랜드 카운트 고정 + Drawer 우측 그림자 버그 수정
+
+### 1. 테이블 뷰 브랜드 카운트 안정화
+- **문제**: 테이블 뷰 상단 브랜드 필터 배지의 숫자·순서가 무한스크롤로 데이터가 늘어날 때마다 바뀌는 문제
+- **원인**: `brandCounts`를 로드된 `items` 배열 기준으로 매번 재계산
+- **수정**:
+  - `history-service.ts` — `HistoryPage`에 `brandCounts?: Record<string, number>` 추가. 첫 페이지(cursor 없을 때)에 동일 필터로 전체 브랜드별 카운트 쿼리를 병렬 실행해 반환
+  - `history-shell.tsx` — `PageState`에 `brandCounts` 추가, `append: true`(추가 로드) 시 갱신하지 않음
+  - `table-view.tsx` — `brandCounts` prop 수신 후 우선 사용, 없을 때만 items 기준 집계로 폴백
+
+### 2. Drawer 우측 그림자 번짐 버그 수정
+- **문제**: 화면 우측 가장자리에 반투명 그림자가 항상 표시됨 (스크롤바와 무관)
+- **원인**: `Drawer` 컴포넌트가 `open=false`일 때도 DOM에 유지되며 `translate-x-full`로 뷰포트 밖으로 밀림. `shadow-2xl`의 blur(50px)가 패널 왼쪽 가장자리(= 뷰포트 우측)에서 안쪽으로 번짐
+- **수정** (`drawer.tsx`): `open=false` 시 `boxShadow: 'none'`으로 전환, `transition: transform 300ms, box-shadow 300ms`으로 슬라이드 아웃과 함께 그림자도 서서히 사라지도록 처리
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
 ## 최근 변경 (2026-05-24) — 수집 기능 분리 + 1/19~2/5 분류·데일리 리포트 생성
 
 ### 1. 수집 기능 분리 (history-shell → collect-raw)

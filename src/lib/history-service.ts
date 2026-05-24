@@ -124,6 +124,7 @@ export interface HistoryPage {
   items: HistoryItem[]
   nextCursor: string | null
   total: number
+  brandCounts?: Record<string, number>
 }
 
 export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promise<HistoryPage> {
@@ -161,7 +162,22 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
     query = query.or(`occurred_at.lt.${cursorDate},and(occurred_at.eq.${cursorDate},id.lt.${cursorId})`)
   }
 
-  const [pageResult, countResult] = await Promise.all([query, countQuery])
+  // brand counts — only on first page (no cursor), same filters applied
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let brandQ: any = null
+  if (!params.cursor) {
+    brandQ = client.from('client_history').select('brand_name').is('deleted_at', null)
+    if (params.from)     brandQ = brandQ.gte('occurred_at', params.from + 'T00:00:00')
+    if (params.to)       brandQ = brandQ.lte('occurred_at', params.to   + 'T23:59:59')
+    if (params.brand)    brandQ = brandQ.eq('brand_name', params.brand)
+    if (params.priority) brandQ = brandQ.eq('priority', params.priority)
+    if (params.author)   brandQ = brandQ.eq('author', params.author)
+    if (params.q)        brandQ = brandQ.or(`title.ilike.%${params.q}%,body.ilike.%${params.q}%,channel.ilike.%${params.q}%,author.ilike.%${params.q}%`)
+  }
+
+  const [pageResult, countResult, brandResult] = await Promise.all([
+    query, countQuery, brandQ ?? Promise.resolve(null),
+  ])
   if (pageResult.error) throw pageResult.error
 
   const items = (pageResult.data ?? []).map(toHistory)
@@ -171,7 +187,16 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
     nextCursor = `${last.occurred_at}|${last.id}`
   }
 
-  return { items, nextCursor, total: countResult.count ?? 0 }
+  let brandCounts: Record<string, number> | undefined
+  if (brandResult?.data) {
+    brandCounts = {}
+    for (const row of brandResult.data as Array<{ brand_name: string | null }>) {
+      const b = row.brand_name ?? '미분류'
+      brandCounts[b] = (brandCounts[b] ?? 0) + 1
+    }
+  }
+
+  return { items, nextCursor, total: countResult.count ?? 0, brandCounts }
 }
 
 export interface HistoryStats {

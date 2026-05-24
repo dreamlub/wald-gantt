@@ -52,8 +52,9 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
+  view: 'table' | 'weekly' | 'daily' | 'summary' | 'rawdata' | 'timeline' | 'schedule'
   history: HistoryItem[]
+  clients: Client[]
   // table/summary용
   dateFrom: string
   dateTo: string
@@ -68,6 +69,9 @@ interface Props {
   priorityKey: PriorityKey
   onToggleTag: (t: Tag) => void
   onPriorityChange: (p: PriorityKey) => void
+  // 브랜드 (타임라인 등)
+  brandId: string | 'all'
+  onBrandChange: (b: string | 'all') => void
   // 데일리 리포트 필터
   dailyBrands: Set<string>
   dailyTags: Set<Tag>
@@ -81,10 +85,12 @@ interface Props {
 export function HistorySidebar({
   view,
   history,
+  clients,
   dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick,
   weekStart, onWeekChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
+  brandId, onBrandChange,
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
 }: Props) {
@@ -100,7 +106,43 @@ export function HistorySidebar({
     return <RawDataSidebarPanel />
   }
 
-  if (view === 'insight') {
+  if (view === 'timeline') {
+    return (
+      <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+        <DateRangePanel
+          dateFrom={dateFrom} dateTo={dateTo}
+          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        />
+        <div className="mt-3">
+          <GroupTitle>브랜드</GroupTitle>
+          <button
+            onClick={() => onBrandChange('all')}
+            className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
+          >
+            <LayoutList size={12} className="shrink-0" />
+            <span className="flex-1 truncate text-left">전체</span>
+            {brandId === 'all' && <Check size={12} className="shrink-0" />}
+          </button>
+          {clients.map(c => {
+            const active = brandId === c.name
+            return (
+              <button
+                key={c.id}
+                onClick={() => onBrandChange(active ? 'all' : c.name)}
+                className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
+              >
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
+                <span className="flex-1 truncate text-left">{c.name}</span>
+                {active && <Check size={12} className="shrink-0" />}
+              </button>
+            )
+          })}
+        </div>
+      </div>
+    )
+  }
+
+  if (view === 'daily') {
     const selectedDate = dateFrom || dateStr(new Date())
     const dayItems = history.filter(h => h.occurred_at.slice(0, 10) === selectedDate)
     const dayTagCounts: Record<string, number> = {}
@@ -115,7 +157,7 @@ export function HistorySidebar({
     const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
 
     return (
-      <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
+      <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <MonthGridSection
           dateFrom={dateFrom} history={history}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -165,10 +207,10 @@ export function HistorySidebar({
   }
 
   return (
-    <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
+    <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
       {/* ── 기간 ─────────────────────────── */}
-      {view === 'table' || view === 'timeline' ? (
+      {view === 'table' || view === 'weekly' ? (
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -191,7 +233,7 @@ export function HistorySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -202,7 +244,7 @@ export function HistorySidebar({
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
           <LayoutList size={12} className="shrink-0" />
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
+          {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
         {(view === 'table' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
           const meta = PRIORITY_META[p]
@@ -210,7 +252,7 @@ export function HistorySidebar({
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
+              {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}

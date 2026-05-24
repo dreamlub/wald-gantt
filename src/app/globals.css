@@ -267,9 +267,17 @@
   }
   body {
     @apply bg-background text-foreground;
+    overflow: hidden;
+    scrollbar-width: none;
   }
   html {
     @apply font-sans;
+    overflow: hidden;
+    scrollbar-width: none;
+  }
+  html::-webkit-scrollbar,
+  body::-webkit-scrollbar {
+    display: none;
   }
   button {
     -webkit-font-smoothing: inherit;
