@@ -152,7 +152,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   }
 
   return (
-    <div className="flex items-center h-8 rounded-lg border border-border bg-card focus-within:border-lilac-300 transition-colors overflow-hidden">
+    <div className="flex items-center h-8 w-full rounded-lg border border-border bg-card focus-within:border-lilac-300 transition-colors overflow-hidden">
       <input
         className="flex-1 min-w-0 text-xs px-2.5 bg-transparent outline-none text-foreground placeholder:text-ink-300 tabular-nums"
         placeholder={placeholder}
@@ -360,7 +360,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           {/* 시작일 / 종료일 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
@@ -371,7 +371,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                   />
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
