@@ -31,7 +31,7 @@ export function useConfirm() {
   }
 
   const dialog = state ? (
-    <div className="fixed inset-0 z-[200] flex items-center justify-center">
+    <div className="fixed inset-0 z-dialog flex items-center justify-center">
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"

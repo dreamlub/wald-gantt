@@ -201,7 +201,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
       <div className="flex-1 flex flex-col items-center justify-center text-ink-400 gap-2">
         <span className="text-xs">시작일 또는 마감일이 설정된 태스크가 없어요</span>
         {undatedTasks.length > 0 && (
-          <span className="text-[11px] text-ink-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
+          <span className="text-2xs text-ink-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
         )}
       </div>
     )
@@ -249,7 +249,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
               {yGroups.map((g, i) => (
                 <div
                   key={i}
-                  className="shrink-0 flex items-center px-2 text-[11px] font-bold text-muted-foreground border-r bg-muted"
+                  className="shrink-0 flex items-center px-2 text-2xs font-bold text-muted-foreground border-r bg-muted"
                   style={{ width: g.count * WEEK_W }}
                 >
                   {g.year}
@@ -262,7 +262,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
               {mGroups.map((g, i) => (
                 <div
                   key={i}
-                  className="shrink-0 flex items-center px-1.5 text-[11px] font-semibold text-muted-foreground border-r bg-card whitespace-nowrap overflow-hidden"
+                  className="shrink-0 flex items-center px-1.5 text-2xs font-semibold text-muted-foreground border-r bg-card whitespace-nowrap overflow-hidden"
                   style={{ width: g.count * WEEK_W }}
                 >
                   {g.label}
@@ -279,7 +279,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                 return (
                   <div
                     key={w.key}
-                    className={`shrink-0 flex items-center justify-center text-[10px] border-r
+                    className={`shrink-0 flex items-center justify-center text-3xs border-r
                       ${isToday ? 'bg-accent text-accent-foreground font-semibold' : 'text-ink-400'}`}
                     style={{ width: WEEK_W }}
                   >
@@ -421,8 +421,8 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                         >
                           {displayLabel && (
                             <span
-                              className="text-[10px] font-medium truncate leading-none whitespace-nowrap"
-                              style={{ color: '#fff', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
+                              className="text-3xs font-medium truncate leading-none whitespace-nowrap"
+                              style={{ color: 'white', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
                             >
                               {displayLabel}
                             </span>
@@ -434,7 +434,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                           className="absolute top-2 flex items-center pointer-events-none"
                           style={{ left: eBarLeft + eBarWidth + 4, height: ROW_H - 16 }}
                         >
-                          <span className={`text-[10px] font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
+                          <span className={`text-3xs font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
                             {label}
                           </span>
                         </div>
@@ -450,7 +450,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
         {/* ── 날짜 없는 태스크 ── */}
         {undatedTasks.length > 0 && (
           <>
-            <div className="sticky left-0 z-10 px-3 py-1.5 text-[10px] font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
+            <div className="sticky left-0 z-10 px-3 py-1.5 text-3xs font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
               날짜 미설정 — {undatedTasks.length}개
             </div>
             {undatedTasks.map(task => {
@@ -485,7 +485,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                     )}
                   </div>
                   <div className="flex-1 flex items-center px-4">
-                    <span className="text-[10px] text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
+                    <span className="text-3xs text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
                   </div>
                 </div>
               )
@@ -500,8 +500,8 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
         if (!t?.memo) return null
         const pos = clampTooltipPos(memoHover.x, memoHover.y)
         return (
-          <div className="fixed z-[9999] pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
-            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+          <div className="fixed z-tooltip pointer-events-none max-w-xs" style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}>
+            <div className="bg-foreground text-background text-2xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
               {t.memo}
             </div>
             <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />

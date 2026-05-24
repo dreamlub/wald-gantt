@@ -1,12 +1,16 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap } from 'lucide-react'
+import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon } from 'lucide-react'
+import { format } from 'date-fns'
+import { ko } from 'date-fns/locale'
 
 import type { Client, Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
+import { Calendar } from '@/components/ui/calendar'
+import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
 export type PriorityKey = 'all' | Priority
 
@@ -113,7 +117,7 @@ export function HistorySidebar({
     return (
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
         <MonthGridSection
-          dateFrom={dateFrom} dateTo={dateTo} history={history}
+          dateFrom={dateFrom} history={history}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
         />
 
@@ -164,10 +168,17 @@ export function HistorySidebar({
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
 
       {/* ── 기간 ─────────────────────────── */}
-      <MonthGridSection
-        dateFrom={dateFrom} dateTo={dateTo} history={history}
-        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-      />
+      {view === 'table' ? (
+        <DateRangePanel
+          dateFrom={dateFrom} dateTo={dateTo}
+          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        />
+      ) : (
+        <MonthGridSection
+          dateFrom={dateFrom} history={history}
+          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        />
+      )}
 
       {/* ── 태그·중요도 ─────────────────── */}
       <div className="mt-3">
@@ -254,10 +265,10 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
           <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
             {getWeekLabel(monday)}
             {isCurrent && (
-              <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
+              <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
             )}
           </div>
-          <div className="text-[10px] text-ink-400 mt-0.5">{getWeekDateRange(monday)}</div>
+          <div className="text-3xs text-ink-400 mt-0.5">{getWeekDateRange(monday)}</div>
         </div>
         <button onClick={moveNext} disabled={isCurrent}
           className="w-7 flex items-center justify-center text-ink-400 border-l border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
@@ -275,10 +286,10 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
             <span className="flex-1 flex items-center gap-1.5 truncate">
               {getShortLabel(m, i)}
               {i === 0 && (
-                <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
+                <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
               )}
             </span>
-            <span className="text-[11px] shrink-0 text-ink-400">
+            <span className="text-2xs shrink-0 text-ink-400">
               {getWeekDateRange(m)}
             </span>
           </button>
@@ -291,8 +302,8 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
-function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateToChange }: {
-  dateFrom: string; dateTo: string; history: HistoryItem[]
+function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange }: {
+  dateFrom: string; history: HistoryItem[]
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
 }) {
   const today = new Date()
@@ -324,22 +335,8 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
     })
   })()
 
-  const [selMode, setSelMode] = useState<'day' | 'week' | 'month'>('day')
-
   function selectDay(d: Date) {
     const ymd = dateStr(d)
-    if (selMode === 'month') {
-      selectMonth()
-      return
-    }
-    if (selMode === 'week') {
-      const mon = getMondayOfDate(d)
-      const sun = new Date(mon)
-      sun.setDate(mon.getDate() + 6)
-      onDateFromChange(dateStr(mon))
-      onDateToChange(dateStr(sun))
-      return
-    }
     if (ymd === dateFrom) {
       onDateFromChange('')
       onDateToChange('')
@@ -347,14 +344,6 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
       onDateFromChange(ymd)
       onDateToChange(ymd)
     }
-  }
-
-  function selectMonth() {
-    const lastDay = new Date(calYear, calMonth + 1, 0).getDate()
-    const from = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`
-    const to = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
-    onDateFromChange(from)
-    onDateToChange(to)
   }
 
   function prevMonth() {
@@ -380,9 +369,9 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
             <ChevronLeft size={12} />
           </button>
           <div className="flex-1 flex items-center justify-center gap-1.5">
-            <span className="text-[11px] font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
+            <span className="text-2xs font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
             {atCurrentMonth && (
-              <span className="text-[9px] font-bold tracking-[0.04em] px-1 rounded-[2px] bg-lilac-100 text-lilac-600">NOW</span>
+              <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
             )}
           </div>
           <button onClick={nextMonth} disabled={atCurrentMonth}
@@ -391,43 +380,12 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
           </button>
         </div>
 
-        {/* 기간 단위 선택 */}
-        <div className="flex items-center gap-0.5 mb-1.5 px-0.5">
-          {(['day', 'week', 'month'] as const).map(m => (
-            <button
-              key={m}
-              onClick={() => {
-                setSelMode(m)
-                if (m === 'month') selectMonth()
-                else if (m === 'day' && dateFrom) {
-                  onDateToChange(dateFrom)
-                }
-              }}
-              className={`flex-1 text-[9px] py-0.5 rounded transition-colors ${
-                selMode === m
-                  ? 'bg-lilac-500 text-white font-semibold'
-                  : 'text-ink-400 hover:text-foreground hover:bg-muted'
-              }`}
-            >
-              {m === 'day' ? '일' : m === 'week' ? '주' : '월'}
-            </button>
-          ))}
-          <button
-            onClick={() => { onDateFromChange(''); onDateToChange(''); setSelMode('day') }}
-            className={`flex-1 text-[9px] py-0.5 rounded transition-colors ${
-              !dateFrom ? 'bg-lilac-500 text-white font-semibold' : 'text-ink-400 hover:text-foreground hover:bg-muted'
-            }`}
-          >
-            전체
-          </button>
-        </div>
-
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 mb-0.5">
           {DAY_HEADERS.map((d, i) => (
             <div
               key={d}
-              className={`text-[9px] text-center py-0.5 ${
+              className={`text-4xs text-center py-0.5 ${
                 i === 0 ? 'text-rose-400' : i === 6 ? 'text-blue-400' : 'text-ink-400'
               }`}
             >
@@ -442,9 +400,7 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
           const dow      = d.getDay()
           const inMonth  = d.getMonth() === calMonth
           const ymd      = dateStr(d)
-          const isSelected = dateTo && dateFrom !== dateTo
-            ? ymd >= dateFrom && ymd <= dateTo
-            : ymd === dateFrom
+          const isSelected = ymd === dateFrom
           const isToday    = ymd === todayYmd
           const isFuture   = d.getTime() > todayMs
           const hasItems   = (dayCounts[ymd] ?? 0) > 0
@@ -460,7 +416,7 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
               onClick={() => !isFuture && selectDay(d)}
               disabled={isFuture}
               className={[
-                'relative h-6 flex items-center justify-center rounded text-[11px] transition-colors',
+                'relative h-6 flex items-center justify-center rounded text-2xs transition-colors',
                 isSelected
                   ? 'bg-lilac-500 text-white font-semibold hover:bg-lilac-500'
                   : isFuture
@@ -489,8 +445,95 @@ function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateT
   )
 }
 
+// ── 날짜 범위 (테이블 전용) ─────────────────────────────────
+function SidebarDatePicker({ value, onChange, placeholder }: {
+  value: string; onChange: (s: string) => void; placeholder: string
+}) {
+  const [open, setOpen] = useState(false)
+  const dateValue = value ? new Date(value + 'T00:00:00') : undefined
+
+  return (
+    <Popover open={open} onOpenChange={setOpen}>
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-7 font-normal transition-colors hover:bg-muted">
+        <CalendarIcon size={12} className="text-muted-foreground shrink-0" />
+        {dateValue
+          ? <span className="text-foreground text-2xs">{format(dateValue, 'yy.MM.dd (eee)', { locale: ko })}</span>
+          : <span className="text-ink-300 text-2xs">{placeholder}</span>
+        }
+      </PopoverTrigger>
+      <PopoverContent className="w-auto p-0" align="start" side="right">
+        <Calendar
+          mode="single"
+          selected={dateValue}
+          defaultMonth={dateValue}
+          onSelect={d => { onChange(d ? dateStr(d) : ''); setOpen(false) }}
+          locale={ko}
+        />
+      </PopoverContent>
+    </Popover>
+  )
+}
+
+function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: {
+  dateFrom: string; dateTo: string
+  onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
+}) {
+  function fmt(d: Date) {
+    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  }
+  const today = fmt(new Date())
+
+  function applyPreset(preset: 'week' | 'month' | '3month' | 'all') {
+    if (preset === 'all') { onDateFromChange(''); onDateToChange(''); return }
+    const now = new Date()
+    if (preset === 'week') {
+      const d = new Date(now.getTime() - 6 * 86400000)
+      onDateFromChange(fmt(d))
+    } else if (preset === 'month') {
+      onDateFromChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
+    } else if (preset === '3month') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 2, 1)
+      onDateFromChange(fmt(d))
+    }
+    onDateToChange(today)
+  }
+
+  return (
+    <div className="pb-1">
+      <div className="mx-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2.5">
+        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">기간</div>
+        <div className="flex items-center gap-1.5">
+          <SidebarDatePicker value={dateFrom} onChange={onDateFromChange} placeholder="시작일" />
+          <span className="text-3xs text-ink-400 shrink-0">~</span>
+          <SidebarDatePicker value={dateTo} onChange={onDateToChange} placeholder="종료일" />
+        </div>
+        <div className="flex flex-wrap gap-1">
+          {([
+            ['week', '최근 1주'],
+            ['month', '이번 달'],
+            ['3month', '3개월'],
+            ['all', '전체'],
+          ] as const).map(([key, label]) => (
+            <button
+              key={key}
+              onClick={() => applyPreset(key)}
+              className={`text-3xs px-2 py-0.5 rounded border transition-colors ${
+                key === 'all' && !dateFrom
+                  ? 'bg-foreground text-background border-foreground'
+                  : 'border-border text-ink-500 hover:text-foreground hover:border-ink-400'
+              }`}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function GroupTitle({ children }: { children: React.ReactNode }) {
-  return <div className="px-2 mb-1 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
+  return <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
 }
 
 // ── Raw Data 전용 사이드바 ───────────────────────────────────
@@ -542,44 +585,44 @@ function RawDataSidebarPanel() {
 
   return (
     <div className="flex flex-col gap-3 p-4">
-      <p className="text-[11px] text-ink-400 leading-relaxed">
+      <p className="text-2xs text-ink-400 leading-relaxed">
         날짜별 수집 현황을 확인하고 재수집을 실행합니다.
       </p>
 
       <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
+        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-ink-400 w-6 shrink-0">from</span>
+            <span className="text-3xs text-ink-400 w-6 shrink-0">from</span>
             <input
               type="date"
               value={from}
               onChange={e => setFrom(e.target.value)}
               disabled={busy}
-              className="flex-1 text-[11px] bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-[10px] text-ink-400 w-6 shrink-0">to</span>
+            <span className="text-3xs text-ink-400 w-6 shrink-0">to</span>
             <input
               type="date"
               value={to}
               onChange={e => setTo(e.target.value)}
               disabled={busy}
-              className="flex-1 text-[11px] bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
             />
           </div>
         </div>
         <button
           onClick={handleCollectRaw}
           disabled={busy || !from || !to || from > to}
-          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-[11px] font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
           <DatabaseZap size={11} className={busy ? 'animate-pulse' : ''} />
           {busy ? 'Raw 수집 중...' : 'Raw 수집'}
         </button>
         {status && (
-          <p className="text-[10px] text-ink-400 leading-relaxed break-all">{status}</p>
+          <p className="text-3xs text-ink-400 leading-relaxed break-all">{status}</p>
         )}
       </div>
     </div>

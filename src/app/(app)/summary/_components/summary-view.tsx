@@ -99,12 +99,12 @@ export function SummaryView({ items, clients }: Props) {
             const pct = total > 0 ? Math.round(c / total * 100) : 0
             return (
               <div key={t} className="bg-card border border-border rounded-lg px-4 py-3.5">
-                <div className="text-[11px] font-medium mb-1 inline-flex items-center gap-1.5" style={{ color: meta.color }}>
+                <div className="text-2xs font-medium mb-1 inline-flex items-center gap-1.5" style={{ color: meta.color }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
                   {meta.label}
                 </div>
-                <div className="text-[22px] font-bold text-foreground leading-none">{c}건</div>
-                <div className="text-[11px] text-ink-400 mt-1">전체의 {pct}%</div>
+                <div className="text-2xl font-bold text-foreground leading-none">{c}건</div>
+                <div className="text-2xs text-ink-400 mt-1">전체의 {pct}%</div>
               </div>
             )
           })}
@@ -121,11 +121,11 @@ export function SummaryView({ items, clients }: Props) {
               const pct = total > 0 ? Math.round(c / total * 100) : 0
               return (
                 <div key={p} className="bg-card border border-border rounded-lg px-4 py-3.5">
-                  <div className="text-[11px] font-medium mb-1" style={{ color: meta.color }}>
+                  <div className="text-2xs font-medium mb-1" style={{ color: meta.color }}>
                     ● {meta.label}
                   </div>
-                  <div className="text-[22px] font-bold text-foreground leading-none">{c}건</div>
-                  <div className="text-[11px] text-ink-400 mt-1">전체의 {pct}%</div>
+                  <div className="text-2xl font-bold text-foreground leading-none">{c}건</div>
+                  <div className="text-2xs text-ink-400 mt-1">전체의 {pct}%</div>
                 </div>
               )
             })}
@@ -144,7 +144,7 @@ export function SummaryView({ items, clients }: Props) {
                     <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: b.client.color }} />
                     {b.client.name}
                   </div>
-                  <div className="flex gap-3.5 text-[11px] text-ink-700">
+                  <div className="flex gap-3.5 text-2xs text-ink-700">
                     {b.issue > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-late)' }}>● 이슈 {b.issue}</span>}
                     {b.decision > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-warn)' }}>● 의사결정 {b.decision}</span>}
                     <span className="text-ink-400">총 {b.total}건</span>
@@ -169,8 +169,8 @@ export function SummaryView({ items, clients }: Props) {
                     <Avatar name={a.name} size={18} />
                     {a.name}
                   </div>
-                  <div className="flex-1 h-[5px] bg-muted rounded-[3px] mx-3 overflow-hidden">
-                    <div className="h-full bg-lilac-500 rounded-[3px]" style={{ width: `${(a.count / authorMax) * 100}%` }} />
+                  <div className="flex-1 h-px5 bg-muted rounded-xs mx-3 overflow-hidden">
+                    <div className="h-full bg-lilac-500 rounded-xs" style={{ width: `${(a.count / authorMax) * 100}%` }} />
                   </div>
                   <span className="text-ink-400 font-medium min-w-[40px] text-right">{a.count}건</span>
                 </div>
@@ -186,9 +186,9 @@ export function SummaryView({ items, clients }: Props) {
             ) : (
               topChannels.map((c, i) => (
                 <div key={c.name} className={`flex items-center px-3.5 py-2 text-xs ${i < topChannels.length - 1 ? 'border-b border-border' : ''}`}>
-                  <span className="text-[11px] text-ink-700 truncate min-w-[110px]">{c.name}</span>
-                  <div className="flex-1 h-[5px] bg-muted rounded-[3px] mx-3 overflow-hidden">
-                    <div className="h-full bg-lilac-500 rounded-[3px]" style={{ width: `${(c.count / channelMax) * 100}%` }} />
+                  <span className="text-2xs text-ink-700 truncate min-w-[110px]">{c.name}</span>
+                  <div className="flex-1 h-px5 bg-muted rounded-xs mx-3 overflow-hidden">
+                    <div className="h-full bg-lilac-500 rounded-xs" style={{ width: `${(c.count / channelMax) * 100}%` }} />
                   </div>
                   <span className="text-ink-400 font-medium min-w-[40px] text-right">{c.count}건</span>
                 </div>
@@ -208,7 +208,7 @@ function Section({ icon, label, badge, children }: { icon: React.ReactNode; labe
         {icon}
         <span>{label}</span>
         {badge && (
-          <span className="text-[10px] px-[7px] py-[2px] rounded-[10px] bg-muted text-ink-400 font-medium">{badge}</span>
+          <span className="text-3xs px-[7px] py-[2px] rounded-[10px] bg-muted text-ink-400 font-medium">{badge}</span>
         )}
       </div>
       {children}

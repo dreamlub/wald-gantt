@@ -21,7 +21,7 @@ interface Props {
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-[2px]">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-2xs">{part.slice(2, -2)}</strong>
       : <span key={i}>{part}</span>
   )
 }
@@ -42,7 +42,7 @@ const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', 
 function BrandBadge({ brandName, clients }: { brandName: string; clients: Client[] }) {
   const client = clients.find(c => c.name === brandName)
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: client?.color ?? 'var(--color-ink-300)' }} />
       {client?.name ?? brandName}
     </span>
@@ -62,7 +62,7 @@ function ProgressBar({ progress, slowPhase, statusMessage, className }: {
 }) {
   return (
     <div className={className}>
-      <div className="relative h-[3px] rounded-full bg-ink-100 overflow-hidden">
+      <div className="relative h-px3 rounded-full bg-ink-100 overflow-hidden">
         <div
           className="absolute inset-y-0 left-0 h-full bg-lilac-500"
           style={{
@@ -74,7 +74,7 @@ function ProgressBar({ progress, slowPhase, statusMessage, className }: {
         />
       </div>
       {statusMessage && (
-        <p className="text-[11px] text-ink-400 mt-1.5">{statusMessage}</p>
+        <p className="text-2xs text-ink-400 mt-1.5">{statusMessage}</p>
       )}
     </div>
   )
@@ -85,7 +85,7 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
     <div className="flex items-center gap-2 mb-3 pb-2 border-b border-border">
       <Icon size={14} className="text-ink-500" />
       <h3 className="text-xs font-semibold tracking-tight">{title}</h3>
-      <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{count}건</span>
+      <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{count}건</span>
     </div>
   )
 }
@@ -104,16 +104,16 @@ function HeadlineCard({ content, generatedAt, sourceCount, weekStart }: {
   const rangeLabel = `${ws.getMonth() + 1}/${ws.getDate()} ~ ${we.getMonth() + 1}/${we.getDate()}`
   return (
     <div className="relative bg-card border border-border rounded-lg px-5 py-4 mb-6">
-      <div className="absolute left-0 top-0 bottom-0 w-[3px] bg-lilac-400 rounded-l-lg" />
-      <div className="flex items-center gap-2 mb-1 text-[10px] uppercase tracking-[0.06em] text-orange-500 font-semibold">
+      <div className="absolute left-0 top-0 bottom-0 w-px3 bg-lilac-400 rounded-l-lg" />
+      <div className="flex items-center gap-2 mb-1 text-3xs uppercase tracking-[0.06em] text-orange-500 font-semibold">
         <Newspaper size={12} />
         <span>Headline</span>
-        <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal text-[10px] font-medium bg-lilac-100 text-lilac-600 px-2 py-0.5 rounded-full">
+        <span className="ml-auto inline-flex items-center gap-1 normal-case tracking-normal text-3xs font-medium bg-lilac-100 text-lilac-600 px-2 py-0.5 rounded-full">
           <Sparkles size={10} />
           AI 분석
         </span>
       </div>
-      <div className="text-[10px] text-ink-400 mb-2.5">{rangeLabel} · {sourceCount}건 · {genLabel}</div>
+      <div className="text-3xs text-ink-400 mb-2.5">{rangeLabel} · {sourceCount}건 · {genLabel}</div>
       <p className="text-xs leading-relaxed text-foreground">
         {renderBold(content.headline)}
       </p>
@@ -131,16 +131,16 @@ function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[]
         return (
           <div key={a.id} className={`bg-card border border-l-[3px] ${sev.border} border-border rounded-lg p-3.5 flex flex-col`}>
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
-              <span className={`inline-flex items-center gap-1 text-[11px] font-semibold px-2 py-0.5 rounded-[3px] uppercase tracking-[0.04em] ${sev.cls}`}>
+              <span className={`inline-flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded-xs uppercase tracking-[0.04em] ${sev.cls}`}>
                 <SevIcon size={11} />
                 {sev.label}
               </span>
               <BrandBadge brandName={a.brand} clients={clients} />
-              <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
+              <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-xs font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
-            <p className="text-[11px] text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
-            <div className={`flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed ${sev.actionCls}`}>
+            <p className="text-2xs text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
+            <div className={`flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed ${sev.actionCls}`}>
               <ArrowRight size={12} className="shrink-0" />
               <span>{a.action}</span>
             </div>
@@ -157,12 +157,12 @@ function UpcomingList({ items, clients }: { items: InsightContent['upcoming']; c
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-[11px] text-ink-700 min-w-[80px] flex items-center gap-1">
+          <span className="text-2xs text-ink-700 min-w-[80px] flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
           <span className="flex-1 text-xs text-foreground">{s.title}</span>
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
+          <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
           <BrandBadge brandName={s.brand} clients={clients} />
@@ -184,8 +184,8 @@ function PendingList({ items, clients }: { items: InsightContent['pending']; cli
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c?.color ?? 'var(--color-ink-300)' }} />
               {c?.name ?? p.brand}
             </span>
-            <span className="flex-1 text-[11px] text-ink-500 leading-relaxed">{p.items}</span>
-            <span className="text-[10px] text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
+            <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
+            <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
           </div>
         )
       })}
@@ -203,7 +203,7 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
             <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <p className="text-[11px] text-ink-500 leading-relaxed mb-2">{d.desc}</p>
+          <p className="text-2xs text-ink-500 leading-relaxed mb-2">{d.desc}</p>
           <BrandBadge brandName={d.brand} clients={clients} />
         </div>
       ))}
@@ -227,7 +227,7 @@ function EmptyState({ onGenerate, loading, showProgress, progress, statusMessage
         <Sparkles size={18} className="text-lilac-500" />
       </div>
       <p className="text-xs font-medium text-foreground mb-1">{isCurrentWeek ? '이번 주' : '해당 주'} 인사이트가 없어요</p>
-      <p className="text-[11px] text-ink-400 mb-5">슬랙 수집 데이터를 바탕으로 AI가 분석합니다</p>
+      <p className="text-2xs text-ink-400 mb-5">슬랙 수집 데이터를 바탕으로 AI가 분석합니다</p>
       <button
         onClick={onGenerate}
         disabled={loading}
@@ -345,11 +345,11 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
         <div className="flex flex-wrap items-center gap-1.5 mb-4 pb-4 border-b border-border">
           <button
             onClick={() => onBrandChange('all')}
-            className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
+            className={`flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
               ${brandId === 'all' ? 'bg-foreground text-white border-foreground' : 'bg-card text-muted-foreground border-border hover:border-ink-400 hover:text-ink-700'}`}
           >
             전체
-            <span className={`text-[10px] ${brandId === 'all' ? 'text-white/70' : 'text-ink-400'}`}>
+            <span className={`text-3xs ${brandId === 'all' ? 'text-white/70' : 'text-ink-400'}`}>
               {insight.source_count}
             </span>
           </button>
@@ -359,13 +359,13 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
               <button
                 key={c.name}
                 onClick={() => onBrandChange(active ? 'all' : c.name)}
-                className={`flex items-center gap-1.5 text-[11px] px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
+                className={`flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors whitespace-nowrap
                   ${active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400 hover:text-ink-700'}`}
                 style={active ? { backgroundColor: c.color, borderColor: c.color } : undefined}
               >
                 <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : c.color }} />
                 {c.name}
-                <span className={`text-[10px] ${active ? 'text-white/70' : 'text-ink-400'}`}>{counts.get(c.name) ?? 0}</span>
+                <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{counts.get(c.name) ?? 0}</span>
               </button>
             )
           })}
@@ -390,7 +390,7 @@ export function InsightView({ weekStart, clients, brandId, onBrandChange }: Prop
           <button
             onClick={handleGenerate}
             disabled={generating}
-            className="shrink-0 text-[11px] font-medium underline underline-offset-2 hover:opacity-70 transition-opacity disabled:opacity-40"
+            className="shrink-0 text-2xs font-medium underline underline-offset-2 hover:opacity-70 transition-opacity disabled:opacity-40"
           >
             다시 시도
           </button>

@@ -25,11 +25,11 @@ function SortBtn({
   return (
     <button
       onClick={() => onToggle(col)}
-      className={`flex items-center gap-0.5 text-[10px] font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+      className={`flex items-center gap-0.5 text-3xs font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
         ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
     >
       {label}
-      <span className={`text-[8px] ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
+      <span className={`text-5xs ${active ? '' : 'opacity-30'}`}>{active ? (sortDir === 'asc' ? '▲' : '▼') : '↕'}</span>
     </button>
   )
 }
@@ -187,7 +187,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           )}
         </div>
         <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-8 shrink-0 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">메모</div>
+        <div className="w-8 shrink-0 text-3xs font-semibold text-ink-400 uppercase tracking-wider">메모</div>
         <div className="w-8 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
@@ -242,25 +242,25 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
               <span className={`text-xs truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
               {overdue && (
-                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
+                <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                   지연 {overdueDays(task.due_date)}일
                 </span>
               )}
               {noUpdate && !overdue && (
-                <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
+                <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
                   {daysDiff(task.updated_at)}일 무응답
                 </span>
               )}
               {/* 연결 프로젝트 */}
               {task.projects && task.projects.length > 0 && (
                 <>
-                  <span className="text-ink-200 text-[10px] shrink-0">·</span>
+                  <span className="text-ink-200 text-3xs shrink-0">·</span>
                   {task.projects.slice(0, 2).map(p => (
-                    <span key={p.id} className="flex items-center gap-0.5 text-[10px] bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+                    <span key={p.id} className="flex items-center gap-0.5 text-3xs bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                       <Paperclip size={8} className="shrink-0" />{p.name}
                     </span>
                   ))}
-                  {task.projects.length > 2 && <span className="text-[10px] text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
+                  {task.projects.length > 2 && <span className="text-3xs text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
                 </>
               )}
               {/* 라벨 */}
@@ -269,18 +269,18 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 return (
                   <span
                     key={l}
-                    className="shrink-0 text-[9px] leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
-                    style={{ backgroundColor: bg, color: isLightColor(bg) ? '#1f2937' : '#ffffff' }}
+                    className="shrink-0 text-4xs leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
+                    style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
                   >
                     {l}
                   </span>
                 )
               })}
-              {labels.length > 4 && <span className="text-[9px] text-ink-400 shrink-0">+{labels.length - 4}</span>}
+              {labels.length > 4 && <span className="text-4xs text-ink-400 shrink-0">+{labels.length - 4}</span>}
               {/* 하위 진행 */}
               {subStats && subStats.total > 0 && (
                 <span
-                  className={`shrink-0 text-[10px] px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap ${
+                  className={`shrink-0 text-3xs px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap ${
                     subStats.done === subStats.total
                       ? 'bg-mint-100 text-mint-500 border-mint-100'
                       : 'bg-muted text-muted-foreground border-border'
@@ -293,7 +293,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               {!isSub && onSubQuickCreate && (
                 <button
                   onClick={e => { e.stopPropagation(); setSubQuickParentId(task.id); setSubQuickTitle('') }}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 text-[10px] px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-3xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
                   title="하위 태스크 추가"
                 >
                   sub +
@@ -317,22 +317,22 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             </div>
             <div className="w-28 shrink-0 flex items-center gap-1.5">
               <span
-                className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
                 style={{ backgroundColor: STATUS_COLOR[task.status] }}
               >
                 {STATUS_ABBR[task.status]}
               </span>
-              <span className="text-[11px] text-muted-foreground truncate">{STATUS_LABEL[task.status]}</span>
+              <span className="text-2xs text-muted-foreground truncate">{STATUS_LABEL[task.status]}</span>
             </div>
             <div className="w-32 shrink-0 flex items-center gap-1.5">
               {assigneeName && (
                 <>
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                  <span className="text-[11px] text-muted-foreground truncate">{assigneeName}</span>
+                  <span className="text-2xs text-muted-foreground truncate">{assigneeName}</span>
                 </>
               )}
             </div>
-            <div className={`w-24 shrink-0 text-right pr-2 text-[11px] tabular-nums ${overdue ? 'text-status-late font-medium' : 'text-ink-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
+            <div className={`w-24 shrink-0 text-right pr-2 text-2xs tabular-nums ${overdue ? 'text-status-late font-medium' : 'text-ink-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
           </div>
           )
         }
@@ -355,7 +355,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                   }}
                   onBlur={() => { if (!subQuickTitle.trim()) cancelSubQuickAdd() }}
                   placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-                  className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+                  className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                 />
               </div>
             </div>
@@ -380,7 +380,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             placeholder="제목 입력 후 Enter, Esc로 취소 (기본 To-Do)"
             className="flex-1 text-xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
           />
-          <span className="text-[10px] text-ink-300 shrink-0">상세 설정은 행 클릭</span>
+          <span className="text-3xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>
         </div>
       ) : (
         <button

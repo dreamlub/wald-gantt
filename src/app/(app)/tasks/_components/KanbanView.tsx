@@ -78,41 +78,41 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         <div className="flex flex-wrap items-center gap-1 mt-1.5 mb-2">
           {(task.priority ?? 0) > 0 && <PriorityBars priority={task.priority} />}
           {overdue && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
               지연 {overdueDays(task.due_date)}일
             </span>
           )}
           {startDelayed && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
               시작 지연 {startDelayedDays(task.start_date)}일
             </span>
           )}
           {noUpdate && !overdue && !startDelayed && (
-            <span className="text-[10px] px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
               {daysDiff(task.updated_at)}일 무응답
             </span>
           )}
           {task.projects?.slice(0, 2).map(p => (
-            <span key={p.id} className="flex items-center gap-0.5 text-[10px] text-ink-400">
+            <span key={p.id} className="flex items-center gap-0.5 text-3xs text-ink-400">
               <Paperclip size={8} className="shrink-0" />{p.name}
             </span>
           ))}
           {(task.projects?.length ?? 0) > 2 && (
-            <span className="text-[10px] text-ink-400">+{(task.projects!.length) - 2}</span>
+            <span className="text-3xs text-ink-400">+{(task.projects!.length) - 2}</span>
           )}
           {labels.slice(0, 3).map(l => {
             const bg = labelColor(l)
             return (
               <span
                 key={l}
-                className="text-[9px] leading-none px-1.5 py-[3px] rounded font-medium"
-                style={{ backgroundColor: bg, color: isLightColor(bg) ? '#1f2937' : '#ffffff' }}
+                className="text-4xs leading-none px-1.5 py-[3px] rounded font-medium"
+                style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
               >
                 {l}
               </span>
             )
           })}
-          {labels.length > 3 && <span className="text-[9px] text-ink-400">+{labels.length - 3}</span>}
+          {labels.length > 3 && <span className="text-4xs text-ink-400">+{labels.length - 3}</span>}
         </div>
       )}
 
@@ -121,7 +121,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         {assigneeName ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-[10px] text-muted-foreground truncate">{assigneeName}</span>
+            <span className="text-3xs text-muted-foreground truncate">{assigneeName}</span>
           </div>
         ) : <div className="flex-1" />}
 
@@ -137,7 +137,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         )}
 
         {subTaskStats && subTaskStats.total > 0 && (
-          <span className={`text-[10px] px-1.5 py-0.5 rounded font-medium whitespace-nowrap
+          <span className={`text-3xs px-1.5 py-0.5 rounded font-medium whitespace-nowrap
             ${subTaskStats.done === subTaskStats.total
               ? 'bg-mint-100 text-mint-500'
               : 'bg-muted text-muted-foreground'}`}
@@ -147,7 +147,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         )}
 
         {task.due_date && !overdue && (
-          <span className="text-[10px] tabular-nums text-ink-400 shrink-0">
+          <span className="text-3xs tabular-nums text-ink-400 shrink-0">
             {fmtDate(task.due_date)}
           </span>
         )}
@@ -211,7 +211,7 @@ function KanbanColumn({
           style={{ backgroundColor: color }}
         />
         <span className="text-xs font-semibold text-foreground">{label}</span>
-        <span className="text-[11px] text-muted-foreground">{tasks.length}</span>
+        <span className="text-2xs text-muted-foreground">{tasks.length}</span>
       </div>
 
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
@@ -256,7 +256,7 @@ function KanbanColumn({
           ) : (
             <button
               onClick={() => onQuickAddStart(status)}
-              className="flex items-center gap-1 px-2 py-1.5 text-[11px] text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 text-2xs text-muted-foreground hover:text-foreground transition-colors"
             >
               <Plus size={11} /> 태스크 추가
             </button>

@@ -32,7 +32,7 @@ interface DailyReport {
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-[2px]">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-2xs">{part.slice(2, -2)}</strong>
       : <span key={i}>{part}</span>
   )
 }
@@ -47,7 +47,7 @@ const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', 
 function BrandBadge({ brandName, clients }: { brandName: string; clients: Client[] }) {
   const client = clients.find(c => c.name === brandName)
   return (
-    <span className="inline-flex items-center gap-1.5 text-[11px] px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
+    <span className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
       <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: client?.color ?? 'var(--color-ink-300)' }} />
       {client?.name ?? brandName}
     </span>
@@ -58,8 +58,8 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
       <Icon size={13} className="text-ink-400" />
-      <h3 className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
-      <span className="text-[10px] text-ink-400">{count}건</span>
+      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <span className="text-3xs text-ink-400">{count}건</span>
     </div>
   )
 }
@@ -69,8 +69,8 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
     <section className="border-t border-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
         <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
-        <span className="text-[10px] text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
+        <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <span className="text-3xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
         <p className="text-sm leading-[1.8] text-foreground">
@@ -95,11 +95,11 @@ function ActionGrid({ items, clients }: { items: ActionItem[]; clients: Client[]
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
               <PriorityBars priority={pri} />
               <BrandBadge brandName={a.brand} clients={clients} />
-              <span className="text-[10px] text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
+              <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <p className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
-            <div className="flex items-center gap-2 text-[11px] font-medium px-3 py-2 rounded border border-dashed"
+            <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
               style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
               <span>{a.action}</span>
@@ -117,12 +117,12 @@ function UpcomingList({ items, clients }: { items: InsightContent['upcoming']; c
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-[11px] text-ink-700 min-w-[80px] flex items-center gap-1">
+          <span className="text-2xs text-ink-700 min-w-[80px] flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
           <span className="flex-1 text-xs text-foreground">{s.title}</span>
-          <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
+          <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
           <BrandBadge brandName={s.brand} clients={clients} />
@@ -144,8 +144,8 @@ function PendingList({ items, clients }: { items: InsightContent['pending']; cli
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: c?.color ?? 'var(--color-ink-300)' }} />
               {c?.name ?? p.brand}
             </span>
-            <span className="flex-1 text-[11px] text-ink-500 leading-relaxed">{p.items}</span>
-            <span className="text-[10px] text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
+            <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
+            <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
           </div>
         )
       })}
@@ -163,7 +163,7 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
             <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <p className="text-[11px] text-ink-500 leading-relaxed mb-2">{d.desc}</p>
+          <p className="text-2xs text-ink-500 leading-relaxed mb-2">{d.desc}</p>
           <BrandBadge brandName={d.brand} clients={clients} />
         </div>
       ))}

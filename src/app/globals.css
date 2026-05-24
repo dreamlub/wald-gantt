@@ -108,6 +108,22 @@
   --color-priority-high-bg:        #fee2e2;
   --color-priority-medium-bg:      #fef3c7;
   --color-priority-low-bg:         #dbeafe;
+
+  /* Sub-xs 폰트 크기 (Tailwind xs=12px 미만 용도) */
+  --text-2xs: 0.6875rem;  /* 11px */
+  --text-3xs: 0.625rem;   /* 10px */
+  --text-4xs: 0.5625rem;  /* 9px  */
+  --text-5xs: 0.5rem;     /* 8px  */
+
+  /* Z-index 레이어 */
+  --z-overlay: 100;
+  --z-dialog:  200;
+  --z-tooltip: 9999;
+  --z-drag:    10000;
+
+  /* 픽셀 단위 소형 스페이싱 (progress bar 등 장식 요소) */
+  --spacing-px3: 3px;
+  --spacing-px5: 5px;
 }
 
 @theme inline {
@@ -145,13 +161,19 @@
   --color-popover: var(--popover);
   --color-card-foreground: var(--card-foreground);
   --color-card: var(--card);
-  --radius-sm: calc(var(--radius) * 0.6);
+  --radius-2xs: 2px;
+  --radius-xs:  3px;
+  --radius-sm:  calc(var(--radius) * 0.6);
   --radius-md: calc(var(--radius) * 0.8);
   --radius-lg: var(--radius);
   --radius-xl: calc(var(--radius) * 1.4);
   --radius-2xl: calc(var(--radius) * 1.8);
   --radius-3xl: calc(var(--radius) * 2.2);
   --radius-4xl: calc(var(--radius) * 2.6);
+
+  /* Shadow 토큰 */
+  --shadow-tooltip: 0 2px 8px oklch(0 0 0 / 0.3);
+  --shadow-panel-l: 2px 0 6px oklch(0 0 0 / 0.06);
 }
 
 :root {

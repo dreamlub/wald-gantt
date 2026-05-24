@@ -638,15 +638,15 @@ export function GanttChart({
         {/* ── 왼쪽 패널 (고정, 레이블) ─────────────────────── */}
         <div
           ref={leftPanelRef}
-          className="shrink-0 flex flex-col shadow-[2px_0_6px_rgba(0,0,0,0.06)]"
+          className="shrink-0 flex flex-col shadow-panel-l"
           style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
         >
           <div className="shrink-0 border-b bg-card flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
-            <span className="text-[11px] font-semibold text-muted-foreground px-3 pb-2">프로젝트</span>
+            <span className="text-2xs font-semibold text-muted-foreground px-3 pb-2">프로젝트</span>
             {!readOnly && (
               <button
                 onClick={() => setAddingCat(true)}
-                className="flex items-center gap-0.5 text-[11px] text-muted-foreground hover:text-foreground pb-2 transition-colors"
+                className="flex items-center gap-0.5 text-2xs text-muted-foreground hover:text-foreground pb-2 transition-colors"
                 title="카테고리 추가"
               >
                 <Plus size={11} /> 카테고리
@@ -677,7 +677,7 @@ export function GanttChart({
                     onDoubleClick={() => setAddingCat(true)}
                   >
                     <span>카테고리를 추가해 보세요</span>
-                    <span className="text-[10px] text-ink-300">우측 상단 버튼 또는 더블클릭</span>
+                    <span className="text-3xs text-ink-300">우측 상단 버튼 또는 더블클릭</span>
                   </div>
                 )}
                 <SortableContext items={sortedCats.map(c => c.id)} strategy={verticalListSortingStrategy}>
@@ -815,7 +815,7 @@ export function GanttChart({
                     return (
                       <div
                         key={w.key}
-                        className={`text-center border-r shrink-0 flex items-center justify-center text-[10px] font-medium ${isToday ? 'bg-lilac-100 text-lilac-600 font-semibold' : 'text-muted-foreground'}`}
+                        className={`text-center border-r shrink-0 flex items-center justify-center text-3xs font-medium ${isToday ? 'bg-lilac-100 text-lilac-600 font-semibold' : 'text-muted-foreground'}`}
                         style={{ width: colW }}
                       >
                         {w.weekStart.getDate()}
@@ -894,18 +894,18 @@ export function GanttChart({
       {barDrag && (
         <>
           <div
-            className="fixed inset-0 z-[9999] select-none"
+            className="fixed inset-0 z-tooltip select-none"
             style={{ cursor: barDrag.cursor }}
           />
           {barDrag.tooltipText && (
             <div
-              className="fixed z-[10000] pointer-events-none"
+              className="fixed z-drag pointer-events-none"
               style={{ left: barDrag.x, top: barDrag.y, transform: 'translate(-50%, calc(-100% - 10px))' }}
             >
-              <span className="inline-block bg-[#1e293b] text-[#f1f5f9] text-[11px] font-semibold px-2.5 py-1 rounded-md whitespace-nowrap shadow-[0_2px_8px_rgba(0,0,0,0.3)]">
+              <span className="inline-block bg-foreground text-background text-2xs font-semibold px-2.5 py-1 rounded-md whitespace-nowrap shadow-tooltip">
                 {barDrag.tooltipText}
               </span>
-              <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-[#1e293b]" />
+              <div className="absolute bottom-[-4px] left-1/2 -translate-x-1/2 w-0 h-0 border-l-4 border-r-4 border-t-4 border-l-transparent border-r-transparent border-t-foreground" />
             </div>
           )}
         </>
@@ -916,10 +916,10 @@ export function GanttChart({
         const pos = clampTooltipPos(memoHover.x, memoHover.y)
         return (
           <div
-            className="fixed z-[9999] pointer-events-none max-w-xs"
+            className="fixed z-tooltip pointer-events-none max-w-xs"
             style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
           >
-            <div className="bg-foreground text-background text-[11px] rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
+            <div className="bg-foreground text-background text-2xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
               {memoHover.text}
             </div>
             <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
@@ -935,7 +935,7 @@ export function GanttChart({
           </DialogHeader>
           <div className="flex flex-col gap-4 py-2">
             <div>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
+              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
               <input
                 autoFocus
                 className="mt-1.5 w-full text-xs border border-border rounded px-3 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300"
@@ -946,7 +946,7 @@ export function GanttChart({
               />
             </div>
             <div>
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">색상</label>
+              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">색상</label>
               <div className="mt-1.5 flex flex-wrap gap-1.5">
                 {CAT_COLORS.map(c => (
                   <button
