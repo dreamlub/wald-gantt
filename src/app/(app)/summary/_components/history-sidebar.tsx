@@ -139,7 +139,7 @@ export function HistorySidebar({
             const cnt = timelineBrandCounts[c.name] ?? 0
             return (
               <button
-                key={c.id}
+                key={c.name}
                 onClick={() => onBrandChange(active ? 'all' : c.name)}
                 className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
               >

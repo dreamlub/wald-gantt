@@ -81,7 +81,7 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
-const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
+const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Newspaper }[] = [
   { key: 'rawdata',     label: 'Raw Data',     icon: Database },
   { key: 'dailylist',   label: 'Daily List',   icon: LayoutList },
   { key: 'dailyreport', label: 'Daily Report', icon: Newspaper },

@@ -3,7 +3,7 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Newspaper, AlertCircle,
-  CalendarDays, Clock, CheckSquare, Target, Newspaper,
+  CalendarDays, Clock, CheckSquare, Target,
   ArrowRight, Plus, X, Loader2,
 } from 'lucide-react'
 import { format } from 'date-fns'
