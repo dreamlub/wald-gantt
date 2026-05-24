@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ChevronDown, ChevronRight } from 'lucide-react'
@@ -70,6 +70,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
   const [weeks, setWeeks] = useState<WeekGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
+  const [activeBrand, setActiveBrand] = useState<string | null>(null)
 
   const fetchSummaries = useCallback(async () => {
     setLoading(true)
@@ -117,6 +118,33 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
 
   useEffect(() => { fetchSummaries() }, [fetchSummaries])
 
+  const allBrandCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const w of weeks) for (const b of w.brands) {
+      counts.set(b.brand_name, (counts.get(b.brand_name) ?? 0) + 1)
+    }
+    return [...counts.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [weeks])
+
+  const filteredWeeks = useMemo(() => {
+    if (!activeBrand) return weeks
+    return weeks
+      .map(w => ({ ...w, brands: w.brands.filter(b => b.brand_name === activeBrand) }))
+      .filter(w => w.brands.length > 0)
+  }, [weeks, activeBrand])
+
+  function selectBrand(name: string) {
+    setActiveBrand(prev => prev === name ? null : name)
+  }
+
+  useEffect(() => {
+    if (activeBrand) {
+      setExpandedWeeks(new Set(filteredWeeks.map(w => w.weekStart)))
+    }
+  }, [activeBrand, filteredWeeks])
+
   const toggleWeek = (weekStart: string) => {
     setExpandedWeeks(prev => {
       const next = new Set(prev)
@@ -143,12 +171,47 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
   }
 
   return (
-    <div className="flex-1 overflow-auto">
+    <div className="flex-1 flex flex-col overflow-hidden">
+      {/* 브랜드 필터 */}
+      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
+        <button
+          onClick={() => setActiveBrand(null)}
+          className={`text-2xs px-2.5 py-px3 rounded-full border transition-colors ${
+            !activeBrand
+              ? 'bg-foreground text-white border-foreground'
+              : 'bg-card text-muted-foreground border-border hover:border-ink-400'
+          }`}
+        >
+          전체
+        </button>
+        {allBrandCounts.map(b => {
+          const active = activeBrand === b.name
+          const color = brandColor(b.name)
+          return (
+            <button
+              key={b.name}
+              onClick={() => selectBrand(b.name)}
+              className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-px3 rounded-full border transition-colors ${
+                active
+                  ? 'text-white border-transparent'
+                  : 'bg-card text-muted-foreground border-border hover:border-ink-400'
+              }`}
+              style={active ? { backgroundColor: color, borderColor: color } : undefined}
+            >
+              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'var(--color-white)' : color }} />
+              {b.name}
+              <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
+            </button>
+          )
+        })}
+      </div>
+
+      <div className="flex-1 overflow-auto">
       <div className="relative max-w-[800px] mx-auto py-8 pl-24 pr-6">
         {/* 세로 라인 */}
         <div className="absolute left-[72px] top-0 bottom-0 w-px bg-border" />
 
-        {weeks.map((week, wi) => {
+        {filteredWeeks.map((week, wi) => {
           const isExpanded = expandedWeeks.has(week.weekStart)
           const totalItems = week.brands.reduce((s, b) => s + b.item_count, 0)
 
@@ -164,8 +227,8 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
                   style={{ marginLeft: '44px' }}
                 >
                   <div className="text-center leading-tight">
-                    <div className="text-[11px] font-bold">{week.weekLabel}</div>
-                    <div className="text-[9px] opacity-60">{week.weekRange}</div>
+                    <div className="text-2xs font-bold">{week.weekLabel}</div>
+                    <div className="text-4xs opacity-60">{week.weekRange}</div>
                   </div>
                 </div>
               </button>
@@ -201,11 +264,11 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
                               {brand.brand_name}
                             </button>
                             {brand.topic && (
-                              <span className="text-[11px] text-ink-400">· {brand.topic}</span>
+                              <span className="text-2xs text-ink-400">· {brand.topic}</span>
                             )}
-                            <span className="text-[10px] text-ink-400">{brand.item_count}건</span>
+                            <span className="text-3xs text-ink-400">{brand.item_count}건</span>
                             {brand.max_priority === 'high' && (
-                              <span className="text-[10px] px-1.5 py-0.5 rounded bg-red-50 text-status-late font-medium">긴급</span>
+                              <span className="text-3xs px-1.5 py-0.5 rounded bg-red-50 text-status-late font-medium">긴급</span>
                             )}
                             {/* 태그 */}
                             <div className="ml-auto flex gap-1">
@@ -215,7 +278,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
                                 return (
                                   <span
                                     key={t}
-                                    className="text-[10px] px-1.5 py-[1px] rounded font-medium"
+                                    className="text-3xs px-1.5 py-px rounded font-medium"
                                     style={{ background: meta.bg, color: meta.color }}
                                   >
                                     {meta.label}
@@ -228,7 +291,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
                           {/* AI 요약 본문 */}
                           <MarkdownBody
                             text={brand.summary}
-                            className="text-[12px] text-ink-500 leading-[1.7]"
+                            className="text-xs text-ink-500 leading-[1.7]"
                           />
                         </div>
                       )
@@ -239,6 +302,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
             </div>
           )
         })}
+      </div>
       </div>
     </div>
   )

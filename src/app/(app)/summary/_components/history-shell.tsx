@@ -1,12 +1,11 @@
 'use client'
 
-import { useMemo, useState, useTransition, useEffect, useRef, useCallback } from 'react'
+import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useReducer } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, RefreshCw, Database, GitBranch,
+  Sparkles, LayoutList, Database, GitBranch,
 } from 'lucide-react'
-import { toast } from 'sonner'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
@@ -27,6 +26,37 @@ import {
   getOrCreateWorkspace, getBoards, getCategories,
   addTask, addProject, searchProjects,
 } from '@/lib/gantt-service'
+
+import type { HistoryPage } from '@/lib/history-service'
+
+interface PageState {
+  items: HistoryItem[]
+  cursor: string | null
+  total: number
+  loading: boolean
+  hasMore: boolean
+}
+
+type PageAction =
+  | { type: 'reset' }
+  | { type: 'loading' }
+  | { type: 'loaded'; page: HistoryPage; append: boolean }
+
+function pageReducer(state: PageState, action: PageAction): PageState {
+  switch (action.type) {
+    case 'reset': return { items: [], cursor: null, total: 0, loading: true, hasMore: false }
+    case 'loading': return { ...state, loading: true }
+    case 'loaded': return {
+      items: action.append ? [...state.items, ...action.page.items] : action.page.items,
+      cursor: action.page.nextCursor,
+      total: action.page.total,
+      loading: false,
+      hasMore: !!action.page.nextCursor,
+    }
+  }
+}
+
+const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: false, hasMore: false }
 
 type ViewKey = 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
 
@@ -53,20 +83,6 @@ const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
   { key: 'timeline', label: '타임라인',     icon: GitBranch },
   { key: 'rawdata',  label: 'Raw Data',     icon: Database },
 ]
-
-function relativeCollectedLabel(latest: string | null): string {
-  if (!latest) return '수집 기록 없음'
-  const d = new Date(latest).getTime()
-  const now = Date.now()
-  const diffMs = now - d
-  const m = Math.round(diffMs / 60000)
-  const h = Math.round(diffMs / 3600000)
-  const days = Math.round(diffMs / 86400000)
-  if (m < 1) return '방금 수집'
-  if (m < 60) return `마지막 수집 ${m}분 전`
-  if (h < 24) return `마지막 수집 ${h}시간 전`
-  return `마지막 수집 ${days}일 전`
-}
 
 function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
   const now = new Date()
@@ -115,88 +131,39 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
 
-  // ── 슬랙 수집 ─────────────────────────────────────────────────
-  const [collectStatus,  setCollectStatus]  = useState<string>('')
-  const [isCollecting,   setIsCollecting]   = useState(false)
-  const [collectFrom,    setCollectFrom]    = useState('')
-  const [collectTo,      setCollectTo]      = useState('')
+  // ── 테이블 뷰 서버 페이지네이션 ────────────────────────────
+  const [pg, pgDispatch] = useReducer(pageReducer, PAGE_INIT)
+  const fetchIdRef = useRef(0)
+
+  const fetchPage = useCallback(async (cursor?: string) => {
+    const id = ++fetchIdRef.current
+    pgDispatch(cursor ? { type: 'loading' } : { type: 'reset' })
+    const sp = new URLSearchParams()
+    if (dateFrom) sp.set('from', dateFrom)
+    if (dateTo) sp.set('to', dateTo)
+    if (brandId !== 'all') sp.set('brand', brandId)
+    if (priorityKey !== 'all') sp.set('priority', priorityKey)
+    if (authorKey !== 'all') sp.set('author', authorKey)
+    if (searchQuery.trim()) sp.set('q', searchQuery)
+    if (cursor) sp.set('cursor', cursor)
+    sp.set('limit', '50')
+    const res = await fetch(`/api/history?${sp}`)
+    if (!res.ok || id !== fetchIdRef.current) return
+    const page = await res.json() as HistoryPage
+    pgDispatch({ type: 'loaded', page, append: !!cursor })
+  }, [dateFrom, dateTo, brandId, priorityKey, authorKey, searchQuery])
+
+  useEffect(() => {
+    if (view === 'table') fetchPage()
+  }, [view, fetchPage])
+
+  const handleLoadMore = useCallback(() => {
+    if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
+  }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
 
   function todayStr() {
     const d = new Date()
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-
-  async function runSSE(url: string, body: unknown, onDone: (msg: string) => void) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(body),
-    })
-    if (!res.ok || !res.body) {
-      const err = await res.json().catch(() => ({ error: `HTTP ${res.status}` }))
-      throw new Error((err as { error?: string }).error ?? `HTTP ${res.status}`)
-    }
-    const reader = res.body.getReader()
-    const decoder = new TextDecoder()
-    let buffer = ''
-    while (true) {
-      const { done, value } = await reader.read()
-      if (done) break
-      buffer += decoder.decode(value, { stream: true })
-      const parts = buffer.split('\n\n')
-      buffer = parts.pop() ?? ''
-      for (const part of parts) {
-        const lines = part.split('\n')
-        let eventType = ''
-        let eventData = ''
-        for (const line of lines) {
-          if (line.startsWith('event: ')) eventType = line.slice(7).trim()
-          else if (line.startsWith('data: ')) eventData = line.slice(6)
-        }
-        if (!eventData) continue
-        const data = JSON.parse(eventData) as Record<string, unknown>
-        if (eventType === 'status') setCollectStatus(data.message as string)
-        else if (eventType === 'result') onDone(data.message as string)
-        else if (eventType === 'error') throw new Error(data.message as string)
-      }
-    }
-  }
-
-  async function handleCollect() {
-    if (isCollecting) return
-    setIsCollecting(true)
-    setCollectStatus('준비 중...')
-    try {
-      const today = todayStr()
-      const from = collectFrom || (latestCollectedAt ? latestCollectedAt.slice(0, 10) : `${today.slice(0, 7)}-01`)
-      const to = collectTo || today
-      const dates = getDateRange(from, to)
-      for (const date of dates) {
-        await runSSE('/api/slack/collect', { date }, (msg) => {
-          toast.success(dates.length > 1 ? `[${date}] ${msg}` : msg)
-        })
-      }
-      setCollectStatus('')
-      startTransition(() => router.refresh())
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '수집 실패')
-      setCollectStatus('')
-    } finally {
-      setIsCollecting(false)
-    }
-  }
-
-  function getDateRange(from: string, to: string): string[] {
-    const dates: string[] = []
-    const cur = new Date(from)
-    const end = new Date(to)
-    cur.setHours(0, 0, 0, 0)
-    end.setHours(0, 0, 0, 0)
-    while (cur <= end) {
-      dates.push(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`)
-      cur.setDate(cur.getDate() + 1)
-    }
-    return dates
   }
 
   // ── 생성 다이얼로그 ────────────────────────────────────────────
@@ -276,14 +243,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
   const hasFilters = brandId !== 'all' || selectedTags.size > 0 || priorityKey !== 'all'
                   || authorKey !== 'all' || !!dateFrom || !!dateTo || !!searchQuery.trim()
-
-  // 마지막 수집 날짜: 슬랙 메시지 occurred_at 기준 최신 날짜
-  const latestCollectedAt = useMemo<string | null>(() => {
-    if (initialHistory.length === 0) return null
-    let max = initialHistory[0].occurred_at
-    for (const h of initialHistory) if (h.occurred_at > max) max = h.occurred_at
-    return max
-  }, [initialHistory])
 
   function applyPreset(preset: 'today' | 'week' | 'month' | 'all') {
     const { from, to } = presetDates(preset)
@@ -439,39 +398,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             )}
           </div>
 
-          <div className="ml-auto flex items-center gap-2">
-            {isCollecting ? (
-              <span className="text-[11px] text-ink-400 max-w-56 truncate">{collectStatus}</span>
-            ) : (
-              <>
-                <span className="text-[11px] text-ink-400">{relativeCollectedLabel(latestCollectedAt)}</span>
-                <input
-                  type="date"
-                  value={collectFrom}
-                  onChange={e => setCollectFrom(e.target.value)}
-                  placeholder="시작일"
-                  className="text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground w-[110px] focus:outline-none focus:border-lilac-300"
-                />
-                <span className="text-[10px] text-ink-400">~</span>
-                <input
-                  type="date"
-                  value={collectTo}
-                  onChange={e => setCollectTo(e.target.value)}
-                  placeholder="종료일"
-                  className="text-[11px] border border-border rounded px-1.5 py-1 bg-background text-foreground w-[110px] focus:outline-none focus:border-lilac-300"
-                />
-              </>
-            )}
-            <button
-              onClick={handleCollect}
-              disabled={isCollecting}
-              title="슬랙 메시지 수집"
-              className="flex items-center gap-1.5 text-[11px] font-medium px-3 py-1.5 rounded bg-foreground text-background hover:bg-ink-700 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
-            >
-              <RefreshCw size={12} className={isCollecting ? 'animate-spin' : ''} />
-              수집
-            </button>
-          </div>
         </div>
 
         {/* 본문 */}
@@ -493,7 +419,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
-                      전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시
+                      {view === 'table'
+                        ? <>{pg.total > 0 ? <><b className="text-foreground font-semibold">{pg.total}건</b></> : '로딩 중...'}</>
+                        : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
+                      }
                     </span>
                     {brandId !== 'all' && (() => {
                       const c = initialClients.find(x => x.name === brandId)
@@ -526,11 +455,15 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
               {view === 'table' && (
                 <TableView
-                  items={filtered}
+                  items={pg.items}
                   clients={initialClients}
                   selectedTags={selectedTags}
                   searchQuery={searchQuery}
                   hasFilters={hasFilters}
+                  total={pg.total}
+                  hasMore={pg.hasMore}
+                  loadingMore={pg.loading}
+                  onLoadMore={handleLoadMore}
                   onToggleTag={toggleTag}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                   onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}

@@ -77,7 +77,7 @@ interface Props {
 export function HistorySidebar({
   view,
   history,
-  dateFrom, onDateFromChange, onDateToChange, onPresetClick,
+  dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick,
   weekStart, onWeekChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
@@ -113,7 +113,7 @@ export function HistorySidebar({
     return (
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
         <MonthGridSection
-          dateFrom={dateFrom} history={history}
+          dateFrom={dateFrom} dateTo={dateTo} history={history}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
         />
 
@@ -165,7 +165,7 @@ export function HistorySidebar({
 
       {/* ── 기간 ─────────────────────────── */}
       <MonthGridSection
-        dateFrom={dateFrom} history={history}
+        dateFrom={dateFrom} dateTo={dateTo} history={history}
         onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
       />
 
@@ -291,8 +291,8 @@ function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeek
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
-function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange }: {
-  dateFrom: string; history: HistoryItem[]
+function MonthGridSection({ dateFrom, dateTo, history, onDateFromChange, onDateToChange }: {
+  dateFrom: string; dateTo: string; history: HistoryItem[]
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
 }) {
   const today = new Date()
@@ -324,8 +324,22 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
     })
   })()
 
+  const [selMode, setSelMode] = useState<'day' | 'week' | 'month'>('day')
+
   function selectDay(d: Date) {
     const ymd = dateStr(d)
+    if (selMode === 'month') {
+      selectMonth()
+      return
+    }
+    if (selMode === 'week') {
+      const mon = getMondayOfDate(d)
+      const sun = new Date(mon)
+      sun.setDate(mon.getDate() + 6)
+      onDateFromChange(dateStr(mon))
+      onDateToChange(dateStr(sun))
+      return
+    }
     if (ymd === dateFrom) {
       onDateFromChange('')
       onDateToChange('')
@@ -333,6 +347,14 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
       onDateFromChange(ymd)
       onDateToChange(ymd)
     }
+  }
+
+  function selectMonth() {
+    const lastDay = new Date(calYear, calMonth + 1, 0).getDate()
+    const from = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-01`
+    const to = `${calYear}-${String(calMonth + 1).padStart(2, '0')}-${String(lastDay).padStart(2, '0')}`
+    onDateFromChange(from)
+    onDateToChange(to)
   }
 
   function prevMonth() {
@@ -369,6 +391,37 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
           </button>
         </div>
 
+        {/* 기간 단위 선택 */}
+        <div className="flex items-center gap-0.5 mb-1.5 px-0.5">
+          {(['day', 'week', 'month'] as const).map(m => (
+            <button
+              key={m}
+              onClick={() => {
+                setSelMode(m)
+                if (m === 'month') selectMonth()
+                else if (m === 'day' && dateFrom) {
+                  onDateToChange(dateFrom)
+                }
+              }}
+              className={`flex-1 text-[9px] py-0.5 rounded transition-colors ${
+                selMode === m
+                  ? 'bg-lilac-500 text-white font-semibold'
+                  : 'text-ink-400 hover:text-foreground hover:bg-muted'
+              }`}
+            >
+              {m === 'day' ? '일' : m === 'week' ? '주' : '월'}
+            </button>
+          ))}
+          <button
+            onClick={() => { onDateFromChange(''); onDateToChange(''); setSelMode('day') }}
+            className={`flex-1 text-[9px] py-0.5 rounded transition-colors ${
+              !dateFrom ? 'bg-lilac-500 text-white font-semibold' : 'text-ink-400 hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            전체
+          </button>
+        </div>
+
         {/* 요일 헤더 */}
         <div className="grid grid-cols-7 mb-0.5">
           {DAY_HEADERS.map((d, i) => (
@@ -389,7 +442,9 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
           const dow      = d.getDay()
           const inMonth  = d.getMonth() === calMonth
           const ymd      = dateStr(d)
-          const isSelected = ymd === dateFrom
+          const isSelected = dateTo && dateFrom !== dateTo
+            ? ymd >= dateFrom && ymd <= dateTo
+            : ymd === dateFrom
           const isToday    = ymd === todayYmd
           const isFuture   = d.getTime() > todayMs
           const hasItems   = (dayCounts[ymd] ?? 0) > 0

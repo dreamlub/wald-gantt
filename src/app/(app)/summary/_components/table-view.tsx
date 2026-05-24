@@ -1,6 +1,6 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo, useState, useRef, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ExternalLink, ListTodo, Hash } from 'lucide-react'
@@ -15,6 +15,10 @@ interface Props {
   selectedTags:     Set<Tag>
   searchQuery?:     string
   hasFilters:       boolean
+  total?:           number
+  hasMore?:         boolean
+  loadingMore?:     boolean
+  onLoadMore?:      () => void
   onToggleTag:      (t: Tag) => void
   onSelectBrand:    (id: string) => void
   onSelectAuthor:   (a: string) => void
@@ -69,9 +73,26 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 
 export function TableView({
   items, clients, searchQuery, hasFilters,
+  total, hasMore, loadingMore, onLoadMore,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
   onCreateTask, onCreateProject,
 }: Props) {
+  const sentinelRef = useRef<HTMLDivElement>(null)
+
+  const handleLoadMore = useCallback(() => {
+    if (hasMore && !loadingMore && onLoadMore) onLoadMore()
+  }, [hasMore, loadingMore, onLoadMore])
+
+  useEffect(() => {
+    const el = sentinelRef.current
+    if (!el || !onLoadMore) return
+    const observer = new IntersectionObserver(
+      ([entry]) => { if (entry.isIntersecting) handleLoadMore() },
+      { rootMargin: '200px' },
+    )
+    observer.observe(el)
+    return () => observer.disconnect()
+  }, [handleLoadMore, onLoadMore])
   const brandMap = useMemo(() => new Map(clients.map(c => [c.name, c])), [clients])
   const [hoveredId, setHoveredId] = useState<string | null>(null)
 
@@ -123,7 +144,7 @@ export function TableView({
               : 'bg-card text-muted-foreground border-border hover:border-ink-400'
           }`}
         >
-          전체 {items.length}
+          전체 {total ?? items.length}
         </button>
         {brandCounts.map(b => {
           const active = activeBrand === b.name
@@ -286,6 +307,17 @@ export function TableView({
             })}
           </tbody>
         </table>
+        {onLoadMore && (
+          <div ref={sentinelRef} className="flex items-center justify-center py-4">
+            {loadingMore ? (
+              <span className="text-xs text-ink-400">불러오는 중...</span>
+            ) : hasMore ? (
+              <span className="text-xs text-ink-300">스크롤하면 더 불러옵니다</span>
+            ) : items.length > 0 ? (
+              <span className="text-xs text-ink-300">전체 {total ?? items.length}건</span>
+            ) : null}
+          </div>
+        )}
       </div>
     </div>
   )

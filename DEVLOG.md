@@ -1,5 +1,132 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-24) — 수집 기능 분리 + 1/19~2/5 분류·데일리 리포트 생성
+
+### 1. 수집 기능 분리 (history-shell → collect-raw)
+- **`history-shell.tsx`**: 슬랙 수집 UI/로직(SSE, 날짜 입력, 수집 버튼, 상태 표시) 전체 제거
+- **`raw-data-view.tsx`**: "재수집" 버튼을 `/api/slack/collect` → `/api/slack/collect-raw` (`{from, to}`) 호출로 변경
+- **`/api/slack/collect/route.ts`**: 더 이상 호출되지 않아 삭제
+- 수집 UI는 `RawDataSidebarPanel`(history-sidebar.tsx 내)과 Raw Data 뷰에서 담당
+
+### 2. 분류 + 데일리 리포트 생성 (1/19 ~ 2/5)
+- **기존 상태**: 분류 ~1/21, 데일리 리포트 ~1/16
+- **완료**: 15영업일(1/19~2/5) 분류 ~225건 + 데일리 리포트 15건
+- **다음 이어할 지점**: 2/6부터
+- 분류: `client_history` 테이블에 raw_message_id 연결하여 INSERT
+- 데일리 리포트: `daily_reports` 테이블에 content JSONB (headline, action_items, upcoming, pending, decisions)
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-24) — Raw Data 날짜 범위 확장 + 탭 순서 고정
+
+### 변경 내용
+- **`raw-data-view.tsx`**: 미수집 날짜 채우기 시작일 `2026-03-01` → `2026-01-01`, 주말 제외 조건 제거
+  - 2026-01-01부터 오늘까지 전체 날짜를 항상 표시 (수집 이력 없으면 수집·분류·채널 모두 0)
+- **`history-shell.tsx`**: `VIEW_TABS` 순서 rawdata → 타임라인 → 인사이트로 확정 (이미 앞에 있었음 확인)
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-23) — 기간 Raw 수집 엔드포인트 + 사이드바 UI
+
+### 배경
+- 4월 전체 Slack 메시지를 AI 분류 없이 raw JSON만 빠르게 수집해야 하는 필요
+- 기존 `collect` 엔드포인트는 AI 분류까지 포함되어 있어 날짜 범위 bulk 수집에 부적합
+
+### 1. `/api/slack/collect-raw` 엔드포인트 신규 생성
+- `{ from: 'YYYY-MM-DD', to: 'YYYY-MM-DD' }` 입력, SSE 스트리밍 응답
+- 기존 `collect` route의 1~6단계(검색 → 필터 → 스레드 fetch → `slack_raw_messages` upsert)만 수행, AI 분류(7단계) 생략
+- 날짜 범위 전체를 순회하며 일별 진행 상황을 SSE로 전송
+- 브랜드 매핑 + 사용자 디렉토리는 루프 밖에서 1회만 조회
+
+### 2. Raw Data 사이드바 — `RawDataSidebarPanel` 컴포넌트 신규
+- `history-sidebar.tsx`의 rawdata early-return을 별도 컴포넌트로 분리
+- from/to 날짜 입력 + "Raw 수집" 버튼 (기본값: 2026-04-01 ~ 2026-04-30)
+- SSE 진행 메시지를 패널 하단에 실시간 표시
+- 수집 완료 후 `✓ 완료 — N일 / 총 M건 Raw 저장` 메시지
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-23) — Raw Data 뷰 개선 + 재분류 API
+
+### 배경
+- Summary Raw Data 탭에서 날짜별 수집/분류 현황을 확인하고 직접 재처리할 수 있는 뷰 필요
+- `slack_raw_messages` 1,805건 이상 누적 시 Supabase JS 기본 1,000행 제한으로 최근 날짜(5.16~5.22)가 0으로 표시되는 버그 발생
+
+### 1. `raw-data-view.tsx` 전면 재설계
+- 컬럼: 날짜 (`yyyy.MM.dd (eee)`) / 채널 수 / 수집 / 분류 / 제외(수집-분류) / 마지막 수집
+- 상단 요약 바: 전체 기간 합계 표시
+- **월별 그룹핑 + 부분합 행**: `bg-amber-50 border-t-2 border-amber-200` 스타일로 헤더(`bg-muted`)와 구분
+- 테이블 헤더: `sticky top-0 bg-muted` — 스크롤 시 고정
+
+### 2. Supabase RPC 함수 2개 신규 생성 (1,000행 제한 우회)
+- `get_raw_message_stats(p_workspace_id uuid)` → 날짜별 집계 (date_kst, raw_count, channel_count, last_collected)
+- `get_raw_messages_by_date(p_workspace_id uuid, p_date date)` → 특정 날짜의 raw 행 전체 반환
+- KST 변환: `(to_timestamp(parent_ts::float) AT TIME ZONE 'Asia/Seoul')::date`
+  (`parent_ts`가 Slack Unix timestamp를 `text`로 저장하므로 `::float` 캐스팅 필요)
+
+### 3. `/api/slack/reclassify` 엔드포인트 신규 생성
+- 기존 `collect`(Slack API에서 새로 가져옴)와 달리 **기존 raw 데이터 기반 강제 재분류**
+- `get_raw_messages_by_date` RPC → `isObviousNoise` 필터 → AI 분류 (배치 5건 병렬) → `client_history_summaries` 아카이브 → `client_history` upsert
+- 전 과정 SSE 스트리밍, 완료 시 `완료 — 재분류 N건, 제외(노이즈 N, AI제외 N)` 결과 반환
+
+### 4. 재수집 / 재분류 버튼
+- 각 행 우측에 두 버튼 병렬 배치 (`RefreshCw` 재수집 / `Sparkles` 재분류)
+- 재분류: `rawCount === 0`이면 비활성
+- 진행 중: 두 버튼 모두 비활성, 상태 메시지를 "마지막 수집" 열에 표시
+- SSE 완료 후 결과 다이얼로그 → 테이블 자동 갱신
+
+### 5. SSE 공통 헬퍼 `runSSE()` 추출
+- 수집·재분류 두 액션의 동일한 스트리밍 패턴을 `(url, date, setState, tag)` 파라미터 함수로 통합
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-23) — Slack 채널 → 브랜드 매핑 설정
+
+### 배경
+- Summary 화면에서 미분류 490건(전체 800건의 61%)이 DM 채널 등 자동 매칭 실패로 발생
+- 채널 → 브랜드를 명시적으로 지정하는 설정 화면 추가
+
+### 1. DB: `slack_channel_mappings` 테이블 신규 생성 (Supabase)
+- `channel_id`, `channel_name`, `is_dm`, `dm_user_id`, `dm_user_name`, `client_id` (FK → clients)
+- UNIQUE(workspace_id, channel_id), RLS 적용
+
+### 2. `src/lib/slack-service.ts` 업데이트
+- `ChannelMapping` 인터페이스 추가
+- `matchBrand()` 시그니처 변경: `(channel, channelId, text, clients, channelMappings?)` — 채널 매핑 테이블 최우선 적용
+- `fetchChannelMappings(sb, workspaceId)` 함수 추가
+
+### 3. 수집 파이프라인 업데이트
+- `collect/route.ts`: `fetchChannelMappings` 병렬 조회 추가, `matchBrand` 호출 시 `channel_id` + `channelMappings` 전달
+- `update-threads/route.ts`: 동일 처리
+- `debug-classify/route.ts`: `channel_id` 전달 (매핑 없이)
+
+### 4. API 라우트 3개 신규
+- `GET /api/slack/channels`: `conversations.list`로 전체 채널 조회, DM은 `fetchUserDirectory`로 이름 해석, 기존 매핑 포함 반환
+- `POST /api/slack/channel-mappings`: 매핑 배열 upsert
+- `POST /api/slack/remap-history`: 채널 매핑 기준으로 기존 `client_history.client_id` 즉시 업데이트 (AI 재분류 없음)
+
+### 5. 설정 UI
+- `settings-shell.tsx`: NAV에 "Slack 채널" 섹션 추가, 연동 탭의 "준비 중" 카드 제거
+- `channel-mapping-section.tsx` 신규: 채널 목록 불러오기 → 브랜드 드롭다운 → 저장 → 기존 이력 재매핑 버튼
+
+### 검증
+- `npm.cmd run typecheck` 통과
+- `npm.cmd run test` 통과 (3 files / 16 tests)
+
+---
+
 ## 최근 변경 (2026-05-23) — Command Center 1차 퍼블리싱
 
 ### 배경
@@ -119,7 +246,12 @@
   - Tasks 화면에서 지연 필터 적용 확인
 - `npm.cmd run build`:
   - 최초 시도에서 `/tasks` Suspense boundary 필요 오류 확인 후 수정
-  - 수정 후 재빌드는 sandbox escalation 사용량 제한으로 실행 불가
+  - 네트워크 권한으로 재실행해 통과 (Google Fonts fetch 필요)
+- 마감 재검증:
+  - `/` Command Center에서 `고객 이슈` count 22건 표시 확인
+  - `/summary?priority=high`에서 전체 800건 중 high priority 183건 표시 확인
+  - `npm.cmd run typecheck` 통과
+  - `npm.cmd run test` 통과 (3 files / 16 tests)
 
 ---
 

@@ -108,6 +108,111 @@ export async function listHistory(sb?: Sb): Promise<HistoryItem[]> {
   return filtered.map(toHistory)
 }
 
+export interface HistoryPageParams {
+  from?: string
+  to?: string
+  brand?: string
+  priority?: string
+  tags?: string[]
+  author?: string
+  q?: string
+  cursor?: string
+  limit?: number
+}
+
+export interface HistoryPage {
+  items: HistoryItem[]
+  nextCursor: string | null
+  total: number
+}
+
+export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promise<HistoryPage> {
+  const client = sb ?? createBrowserClient()
+  const limit = params.limit ?? 50
+
+  let countQuery = client
+    .from('client_history')
+    .select('*', { count: 'exact', head: true })
+    .is('deleted_at', null)
+
+  let query = client
+    .from('client_history')
+    .select('*')
+    .is('deleted_at', null)
+    .order('occurred_at', { ascending: false })
+    .order('id', { ascending: false })
+    .limit(limit)
+
+  const applyFilters = <T extends typeof query>(q: T): T => {
+    if (params.from) q = q.gte('occurred_at', params.from + 'T00:00:00') as T
+    if (params.to) q = q.lte('occurred_at', params.to + 'T23:59:59') as T
+    if (params.brand) q = q.eq('brand_name', params.brand) as T
+    if (params.priority) q = q.eq('priority', params.priority) as T
+    if (params.author) q = q.eq('author', params.author) as T
+    if (params.q) q = q.or(`title.ilike.%${params.q}%,body.ilike.%${params.q}%,channel.ilike.%${params.q}%,author.ilike.%${params.q}%`) as T
+    return q
+  }
+
+  query = applyFilters(query)
+  countQuery = applyFilters(countQuery)
+
+  if (params.cursor) {
+    const [cursorDate, cursorId] = params.cursor.split('|')
+    query = query.or(`occurred_at.lt.${cursorDate},and(occurred_at.eq.${cursorDate},id.lt.${cursorId})`)
+  }
+
+  const [pageResult, countResult] = await Promise.all([query, countQuery])
+  if (pageResult.error) throw pageResult.error
+
+  const items = (pageResult.data ?? []).map(toHistory)
+  let nextCursor: string | null = null
+  if (items.length === limit) {
+    const last = items[items.length - 1]
+    nextCursor = `${last.occurred_at}|${last.id}`
+  }
+
+  return { items, nextCursor, total: countResult.count ?? 0 }
+}
+
+export interface HistoryStats {
+  dateCounts: Record<string, number>
+  tagCounts: Record<string, number>
+  priorityCounts: Record<string, number>
+  authorCounts: Record<string, number>
+  total: number
+}
+
+export async function getHistoryStats(from?: string, to?: string, sb?: Sb): Promise<HistoryStats> {
+  const client = sb ?? createBrowserClient()
+
+  let query = client
+    .from('client_history')
+    .select('occurred_at, tags, priority, author')
+    .is('deleted_at', null)
+
+  if (from) query = query.gte('occurred_at', from + 'T00:00:00')
+  if (to) query = query.lte('occurred_at', to + 'T23:59:59')
+
+  const { data, error } = await query
+  if (error) throw error
+
+  const rows = data ?? []
+  const dateCounts: Record<string, number> = {}
+  const tagCounts: Record<string, number> = {}
+  const priorityCounts: Record<string, number> = {}
+  const authorCounts: Record<string, number> = {}
+
+  for (const r of rows) {
+    const ymd = r.occurred_at.slice(0, 10)
+    dateCounts[ymd] = (dateCounts[ymd] ?? 0) + 1
+    if (r.priority) priorityCounts[r.priority] = (priorityCounts[r.priority] ?? 0) + 1
+    if (r.author) authorCounts[r.author] = (authorCounts[r.author] ?? 0) + 1
+    for (const t of r.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1
+  }
+
+  return { dateCounts, tagCounts, priorityCounts, authorCounts, total: rows.length }
+}
+
 // 히스토리에서 distinct 브랜드명 추출 → Client 배열 반환
 export async function getDistinctBrands(sb?: Sb): Promise<Client[]> {
   const client = sb ?? createBrowserClient()

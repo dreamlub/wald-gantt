@@ -111,13 +111,14 @@ export function RawDataView() {
     url: string, date: string,
     setState: React.Dispatch<React.SetStateAction<ActionState>>,
     tag: string,
+    body?: unknown,
   ) {
     setState(prev => ({ ...prev, [date]: { status: '준비 중...' } }))
     try {
       const res = await fetch(url, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ date }),
+        body: JSON.stringify(body ?? { date }),
       })
       if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
       const reader = res.body.getReader()
@@ -150,7 +151,7 @@ export function RawDataView() {
     }
   }
 
-  const handleRecollect   = (date: string) => runSSE('/api/slack/collect',     date, setCollecting,   'recollect')
+  const handleRecollect   = (date: string) => runSSE('/api/slack/collect-raw',  date, setCollecting,   'recollect', { from: date, to: date })
   const handleReclassify  = (date: string) => runSSE('/api/slack/reclassify',  date, setReclassifying, 'reclassify')
 
   if (loading) {
