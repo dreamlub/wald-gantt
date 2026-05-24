@@ -63,10 +63,12 @@ function getWeekRange(mondayStr: string): string {
 
 interface Props {
   clients: Client[]
+  dateFrom?: string
+  dateTo?: string
   onSelectBrand: (id: string) => void
 }
 
-export function TimelineView({ clients, onSelectBrand }: Props) {
+export function TimelineView({ clients, dateFrom, dateTo, onSelectBrand }: Props) {
   const [weeks, setWeeks] = useState<WeekGroup[]>([])
   const [loading, setLoading] = useState(true)
   const [expandedWeeks, setExpandedWeeks] = useState<Set<string>>(new Set())
@@ -101,7 +103,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
     }
 
     const result: WeekGroup[] = [...grouped.entries()]
-      .sort((a, b) => b[0].localeCompare(a[0]))
+      .sort((a, b) => a[0].localeCompare(b[0]))
       .map(([weekStart, brands]) => ({
         weekStart,
         weekLabel: getWeekLabel(weekStart),
@@ -111,7 +113,7 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
 
     setWeeks(result)
     if (result.length > 0) {
-      setExpandedWeeks(new Set([result[0].weekStart]))
+      setExpandedWeeks(new Set([result[result.length - 1].weekStart]))
     }
     setLoading(false)
   }, [])
@@ -129,11 +131,24 @@ export function TimelineView({ clients, onSelectBrand }: Props) {
   }, [weeks])
 
   const filteredWeeks = useMemo(() => {
-    if (!activeBrand) return weeks
-    return weeks
-      .map(w => ({ ...w, brands: w.brands.filter(b => b.brand_name === activeBrand) }))
-      .filter(w => w.brands.length > 0)
-  }, [weeks, activeBrand])
+    let result = weeks
+    if (dateFrom || dateTo) {
+      result = result.filter(w => {
+        const sun = new Date(w.weekStart + 'T00:00:00')
+        sun.setDate(sun.getDate() + 6)
+        const weekEnd = `${sun.getFullYear()}-${String(sun.getMonth() + 1).padStart(2, '0')}-${String(sun.getDate()).padStart(2, '0')}`
+        if (dateFrom && weekEnd < dateFrom) return false
+        if (dateTo && w.weekStart > dateTo) return false
+        return true
+      })
+    }
+    if (activeBrand) {
+      result = result
+        .map(w => ({ ...w, brands: w.brands.filter(b => b.brand_name === activeBrand) }))
+        .filter(w => w.brands.length > 0)
+    }
+    return result
+  }, [weeks, activeBrand, dateFrom, dateTo])
 
   function selectBrand(name: string) {
     setActiveBrand(prev => prev === name ? null : name)

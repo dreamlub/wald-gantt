@@ -487,6 +487,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'timeline' && (
                 <TimelineView
                   clients={initialClients}
+                  dateFrom={dateFrom}
+                  dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                 />
               )}
