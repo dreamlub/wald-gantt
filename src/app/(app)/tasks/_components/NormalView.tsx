@@ -86,9 +86,9 @@ function QuickAddRow({ autoFocus, value, onChange, onCommit, onCancel, placehold
         }}
         onBlur={() => { if (!value.trim()) onCancel() }}
         placeholder={placeholder}
-        className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+        className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
       />
-      {indent === 'pl-10' && <span className="text-[10px] text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
+      {indent === 'pl-10' && <span className="text-3xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
     </div>
   )
 }
@@ -150,7 +150,7 @@ function TaskGroup({ task, subs, isExp, onEdit, onEditMemo, onDelete, onStatusCh
       ) : isExp && subs.length > 0 && (
         <button
           onClick={() => openAddSubTask(task.id)}
-          className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-[11px] text-ink-300 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
+          className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-2xs text-ink-300 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
         >
           <Plus size={10} /> 하위 태스크 추가
         </button>
@@ -197,7 +197,7 @@ export function NormalView(props: NormalViewProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
         <div className="w-5 shrink-0 mr-3" />
         <div className="flex-1 mr-4">태스크</div>
         <div className="w-8 shrink-0">우선</div>
@@ -226,15 +226,15 @@ export function NormalView(props: NormalViewProps) {
                     ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
                     : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
                   <span
-                    className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                    className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
                     style={{ backgroundColor: 'var(--color-status-late)' }}
                   >
                     !
                   </span>
                   <span className="text-xs font-semibold text-status-late">지연</span>
-                  <span className="text-[10px] text-ink-400">{overdueGroup.length}</span>
+                  <span className="text-3xs text-ink-400">{overdueGroup.length}</span>
                   {avgOverdueDays > 0 && (
-                    <span className="ml-auto text-[10px] text-ink-400">평균 지연 {avgOverdueDays}일</span>
+                    <span className="ml-auto text-3xs text-ink-400">평균 지연 {avgOverdueDays}일</span>
                   )}
                 </button>
                 {!collapsed.has('__overdue__') && (
@@ -263,15 +263,15 @@ export function NormalView(props: NormalViewProps) {
                       ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
                       : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
                     <span
-                      className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                      className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
                       style={{ backgroundColor: color }}
                     >
                       {abbr}
                     </span>
                     <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-                    <span className="text-[10px] text-ink-400">{group.length}</span>
+                    <span className="text-3xs text-ink-400">{group.length}</span>
                     {status === 'in-progress' && avgIPDays > 0 && (
-                      <span className="ml-auto text-[10px] text-ink-400">평균 진행 {avgIPDays}일</span>
+                      <span className="ml-auto text-3xs text-ink-400">평균 진행 {avgIPDays}일</span>
                     )}
                   </button>
                   {!isCollapsed && (

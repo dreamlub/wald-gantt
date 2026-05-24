@@ -114,6 +114,7 @@
   --text-3xs: 0.625rem;   /* 10px */
   --text-4xs: 0.5625rem;  /* 9px  */
   --text-5xs: 0.5rem;     /* 8px  */
+  --text-6xs: 0.4375rem;  /* 7px  */
 
   /* Z-index 레이어 */
   --z-overlay: 100;

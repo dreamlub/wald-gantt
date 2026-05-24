@@ -127,7 +127,7 @@ export function ChannelMappingSection({ clients }: Props) {
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between gap-2">
-        <p className="text-[11px] text-muted-foreground">
+        <p className="text-2xs text-muted-foreground">
           Slack 채널과 브랜드를 직접 연결합니다. 저장 후 신규 수집부터 적용됩니다.
         </p>
         <div className="flex items-center gap-1.5 shrink-0">
@@ -135,7 +135,7 @@ export function ChannelMappingSection({ clients }: Props) {
           <button
             onClick={syncFromSlack}
             disabled={loading}
-            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-border text-[11px] font-medium text-foreground hover:bg-muted disabled:opacity-40 transition-colors"
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm border border-border text-2xs font-medium text-foreground hover:bg-muted disabled:opacity-40 transition-colors"
           >
             <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
             Slack 채널 현행화
@@ -145,11 +145,11 @@ export function ChannelMappingSection({ clients }: Props) {
 
       {loaded && missingScopes.length > 0 && (
         <div className="rounded border border-status-warn/30 bg-status-warn/5 px-3 py-2 space-y-1">
-          <p className="text-[11px] font-medium text-status-warn">일부 채널 타입을 불러오지 못했습니다.</p>
-          <p className="text-[10px] text-ink-400">
+          <p className="text-2xs font-medium text-status-warn">일부 채널 타입을 불러오지 못했습니다.</p>
+          <p className="text-3xs text-ink-400">
             Slack 앱에 아래 스코프를 추가하면 해당 채널도 표시됩니다:
           </p>
-          <ul className="text-[10px] text-ink-400 list-disc list-inside space-y-0.5">
+          <ul className="text-3xs text-ink-400 list-disc list-inside space-y-0.5">
             {missingScopes.map(s => <li key={s}>{s}</li>)}
           </ul>
         </div>
@@ -189,7 +189,7 @@ export function ChannelMappingSection({ clients }: Props) {
             <div>
               <button
                 onClick={() => setShowExcluded(v => !v)}
-                className="flex items-center gap-1.5 text-[11px] text-ink-400 hover:text-foreground transition-colors py-1"
+                className="flex items-center gap-1.5 text-2xs text-ink-400 hover:text-foreground transition-colors py-1"
               >
                 <ChevronDown size={12} className={`transition-transform ${showExcluded ? '' : '-rotate-90'}`} />
                 <EyeOff size={11} />
@@ -247,19 +247,19 @@ function ChannelRow({ ch, dirty, brandSuggestions, onBrandChange, onExcludeToggl
       </span>
       <span className="text-xs text-foreground truncate min-w-0 flex-1">
         {ch.channel_name || ch.channel_id}
-        {dirty && <span className="ml-1 text-[10px] text-lilac-500">●</span>}
+        {dirty && <span className="ml-1 text-3xs text-lilac-500">●</span>}
       </span>
       <AutocompleteInput
         value={ch.brand_name ?? ''}
         onChange={v => onBrandChange(ch.channel_id, v || null)}
         suggestions={brandSuggestions}
         placeholder="브랜드명"
-        className="text-[11px] bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:border-lilac-300 w-[120px] shrink-0"
+        className="text-2xs bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:border-lilac-300 w-[120px] shrink-0"
       />
       <button
         onClick={() => onExcludeToggle(ch.channel_id)}
         title={ch.excluded ? '수집 제외됨 — 클릭하여 해제' : '클릭하여 수집 제외'}
-        className={`shrink-0 inline-flex items-center gap-1 text-[10px] px-1.5 py-0.5 rounded-full border transition-colors ${
+        className={`shrink-0 inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded-full border transition-colors ${
           ch.excluded
             ? 'bg-status-late/15 border-status-late/40 text-status-late'
             : 'border-border text-ink-400 hover:border-ink-300 hover:text-ink-500'
@@ -276,7 +276,7 @@ function FilterChip({ active, onClick, children }: { active: boolean; onClick: (
   return (
     <button
       onClick={onClick}
-      className={`text-[11px] px-2.5 py-[3px] rounded-full border transition-colors ${
+      className={`text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
         active
           ? 'bg-foreground text-white border-foreground'
           : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -292,7 +292,7 @@ function SaveButton({ saving, dirty, onClick }: { saving: boolean; dirty: Set<st
     <button
       onClick={onClick}
       disabled={saving || dirty.size === 0}
-      className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-foreground text-background text-[11px] font-medium hover:opacity-80 disabled:opacity-40 transition-opacity"
+      className="flex items-center gap-1.5 px-3 py-1.5 rounded-sm bg-foreground text-background text-2xs font-medium hover:opacity-80 disabled:opacity-40 transition-opacity"
     >
       {saving ? '저장 중...' : `저장${dirty.size > 0 ? ` (${dirty.size}건)` : ''}`}
     </button>

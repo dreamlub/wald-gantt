@@ -69,7 +69,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
           {deleted.length > 0 && (
             <button
               onClick={handleEmptyTrash}
-              className="text-[11px] text-status-late hover:text-status-late/80 px-2 py-0.5 rounded hover:bg-status-late/10 transition-colors"
+              className="text-2xs text-status-late hover:text-status-late/80 px-2 py-0.5 rounded hover:bg-status-late/10 transition-colors"
             >
               전체 비우기
             </button>
@@ -78,7 +78,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
             <X size={15} />
           </button>
         </div>
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
+        <div className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
           삭제된 프로젝트 — {deleted.length}개
         </div>
 
@@ -98,13 +98,13 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
                       <div className="text-xs font-medium text-foreground truncate">{project.name}</div>
                       <div className="flex items-center gap-1.5 mt-0.5">
                         {cat && (
-                          <span className="text-[10px] text-muted-foreground flex items-center gap-1">
+                          <span className="text-3xs text-muted-foreground flex items-center gap-1">
                             <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: cat.color }} />
                             {cat.name}
                           </span>
                         )}
                         {project.deleted_at && (
-                          <span className="text-[10px] text-ink-300">{formatDateYMD(project.deleted_at)}</span>
+                          <span className="text-3xs text-ink-300">{formatDateYMD(project.deleted_at)}</span>
                         )}
                       </div>
                     </div>

@@ -23,7 +23,7 @@ function slackMrkdwnToHtml(text: string): string {
       .replace(/\x00AMP\x00/g, '&')
       .replace(/\x00LT\x00/g, '<')
       .replace(/\x00GT\x00/g, '>'))
-    return `<pre class="bg-muted rounded px-2 py-1 my-1 text-[12px] overflow-x-auto whitespace-pre"><code>${safe}</code></pre>`
+    return `<pre class="bg-muted rounded px-2 py-1 my-1 text-xs overflow-x-auto whitespace-pre"><code>${safe}</code></pre>`
   })
 
   // 3. inline code
@@ -32,7 +32,7 @@ function slackMrkdwnToHtml(text: string): string {
       .replace(/\x00AMP\x00/g, '&')
       .replace(/\x00LT\x00/g, '<')
       .replace(/\x00GT\x00/g, '>'))
-    return `<code class="bg-muted rounded px-1 text-[12px] font-mono">${safe}</code>`
+    return `<code class="bg-muted rounded px-1 text-xs font-mono">${safe}</code>`
   })
 
   // 4. Slack link tokens  <URL|label>  <URL>  <@USER>  <#CHANNEL|name>

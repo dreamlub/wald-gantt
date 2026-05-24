@@ -162,7 +162,7 @@ export function GanttCategoryLeft({
                   {cat.name}
                 </span>
               )}
-              <span className="text-[10px] text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
+              <span className="text-3xs text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
               {!readOnly && (
                 <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
                   <Popover>
@@ -227,7 +227,7 @@ export function GanttCategoryLeft({
                           onClick={readOnly ? undefined : () => onCycleStatus(project)}
                           aria-label={sm.label}
                           title={sm.label}
-                          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white hover:scale-110 transition-transform"
+                          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
                           style={{ backgroundColor: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
                         >
                           {sm.abbr}
@@ -245,11 +245,11 @@ export function GanttCategoryLeft({
                           {project.name}
                         </span>
                         {isProjectOverdue(project, todayStr) ? (
-                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
+                          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                             지연 {daysBetween(project.end_date!, todayStr)}일
                           </span>
                         ) : isStartDelayed(project, todayStr) ? (
-                          <span className="shrink-0 text-[10px] px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
+                          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
                             시작 지연 {daysBetween(project.start_date!, todayStr)}일
                           </span>
                         ) : null}
@@ -365,7 +365,7 @@ export function GanttCategoryRight({
   cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap, onBarCreate,
 }: GanttCategoryRightProps) {
   const barColor = cat.color
-  const barTextColor = isLightColor(barColor) ? 'rgba(0,0,0,0.75)' : '#fff'
+  const barTextColor = isLightColor(barColor) ? 'rgba(0,0,0,0.75)' : 'white'
   const barTextShadow = isLightColor(barColor) ? 'none' : '0 0 3px rgba(0,0,0,0.3)'
 
   return (
@@ -424,7 +424,7 @@ export function GanttCategoryRight({
                   )}
                   {dateFitsInside && (
                     <span
-                      className="text-[10px] font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
+                      className="text-3xs font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
                       style={{ color: barTextColor, textShadow: barTextShadow }}
                     >
                       {dateText}
@@ -449,18 +449,18 @@ export function GanttCategoryRight({
                     }}
                   >
                     {!dateFitsInside && dateText && (
-                      <span className="text-[10px] font-medium tabular-nums whitespace-nowrap text-muted-foreground">
+                      <span className="text-3xs font-medium tabular-nums whitespace-nowrap text-muted-foreground">
                         {dateText}
                       </span>
                     )}
                     {project.team && (
-                      <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-muted-foreground">
+                      <span className="text-3xs font-medium whitespace-nowrap flex items-center gap-1 text-muted-foreground">
                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: barColor }} />
                         {project.team}
                       </span>
                     )}
                     {project.pm && (
-                      <span className="text-[10px] font-medium whitespace-nowrap flex items-center gap-1 text-muted-foreground">
+                      <span className="text-3xs font-medium whitespace-nowrap flex items-center gap-1 text-muted-foreground">
                         <span className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: pmColorMap.get(project.pm) ?? 'var(--color-ink-300)' }} />
                         {project.pm}
                       </span>

@@ -69,7 +69,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
           {deleted.length > 0 && (
             <button
               onClick={handleEmptyTrash}
-              className="text-[11px] text-status-late hover:text-status-late/80 px-2 py-0.5 rounded hover:bg-status-late/10 transition-colors"
+              className="text-2xs text-status-late hover:text-status-late/80 px-2 py-0.5 rounded hover:bg-status-late/10 transition-colors"
             >
               전체 비우기
             </button>
@@ -78,7 +78,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
             <X size={15} />
           </button>
         </div>
-        <div className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
+        <div className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
           삭제된 태스크 — {deleted.length}개
         </div>
 
@@ -95,16 +95,16 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
                   <div className="text-xs font-medium text-foreground truncate">{task.title}</div>
                   <div className="flex items-center gap-1.5 mt-0.5">
                     <span
-                      className="text-[10px] font-medium px-1.5 py-0.5 rounded-full"
+                      className="text-3xs font-medium px-1.5 py-0.5 rounded-full"
                       style={{ backgroundColor: STATUS_BG_COLOR[task.status] ?? 'var(--task-status-backlog-bg)', color: STATUS_COLOR[task.status] ?? 'var(--task-status-backlog)' }}
                     >
                       {STATUS_LABEL[task.status] ?? task.status}
                     </span>
                     {task.assignee && (
-                      <span className="text-[10px] text-muted-foreground truncate">{task.assignee}</span>
+                      <span className="text-3xs text-muted-foreground truncate">{task.assignee}</span>
                     )}
                     {task.deleted_at && (
-                      <span className="text-[10px] text-ink-300">{formatDateYMD(task.deleted_at)}</span>
+                      <span className="text-3xs text-ink-300">{formatDateYMD(task.deleted_at)}</span>
                     )}
                   </div>
                 </div>

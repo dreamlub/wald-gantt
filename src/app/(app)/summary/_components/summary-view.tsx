@@ -208,7 +208,7 @@ function Section({ icon, label, badge, children }: { icon: React.ReactNode; labe
         {icon}
         <span>{label}</span>
         {badge && (
-          <span className="text-3xs px-[7px] py-[2px] rounded-[10px] bg-muted text-ink-400 font-medium">{badge}</span>
+          <span className="text-3xs px-[7px] py-[2px] rounded-full bg-muted text-ink-400 font-medium">{badge}</span>
         )}
       </div>
       {children}

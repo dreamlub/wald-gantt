@@ -192,12 +192,12 @@ export function RawDataView() {
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-muted z-10 border-b border-ink-150">
             <tr>
-              <th className="text-left px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">날짜</th>
-              <th className="text-right px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-16">채널</th>
-              <th className="text-right px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-20">수집</th>
-              <th className="text-right px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-20">분류</th>
-              <th className="text-right px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider w-20">제외</th>
-              <th className="text-left px-5 py-2 text-[10px] font-semibold text-ink-400 uppercase tracking-wider">마지막 수집</th>
+              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider">날짜</th>
+              <th className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-16">채널</th>
+              <th className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-20">수집</th>
+              <th className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-20">분류</th>
+              <th className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-20">제외</th>
+              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider">마지막 수집</th>
               <th className="px-5 py-2 w-20" />
             </tr>
           </thead>
@@ -212,14 +212,14 @@ export function RawDataView() {
                 <React.Fragment key={month}>
                   {/* 월 부분합 행 */}
                   <tr key={`month-${month}`} className="bg-amber-50 border-t-2 border-amber-200">
-                    <td className="px-5 py-2 text-[11px] font-semibold text-ink-600 whitespace-nowrap">
+                    <td className="px-5 py-2 text-2xs font-semibold text-ink-600 whitespace-nowrap">
                       {monthLabel}
-                      <span className="ml-2 text-[10px] font-normal text-ink-400">{mRows.length}일</span>
+                      <span className="ml-2 text-3xs font-normal text-ink-400">{mRows.length}일</span>
                     </td>
-                    <td className="px-5 py-2 text-right text-[11px] text-ink-400">—</td>
-                    <td className="px-5 py-2 text-right text-[11px] font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
-                    <td className="px-5 py-2 text-right text-[11px] font-semibold text-ink-600 tabular-nums">{mClassified.toLocaleString()}</td>
-                    <td className="px-5 py-2 text-right text-[11px] text-ink-400 tabular-nums">
+                    <td className="px-5 py-2 text-right text-2xs text-ink-400">—</td>
+                    <td className="px-5 py-2 text-right text-2xs font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
+                    <td className="px-5 py-2 text-right text-2xs font-semibold text-ink-600 tabular-nums">{mClassified.toLocaleString()}</td>
+                    <td className="px-5 py-2 text-right text-2xs text-ink-400 tabular-nums">
                       {mExcluded > 0 ? mExcluded.toLocaleString() : <span className="text-ink-200">—</span>}
                     </td>
                     <td className="px-5 py-2" />
@@ -250,7 +250,7 @@ export function RawDataView() {
                         <td className="px-5 py-2 text-right text-xs tabular-nums text-ink-400">
                           {excluded > 0 ? excluded.toLocaleString() : <span className="text-ink-200">—</span>}
                         </td>
-                        <td className="px-5 py-2 text-[11px] text-ink-400 tabular-nums">
+                        <td className="px-5 py-2 text-2xs text-ink-400 tabular-nums">
                           {isBusy
                             ? <span className="text-lilac-500">{activeStatus}</span>
                             : row.lastCollectedAt
@@ -264,7 +264,7 @@ export function RawDataView() {
                               onClick={() => handleRecollect(row.date)}
                               disabled={isBusy}
                               title="Slack에서 다시 수집"
-                              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                              className="inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                             >
                               <RefreshCw size={10} className={cState ? 'animate-spin' : ''} />
                               재수집
@@ -273,7 +273,7 @@ export function RawDataView() {
                               onClick={() => handleReclassify(row.date)}
                               disabled={isBusy || row.rawCount === 0}
                               title="기존 raw 데이터로 AI 재분류"
-                              className="inline-flex items-center gap-1 text-[10px] font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                              className="inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                             >
                               <Sparkles size={10} className={rState ? 'animate-pulse' : ''} />
                               재분류

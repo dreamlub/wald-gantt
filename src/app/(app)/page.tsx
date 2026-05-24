@@ -215,7 +215,7 @@ export default async function CommandCenterPage() {
           </span>
           <div className="min-w-0">
             <h1 className="text-xs font-semibold text-foreground uppercase tracking-wider">Command Center</h1>
-            <p className="text-[10px] text-ink-400">{fmtDay(today)} 운영 브리핑</p>
+            <p className="text-3xs text-ink-400">{fmtDay(today)} 운영 브리핑</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
@@ -240,7 +240,7 @@ export default async function CommandCenterPage() {
                 <div className="divide-y divide-border">
                   {focusList.map((item, i) => (
                     <Link key={`${item.kind}-${i}`} href={item.href} className="flex items-center gap-3 py-3 group">
-                      <span className={`w-10 shrink-0 text-center rounded px-1.5 py-1 text-[10px] font-semibold ${
+                      <span className={`w-10 shrink-0 text-center rounded px-1.5 py-1 text-3xs font-semibold ${
                         item.tone === 'late' ? 'bg-red-50 text-status-late' :
                         item.tone === 'high' ? 'bg-coral-100 text-coral-500' :
                         'bg-lilac-100 text-lilac-600'
@@ -312,7 +312,7 @@ export default async function CommandCenterPage() {
                       <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: project.priority === 3 ? 'var(--color-status-late)' : 'var(--color-status-warn)' }} />
                       <span className="text-xs font-semibold text-foreground truncate">{project.name}</span>
                     </div>
-                    <div className="mt-1.5 flex items-center justify-between text-[11px] text-ink-400">
+                    <div className="mt-1.5 flex items-center justify-between text-2xs text-ink-400">
                       <span className="truncate">{project.team ?? project.pm ?? '담당 미지정'}</span>
                       <span className={days !== null && days < 0 ? 'text-status-late font-medium' : 'text-muted-foreground'}>
                         {days !== null && days < 0 ? `${Math.abs(days)}일 지연` : `${days}일 남음`}
@@ -332,7 +332,7 @@ export default async function CommandCenterPage() {
                     <Link key={person.name} href={`/tasks?assignee=${queryValue(person.name)}`} className="block rounded-md -mx-2 px-2 py-1.5 hover:bg-muted/60 transition-colors">
                       <div className="flex items-center justify-between text-xs">
                         <span className="font-medium text-foreground truncate">{person.name}</span>
-                        <span className="text-[11px] text-ink-400">{person.urgent}/{person.count}</span>
+                        <span className="text-2xs text-ink-400">{person.urgent}/{person.count}</span>
                       </div>
                       <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
                         <div className="h-full rounded-full bg-lilac-500" style={{ width: `${width}%` }} />
@@ -380,7 +380,7 @@ export default async function CommandCenterPage() {
 
 function QuickLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-background text-[11px] font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+    <Link href={href} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-background text-2xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
       {icon}
       {label}
     </Link>
@@ -404,12 +404,12 @@ function MetricCard({ label, value, detail, icon, tone, href }: {
   const content = (
     <>
       <div className="flex items-center justify-between">
-        <span className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
+        <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
         <span className={`inline-flex size-7 items-center justify-center rounded-md ${toneClass}`}>{icon}</span>
       </div>
       <div className="mt-3 flex items-end gap-2">
         <span className="text-2xl font-semibold tracking-normal text-foreground">{value}</span>
-        <span className="pb-1 text-[11px] text-muted-foreground">{detail}</span>
+        <span className="pb-1 text-2xs text-muted-foreground">{detail}</span>
       </div>
     </>
   )
@@ -434,7 +434,7 @@ function Panel({ title, href, icon, children }: {
       <div className="h-10 flex items-center gap-2 px-4 border-b bg-muted">
         <span className="text-ink-400">{icon}</span>
         <h2 className="text-xs font-semibold text-foreground">{title}</h2>
-        <Link href={href} className="ml-auto inline-flex items-center gap-1 text-[11px] text-ink-400 hover:text-foreground">
+        <Link href={href} className="ml-auto inline-flex items-center gap-1 text-2xs text-ink-400 hover:text-foreground">
           열기
           <ArrowRight size={11} />
         </Link>
@@ -447,7 +447,7 @@ function Panel({ title, href, icon, children }: {
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-background px-2.5 py-2">
-      <div className="text-[10px] text-ink-400">{label}</div>
+      <div className="text-3xs text-ink-400">{label}</div>
       <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
     </div>
   )
@@ -463,13 +463,13 @@ function TaskRow({ task, today, compact = false }: { task: GanttTask; today?: st
         <div className="flex items-center gap-1.5">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-foreground truncate`}>{task.title}</span>
         </div>
-        <div className="mt-1 flex items-center gap-1.5 text-[11px] text-ink-400">
+        <div className="mt-1 flex items-center gap-1.5 text-2xs text-ink-400">
           <span className="rounded px-1.5 py-0.5" style={statusTone(task.status)}>{STATUS_LABEL[task.status]}</span>
           {task.assignee && <span className="truncate">{task.assignee}</span>}
         </div>
       </div>
       {task.due_date && (
-        <span className={`text-[11px] shrink-0 ${due !== null && due < 0 ? 'text-status-late font-semibold' : 'text-muted-foreground'}`}>
+        <span className={`text-2xs shrink-0 ${due !== null && due < 0 ? 'text-status-late font-semibold' : 'text-muted-foreground'}`}>
           {fmtDay(task.due_date)}
         </span>
       )}
@@ -485,9 +485,9 @@ function HistoryRow({ item }: { item: HistoryItem }) {
       <div className="flex items-center gap-2 min-w-0">
         {color && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
         <span className="text-xs font-semibold text-foreground truncate">{item.title}</span>
-        {p && <span className="ml-auto shrink-0 text-[10px] font-medium" style={{ color: p.color }}>{p.label}</span>}
+        {p && <span className="ml-auto shrink-0 text-3xs font-medium" style={{ color: p.color }}>{p.label}</span>}
       </div>
-      <div className="mt-1.5 flex items-center gap-1.5 text-[11px] text-ink-400">
+      <div className="mt-1.5 flex items-center gap-1.5 text-2xs text-ink-400">
         <span className="truncate">{item.brand_name ?? item.channel}</span>
         <span>{fmtDay(item.occurred_at)}</span>
       </div>
@@ -503,14 +503,14 @@ function DecisionRow({ item }: { item: HistoryItem }) {
       <div className="text-xs font-semibold text-foreground truncate">{item.title}</div>
       <div className="mt-2 flex items-center gap-1.5 min-w-0">
         {item.brand_name && (
-          <span className="inline-flex items-center gap-1.5 text-[11px] text-muted-foreground min-w-0">
+          <span className="inline-flex items-center gap-1.5 text-2xs text-muted-foreground min-w-0">
             {color && <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
             <span className="truncate">{item.brand_name}</span>
           </span>
         )}
         <span className="ml-auto flex gap-1 shrink-0">
           {tags.map(tag => (
-            <span key={tag} className="text-[10px] px-1.5 py-0.5 rounded" style={{ background: TAG_META[tag].bg, color: TAG_META[tag].color }}>
+            <span key={tag} className="text-3xs px-1.5 py-0.5 rounded" style={{ background: TAG_META[tag].bg, color: TAG_META[tag].color }}>
               {TAG_META[tag].label}
             </span>
           ))}

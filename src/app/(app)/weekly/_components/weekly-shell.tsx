@@ -162,10 +162,10 @@ export function WeeklyShell() {
 
         {teams.length === 0 && (
           <div className="flex flex-col items-center justify-center flex-1 gap-2 px-4 text-center">
-            <p className="text-[11px] text-muted-foreground leading-relaxed">연동된 팀이 없어요</p>
+            <p className="text-2xs text-muted-foreground leading-relaxed">연동된 팀이 없어요</p>
             <a
               href="/settings?section=weekly"
-              className="flex items-center gap-1 text-[11px] text-lilac-600 hover:underline"
+              className="flex items-center gap-1 text-2xs text-lilac-600 hover:underline"
             >
               <Settings size={11} />
               설정에서 추가하기

@@ -72,7 +72,7 @@ const SORT_MODE_OPTIONS: { value: SortMode; label: string }[] = [
 function SettingCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-4">
-      <h3 className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   )
@@ -281,14 +281,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   {calendarConnected ? (
                     <button
                       onClick={handleCalendarDisconnect}
-                      className="text-[11px] text-ink-400 hover:text-status-late transition-colors"
+                      className="text-2xs text-ink-400 hover:text-status-late transition-colors"
                     >
                       연동 해제
                     </button>
                   ) : (
                     <button
                       onClick={handleCalendarConnect}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity"
                     >
                       Google 연동
                     </button>
@@ -312,13 +312,13 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     </span>
                   </div>
                   {vaultStatus === 'connected' && (
-                    <button onClick={vaultDisconnect} className="text-[11px] text-ink-400 hover:text-status-late transition-colors">연결 해제</button>
+                    <button onClick={vaultDisconnect} className="text-2xs text-ink-400 hover:text-status-late transition-colors">연결 해제</button>
                   )}
                   {vaultStatus === 'needs-permission' && (
-                    <button onClick={vaultRequestPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity">권한 허용</button>
+                    <button onClick={vaultRequestPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity">권한 허용</button>
                   )}
                   {vaultStatus === 'disconnected' && (
-                    <button onClick={vaultConnect} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-[11px] font-medium hover:opacity-80 transition-opacity">Vault 연결</button>
+                    <button onClick={vaultConnect} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity">Vault 연결</button>
                   )}
                 </div>
                 {vaultStatus === 'connected' && (
@@ -329,11 +329,11 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                       onBlur={e => saveVaultPattern(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveVaultPattern(vaultPattern) }}
                       placeholder="Daily Notes/YYYY-MM-DD"
-                      className="w-48 bg-background border border-border rounded-sm px-2 py-1 text-[11px] outline-none focus:border-lilac-400 transition-colors"
+                      className="w-48 bg-background border border-border rounded-sm px-2 py-1 text-2xs outline-none focus:border-lilac-400 transition-colors"
                     />
                   </Row>
                 )}
-                <p className="text-[10px] text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
+                <p className="text-3xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
             </>
@@ -348,7 +348,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     <button
                       key={value}
                       onClick={() => setTheme(value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-[11px] font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-2xs font-medium transition-colors ${
                         theme === value
                           ? 'border-lilac-400 bg-lilac-50 text-lilac-600'
                           : 'border-border text-muted-foreground hover:bg-muted'
@@ -360,7 +360,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   ))}
                 </div>
                 {theme === 'dark' && (
-                  <p className="text-[10px] text-ink-400">
+                  <p className="text-3xs text-ink-400">
                     * 다크 모드는 일부 커스텀 색상이 아직 완전히 지원되지 않습니다.
                   </p>
                 )}
@@ -375,7 +375,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                           <button
                             key={opt}
                             onClick={() => setDefaultView(key, opt)}
-                            className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                            className={`px-2.5 py-1 rounded text-2xs font-medium transition-colors ${
                               defaultViews[key] === opt
                                 ? 'bg-foreground text-background'
                                 : 'border border-border text-muted-foreground hover:bg-muted'
@@ -393,7 +393,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                         <button
                           key={value}
                           onClick={() => setDefaultSort(value)}
-                          className={`px-2.5 py-1 rounded text-[11px] font-medium transition-colors ${
+                          className={`px-2.5 py-1 rounded text-2xs font-medium transition-colors ${
                             defaultSortMode === value
                               ? 'bg-foreground text-background'
                               : 'border border-border text-muted-foreground hover:bg-muted'
@@ -441,24 +441,24 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     onChange={e => setWeeklyForm(p => ({ ...p, label: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') addWeeklySource() }}
                     placeholder="팀명 (예: Biz Lead)"
-                    className="w-32 bg-background border border-border rounded-sm px-2.5 py-1.5 text-[11px] outline-none focus:border-lilac-400 transition-colors"
+                    className="w-32 bg-background border border-border rounded-sm px-2.5 py-1.5 text-2xs outline-none focus:border-lilac-400 transition-colors"
                   />
                   <input
                     value={weeklyForm.collection_id}
                     onChange={e => setWeeklyForm(p => ({ ...p, collection_id: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') addWeeklySource() }}
                     placeholder="Outline Collection ID"
-                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-[11px] outline-none focus:border-lilac-400 transition-colors"
+                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-2xs outline-none focus:border-lilac-400 transition-colors"
                   />
                   <button
                     onClick={addWeeklySource}
                     disabled={weeklyPending || !weeklyForm.label.trim() || !weeklyForm.collection_id.trim()}
-                    className="inline-flex items-center gap-1.5 h-7 px-3 rounded-sm bg-foreground text-background text-[11px] font-medium hover:opacity-80 disabled:opacity-40 transition-opacity shrink-0"
+                    className="inline-flex items-center gap-1.5 h-7 px-3 rounded-sm bg-foreground text-background text-2xs font-medium hover:opacity-80 disabled:opacity-40 transition-opacity shrink-0"
                   >
                     <Plus size={12} /> 추가
                   </button>
                 </div>
-                <p className="text-[10px] text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
+                <p className="text-3xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
               </SettingCard>
             </>
           )}
@@ -466,7 +466,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
           {/* ── 데이터 ── */}
           {section === 'data' && (
             <SettingCard title="내보내기">
-              <p className="text-[11px] text-muted-foreground">
+              <p className="text-2xs text-muted-foreground">
                 태스크, 히스토리, 주간 데이터를 CSV 또는 JSON으로 내보낼 수 있습니다.
               </p>
               <div className="space-y-2">
@@ -484,14 +484,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                       <Download size={13} />
                       {label}
                     </span>
-                    <span className="flex items-center gap-1 text-[10px]">
+                    <span className="flex items-center gap-1 text-3xs">
                       {format}
                       <ChevronRight size={11} />
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="text-[10px] text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
+              <p className="text-3xs text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
             </SettingCard>
           )}
 
@@ -520,7 +520,7 @@ function SortableWeeklyRow({ src, onDelete }: { src: WeeklySource; onDelete: (id
         <GripVertical size={14} />
       </button>
       <span className="text-xs font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
-      <span className="text-[11px] text-muted-foreground flex-1 truncate">{src.collection_id}</span>
+      <span className="text-2xs text-muted-foreground flex-1 truncate">{src.collection_id}</span>
       <button
         onClick={() => onDelete(src.id)}
         className="text-ink-400 hover:text-status-late transition-colors shrink-0"

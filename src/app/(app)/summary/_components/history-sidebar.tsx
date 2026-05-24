@@ -359,8 +359,8 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
   }
 
   return (
-    <div className="pb-1">
-      <div className="mx-2 rounded-lg border border-border bg-card p-2">
+    <div className="pb-1 px-2">
+        <GroupTitle>캘린더</GroupTitle>
 
         {/* 월 네비게이터 */}
         <div className="flex items-center mb-1">
@@ -428,7 +428,7 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
             >
               <span>{d.getDate()}</span>
               {isToday && !isSelected && (
-                <span className="absolute -top-0.5 right-1 text-[8px] font-bold text-lilac-500 leading-none">·</span>
+                <span className="absolute -top-0.5 right-1 text-5xs font-bold text-lilac-500 leading-none">·</span>
               )}
               {hasItems && (
                 <span className={[
@@ -440,7 +440,6 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
           )
         })}
         </div>
-      </div>
     </div>
   )
 }
@@ -457,7 +456,7 @@ function SidebarDatePicker({ value, onChange, placeholder }: {
       <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-7 font-normal transition-colors hover:bg-muted">
         <CalendarIcon size={12} className="text-muted-foreground shrink-0" />
         {dateValue
-          ? <span className="text-foreground text-2xs">{format(dateValue, 'yy.MM.dd (eee)', { locale: ko })}</span>
+          ? <span className="text-foreground text-2xs">{format(dateValue, 'yy.MM.dd', { locale: ko })}</span>
           : <span className="text-ink-300 text-2xs">{placeholder}</span>
         }
       </PopoverTrigger>
@@ -483,42 +482,65 @@ function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: 
   }
   const today = fmt(new Date())
 
-  function applyPreset(preset: 'week' | 'month' | '3month' | 'all') {
+  function applyPreset(preset: 'week' | 'lastweek' | 'month' | 'all') {
     if (preset === 'all') { onDateFromChange(''); onDateToChange(''); return }
     const now = new Date()
     if (preset === 'week') {
       const d = new Date(now.getTime() - 6 * 86400000)
       onDateFromChange(fmt(d))
+      onDateToChange(today)
+    } else if (preset === 'lastweek') {
+      const dow = now.getDay()
+      const lastSun = new Date(now)
+      lastSun.setDate(now.getDate() - dow)
+      const lastMon = new Date(lastSun)
+      lastMon.setDate(lastSun.getDate() - 6)
+      onDateFromChange(fmt(lastMon))
+      onDateToChange(fmt(lastSun))
     } else if (preset === 'month') {
       onDateFromChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
-    } else if (preset === '3month') {
-      const d = new Date(now.getFullYear(), now.getMonth() - 2, 1)
-      onDateFromChange(fmt(d))
+      onDateToChange(today)
     }
-    onDateToChange(today)
   }
 
+  const presets = [
+    ['week', '최근 1주'],
+    ['lastweek', '지난주'],
+    ['month', '이번 달'],
+    ['all', '전체'],
+  ] as const
+
+  function activePreset(): string | null {
+    if (!dateFrom && !dateTo) return 'all'
+    const now = new Date()
+    const weekAgo = fmt(new Date(now.getTime() - 6 * 86400000))
+    if (dateFrom === weekAgo && dateTo === today) return 'week'
+    const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+    if (dateFrom === monthStart && dateTo === today) return 'month'
+    const dow = now.getDay()
+    const lastSun = new Date(now); lastSun.setDate(now.getDate() - dow)
+    const lastMon = new Date(lastSun); lastMon.setDate(lastSun.getDate() - 6)
+    if (dateFrom === fmt(lastMon) && dateTo === fmt(lastSun)) return 'lastweek'
+    return null
+  }
+
+  const active = activePreset()
+
   return (
-    <div className="pb-1">
-      <div className="mx-2 rounded-lg border border-border bg-card p-3 flex flex-col gap-2.5">
-        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">기간</div>
+    <div className="pb-1 px-2 flex flex-col gap-2">
+        <GroupTitle>기간</GroupTitle>
         <div className="flex items-center gap-1.5">
           <SidebarDatePicker value={dateFrom} onChange={onDateFromChange} placeholder="시작일" />
           <span className="text-3xs text-ink-400 shrink-0">~</span>
           <SidebarDatePicker value={dateTo} onChange={onDateToChange} placeholder="종료일" />
         </div>
         <div className="flex flex-wrap gap-1">
-          {([
-            ['week', '최근 1주'],
-            ['month', '이번 달'],
-            ['3month', '3개월'],
-            ['all', '전체'],
-          ] as const).map(([key, label]) => (
+          {presets.map(([key, label]) => (
             <button
               key={key}
               onClick={() => applyPreset(key)}
               className={`text-3xs px-2 py-0.5 rounded border transition-colors ${
-                key === 'all' && !dateFrom
+                active === key
                   ? 'bg-foreground text-background border-foreground'
                   : 'border-border text-ink-500 hover:text-foreground hover:border-ink-400'
               }`}
@@ -527,7 +549,6 @@ function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: 
             </button>
           ))}
         </div>
-      </div>
     </div>
   )
 }

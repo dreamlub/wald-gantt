@@ -82,7 +82,7 @@ export function TasksActionBar({
                 onChange={e => onSearchQueryChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Escape') { onSearchQueryChange(''); onSearchOpenChange(false) } }}
                 placeholder="태스크 검색"
-                className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
+                className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
               />
               {searchQuery && (
                 <button
@@ -148,7 +148,7 @@ export function TasksActionBar({
         <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-card shrink-0 overflow-x-auto">
           <button
             onClick={() => onFilterAssigneeChange(null)}
-            className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
+            className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
               ${!filterAssignee ? 'bg-foreground border-foreground text-white' : 'border-border text-muted-foreground hover:border-ink-400'}`}
           >
             전체
@@ -160,7 +160,7 @@ export function TasksActionBar({
               <button
                 key={key}
                 onClick={() => onFilterAssigneeChange(active ? null : key)}
-                className={`flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
+                className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
                   ${active ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
                 style={active ? { backgroundColor: color, borderColor: color } : {}}
               >

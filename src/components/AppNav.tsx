@@ -48,7 +48,7 @@ export function AppNav() {
               }`}
             >
               <Icon size={17} />
-              <span className="text-[9px] font-medium">{label}</span>
+              <span className="text-4xs font-medium">{label}</span>
             </Link>
           )
         })}
@@ -62,7 +62,7 @@ export function AppNav() {
           className="flex flex-col items-center justify-center gap-1 w-full py-3 text-white/35 hover:text-white hover:bg-white/10 transition-colors"
         >
           <LogOut size={15} />
-          <span className="text-[9px]">나가기</span>
+          <span className="text-4xs">나가기</span>
         </button>
       </div>
     </div>

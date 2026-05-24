@@ -242,7 +242,7 @@ export function BoardSidebar({
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>
           {trashCount > 0 && (
-            <span className="ml-auto text-[10px] bg-status-late/10 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-3xs bg-status-late/10 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
               {trashCount}
             </span>
           )}

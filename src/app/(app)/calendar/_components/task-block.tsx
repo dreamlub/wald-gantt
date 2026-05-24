@@ -168,7 +168,7 @@ export function TaskBlock({
           >
             {isDone && <Check size={6} className="text-white stroke-[3]" />}
           </button>
-          <p className={`text-[11px] font-medium truncate flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
+          <p className={`text-2xs font-medium truncate flex-1 ${isDone ? 'line-through opacity-60' : 'text-foreground'}`}>
             {task.title}
           </p>
         </div>

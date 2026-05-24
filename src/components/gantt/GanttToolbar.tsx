@@ -126,7 +126,7 @@ export function GanttToolbar({
             onClick={onUndo}
             disabled={undoCount === 0}
             title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="flex items-center gap-1 text-2xs px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <Undo2 size={13} />
             {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
@@ -137,7 +137,7 @@ export function GanttToolbar({
             onClick={onRedo}
             disabled={redoCount === 0}
             title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-[11px] px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+            className="flex items-center gap-1 text-2xs px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
           >
             <Redo2 size={13} />
             {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
@@ -147,7 +147,7 @@ export function GanttToolbar({
           <button
             onClick={onToggleOverdueFilter}
             title={overdueFilter ? '전체 보기' : '마감 지연 프로젝트만 보기'}
-            className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            className={`flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
               overdueFilter
                 ? 'bg-status-late text-white border-status-late'
                 : 'bg-status-late/10 text-status-late border-status-late/15 hover:bg-status-late/20'
@@ -161,7 +161,7 @@ export function GanttToolbar({
           <button
             onClick={onToggleStartDelayedFilter}
             title={startDelayedFilter ? '전체 보기' : '시작 지연 프로젝트만 보기'}
-            className={`flex items-center gap-1 text-[11px] font-medium px-2 py-0.5 rounded-full border transition-colors ${
+            className={`flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
               startDelayedFilter
                 ? 'bg-status-warn text-white border-status-warn'
                 : 'bg-status-warn/10 text-status-warn border-status-warn/15 hover:bg-status-warn/20'
@@ -187,7 +187,7 @@ export function GanttToolbar({
                 onChange={e => onSearchChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Escape') { onSearchChange(''); setSearchOpen(false) } }}
                 placeholder="프로젝트 검색"
-                className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
+                className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
               />
               {searchQuery && (
                 <button
@@ -215,7 +215,7 @@ export function GanttToolbar({
           <div className="relative" ref={filterRef}>
             <button
               onClick={() => setShowFilter(v => !v)}
-              className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${
+              className={`flex items-center gap-1 text-2xs px-2 py-1 border rounded transition-colors ${
                 totalExcluded > 0
                   ? 'border-lilac-300 bg-lilac-100 text-lilac-600 font-medium'
                   : 'text-muted-foreground hover:text-foreground'
@@ -224,7 +224,7 @@ export function GanttToolbar({
               <Filter size={11} />
               필터
               {totalExcluded > 0 && (
-                <span className="bg-lilac-500 text-white rounded-full text-[9px] w-3.5 h-3.5 flex items-center justify-center">
+                <span className="bg-lilac-500 text-white rounded-full text-4xs w-3.5 h-3.5 flex items-center justify-center">
                   {totalExcluded}
                 </span>
               )}
@@ -235,12 +235,12 @@ export function GanttToolbar({
                 {allTeams.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 border-b flex items-center justify-between gap-2">
-                      <span className="text-[11px] font-semibold text-muted-foreground">팀별 보기</span>
+                      <span className="text-2xs font-semibold text-muted-foreground">팀별 보기</span>
                       <div className="flex items-center gap-2">
                         {excludedTeams.size > 0 && (
                           <button
                             onClick={() => allTeams.filter(t => excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-[10px] text-lilac-500 hover:text-lilac-600"
+                            className="text-3xs text-lilac-500 hover:text-lilac-600"
                           >
                             전체 선택
                           </button>
@@ -248,7 +248,7 @@ export function GanttToolbar({
                         {excludedTeams.size < allTeams.length && (
                           <button
                             onClick={() => allTeams.filter(t => !excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-[10px] text-muted-foreground hover:text-foreground"
+                            className="text-3xs text-muted-foreground hover:text-foreground"
                           >
                             전체 해제
                           </button>
@@ -272,12 +272,12 @@ export function GanttToolbar({
                 {allPMs.length > 0 && (
                   <>
                     <div className={`px-3 py-1.5 ${allTeams.length > 0 ? 'border-t border-b mt-1' : 'border-b'} flex items-center justify-between gap-2`}>
-                      <span className="text-[11px] font-semibold text-muted-foreground">PM별 보기</span>
+                      <span className="text-2xs font-semibold text-muted-foreground">PM별 보기</span>
                       <div className="flex items-center gap-2">
                         {excludedPMs.size > 0 && (
                           <button
                             onClick={() => allPMs.filter(p => excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-[10px] text-lilac-500 hover:text-lilac-600"
+                            className="text-3xs text-lilac-500 hover:text-lilac-600"
                           >
                             전체 선택
                           </button>
@@ -285,7 +285,7 @@ export function GanttToolbar({
                         {excludedPMs.size < allPMs.length && (
                           <button
                             onClick={() => allPMs.filter(p => !excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-[10px] text-muted-foreground hover:text-foreground"
+                            className="text-3xs text-muted-foreground hover:text-foreground"
                           >
                             전체 해제
                           </button>
@@ -311,7 +311,7 @@ export function GanttToolbar({
         )}
 
         {/* 뷰 모드 */}
-        <div className="flex items-center gap-0.5 border rounded overflow-hidden text-[11px]">
+        <div className="flex items-center gap-0.5 border rounded overflow-hidden text-2xs">
           {(['month', 'week', 'day'] as const).map(mode => (
             <button
               key={mode}
@@ -327,7 +327,7 @@ export function GanttToolbar({
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setShowSort(v => !v)}
-            className={`flex items-center gap-1 text-[11px] px-2 py-1 border rounded transition-colors ${
+            className={`flex items-center gap-1 text-2xs px-2 py-1 border rounded transition-colors ${
               sortActive
                 ? 'border-lilac-300 bg-lilac-100 text-lilac-600 font-medium'
                 : 'text-muted-foreground hover:text-foreground'

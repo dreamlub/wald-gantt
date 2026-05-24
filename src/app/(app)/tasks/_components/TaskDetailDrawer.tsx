@@ -303,7 +303,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">상태</label>
+              <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -322,7 +322,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
               </div>
             </div>
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
+              <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
               <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700"
                 placeholder="이름 (없으면 내 할일)"
@@ -337,7 +337,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           <div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
+                <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -348,7 +348,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
+                <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -359,12 +359,12 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                 </div>
               </div>
             </div>
-            {dateError && <p className="text-[11px] text-status-late mt-1">{dateError}</p>}
+            {dateError && <p className="text-2xs text-status-late mt-1">{dateError}</p>}
           </div>
 
           {/* 우선순위 */}
           <div>
-            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
+            <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -374,7 +374,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
+                    className={`flex items-center gap-0.5 text-2xs px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
                         : 'border-border text-ink-400 hover:border-ink-300'}`}
@@ -390,15 +390,15 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
 
           {/* 연결 프로젝트 */}
           <div>
-            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
+            <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
             {linkedProjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
                 {linkedProjects.map(p => (
                   <span
                     key={p.id}
-                    className="flex items-center gap-1 text-[11px] bg-accent text-accent-foreground border border-lilac-200 px-2 py-0.5 rounded-full"
+                    className="flex items-center gap-1 text-2xs bg-accent text-accent-foreground border border-lilac-200 px-2 py-0.5 rounded-full"
                   >
-                    <span className="text-lilac-400 text-[9px]">{p.board_name}</span>
+                    <span className="text-lilac-400 text-4xs">{p.board_name}</span>
                     <span>/</span>
                     {p.name}
                     <button
@@ -433,7 +433,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                     }, {})
                     return Object.entries(groups).map(([board, list]) => (
                       <div key={board}>
-                        <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
+                        <div className="px-3 pt-1.5 pb-0.5 text-4xs font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
                           {board}
                         </div>
                         {list.map(p => (
@@ -451,7 +451,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                 </div>
               )}
               {showProjDrop && projResults.length === 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-[11px] text-ink-400">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-2xs text-ink-400">
                   {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
                 </div>
               )}
@@ -460,7 +460,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
 
           {/* 라벨 */}
           <div ref={labelRef}>
-            <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -468,7 +468,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                 <button
                   key={l}
                   onClick={() => setLabels(prev => prev.filter(x => x !== l))}
-                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
+                  className="flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
                   style={{ backgroundColor: labelColor(l) }}
                   title="클릭해서 삭제"
                 >
@@ -477,7 +477,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
               ))}
               <div className="relative">
                 <input
-                  className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+                  className="text-2xs px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
                   placeholder="입력 후 Enter"
                   value={labelInput}
                   onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
@@ -503,7 +503,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                             setLabelInput('')
                             setLabelOpen(false)
                           }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] hover:bg-accent cursor-pointer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs hover:bg-accent cursor-pointer"
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
                           {s}
@@ -568,7 +568,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           {/* 하위 태스크 — 상위 태스크일 때만 표시 */}
           {!task?.parent_id && <div>
             <div className="flex items-center gap-2 mb-2">
-              <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex-1">
+              <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider flex-1">
                 하위 태스크{subTasks.length > 0 && ` (${doneCount}/${subTasks.length})`}
               </label>
             </div>
@@ -586,7 +586,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                       {sub.title}
                     </span>
                     {sub.due_date && (
-                      <span className="text-[10px] text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
+                      <span className="text-3xs text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
                     )}
                   </div>
                 ))}
@@ -614,13 +614,13 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
                     }}
                     onBlur={() => { if (!subInput.trim()) { setAddingSub(false); setSubInput('') } }}
                     placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-                    className="flex-1 text-[11px] outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+                    className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
                   />
                 </div>
               ) : (
                 <button
                   onClick={() => setAddingSub(true)}
-                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-[11px] text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
+                  className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-2xs text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
                 >
                   <Plus size={11} /> 하위 태스크 추가
                 </button>
@@ -631,7 +631,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           {/* 상위 태스크 */}
           {task?.parent_id && parentTask && (
             <div className="pt-2 border-t border-border">
-              <span className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
+              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
               <p className="mt-1 text-sm font-medium text-foreground">
                 {parentTask.title}
               </p>
@@ -652,7 +652,7 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
           {task && (
             <>
               <TaskHistorySection taskId={task.id} />
-              <div className="text-[10px] text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
+              <div className="text-3xs text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
                 <span>생성일: {fmtDate(task.created_at)}</span>
                 <span>수정일: {fmtDate(task.updated_at)}</span>
               </div>

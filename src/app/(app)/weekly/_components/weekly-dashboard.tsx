@@ -91,7 +91,7 @@ function StatusChip({ status, dim }: { status: string | null; dim?: boolean }) {
   if (!status) return null
   const label = STATUS_LABEL[status] ?? status
   return (
-    <span className={`text-[10px] font-medium px-1.5 py-0.5 rounded-[3px] ${
+    <span className={`text-3xs font-medium px-1.5 py-0.5 rounded-xs ${
       dim
         ? 'bg-ink-100 text-ink-400 line-through'
         : status === 'completed' ? 'bg-mint-50 text-mint-600'
@@ -126,7 +126,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
           {item.brand ?? item.title}
         </span>
         {displayName && (
-          <span className="text-[11px] text-ink-400 shrink-0 flex items-center gap-1 mt-0.5">
+          <span className="text-2xs text-ink-400 shrink-0 flex items-center gap-1 mt-0.5">
             <span
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ background: colorFor(displayName) }}
@@ -148,14 +148,14 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* 블로킹 사유 */}
       {item.change === 'blocked' && item.block_reason && (
-        <div className="text-[11px] text-status-late bg-red-50 border border-red-100 rounded px-2 py-1 leading-snug">
+        <div className="text-2xs text-status-late bg-red-50 border border-red-100 rounded px-2 py-1 leading-snug">
           블로킹 사유 {item.block_reason}
         </div>
       )}
 
       {/* 전주 비교 모드: 상태 전환 표시 */}
       {compareMode && item.change === 'new' && (
-        <div className="flex items-center gap-1.5 text-[11px] text-ink-400">
+        <div className="flex items-center gap-1.5 text-2xs text-ink-400">
           <span className="italic">없음</span>
           <span>→</span>
           <span className="font-medium text-lilac-600">신규 등록</span>
@@ -163,7 +163,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
       )}
 
       {compareMode && item.change === 'dropped' && (
-        <div className="flex items-center gap-1.5 text-[11px] text-amber-600">
+        <div className="flex items-center gap-1.5 text-2xs text-amber-600">
           <StatusChip status={item.prev_status ?? null} dim />
           <span>→</span>
           <span className="font-medium">이번 주 미언급</span>
@@ -173,14 +173,14 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
       {hasCompareDiff && (statusChanged || titleChanged) && (
         <div className="flex flex-col gap-1 bg-muted rounded px-2 py-1.5 -mx-0.5">
           {titleChanged && (
-            <p className="text-[11px] text-ink-400 leading-snug">
+            <p className="text-2xs text-ink-400 leading-snug">
               <span className="text-ink-300">이전 제목</span> {item.prev_title}
             </p>
           )}
           {statusChanged && (
             <div className="flex items-center gap-1.5">
               <StatusChip status={item.prev_status ?? null} dim />
-              <span className="text-[10px] text-ink-300">→</span>
+              <span className="text-3xs text-ink-300">→</span>
               <StatusChip status={item.status ?? null} />
             </div>
           )}
@@ -189,20 +189,20 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* compareMode + continued이지만 변경사항 없음 */}
       {hasCompareDiff && !statusChanged && !titleChanged && item.change === 'continued' && (
-        <p className="text-[11px] text-ink-300 italic">전주와 동일</p>
+        <p className="text-2xs text-ink-300 italic">전주와 동일</p>
       )}
 
       {/* 태그 */}
       <div className="flex gap-1.5 flex-wrap mt-auto pt-0.5">
-        <span className={`text-[10px] font-semibold px-1.5 py-0.5 rounded-[3px] ${meta.badgeCls}`}>
+        <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs ${meta.badgeCls}`}>
           {meta.label}
         </span>
         {item.task_type ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-ink-100 text-ink-500">
+          <span className="text-3xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
             {item.task_type}
           </span>
         ) : item.type ? (
-          <span className="text-[10px] px-1.5 py-0.5 rounded-[3px] bg-ink-100 text-ink-500">
+          <span className="text-3xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
             {item.type === 'issue' ? '이슈' : item.type === 'decision' ? '결정' : '계획'}
           </span>
         ) : null}
@@ -327,7 +327,7 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
           }}
         />
       </div>
-      {statusMessage && <p className="text-[11px] text-ink-400 mt-1.5">{statusMessage}</p>}
+      {statusMessage && <p className="text-2xs text-ink-400 mt-1.5">{statusMessage}</p>}
     </div>
   )
 }
@@ -335,10 +335,10 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
 // ── Delta ─────────────────────────────────────────────────────────
 
 function Delta({ delta }: { delta: number }) {
-  if (delta === 0) return <span className="text-[10px] text-ink-400">—</span>
+  if (delta === 0) return <span className="text-3xs text-ink-400">—</span>
   const up = delta > 0
   return (
-    <span className={`text-[10px] font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
+    <span className={`text-3xs font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {up ? '+' : ''}{delta}
     </span>
@@ -432,7 +432,7 @@ function AISummaryPanel({
                     { label: '계획',   ...content.stats.plans },
                   ] as { label: string; count: number; delta: number }[]).map(s => (
                     <div key={s.label} className="bg-muted rounded-lg px-3 py-2.5">
-                      <p className="text-[10px] text-ink-500 mb-1.5">{s.label}</p>
+                      <p className="text-3xs text-ink-500 mb-1.5">{s.label}</p>
                       <div className="flex items-end gap-1.5">
                         <span className="text-base font-bold text-foreground leading-none">{s.count}</span>
                         <Delta delta={s.delta} />
@@ -443,7 +443,7 @@ function AISummaryPanel({
               )}
 
               <div>
-                <p className="text-[10px] text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
+                <p className="text-3xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
                 <p className="text-xs leading-relaxed text-foreground">
                   {content.headline.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
                     p.startsWith('**') && p.endsWith('**')
@@ -455,14 +455,14 @@ function AISummaryPanel({
 
               {content.changes && (
                 <div>
-                  <p className="text-[10px] text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
-                  <p className="text-[11px] text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
+                  <p className="text-3xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
+                  <p className="text-2xs text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
                     {content.changes}
                   </p>
                 </div>
               )}
 
-              <p className="text-[10px] text-ink-400">
+              <p className="text-3xs text-ink-400">
                 by Claude · {reports.length}개 보고서
                 {insight!.analyzed_at ? ` · ${fmtDatetime(insight!.analyzed_at)}` : ''}
               </p>
@@ -550,7 +550,7 @@ export function WeeklyDashboard({
       {reports.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">
           <p className="text-xs text-muted-foreground">수집된 보고서가 없습니다</p>
-          <p className="text-[11px] text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
+          <p className="text-2xs text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
         </div>
       ) : (
         <>

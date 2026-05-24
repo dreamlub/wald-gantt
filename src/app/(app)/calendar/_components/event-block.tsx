@@ -46,7 +46,7 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
       >
         <div className="flex items-center gap-1 leading-tight">
           <GoogleIcon />
-          <p className="text-[11px] font-medium text-foreground truncate flex-1">
+          <p className="text-2xs font-medium text-foreground truncate flex-1">
             {event.title}
           </p>
         </div>

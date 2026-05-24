@@ -281,7 +281,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
+              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -301,7 +301,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
             </div>
 
             <div className="flex-1">
-              <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
+              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
               <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="이름 (없으면 내 할일)"
@@ -316,7 +316,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
+                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -327,7 +327,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
+                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -339,13 +339,13 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
               </div>
             </div>
             {dateError && (
-              <p className="text-[11px] text-status-late">{dateError}</p>
+              <p className="text-2xs text-status-late">{dateError}</p>
             )}
           </div>
 
           {/* 우선순위 */}
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
+            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -355,7 +355,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-[11px] px-2 py-1 rounded border transition-colors
+                    className={`flex items-center gap-0.5 text-2xs px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
                         : 'border-border text-muted-foreground hover:border-ink-300'}`}
@@ -371,7 +371,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 라벨 */}
           <div ref={labelRef}>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -379,7 +379,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 <button
                   key={l}
                   onClick={() => setLabels(prev => prev.filter(x => x !== l))}
-                  className="flex items-center gap-1 text-[11px] px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
+                  className="flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
                   style={{ backgroundColor: labelColor(l) }}
                   title="클릭해서 삭제"
                 >
@@ -388,7 +388,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
               ))}
               <div className="relative">
                 <input
-                  className="text-[11px] px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+                  className="text-2xs px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
                   placeholder="입력 후 Enter"
                   value={labelInput}
                   onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
@@ -414,7 +414,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                             setLabelInput('')
                             setLabelOpen(false)
                           }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-[11px] hover:bg-accent cursor-pointer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs hover:bg-accent cursor-pointer"
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
                           {s}
@@ -429,15 +429,15 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 연결 프로젝트 */}
           <div>
-            <label className="text-[10px] font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
+            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
             {linkedProjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
                 {linkedProjects.map(p => (
                   <span
                     key={p.id}
-                    className="flex items-center gap-1 text-[11px] bg-lilac-100 text-lilac-600 border border-lilac-300 px-2 py-0.5 rounded-full"
+                    className="flex items-center gap-1 text-2xs bg-lilac-100 text-lilac-600 border border-lilac-300 px-2 py-0.5 rounded-full"
                   >
-                    <span className="text-lilac-400 text-[9px]">{p.board_name}</span>
+                    <span className="text-lilac-400 text-4xs">{p.board_name}</span>
                     <span>/</span>
                     {p.name}
                     <button onClick={() => unlinkProject(p.id)} className="ml-0.5 text-lilac-300 hover:text-lilac-600">
@@ -469,7 +469,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                     }, {})
                     return Object.entries(groups).map(([board, list]) => (
                       <div key={board}>
-                        <div className="px-3 pt-1.5 pb-0.5 text-[9px] font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+                        <div className="px-3 pt-1.5 pb-0.5 text-4xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
                           {board}
                         </div>
                         {list.map(p => (
@@ -487,7 +487,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               )}
               {showProjDrop && projResults.length === 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-[11px] text-muted-foreground">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-2xs text-muted-foreground">
                   {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
                 </div>
               )}
@@ -549,9 +549,9 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 상위 태스크 */}
           {parentTask && (
-            <div className="text-[10px] pt-2 border-t border-border">
+            <div className="text-3xs pt-2 border-t border-border">
               <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
-              <p className="mt-0.5 text-[11px] text-ink-500 truncate">{parentTask.title}</p>
+              <p className="mt-0.5 text-2xs text-ink-500 truncate">{parentTask.title}</p>
             </div>
           )}
         </DrawerBody>

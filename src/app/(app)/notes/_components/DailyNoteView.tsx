@@ -69,10 +69,10 @@ export function DailyNoteView({ handle, date }: Props) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b bg-muted shrink-0">
-          <span className="text-[11px] text-muted-foreground">Ctrl+S 저장 · Esc 닫기</span>
+          <span className="text-2xs text-muted-foreground">Ctrl+S 저장 · Esc 닫기</span>
           <div className="flex items-center gap-2">
-            {saveState === 'saving' && <span className="text-[11px] text-ink-400">저장 중...</span>}
-            {saveState === 'saved'  && <span className="text-[11px] text-mint-500 flex items-center gap-1"><Check size={11} />저장됨</span>}
+            {saveState === 'saving' && <span className="text-2xs text-ink-400">저장 중...</span>}
+            {saveState === 'saved'  && <span className="text-2xs text-mint-500 flex items-center gap-1"><Check size={11} />저장됨</span>}
             <button
               onClick={exitEdit}
               className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-foreground text-background hover:bg-ink-800 transition-colors"
@@ -117,7 +117,7 @@ export function DailyNoteView({ handle, date }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b bg-muted shrink-0">
-        <span className="text-[11px] text-muted-foreground">{dateToFilename(date)}</span>
+        <span className="text-2xs text-muted-foreground">{dateToFilename(date)}</span>
         <button
           onClick={() => enterEdit()}
           className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-card transition-colors"

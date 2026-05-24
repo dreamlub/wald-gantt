@@ -729,7 +729,7 @@ export function GanttChart({
                     >
                       <GripVertical size={13} className="text-ink-400 shrink-0" />
                       <span
-                        className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-[8px] font-bold text-white"
+                        className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
                         style={{ backgroundColor: sm.dot }}
                         aria-label={sm.label}
                       >
@@ -804,7 +804,7 @@ export function GanttChart({
                 {viewMode === 'month' ? (
                   <div className="relative w-full">
                     {todayX !== null && (
-                      <div className="absolute text-[9px] font-bold text-status-late tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
+                      <div className="absolute text-4xs font-bold text-status-late tracking-widest" style={{ left: todayX, transform: 'translateX(-50%)', top: 2 }}>
                         TODAY
                       </div>
                     )}
@@ -833,8 +833,8 @@ export function GanttChart({
                         }`}
                         style={{ width: colW }}
                       >
-                        <span className="text-[7px] leading-none">{DOW_LABELS[d.date.getDay()]}</span>
-                        <span className={`text-[8px] leading-none mt-0.5 ${isToday ? 'font-bold' : 'font-medium'}`}>{d.day}</span>
+                        <span className="text-6xs leading-none">{DOW_LABELS[d.date.getDay()]}</span>
+                        <span className={`text-5xs leading-none mt-0.5 ${isToday ? 'font-bold' : 'font-medium'}`}>{d.day}</span>
                       </div>
                     )
                   })

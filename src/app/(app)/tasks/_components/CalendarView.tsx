@@ -79,7 +79,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
         {!isThisMonth && (
           <button
             onClick={goToday}
-            className="text-[11px] px-2.5 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
+            className="text-2xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
           >
             오늘
           </button>
@@ -91,7 +91,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
         {DAY_LABELS.map((d, i) => (
           <div
             key={d}
-            className={`py-2 text-center text-[11px] font-semibold tracking-wide
+            className={`py-2 text-center text-2xs font-semibold tracking-wide
               ${i === 0 ? 'text-status-late/80' : i === 6 ? 'text-lilac-400' : 'text-ink-400'}`}
           >
             {d}
@@ -129,7 +129,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
               >
                 {/* 날짜 숫자 */}
                 <div className="flex items-center justify-end px-2 pt-1.5 pb-1 shrink-0">
-                  <span className={`text-[11px] font-medium w-5 h-5 flex items-center justify-center rounded-full
+                  <span className={`text-2xs font-medium w-5 h-5 flex items-center justify-center rounded-full
                     ${isToday
                       ? 'bg-lilac-500 text-white font-semibold'
                       : dow === 0 ? 'text-status-late'
@@ -152,7 +152,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                         key={task.id}
                         onClick={() => onEdit(task)}
                         title={task.title}
-                        className={`flex items-center gap-1 text-left text-[10px] px-1.5 py-[3px] rounded truncate w-full
+                        className={`flex items-center gap-1 text-left text-3xs px-1.5 py-[3px] rounded truncate w-full
                           border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                         style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                       >
@@ -172,7 +172,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                   {dayTasks.length > 3 && (
                     <button
                       onClick={e => { e.stopPropagation(); setOverflow({ key, x: e.clientX, y: e.clientY }) }}
-                      className="text-[9px] text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
+                      className="text-4xs text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
                     >
                       +{dayTasks.length - 3}개 더
                     </button>
@@ -199,8 +199,8 @@ export function CalendarView({ tasks, onEdit }: Props) {
               style={{ left, top }}
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
-                <span className="text-[11px] font-semibold text-foreground">{label}</span>
-                <span className="text-[10px] text-muted-foreground">{popTasks.length}개</span>
+                <span className="text-2xs font-semibold text-foreground">{label}</span>
+                <span className="text-3xs text-muted-foreground">{popTasks.length}개</span>
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popTasks.map(task => {
@@ -212,7 +212,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                     <button
                       key={task.id}
                       onClick={() => { setOverflow(null); onEdit(task) }}
-                      className={`flex items-center gap-1 text-left text-[10px] px-1.5 py-[3px] rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
+                      className={`flex items-center gap-1 text-left text-3xs px-1.5 py-[3px] rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                       style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                     >
                       <span className={`truncate flex-1 leading-tight ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>

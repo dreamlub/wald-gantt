@@ -154,8 +154,18 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   }, [dateFrom, dateTo, brandId, priorityKey, authorKey, searchQuery])
 
   useEffect(() => {
-    if (view === 'table') fetchPage()
-  }, [view, fetchPage])
+    if (view === 'table') {
+      if (!dateFrom && !dateTo) {
+        const now = new Date()
+        const d = new Date(now.getTime() - 6 * 86400000)
+        const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+        setDateFrom(fmt(d))
+        setDateTo(fmt(now))
+      } else {
+        fetchPage()
+      }
+    }
+  }, [view, fetchPage, dateFrom, dateTo])
 
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
@@ -376,7 +386,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
                   placeholder="검색"
-                  className="text-[11px] pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
+                  className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
                 />
                 {searchQuery && (
                   <button
@@ -547,7 +557,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
 function FilterChip({ children, onClear }: { children: React.ReactNode; onClear: () => void }) {
   return (
-    <span className="inline-flex items-center gap-1 text-[11px] px-2 py-[3px] rounded-full bg-foreground text-background whitespace-nowrap shrink-0">
+    <span className="inline-flex items-center gap-1 text-2xs px-2 py-[3px] rounded-full bg-foreground text-background whitespace-nowrap shrink-0">
       {children}
       <button
         onClick={onClear}

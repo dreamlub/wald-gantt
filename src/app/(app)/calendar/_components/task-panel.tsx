@@ -111,7 +111,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
             onChange={e => setQ(e.target.value)}
             onKeyDown={e => { if (e.key === 'Escape') setQ('') }}
             placeholder="태스크 검색"
-            className="w-full h-6 pl-5 pr-2 text-[11px] border border-border rounded outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300 bg-background"
+            className="w-full h-6 pl-5 pr-2 text-2xs border border-border rounded outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300 bg-background"
           />
         </div>
       </div>
@@ -178,13 +178,13 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
         onDrop={handleDrop}
       >
         {dragOver && (
-          <div className="mx-2 mb-1.5 border-2 border-dashed border-lilac-400 rounded text-[10px] text-lilac-500 text-center py-2">
+          <div className="mx-2 mb-1.5 border-2 border-dashed border-lilac-400 rounded text-3xs text-lilac-500 text-center py-2">
             여기에 놓으면 배치 해제
           </div>
         )}
 
         {visible.length === 0 ? (
-          <p className="text-[11px] text-ink-400 text-center py-10">
+          <p className="text-2xs text-ink-400 text-center py-10">
             {q ? '검색 결과 없음' : hideDone && doneCount > 0 ? '미완료 태스크 없음' : '태스크 없음'}
           </p>
         ) : (
@@ -209,7 +209,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                       <p className={`text-xs leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
                         {task.title}
                       </p>
-                      <p className="text-[10px] text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
+                      <p className="text-3xs text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
                     </div>
                   </div>
                 </div>
@@ -247,13 +247,13 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                         {task.title}
                       </p>
                       {task.due_date && (
-                        <span className="text-[9px] text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
+                        <span className="text-4xs text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
                       {!isDone && (
                         <span
-                          className="text-[9px] px-1 py-px rounded-full border leading-none"
+                          className="text-4xs px-1 py-px rounded-full border leading-none"
                           style={{
                             color,
                             borderColor: `color-mix(in srgb, ${color} 30%, transparent)`,
@@ -264,7 +264,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                         </span>
                       )}
                       {task.assignee && (
-                        <span className="text-[9px] text-ink-400 truncate">{task.assignee}</span>
+                        <span className="text-4xs text-ink-400 truncate">{task.assignee}</span>
                       )}
                     </div>
                   </div>
@@ -276,7 +276,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
       </div>
 
       <div className="shrink-0 px-3 py-2 border-t border-border">
-        <p className="text-[10px] text-ink-400">미배치 {unscheduledPending}개</p>
+        <p className="text-3xs text-ink-400">미배치 {unscheduledPending}개</p>
       </div>
     </div>
   )
