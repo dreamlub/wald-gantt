@@ -168,7 +168,7 @@ export function HistorySidebar({
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
 
       {/* ── 기간 ─────────────────────────── */}
-      {view === 'table' ? (
+      {view === 'table' || view === 'timeline' ? (
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -191,7 +191,7 @@ export function HistorySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'table' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -202,7 +202,7 @@ export function HistorySidebar({
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
           <LayoutList size={12} className="shrink-0" />
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'table' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
+          {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
         {(view === 'table' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
           const meta = PRIORITY_META[p]
@@ -210,7 +210,7 @@ export function HistorySidebar({
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'table' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
+              {view !== 'table' && view !== 'timeline' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}
