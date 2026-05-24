@@ -56,7 +56,7 @@ function pageReducer(state: PageState, action: PageAction): PageState {
   }
 }
 
-const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: false, hasMore: false }
+const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false }
 
 type ViewKey = 'table' | 'timeline' | 'insight' | 'summary' | 'rawdata'
 
@@ -153,19 +153,20 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     pgDispatch({ type: 'loaded', page, append: !!cursor })
   }, [dateFrom, dateTo, brandId, priorityKey, authorKey, searchQuery])
 
+  const tableInitRef = useRef(false)
+
   useEffect(() => {
-    if (view === 'table') {
-      if (!dateFrom && !dateTo) {
-        const now = new Date()
-        const d = new Date(now.getTime() - 6 * 86400000)
-        const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
-        setDateFrom(fmt(d))
-        setDateTo(fmt(now))
-      } else {
-        fetchPage()
-      }
+    if (view === 'table' && !tableInitRef.current && !dateFrom && !dateTo) {
+      tableInitRef.current = true
+      const now = new Date()
+      const d = new Date(now.getTime() - 6 * 86400000)
+      const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+      setDateFrom(fmt(d))
+      setDateTo(fmt(now))
+      return
     }
-  }, [view, fetchPage, dateFrom, dateTo])
+    if (view === 'table') fetchPage()
+  }, [view, fetchPage])
 
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
@@ -430,7 +431,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       {view === 'table'
-                        ? <>{pg.total > 0 ? <><b className="text-foreground font-semibold">{pg.total}건</b></> : '로딩 중...'}</>
+                        ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
                         : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
                     </span>

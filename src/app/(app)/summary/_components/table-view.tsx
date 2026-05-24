@@ -119,7 +119,12 @@ export function TableView({
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
         <div className="text-xs text-muted-foreground mb-1">
-          {hasFilters ? '조건에 맞는 항목이 없어요' : '수집된 히스토리가 없어요'}
+          {hasFilters
+            ? '조건에 맞는 항목이 없어요'
+            : onLoadMore
+              ? '해당 기간에 데이터가 없습니다'
+              : '수집된 히스토리가 없어요'
+          }
         </div>
         {hasFilters && (
           <button

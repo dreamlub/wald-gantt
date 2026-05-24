@@ -191,7 +191,7 @@ export function HistorySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>
+              {view !== 'table' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -202,15 +202,15 @@ export function HistorySidebar({
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
           <LayoutList size={12} className="shrink-0" />
           <span className="flex-1 truncate text-left">전체</span>
-          <span className="text-xs text-ink-400">{priCounts.all}</span>
+          {view !== 'table' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
-        {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
+        {(view === 'table' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
           const meta = PRIORITY_META[p]
           return (
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              <span className="text-xs text-ink-400">{priCounts[p]}</span>
+              {view !== 'table' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}
@@ -482,31 +482,28 @@ function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: 
   }
   const today = fmt(new Date())
 
-  function applyPreset(preset: 'week' | 'lastweek' | 'month' | 'all') {
+  function applyPreset(preset: 'week' | 'month' | 'lastmonth' | 'all') {
     if (preset === 'all') { onDateFromChange(''); onDateToChange(''); return }
     const now = new Date()
     if (preset === 'week') {
       const d = new Date(now.getTime() - 6 * 86400000)
       onDateFromChange(fmt(d))
       onDateToChange(today)
-    } else if (preset === 'lastweek') {
-      const dow = now.getDay()
-      const lastSun = new Date(now)
-      lastSun.setDate(now.getDate() - dow)
-      const lastMon = new Date(lastSun)
-      lastMon.setDate(lastSun.getDate() - 6)
-      onDateFromChange(fmt(lastMon))
-      onDateToChange(fmt(lastSun))
     } else if (preset === 'month') {
       onDateFromChange(`${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`)
       onDateToChange(today)
+    } else if (preset === 'lastmonth') {
+      const d = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+      const last = new Date(now.getFullYear(), now.getMonth(), 0)
+      onDateFromChange(fmt(d))
+      onDateToChange(fmt(last))
     }
   }
 
   const presets = [
     ['week', '최근 1주'],
-    ['lastweek', '지난주'],
     ['month', '이번 달'],
+    ['lastmonth', '지난 달'],
     ['all', '전체'],
   ] as const
 
@@ -517,10 +514,9 @@ function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: 
     if (dateFrom === weekAgo && dateTo === today) return 'week'
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
     if (dateFrom === monthStart && dateTo === today) return 'month'
-    const dow = now.getDay()
-    const lastSun = new Date(now); lastSun.setDate(now.getDate() - dow)
-    const lastMon = new Date(lastSun); lastMon.setDate(lastSun.getDate() - 6)
-    if (dateFrom === fmt(lastMon) && dateTo === fmt(lastSun)) return 'lastweek'
+    const lmFirst = new Date(now.getFullYear(), now.getMonth() - 1, 1)
+    const lmLast = new Date(now.getFullYear(), now.getMonth(), 0)
+    if (dateFrom === fmt(lmFirst) && dateTo === fmt(lmLast)) return 'lastmonth'
     return null
   }
 
