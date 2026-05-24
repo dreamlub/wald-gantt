@@ -1,5 +1,48 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-25) — Summary 뷰 전면 리팩터 + 파이프라인 정렬
+
+### 1. Raw Data UTC→KST 버그 수정 (`raw-data-view.tsx`)
+- `client_history.occurred_at`을 UTC 그대로 `.slice(0,10)` 해서 `get_raw_message_stats` RPC의 `date_kst`와 날짜가 최대 -1일 어긋나던 문제 수정
+- `toKSTDate()` 헬퍼 추가: `new Date(utc).getTime() + 9 * 3600_000`으로 KST 변환 후 날짜 추출
+
+### 2. Weekly List 테이블 전환 (`timeline-view.tsx`)
+- 아코디언 카드 → 완전한 flat 테이블로 교체
+- 컬럼: 주차 | 브랜드 | 주제 | 요약 | 태그 | 중요도 | 건수
+- 요약: `MarkdownBody` 인라인 렌더링 (불릿 + 문장별 개행)
+- 정렬: 주차·브랜드·중요도·건수 — 클릭 토글 (asc/desc)
+- 브랜드 필터 칩 바 유지
+- `<tfoot sticky>` 로 "전체 N건 중 M건" 표시
+
+### 3. Daily List 컬럼 구조 개편 (`table-view.tsx`)
+- "내용" 단일 컬럼 → **제목** / **내용** 2컬럼 분리
+- 컬럼 순서 Weekly List와 통일: 날짜 | 브랜드 | 제목 | 내용 | 태그 | 중요도 | 작성자 | 채널
+- `<tfoot sticky>` 로 "전체 N건 중 M건" 표시
+- 태그 불릿 제거, `line-clamp` 전부 해제
+- 브랜드·날짜 텍스트 크기 `text-xs` 통일
+
+### 4. 스타일 통일 (badges.tsx, table-view.tsx, timeline-view.tsx)
+- `TagBadge`: 패딩 `px-2 py-[3px]` → `px-1.5 py-[1px]`, `font-semibold` → `font-medium`, 불릿 dot 제거
+- `TagBadge` null guard 추가 (`key_tags`에 알 수 없는 값 있을 때 crash 방지)
+- `PriorityBars` showLabel 제거 (bars only)
+- 테이블 row: `px-5 py-2`, `border-t`, `hover:bg-muted/40` 로 raw-data-view 기준 통일
+
+### 5. 마크다운 렌더링 개선 (daily-report-view.tsx, timeline-view.tsx)
+- 고아 `*` (짝 없는 asterisk) 제거: `part.replace(/\*/g, '')` — 두 파일 모두 적용
+- **헤드라인**: 문장별 번호 목록 (`HeadlineSentences` 컴포넌트)
+- **카드·드로어 본문**: `BodyBullets` — 줄 분리 → 불릿 마커 제거 → 문장 부호 기준 개행 → `•` 불릿
+- 대상: ActionGrid summary, DecisionGrid desc, Drawer summary, RelatedItemCard body, 과거 유사 내역 body
+- SKILL.md에 볼드 마킹 규칙 추가: `**text**` 쌍 필수, 홀수 `*` 금지
+
+### 6. 탭 이름·아이콘·순서·변수명 전면 영문화
+- **순서** (파이프라인 순): Raw Data → Daily List → Daily Report → Weekly List → Timeline → Calendar
+- **이름**: `데일리 리포트`→`Daily Report`, `테이블`→`Daily List`, `위클리 요약`→`Weekly List`, `타임라인`→`Timeline`, `일정`→`Calendar`
+- **ViewKey 리네이밍**: `daily`→`dailyreport`, `table`→`dailylist`, `weekly`→`weeklylist`, `schedule`→`calendar`
+- **아이콘**: Daily Report `Sparkles`→`Newspaper`, Weekly List `GitBranch`→`Table`
+- Tasks 뷰도 동일 패턴: `normal`→`basic`(Basic View), `list`→`listview`(List View), 나머지 영문 레이블
+
+---
+
 ## 최근 변경 (2026-05-25) — 액션 아이템 드로어 + 뷰 구조 개편 + SKILL thread_id 이월 규칙
 
 ### 1. 액션 아이템 클릭 드로어 (`daily-report-view.tsx`)

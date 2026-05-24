@@ -52,7 +52,7 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'table' | 'weekly' | 'daily' | 'summary' | 'rawdata' | 'timeline' | 'schedule'
+  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
   history: HistoryItem[]
   clients: Client[]
   // table/summary용
@@ -102,11 +102,21 @@ export function HistorySidebar({
   for (const p of PRIORITY_KEYS) priCounts[p] = 0
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
 
-  if (view === 'rawdata') {
+  if (view === 'rawdata' ) {
     return <RawDataSidebarPanel />
   }
 
-  if (view === 'timeline') {
+  if (view === 'timeline' ) {
+    const timelineBrandCounts: Record<string, number> = {}
+    for (const h of history) {
+      const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+      if (dateFrom && ymd < dateFrom) continue
+      if (dateTo && ymd > dateTo) continue
+      const b = h.brand_name ?? '미분류'
+      timelineBrandCounts[b] = (timelineBrandCounts[b] ?? 0) + 1
+    }
+    const timelineTotal = Object.values(timelineBrandCounts).reduce((a, b) => a + b, 0)
+
     return (
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <DateRangePanel
@@ -122,9 +132,11 @@ export function HistorySidebar({
             <LayoutList size={12} className="shrink-0" />
             <span className="flex-1 truncate text-left">전체</span>
             {brandId === 'all' && <Check size={12} className="shrink-0" />}
+            <span className="text-xs text-ink-400">{timelineTotal}</span>
           </button>
           {clients.map(c => {
             const active = brandId === c.name
+            const cnt = timelineBrandCounts[c.name] ?? 0
             return (
               <button
                 key={c.id}
@@ -134,6 +146,7 @@ export function HistorySidebar({
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: c.color }} />
                 <span className="flex-1 truncate text-left">{c.name}</span>
                 {active && <Check size={12} className="shrink-0" />}
+                {cnt > 0 && <span className="text-xs text-ink-400">{cnt}</span>}
               </button>
             )
           })}
@@ -142,9 +155,11 @@ export function HistorySidebar({
     )
   }
 
-  if (view === 'daily') {
+  if (view === 'dailyreport') {
     const selectedDate = dateFrom || dateStr(new Date())
-    const dayItems = history.filter(h => h.occurred_at.slice(0, 10) === selectedDate)
+    const dayItems = history.filter(h =>
+      new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }) === selectedDate
+    )
     const dayTagCounts: Record<string, number> = {}
     for (const t of TAG_KEYS) dayTagCounts[t] = 0
     for (const h of dayItems) for (const t of h.tags ?? []) dayTagCounts[t] = (dayTagCounts[t] ?? 0) + 1
@@ -210,7 +225,7 @@ export function HistorySidebar({
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
       {/* ── 기간 ─────────────────────────── */}
-      {view === 'table' || view === 'weekly' ? (
+      {view === 'dailylist' || view === 'weeklylist' ? (
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -233,7 +248,7 @@ export function HistorySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -244,15 +259,15 @@ export function HistorySidebar({
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
           <LayoutList size={12} className="shrink-0" />
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
+          {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
-        {(view === 'table' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
+        {(view === 'dailylist' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
           const meta = PRIORITY_META[p]
           return (
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'table' && view !== 'weekly' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
+              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}
@@ -357,11 +372,11 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
   const [calYear, setCalYear]   = useState(() => dateFrom ? parseInt(dateFrom.slice(0, 4)) : todayY)
   const [calMonth, setCalMonth] = useState(() => dateFrom ? parseInt(dateFrom.slice(5, 7)) - 1 : todayM)
 
-  // 일별 카운트 (점 표시)
+  // 일별 카운트 (점 표시) — KST 기준
   const dayCounts = (() => {
     const m: Record<string, number> = {}
     for (const h of history) {
-      const ymd = h.occurred_at.slice(0, 10)
+      const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
       m[ymd] = (m[ymd] ?? 0) + 1
     }
     return m

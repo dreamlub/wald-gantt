@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
-  Sparkles, AlertCircle,
+  Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target, Newspaper,
   ArrowRight, Plus, X, Loader2,
 } from 'lucide-react'
@@ -69,7 +69,7 @@ function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
       ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-2xs">{part.slice(2, -2)}</strong>
-      : <span key={i}>{part}</span>
+      : <span key={i}>{part.replace(/\*/g, '')}</span>
   )
 }
 
@@ -100,6 +100,25 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
   )
 }
 
+function HeadlineSentences({ text }: { text: string }) {
+  const sentences = text
+    .split('\n')
+    .map(l => l.trim().replace(/^[-•*\d.]\s*/, ''))
+    .filter(Boolean)
+    .flatMap(line => line.split(/(?<=[.!?])\s+/).filter(Boolean))
+
+  return (
+    <ol className="flex flex-col gap-2">
+      {sentences.map((s, i) => (
+        <li key={i} className="flex items-start gap-2.5">
+          <span className="shrink-0 w-5 h-5 rounded-full bg-ink-100 text-ink-500 text-3xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+          <span className="text-sm leading-[1.8] text-foreground flex-1">{renderBold(s)}</span>
+        </li>
+      ))}
+    </ol>
+  )
+}
+
 function HeadlineCard({ content, report }: { content: InsightContent; report: DailyReport & { dateLabel: string } }) {
   return (
     <section className="border-t border-border overflow-hidden">
@@ -109,9 +128,7 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
         <span className="text-3xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
-        <p className="text-sm leading-[1.8] text-foreground">
-          {renderBold(content.headline)}
-        </p>
+        <HeadlineSentences text={content.headline} />
       </div>
     </section>
   )
@@ -127,7 +144,26 @@ function renderBodyBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
       ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-      : <span key={i}>{part}</span>
+      : <span key={i}>{part.replace(/\*/g, '')}</span>
+  )
+}
+
+function BodyBullets({ text, className }: { text: string; className?: string }) {
+  const sentences = text
+    .split('\n')
+    .map(l => l.trim().replace(/^[-•*]\s*/, ''))
+    .filter(Boolean)
+    .flatMap(line => line.split(/(?<=[.!?])\s+/).filter(Boolean))
+
+  return (
+    <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
+      {sentences.map((s, i) => (
+        <li key={i} className="flex items-start gap-1.5">
+          <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
+          <span>{renderBodyBold(s)}</span>
+        </li>
+      ))}
+    </ul>
   )
 }
 
@@ -149,11 +185,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
           </div>
         </div>
         {r.body && (
-          <div className="text-2xs text-ink-500 leading-relaxed mb-2 space-y-0.5">
-            {r.body.split('\n').map((line, i) => (
-              <div key={i}>{renderBodyBold(line)}</div>
-            ))}
-          </div>
+          <BodyBullets text={r.body} className="text-2xs text-ink-500 leading-relaxed mb-2" />
         )}
         {r.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -259,18 +291,23 @@ function ActionDetailDrawer({
         }
       })
 
-      // 현재 항목들의 태그를 모아 과거 유사 내역 조회
-      const tagSet = new Set<string>()
-      for (const r of rows) for (const t of r.tags ?? []) tagSet.add(t)
+      // action item title 키워드로 과거 유사 내역 조회
+      const STOP = new Set(['관련', '이슈', '문제', '요청', '확인', '처리', '완료', '진행', '내용', '건', '및', '으로', '위해', '대한', '에서', '통해'])
+      const keywords = item.title
+        .split(/[\s·\-\(\)\[\]\/,—]+/)
+        .map(w => w.replace(/[^가-힣a-zA-Z0-9]/g, ''))
+        .filter(w => w.length >= 2 && !STOP.has(w))
+        .slice(0, 4)
 
       let similarRows: SimilarItem[] = []
-      if (tagSet.size > 0) {
+      if (keywords.length > 0) {
+        const orFilter = keywords.map(kw => `title.ilike.%${kw}%`).join(',')
         const { data: simData } = await sb
           .from('client_history')
           .select('id, title, body, tags, occurred_at')
           .eq('brand_name', item.brand)
           .lt('occurred_at', `${date}T00:00:00+09:00`)
-          .overlaps('tags', [...tagSet])
+          .or(orFilter)
           .is('deleted_at', null)
           .order('occurred_at', { ascending: false })
           .limit(5)
@@ -307,7 +344,7 @@ function ActionDetailDrawer({
       <DrawerBody className="[&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {/* 상황 요약 */}
         <div className="px-5 py-4 border-b border-border">
-          <p className="text-xs text-ink-700 leading-relaxed">{item?.summary}</p>
+          {item?.summary && <BodyBullets text={item.summary} className="text-xs text-ink-700 leading-relaxed" />}
         </div>
 
         {/* 필요한 액션 */}
@@ -364,9 +401,7 @@ function ActionDetailDrawer({
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
                   {s.body && (
-                    <p className="text-2xs text-ink-400 leading-relaxed line-clamp-2 ml-[3.5rem]">
-                      {s.body.replace(/\*\*/g, '').replace(/^•\s*/gm, '').trim()}
-                    </p>
+                    <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-[3.5rem]" />
                   )}
                   {s.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5 ml-[3.5rem]">
@@ -440,7 +475,7 @@ function ActionGrid({ items, clients, onOpenDetail, onCreateTask }: {
               <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
-            <p className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1">{a.summary}</p>
+            <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
             <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
               style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
@@ -505,7 +540,7 @@ function DecisionGrid({ items, clients }: { items: InsightContent['decisions']; 
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
             <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <p className="text-2xs text-ink-500 leading-relaxed mb-2">{d.desc}</p>
+          <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
           <BrandBadge brandName={d.brand} clients={clients} />
         </div>
       ))}
@@ -546,7 +581,7 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center py-20">
-        <Sparkles size={16} className="animate-spin text-ink-400" />
+        <Newspaper size={16} className="animate-spin text-ink-400" />
       </div>
     )
   }
@@ -555,7 +590,7 @@ export function DailyReportView({ clients, selectedDate, filterBrands, filterTag
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
         <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Sparkles size={18} className="text-ink-400" />
+          <Newspaper size={18} className="text-ink-400" />
         </div>
         <p className="text-sm font-semibold text-foreground mb-1">{dateLabel}</p>
         <p className="text-xs text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>

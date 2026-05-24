@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import {
   Search, X, PanelLeftClose, PanelLeftOpen,
-  Sparkles, LayoutList, Database, GitBranch, GitMerge, CalendarDays,
+  Newspaper, LayoutList, Database, Table, GitMerge, CalendarDays,
 } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
@@ -62,14 +62,14 @@ function pageReducer(state: PageState, action: PageAction): PageState {
 
 const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
 
-type ViewKey = 'table' | 'weekly' | 'daily' | 'summary' | 'rawdata' | 'timeline' | 'schedule'
+type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
 
-const VALID_VIEWS:     readonly ViewKey[]    = ['table', 'weekly', 'daily', 'summary', 'rawdata', 'timeline', 'schedule']
+const VALID_VIEWS:     readonly ViewKey[]    = ['dailylist', 'weeklylist', 'dailyreport', 'summary', 'rawdata', 'timeline', 'calendar']
 // 'summary' deprecated
 const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'schedule']
 
-function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'daily'    }
+function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'dailyreport'    }
 function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
 function parseTags(v: string | null): Set<Tag> {
   if (!v) return new Set()
@@ -82,12 +82,12 @@ interface Props {
 }
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Sparkles }[] = [
-  { key: 'daily',    label: '데일리 리포트', icon: Sparkles },
-  { key: 'schedule', label: '일정',         icon: CalendarDays },
-  { key: 'table',    label: '테이블',       icon: LayoutList },
-  { key: 'weekly',   label: '위클리 요약',   icon: GitBranch },
-  { key: 'timeline', label: '타임라인',      icon: GitMerge },
-  { key: 'rawdata',  label: 'Raw Data',     icon: Database },
+  { key: 'rawdata',     label: 'Raw Data',     icon: Database },
+  { key: 'dailylist',   label: 'Daily List',   icon: LayoutList },
+  { key: 'dailyreport', label: 'Daily Report', icon: Newspaper },
+  { key: 'weeklylist',  label: 'Weekly List',  icon: Table },
+  { key: 'timeline',    label: 'Timeline',     icon: GitMerge },
+  { key: 'calendar',    label: 'Calendar',     icon: CalendarDays },
 ]
 
 function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
@@ -162,7 +162,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const tableInitRef = useRef(false)
 
   useEffect(() => {
-    if (view === 'table' && !tableInitRef.current && !dateFrom && !dateTo) {
+    if (view === 'dailylist' && !tableInitRef.current && !dateFrom && !dateTo) {
       tableInitRef.current = true
       const now = new Date()
       const d = new Date(now.getTime() - 6 * 86400000)
@@ -171,7 +171,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       setDateTo(fmt(now))
       return
     }
-    if (view === 'table') fetchPage()
+    if (view === 'dailylist') fetchPage()
   }, [view, fetchPage])
 
   const handleLoadMore = useCallback(() => {
@@ -238,7 +238,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   // state → URL 동기화
   useEffect(() => {
     const p = new URLSearchParams()
-    if (view !== 'table')     p.set('view', view)
+    if (view !== 'dailylist') p.set('view', view)
     if (dateFrom)             p.set('from', dateFrom)
     if (dateTo)               p.set('to', dateTo)
     if (weekStart !== getCurrentWeekStart()) p.set('week', weekStart)
@@ -429,7 +429,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
 
         {/* 본문 */}
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
-          {view === 'schedule' ? (
+          {view === 'calendar' ? (
             <ScheduleCalendarView clients={initialClients} />
           ) : view === 'timeline' ? (
             <ThreadTimelineView
@@ -439,7 +439,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
             />
           ) : view === 'rawdata' ? (
             <RawDataView />
-          ) : view === 'daily' ? (
+          ) : view === 'dailyreport' ? (
             <DailyReportView
               clients={initialClients}
               selectedDate={dateFrom || todayStr()}
@@ -455,7 +455,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
-                      {view === 'table'
+                      {view === 'dailylist'
                         ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
                         : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
@@ -489,7 +489,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 </div>
               )}
 
-              {view === 'table' && (
+              {view === 'dailylist' && (
                 <TableView
                   items={pg.items}
                   clients={initialClients}
@@ -510,7 +510,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   onCreateProject={handleOpenCreateProject}
                 />
               )}
-              {view === 'weekly' && (
+              {view === 'weeklylist' && (
                 <TimelineView
                   clients={initialClients}
                   dateFrom={dateFrom}

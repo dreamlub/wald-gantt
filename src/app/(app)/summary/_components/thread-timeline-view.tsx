@@ -96,15 +96,35 @@ function currentWeekStart(): string {
   return monday.toISOString().split('T')[0]
 }
 
-function bezierPath(x1: number, y1: number, x2: number, y2: number): string {
-  const cx = (x2 - x1) * 0.55
-  return `M ${x1},${y1} C ${x1 + cx},${y1} ${x2 - cx},${y2} ${x2},${y2}`
-}
+// Orthogonal (Mermaid-style) routing through the column gutter with rounded corners.
+// Vertical travel happens in the 16px gutter (8px pad each side) between columns —
+// never cutting through card content.
+function orthogonalPath(fc: number, fr: number, tc: number, tr: number): string {
+  const PAD = 8   // p-2 cell padding — gutter width = PAD × 2
+  const R   = 7   // corner radius
 
-// Arch that routes ABOVE the row (for same-row continuation arrows)
-function archPath(fromX: number, fromY: number, toX: number, toY: number): string {
-  const dy = -Math.max(28, Math.abs(toX - fromX) * 0.1 + 22)
-  return `M ${fromX},${fromY} C ${fromX},${fromY + dy} ${toX},${toY + dy} ${toX},${toY}`
+  const srcRightX = LEFT_W + (fc + 1) * COL_W - PAD   // source card right edge
+  const gutterX   = LEFT_W + (fc + 1) * COL_W          // column border (gutter center)
+  const dstLeftX  = LEFT_W + tc * COL_W + PAD           // dest card left edge
+  const srcY      = HDR_H + fr * ROW_H + ROW_H / 2
+  const dstY      = HDR_H + tr * ROW_H + ROW_H / 2
+
+  if (fr === tr) {
+    // Same row — straight horizontal line through empty space
+    return `M ${srcRightX},${srcY} H ${dstLeftX}`
+  }
+
+  const ds = dstY > srcY ? 1 : -1                   // vertical direction
+  const rs = dstLeftX >= gutterX ? 1 : -1            // horizontal direction (exit gutter)
+
+  return [
+    `M ${srcRightX},${srcY}`,
+    `H ${gutterX - R}`,
+    `Q ${gutterX},${srcY} ${gutterX},${srcY + ds * R}`,
+    `V ${dstY - ds * R}`,
+    `Q ${gutterX},${dstY} ${gutterX + rs * R},${dstY}`,
+    `H ${dstLeftX}`,
+  ].join(' ')
 }
 
 function deriveData(rows: TimelineRow[]) {
@@ -144,10 +164,11 @@ function deriveData(rows: TimelineRow[]) {
     })
   }
   issues.sort((a, b) => {
+    const bc = a.brand.localeCompare(b.brand)
+    if (bc !== 0) return bc
     const af = threadMap.get(a.id)![0]
     const bf = threadMap.get(b.id)![0]
-    const wc = af.week_start.localeCompare(bf.week_start)
-    return wc !== 0 ? wc : a.brand.localeCompare(b.brand)
+    return af.week_start.localeCompare(bf.week_start)
   })
 
   // Cards
@@ -279,12 +300,7 @@ export function ThreadTimelineView({ dateFrom, dateTo, brandFilter }: Props) {
       const tr = rIdx.get(toCard.issueId)
       if (fc === undefined || tc === undefined || fr === undefined || tr === undefined) return []
       const sameRow = fr === tr
-      // Use column centers for wide, visible arches
-      const fromX = LEFT_W + fc * COL_W + COL_W / 2
-      const fromY = HDR_H  + fr * ROW_H + (sameRow ? ROW_H * 0.22 : ROW_H / 2)
-      const toX   = LEFT_W + tc * COL_W + COL_W / 2
-      const toY   = HDR_H  + tr * ROW_H + (sameRow ? ROW_H * 0.22 : ROW_H / 2)
-      const d = sameRow ? archPath(fromX, fromY, toX, toY) : bezierPath(fromX, fromY, toX, toY)
+      const d = orthogonalPath(fc, fr!, tc, tr!)
       return [{ d, color: SC[fromCard.status].color, status: fromCard.status, sameRow }]
     })
   }, [weeks, issues, cards, arrows])
@@ -318,7 +334,30 @@ export function ThreadTimelineView({ dateFrom, dateTo, brandFilter }: Props) {
   return (
     <div className="flex-1 overflow-auto bg-background">
     <div style={{ position: 'relative', minWidth: totalW }}>
-      <div style={gridStyle}>
+
+      {/* SVG rendered first (behind grid cards) */}
+      <svg
+        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 1, pointerEvents: 'none' }}
+      >
+        <defs>
+          {(Object.keys(SC) as CardStatus[]).map(s => (
+            <marker key={s} id={`ah-${s}`} markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+              <path d="M 0,1 L 5,3.5 L 0,6" fill="none" stroke={SC[s].color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </marker>
+          ))}
+        </defs>
+        {svgArrows.map((a, i) => (
+          <path
+            key={i}
+            d={a.d}
+            fill="none"
+            style={{ stroke: a.color, strokeWidth: 1.5, strokeOpacity: 0.75 }}
+            markerEnd={`url(#ah-${a.status})`}
+          />
+        ))}
+      </svg>
+
+      <div style={{ ...gridStyle, position: 'relative', zIndex: 2 }}>
 
         {/* ── Header row ─────────────────────────────────── */}
         <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">
@@ -390,27 +429,6 @@ export function ThreadTimelineView({ dateFrom, dateTo, brandFilter }: Props) {
         ))}
       </div>
 
-      {/* ── SVG arrow overlay ────────────────────────────── */}
-      <svg
-        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 5, pointerEvents: 'none' }}
-      >
-        <defs>
-          {(Object.keys(SC) as CardStatus[]).map(s => (
-            <marker key={s} id={`ah-${s}`} markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
-              <path d="M 0,1 L 5,3.5 L 0,6" fill="none" stroke={SC[s].color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-            </marker>
-          ))}
-        </defs>
-        {svgArrows.map((a, i) => (
-          <path
-            key={i}
-            d={a.d}
-            fill="none"
-            style={{ stroke: a.color, strokeWidth: a.sameRow ? 2 : 1.5, strokeOpacity: 0.8 }}
-            markerEnd={a.sameRow ? undefined : `url(#ah-${a.status})`}
-          />
-        ))}
-      </svg>
     </div>
     </div>
   )

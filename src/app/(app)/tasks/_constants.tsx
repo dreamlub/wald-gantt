@@ -44,14 +44,14 @@ export const ASSIGNEE_COLORS = [
   'var(--color-id-blue)',   'var(--color-id-purple)', 'var(--color-id-teal)',   'var(--color-id-orange)',
 ]
 
-export type ViewType = 'normal' | 'list' | 'kanban' | 'calendar' | 'gantt'
+export type ViewType = 'basic' | 'listview' | 'kanban' | 'calendar' | 'gantt'
 
 export const VIEW_TABS: { key: ViewType; label: string; icon: React.ReactNode }[] = [
-  { key: 'normal',   label: '일반',   icon: <LayoutGrid size={13} /> },
-  { key: 'list',     label: '목록',   icon: <List size={13} /> },
-  { key: 'kanban',   label: '칸반',   icon: <Columns3 size={13} /> },
-  { key: 'gantt',    label: '간트',   icon: <GanttChartSquare size={13} /> },
-  { key: 'calendar', label: '캘린더', icon: <CalendarDays size={13} /> },
+  { key: 'basic',    label: 'Basic View',    icon: <LayoutGrid size={13} /> },
+  { key: 'listview', label: 'List View',     icon: <List size={13} /> },
+  { key: 'kanban',   label: 'Kanban View',   icon: <Columns3 size={13} /> },
+  { key: 'gantt',    label: 'Gantt View',    icon: <GanttChartSquare size={13} /> },
+  { key: 'calendar', label: 'Calendar View', icon: <CalendarDays size={13} /> },
 ]
 
 // ── 우선순위 ─────────────────────────────────────────────────

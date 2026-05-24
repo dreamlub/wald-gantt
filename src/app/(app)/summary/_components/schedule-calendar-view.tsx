@@ -130,14 +130,23 @@ export function ScheduleCalendarView({ clients }: Props) {
 
   const allBrands = useMemo(() => {
     const set = new Set<string>()
-    for (const e of events) if (e.brand && e.brand !== '미분류') set.add(e.brand)
+    for (const e of events) {
+      if (!e.brand || e.brand === '미분류') continue
+      for (const b of e.brand.split(/\s*\/\s*/)) {
+        const t = b.trim()
+        if (t) set.add(t)
+      }
+    }
     return [...set].sort((a, b) => a.localeCompare(b, 'ko'))
   }, [events])
 
-  const filteredEvents = useMemo(() =>
-    activeBrands.size === 0 ? events : events.filter(e => activeBrands.has(e.brand)),
-    [events, activeBrands],
-  )
+  const filteredEvents = useMemo(() => {
+    if (activeBrands.size === 0) return events
+    return events.filter(e => {
+      const brands = e.brand.split(/\s*\/\s*/).map(b => b.trim())
+      return brands.some(b => activeBrands.has(b))
+    })
+  }, [events, activeBrands])
 
   // 날짜별 이벤트 맵
   const eventsByDate = useMemo(() => {

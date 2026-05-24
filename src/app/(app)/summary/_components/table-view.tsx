@@ -150,7 +150,7 @@ export function TableView({
       <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
         <button
           onClick={() => setActiveBrand(null)}
-          className={`text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+          className={`text-xs px-2.5 py-[3px] rounded-full border transition-colors ${
             !activeBrand
               ? 'bg-foreground text-white border-foreground'
               : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -164,7 +164,7 @@ export function TableView({
             <button
               key={b.name}
               onClick={() => setActiveBrand(active ? null : b.name)}
-              className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-[3px] rounded-full border transition-colors ${
                 active
                   ? 'text-white border-transparent'
                   : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -184,12 +184,13 @@ export function TableView({
           <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
             <tr>
               <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">날짜</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider min-w-[300px]">내용</th>
               <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[90px]">브랜드</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[120px]">태그</th>
+              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[200px]">제목</th>
+              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider min-w-[200px]">내용</th>
+              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">태그</th>
               <th className="text-center px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[60px]">중요도</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[80px]">작성자</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[160px]">채널</th>
+              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[75px]">작성자</th>
+              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[140px]">채널</th>
             </tr>
           </thead>
           <tbody>
@@ -208,21 +209,34 @@ export function TableView({
                     {fmtDate(item.occurred_at)}
                   </td>
 
-                  {/* 제목 + 내용 + 호버 메뉴 */}
+                  {/* 브랜드 */}
+                  <td className="px-3 py-2.5">
+                    {client ? (
+                      <button
+                        onClick={() => onSelectBrand(client.name)}
+                        className="inline-flex items-center gap-1.5 text-xs text-ink-700 hover:text-foreground transition-colors"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
+                        <span className="truncate max-w-[70px]">{client.name}</span>
+                      </button>
+                    ) : (
+                      <span className="text-xs text-ink-300">—</span>
+                    )}
+                  </td>
+
+                  {/* 제목 + 호버 액션 */}
                   <td className="px-3 py-2.5 relative">
-                    <div className="text-sm font-semibold text-foreground leading-snug mb-1.5">
+                    <div className="text-xs font-semibold text-foreground leading-snug">
                       <Highlight text={item.title} query={searchQuery} />
+                    </div>
+                    <div className="flex items-center gap-1.5 mt-1">
                       {item.thread_count > 0 && (
-                        <span className="ml-1.5 text-3xs font-normal text-lilac-500">스레드 {item.thread_count}</span>
+                        <span className="text-3xs text-lilac-500">스레드 {item.thread_count}</span>
                       )}
                       {item.reclassified_at && (
-                        <span className="ml-1 text-4xs px-1 py-px rounded font-medium bg-amber-100 text-amber-700">업데이트</span>
+                        <span className="text-4xs px-1 py-px rounded font-medium bg-amber-100 text-amber-700">업데이트</span>
                       )}
                     </div>
-                    {item.body && (
-                      <MarkdownBody text={item.body} className="text-xs text-ink-400 leading-[1.6]" />
-                    )}
-                    {/* 호버 액션 */}
                     {isHovered && (
                       <div className="absolute top-2 right-2 flex items-center gap-1">
                         {item.source_ref && (
@@ -249,18 +263,10 @@ export function TableView({
                     )}
                   </td>
 
-                  {/* 브랜드 */}
+                  {/* 내용 */}
                   <td className="px-3 py-2.5">
-                    {client ? (
-                      <button
-                        onClick={() => onSelectBrand(client.name)}
-                        className="inline-flex items-center gap-1.5 text-2xs text-ink-700 hover:text-foreground transition-colors"
-                      >
-                        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: client.color }} />
-                        <span className="truncate max-w-[70px]">{client.name}</span>
-                      </button>
-                    ) : (
-                      <span className="text-2xs text-ink-300">—</span>
+                    {item.body && (
+                      <MarkdownBody text={item.body} className="text-xs text-ink-400 leading-[1.6]" />
                     )}
                   </td>
 
@@ -274,10 +280,9 @@ export function TableView({
                           <button
                             key={t}
                             onClick={() => onToggleTag(t)}
-                            className="inline-flex items-center gap-0.5 text-3xs px-1.5 py-[1px] rounded font-medium"
+                            className="inline-flex items-center text-3xs px-1.5 py-[1px] rounded font-medium"
                             style={{ background: meta.bg, color: meta.color }}
                           >
-                            <span className="w-1 h-1 rounded-full" style={{ background: meta.dot }} />
                             {meta.label}
                           </button>
                         )
@@ -318,18 +323,21 @@ export function TableView({
               )
             })}
           </tbody>
+          <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
+            <tr>
+              <td colSpan={8} className="px-5 py-2 text-right text-3xs text-ink-400 tabular-nums">
+                {loadingMore
+                  ? <span className="text-ink-300">불러오는 중...</span>
+                  : <>
+                      전체 <b className="text-foreground font-semibold">{total ?? items.length}</b>건 중{' '}
+                      <b className="text-foreground font-semibold">{filteredItems.length}</b>건
+                    </>
+                }
+              </td>
+            </tr>
+          </tfoot>
         </table>
-        {onLoadMore && (
-          <div ref={sentinelRef} className="flex items-center justify-center py-4">
-            {loadingMore ? (
-              <span className="text-xs text-ink-400">불러오는 중...</span>
-            ) : hasMore ? (
-              <span className="text-xs text-ink-300">스크롤하면 더 불러옵니다</span>
-            ) : items.length > 0 ? (
-              <span className="text-xs text-ink-300">전체 {total ?? items.length}건</span>
-            ) : null}
-          </div>
-        )}
+        {onLoadMore && <div ref={sentinelRef} className="h-px" />}
       </div>
     </div>
   )

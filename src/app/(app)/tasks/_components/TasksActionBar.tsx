@@ -120,7 +120,7 @@ export function TasksActionBar({
               <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
             </div>
           </div>}
-          {(view === 'normal' || view === 'list') && (
+          {(view === 'basic' || view === 'listview') && (
             <button
               onClick={onToggleSelection}
               className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded transition-colors ${
@@ -144,7 +144,7 @@ export function TasksActionBar({
       </div>
 
       {/* 담당자 필터 바 — 사이드바 닫혔을 때만 */}
-      {!sidebarOpen && (view === 'normal' || view === 'list' || view === 'kanban') && allAssignees.length > 0 && (
+      {!sidebarOpen && (view === 'basic' || view === 'listview' || view === 'kanban') && allAssignees.length > 0 && (
         <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-card shrink-0 overflow-x-auto">
           <button
             onClick={() => onFilterAssigneeChange(null)}

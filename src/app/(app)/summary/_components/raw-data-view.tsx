@@ -65,10 +65,11 @@ export function RawDataView() {
       })
     }
 
-    // client_history → 날짜별 분류 수
+    // client_history → 날짜별 분류 수 (occurred_at은 UTC이므로 KST +9h로 변환)
+    const toKSTDate = (utc: string) => new Date(new Date(utc).getTime() + 9 * 3600_000).toISOString().slice(0, 10)
     const histMap = new Map<string, { count: number; lastUpdated: string }>()
     for (const row of histData) {
-      const date = row.occurred_at.slice(0, 10)
+      const date = toKSTDate(row.occurred_at)
       const existing = histMap.get(date)
       if (!existing) {
         histMap.set(date, { count: 1, lastUpdated: row.updated_at ?? row.occurred_at })

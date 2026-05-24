@@ -34,12 +34,12 @@ export function PriorityBars({ priority, showLabel }: { priority: Priority | nul
 
 export function TagBadge({ tag }: { tag: Tag }) {
   const meta = TAG_META[tag]
+  if (!meta) return null
   return (
     <span
-      className="text-3xs px-2 py-[3px] rounded font-semibold inline-flex items-center gap-1 whitespace-nowrap"
+      className="text-3xs px-1.5 py-[1px] rounded font-medium inline-flex items-center whitespace-nowrap"
       style={{ background: meta.bg, color: meta.color }}
     >
-      <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
       {meta.label}
     </span>
   )

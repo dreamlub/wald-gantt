@@ -39,7 +39,7 @@ function TasksPageContent() {
   const quick = useQuickAdd(data.workspace, data.tasks, data.setExpandedParents, data.load)
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [view,        setView]        = useState<ViewType>('normal')
+  const [view,        setView]        = useState<ViewType>('basic')
   const [formOpen,    setFormOpen]    = useState(false)
   const [editTask,    setEditTask]    = useState<GanttTask | null>(null)
   const [trashOpen,   setTrashOpen]   = useState(false)
@@ -114,7 +114,7 @@ function TasksPageContent() {
           sidebarOpen={sidebarOpen}
           onSidebarOpen={() => setSidebarOpen(true)}
           view={view}
-          onViewChange={(v) => { setView(v); if (v !== 'normal' && v !== 'list') selection.exitSelectionMode() }}
+          onViewChange={(v) => { setView(v); if (v !== 'basic' && v !== 'listview') selection.exitSelectionMode() }}
           searchOpen={filters.searchOpen}
           onSearchOpenChange={filters.setSearchOpen}
           searchQuery={filters.searchQuery}
@@ -131,7 +131,7 @@ function TasksPageContent() {
           onFilterAssigneeChange={filters.setFilterAssignee}
         />
 
-        {view === 'list' ? (
+        {view === 'listview' ? (
           <ListView
             tasks={filters.filtered}
             assigneeColorMap={filters.assigneeColorMap}
