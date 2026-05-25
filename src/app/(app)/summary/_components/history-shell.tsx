@@ -9,7 +9,7 @@ import type { Client, HistoryItem, Tag } from '../_lib/types'
 import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
+import { HistorySidebar, type PriorityKey, getCurrentWeekStart, getMondayOfDate, dateStr } from './history-sidebar'
 import { HistoryToolbar } from './history-toolbar'
 import { BrandDailyListView } from './brand-daily-list-view'
 import { SummaryView } from './summary-view'
@@ -123,10 +123,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (view === 'dailylist' && !tableInitRef.current && !dateFrom && !dateTo) {
       tableInitRef.current = true
       const now = new Date()
-      const d = new Date(now.getTime() - 6 * 86400000)
-      const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
-      setDateFrom(fmt(d))
-      setDateTo(fmt(now))
+      const thisMonday = getMondayOfDate(now)
+      const lastMonday = new Date(thisMonday)
+      lastMonday.setDate(thisMonday.getDate() - 7)
+      const thisSunday = new Date(thisMonday)
+      thisSunday.setDate(thisMonday.getDate() + 6)
+      setDateFrom(dateStr(lastMonday))
+      setDateTo(dateStr(thisSunday))
       return
     }
     if (view === 'dailylist') void Promise.resolve().then(() => fetchPage())
