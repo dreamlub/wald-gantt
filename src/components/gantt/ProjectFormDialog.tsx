@@ -307,7 +307,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         {/* Scrollable content */}
         {tab === 'info' ? (
         <form
-          className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4"
+          className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"
           autoComplete="off"
           onSubmit={e => e.preventDefault()}
         >

@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
 import type { CalendarEvent, GanttTask, TaskStatus, Priority, TaskType } from '@/types'
+import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
-  getOrCreateWorkspace, getTasks, updateTaskSchedule, updateTask,
+  getTasks, updateTaskSchedule, updateTask,
   softDeleteTask, duplicateTask, addTask, searchProjects,
-} from '@/lib/gantt-service'
+} from '@/lib/task-service'
 import { buildAllDayIso } from '../_utils'
 
 /* ── useCalendarData ── */

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
-  getOrCreateWorkspace, getTasks, addTask, updateTask, softDeleteTask,
+  getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, duplicateTask,
   bulkSoftDeleteTasks, bulkUpdateTaskStatus,
   autoArchiveTasks, getArchivedTasksCount,
   createNextRecurringInstance,
-} from '@/lib/gantt-service'
+} from '@/lib/task-service'
 import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule, Workspace } from '@/types'
 
 const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'

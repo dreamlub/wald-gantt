@@ -6,7 +6,7 @@ import {
   type DragEndEvent, type DragStartEvent, type DragOverEvent, type CollisionDetection,
 } from '@dnd-kit/core'
 import { toast } from 'sonner'
-import { updateTask } from '@/lib/gantt-service'
+import { updateTask } from '@/lib/task-service'
 import { useDndSensorsPointer, computeReorder } from '@/lib/dnd-utils'
 import type { GanttTask, TaskStatus } from '@/types'
 import { isOverdue } from '../_utils'

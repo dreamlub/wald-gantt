@@ -2,7 +2,7 @@
 
 import { useEffect, useState } from 'react'
 import { X, Archive, RotateCcw } from 'lucide-react'
-import { getArchivedTasks, unarchiveTask } from '@/lib/gantt-service'
+import { getArchivedTasks, unarchiveTask } from '@/lib/task-service'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
 import { Drawer } from '@/components/ui/drawer'

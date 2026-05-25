@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { addTask } from '@/lib/gantt-service'
+import { addTask } from '@/lib/task-service'
 import type { GanttTask, TaskStatus, Workspace } from '@/types'
 
 const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'

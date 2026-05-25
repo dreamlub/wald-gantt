@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { useSearchParams } from 'next/navigation'
-import { searchProjects } from '@/lib/gantt-service'
+import { searchProjects } from '@/lib/task-service'
 import { todayStrKST } from '@/lib/gantt-utils'
 import type { GanttTask, Workspace } from '@/types'
 import { ASSIGNEE_COLORS } from '../_constants'

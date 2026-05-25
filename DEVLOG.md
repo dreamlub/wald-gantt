@@ -1,5 +1,32 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-26) — 500줄 규칙 적용: 대형 파일 분리 + 중복 제거
+
+### 1. GanttChart.tsx 분리 (967줄 → 499줄)
+- `_GanttConstants.ts` — 상수 + ViewMode 타입 (18줄)
+- `_useGanttDnd.ts` — DnD state + handlers 훅 (133줄)
+- `_useBarDrag.ts` — 바 드래그/리사이즈 훅 (147줄)
+- `_useGanttScroll.ts` — 스크롤 동기화 + 휠 핸들러 (71줄)
+- `_useGanttViewData.ts` — 뷰 파생 값 (그리드, today 계산) (91줄)
+- `_GanttTimelineHeader.tsx` — 달력 헤더 컴포넌트 (104줄)
+- `_CategoryAddDialog.tsx` — 카테고리 추가 모달 (62줄)
+
+### 2. history-sidebar.tsx 분리 (719줄 → 314줄)
+- `_sidebar-date-panels.tsx` — MonthGridSection, DateRangePanel, SidebarDatePicker (262줄)
+- `_raw-data-sidebar.tsx` — RawDataSidebarPanel (179줄)
+
+### 3. gantt-service.ts 분리 (684줄 → 302줄)
+- `task-service.ts` — Tasks, 반복 태스크, Bulk, Time Blocking, Search, Archive (358줄)
+- 14개 외부 파일 import 경로 수정
+
+### 4. TrashPanel 중복 제거 (270줄 → 235줄)
+- `trash-drawer.tsx` — Generic TrashDrawer 공통 컴포넌트 신규 (135줄)
+- `TrashPanel.tsx` 136줄 → 50줄 (래퍼)
+- `TaskTrashPanel.tsx` 134줄 → 50줄 (래퍼)
+- 중복 코드 ~65줄 제거
+
+**변경 파일 합계**: 신규 12개, 수정 16개 | tsc 전체 통과
+
 ## 최근 변경 (2026-05-25) — Summary 뷰 전면 리팩터 + 파이프라인 정렬
 
 ### 1. Raw Data UTC→KST 버그 수정 (`raw-data-view.tsx`)

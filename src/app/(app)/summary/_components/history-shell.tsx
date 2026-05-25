@@ -31,8 +31,9 @@ import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import {
   getOrCreateWorkspace, getBoards, getCategories,
-  addTask, addProject, searchProjects,
+  addProject,
 } from '@/lib/gantt-service'
+import { addTask, searchProjects } from '@/lib/task-service'
 
 import type { HistoryPage } from '@/lib/history-service'
 import { brandColor } from '@/lib/history-service'
