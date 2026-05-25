@@ -13,9 +13,9 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS, PriorityBars } from '../_constants'
-import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
+import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { labelColor } from '../_utils'
+import { LabelBadge } from './LabelBadge'
 
 interface Props {
   tasks: GanttTask[]
@@ -100,18 +100,9 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
           {(task.projects?.length ?? 0) > 2 && (
             <span className="text-3xs text-ink-400">+{(task.projects!.length) - 2}</span>
           )}
-          {labels.slice(0, 3).map(l => {
-            const bg = labelColor(l)
-            return (
-              <span
-                key={l}
-                className="text-4xs leading-none px-1.5 py-[3px] rounded font-medium"
-                style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
-              >
-                {l}
-              </span>
-            )
-          })}
+          {labels.slice(0, 3).map(l => (
+            <LabelBadge key={l} variant="display" name={l} />
+          ))}
           {labels.length > 3 && <span className="text-4xs text-ink-400">+{labels.length - 3}</span>}
         </div>
       )}

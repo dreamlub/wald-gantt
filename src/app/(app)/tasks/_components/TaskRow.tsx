@@ -9,9 +9,9 @@ import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
+import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { labelColor } from '../_utils'
+import { LabelBadge } from './LabelBadge'
 import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
@@ -131,18 +131,9 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         )}
 
         {/* 라벨 */}
-        {labels.slice(0, 4).map(l => {
-          const bg = labelColor(l)
-          return (
-            <span
-              key={l}
-              className="shrink-0 text-4xs leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
-              style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
-            >
-              {l}
-            </span>
-          )
-        })}
+        {labels.slice(0, 4).map(l => (
+          <LabelBadge key={l} variant="display" name={l} />
+        ))}
         {labels.length > 4 && <span className="text-4xs text-ink-400 shrink-0">+{labels.length - 4}</span>}
 
         {/* 캘린더 배치 뱃지 */}

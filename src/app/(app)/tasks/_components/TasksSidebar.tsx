@@ -4,8 +4,7 @@ import {
   LayoutList, Search, PanelLeftClose, Trash2, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
-import { labelColor } from '../_utils'
-import { isLightColor } from '../_utils'
+import { LabelBadge } from './LabelBadge'
 import type { QuickFilterKey } from '../_hooks/use-task-filters'
 
 interface SidebarProject { id: string; name: string; count: number; colorIdx: number }
@@ -170,27 +169,16 @@ export function TasksSidebar({
           <div className="mt-3">
             <div className="px-2 mb-1.5 text-3xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
-              {labels.map(l => {
-                const active = filterLabel === l.name
-                const bg = labelColor(l.name)
-                const fg = isLightColor(bg) ? 'var(--color-ink-800)' : 'white'
-                return (
-                  <button
-                    key={l.name}
-                    onClick={() => { onFilterLabelChange(active ? null : l.name); onFilterProjectChange(null); onFilterAssigneeChange(null) }}
-                    className={`inline-flex items-center gap-0.5 text-3xs font-medium px-2 py-0.5 rounded-full transition-all border ${
-                      active ? '' : 'hover:opacity-80'
-                    }`}
-                    style={active
-                      ? { backgroundColor: bg, color: fg, borderColor: bg }
-                      : { backgroundColor: 'transparent', color: bg, borderColor: bg }
-                    }
-                  >
-                    # {l.name}
-                    <span className="text-4xs opacity-70">{l.count}</span>
-                  </button>
-                )
-              })}
+              {labels.map(l => (
+                <LabelBadge
+                  key={l.name}
+                  variant="filter"
+                  name={l.name}
+                  count={l.count}
+                  active={filterLabel === l.name}
+                  onClick={() => { onFilterLabelChange(filterLabel === l.name ? null : l.name); onFilterProjectChange(null); onFilterAssigneeChange(null) }}
+                />
+              ))}
             </div>
           </div>
         )}

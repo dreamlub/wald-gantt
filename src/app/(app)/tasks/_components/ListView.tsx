@@ -3,10 +3,10 @@
 import { useState } from 'react'
 import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtRange, isOverdue, overdueDays, daysDiff, isLightColor } from '../_utils'
+import { fmtRange, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ABBR, PriorityBars } from '../_constants'
-import { labelColor } from '../_utils'
+import { LabelBadge } from './LabelBadge'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
@@ -264,18 +264,9 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 </>
               )}
               {/* 라벨 */}
-              {labels.slice(0, 4).map(l => {
-                const bg = labelColor(l)
-                return (
-                  <span
-                    key={l}
-                    className="shrink-0 text-4xs leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
-                    style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
-                  >
-                    {l}
-                  </span>
-                )
-              })}
+              {labels.slice(0, 4).map(l => (
+                <LabelBadge key={l} variant="display" name={l} />
+              ))}
               {labels.length > 4 && <span className="text-4xs text-ink-400 shrink-0">+{labels.length - 4}</span>}
               {/* 하위 진행 */}
               {subStats && subStats.total > 0 && (
