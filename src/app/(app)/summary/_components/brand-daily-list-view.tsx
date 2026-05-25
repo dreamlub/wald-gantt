@@ -27,10 +27,10 @@ function toKstDate(iso: string): string {
 }
 
 function shortDateLabel(ymd: string): string {
-  const date = new Date(`${ymd}T00:00:00+09:00`)
-  const dow = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]
-  return `${date.getMonth() + 1}/${date.getDate()}`
-    + ` ${dow}요일`
+  const dow = new Date(`${ymd}T12:00:00+09:00`).toLocaleDateString('ko-KR', {
+    weekday: 'short', timeZone: 'Asia/Seoul',
+  })
+  return `${parseInt(ymd.slice(5, 7))}/${parseInt(ymd.slice(8, 10))} (${dow})`
 }
 
 function shortTime(iso: string): string {
@@ -143,7 +143,7 @@ function HistoryRow({
         </span>
         <p className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">{item.title}</p>
         <div className="shrink-0 flex items-center gap-1">
-          {(item.tags ?? []).slice(0, 1).map(tag => {
+          {(item.tags ?? []).map(tag => {
             const meta = TAG_META[tag]
             return (
               <span
@@ -155,16 +155,16 @@ function HistoryRow({
               </span>
             )
           })}
-        {item.thread_count > 0 && (
-          <span className="text-3xs px-1.5 py-0.5 rounded bg-lilac-100 text-lilac-600 font-semibold">
-            스레드 {item.thread_count}
-          </span>
-        )}
-        {item.reclassified_at && (
-          <span className="text-3xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">
-            업데이트됨
-          </span>
-        )}
+          {item.thread_count > 0 && (
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-lilac-100 text-lilac-600 font-semibold">
+              스레드 {item.thread_count}
+            </span>
+          )}
+          {item.reclassified_at && (
+            <span className="text-3xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">
+              업데이트됨
+            </span>
+          )}
         </div>
         {item.author && <span className="shrink-0 text-3xs text-ink-400">{item.author}</span>}
         <span className="shrink-0 text-3xs text-ink-400 tabular-nums">{shortTime(item.occurred_at)}</span>
@@ -299,22 +299,13 @@ export function BrandDailyListView({
       </aside>
 
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
-        <header className="shrink-0 h-16 border-b border-border bg-card px-5 flex items-center gap-4">
+        <header className="shrink-0 h-11 border-b border-border bg-card px-5 flex items-center gap-3">
           {selectedBrand && (
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
+            <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
           )}
-          <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
-              <span className="text-xs text-ink-400">
-                {selectedItems.length} / {total ?? items.length}건
-              </span>
-            </div>
-            <p className="text-3xs text-ink-400 mt-0.5">
-              {activeBrand ? '선택 브랜드 기준으로 서버 필터가 적용되었습니다' : '브랜드를 선택하면 전체 기간 기준으로 다시 불러옵니다'}
-            </p>
-          </div>
-          <div className="ml-auto">
+          <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
+          <span className="text-xs text-ink-400 shrink-0">{selectedItems.length} / {total ?? items.length}건</span>
+          <div className="ml-auto shrink-0">
             <TagSummary counts={selectedTagCounts} />
           </div>
         </header>
@@ -325,6 +316,7 @@ export function BrandDailyListView({
               <div className="flex items-center gap-2 pb-1 border-b border-border">
                 <h3 className="text-sm font-bold text-foreground">{shortDateLabel(group.date)}</h3>
                 <span className="text-xs text-ink-400">{group.items.length}건</span>
+                <div className="ml-auto"><TagSummary counts={tagCounts(group.items)} /></div>
               </div>
               <div className="space-y-1.5">
                 {group.items.map(item => (

@@ -250,6 +250,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery,
   }), [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
+  // Daily Report 이전/다음 리포트 날짜 (리포트가 있는 날끼리만 이동)
+  const sortedReportDates = useMemo(() => [...reportDates].sort(), [reportDates])
+  const reportDateIdx     = sortedReportDates.indexOf(dateFrom)
+  const prevReportDate    = reportDateIdx > 0 ? sortedReportDates[reportDateIdx - 1] : null
+  const nextReportDate    = reportDateIdx < sortedReportDates.length - 1 ? sortedReportDates[reportDateIdx + 1] : null
+  const handleReportDateChange = useCallback((d: string) => { setDateFrom(d); setDateTo(d) }, [])
+
   return (
     <div className="flex flex-1 overflow-hidden">
 
@@ -329,6 +336,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               filterTags={dailyTags}
               filterPriorities={dailyPriorities}
               onCreateTask={handleCreateTaskFromAction}
+              prevDate={prevReportDate}
+              nextDate={nextReportDate}
+              onDateChange={handleReportDateChange}
             />
           ) : (
             <>

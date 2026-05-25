@@ -5,6 +5,7 @@ import {
   Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target,
   ArrowRight, Plus, X, Loader2,
+  ChevronLeft, ChevronRight, ChevronDown,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -22,6 +23,9 @@ interface Props {
   filterTags: Set<Tag>
   filterPriorities: Set<Priority>
   onCreateTask?: (title: string, memo: string) => void
+  prevDate?: string | null
+  nextDate?: string | null
+  onDateChange?: (d: string) => void
 }
 
 interface RelatedItem {
@@ -45,8 +49,9 @@ interface SimilarItem {
 }
 
 function kstDateLabel(utcStr: string): string {
-  const d = new Date(new Date(utcStr).getTime() + 9 * 60 * 60 * 1000)
-  return `${d.getUTCFullYear()}/${d.getUTCMonth() + 1}/${d.getUTCDate()}`
+  const ymd = new Date(utcStr).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+  const [y, m, d] = ymd.split('-')
+  return `${y}/${Number(m)}/${Number(d)}`
 }
 
 function slackTextClean(text: string) {
@@ -110,17 +115,23 @@ function HeadlineSentences({ text }: { text: string }) {
   )
 }
 
-function HeadlineCard({ content, report }: { content: InsightContent; report: DailyReport & { dateLabel: string } }) {
+function HeadlineCard({ content }: { content: InsightContent }) {
+  const [open, setOpen] = useState(true)
   return (
     <section className="border-t border-border overflow-hidden">
-      <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
-        <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
-        <span className="text-3xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
-      </div>
-      <div className="px-4 py-5">
-        <HeadlineSentences text={content.headline} />
-      </div>
+      <button
+        onClick={() => setOpen(v => !v)}
+        className="w-full flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150 hover:bg-muted/70 transition-colors"
+      >
+        <Newspaper size={13} className="text-ink-400 shrink-0" />
+        <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider flex-1 text-left">HEADLINE</h3>
+        <ChevronDown size={12} className={`text-ink-400 transition-transform duration-200 ${open ? 'rotate-180' : ''}`} />
+      </button>
+      {open && (
+        <div className="px-4 py-5">
+          <HeadlineSentences text={content.headline} />
+        </div>
+      )}
     </section>
   )
 }
@@ -131,11 +142,37 @@ function EmptyState() {
   return <p className="text-xs text-ink-300 py-3">—</p>
 }
 
-function renderBodyBold(text: string) {
-  return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-      : <span key={i}>{part.replace(/\*/g, '')}</span>
+// renderBold와 동일 — 통합 (body용은 renderBold 그대로 사용)
+const renderBodyBold = renderBold
+
+// ── 날짜 네비게이션 바 ────────────────────────────────────────
+function DateNavBar({ dateLabel, itemCount, brandCount, prevDate, nextDate, onDateChange }: {
+  dateLabel: string; itemCount: number; brandCount: number
+  prevDate?: string | null; nextDate?: string | null; onDateChange?: (d: string) => void
+}) {
+  return (
+    <div className="shrink-0 flex items-center gap-1 px-3 py-1.5 border-b border-border bg-card">
+      <button
+        onClick={() => prevDate && onDateChange?.(prevDate)}
+        disabled={!prevDate}
+        title="이전 리포트"
+        className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+      >
+        <ChevronLeft size={14} />
+      </button>
+      <div className="flex-1 text-center">
+        <span className="text-xs font-semibold text-foreground">{dateLabel}</span>
+        <span className="text-3xs text-ink-400 ml-2">{itemCount}건 · {brandCount}개 브랜드</span>
+      </div>
+      <button
+        onClick={() => nextDate && onDateChange?.(nextDate)}
+        disabled={!nextDate}
+        title="다음 리포트"
+        className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors disabled:opacity-25 disabled:cursor-not-allowed"
+      >
+        <ChevronRight size={14} />
+      </button>
+    </div>
   )
 }
 
@@ -546,7 +583,7 @@ function tagAllowed(tags: Set<Tag>, tag: Tag): boolean {
   return tags.size === 0 || tags.has(tag)
 }
 
-export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask }: Props) {
+export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask, prevDate, nextDate, onDateChange }: Props) {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
@@ -574,23 +611,39 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     } catch { return selectedDate }
   }, [selectedDate])
 
+  const navBar = (
+    <DateNavBar
+      dateLabel={dateLabel}
+      itemCount={report?.item_count ?? 0}
+      brandCount={report?.brand_count ?? 0}
+      prevDate={prevDate}
+      nextDate={nextDate}
+      onDateChange={onDateChange}
+    />
+  )
+
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center py-20">
-        <Newspaper size={16} className="animate-spin text-ink-400" />
-      </div>
+      <>
+        {navBar}
+        <div className="flex-1 flex items-center justify-center py-20">
+          <Newspaper size={16} className="animate-spin text-ink-400" />
+        </div>
+      </>
     )
   }
 
   if (!report) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
-        <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-4">
-          <Newspaper size={18} className="text-ink-400" />
+      <>
+        {navBar}
+        <div className="flex-1 flex flex-col items-center justify-center py-20 text-center">
+          <div className="w-10 h-10 rounded-full bg-muted flex items-center justify-center mb-4">
+            <Newspaper size={18} className="text-ink-400" />
+          </div>
+          <p className="text-xs text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>
         </div>
-        <p className="text-sm font-semibold text-foreground mb-1">{dateLabel}</p>
-        <p className="text-xs text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>
-      </div>
+      </>
     )
   }
 
@@ -606,14 +659,13 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     pending: tagAllowed(filterTags, 'mention') ? filterByBrand(raw.pending, filterBrands) : [],
     decisions: tagAllowed(filterTags, 'decision') ? filterByBrand(raw.decisions, filterBrands) : [],
   }
-  const reportWithLabel = { ...report, dateLabel }
-
   return (
     <>
+      {navBar}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="space-y-0">
-          {/* 헤드라인 */}
-          <HeadlineCard content={content} report={reportWithLabel} />
+          {/* 헤드라인 — 기본 접힘, 클릭 시 펼침 */}
+          <HeadlineCard content={content} />
 
           {/* 지금 챙겨야 할 것 */}
           <section className="border-t border-border">
