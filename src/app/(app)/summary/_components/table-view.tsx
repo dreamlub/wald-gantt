@@ -7,7 +7,7 @@ import { ExternalLink, ListTodo, Hash } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_META } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
+import { PriorityBars, TagFilterBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 
 interface Props {
@@ -70,7 +70,7 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 }
 
 export function TableView({
-  items, searchQuery, hasFilters,
+  items, selectedTags, searchQuery, hasFilters,
   total, hasMore, loadingMore, brandCounts, activeBrand,
   onLoadMore,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
@@ -264,20 +264,16 @@ export function TableView({
                   {/* 태그 */}
                   <td className="px-3 py-2.5">
                     <div className="flex flex-wrap gap-1.5">
-                      {(item.tags ?? []).map(t => {
-                        const meta = TAG_META[t]
-                        if (!meta) return null
-                        return (
-                          <button
-                            key={t}
-                            onClick={(e) => { e.stopPropagation(); onToggleTag(t); }}
-                            className="inline-flex items-center text-3xs px-1.5 py-[1px] rounded font-medium"
-                            style={{ background: meta.bg, color: meta.color }}
-                          >
-                            {meta.label}
-                          </button>
-                        )
-                      })}
+                      {(item.tags ?? []).map(t => (
+                        <span key={t} onClick={e => e.stopPropagation()}>
+                          <TagFilterBadge
+                            tag={t}
+                            active={selectedTags.has(t)}
+                            onClick={() => onToggleTag(t)}
+                            dimmed={selectedTags.size > 0 && !selectedTags.has(t)}
+                          />
+                        </span>
+                      ))}
                     </div>
                   </td>
 

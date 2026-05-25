@@ -2,8 +2,9 @@ import { todayStrKST, parseDateStr, MS_PER_DAY } from '@/lib/gantt-utils'
 import type { TaskStatus } from '@/types'
 
 const LABEL_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
-  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#64748b',
+  '#a5b4fc', '#c4b5fd', '#f9a8d4', '#fda4af',
+  '#fdba74', '#fcd34d', '#86efac', '#5eead4',
+  '#93c5fd', '#7dd3fc', '#f0abfc', '#d9f99d',
 ]
 
 export function labelColor(name: string): string {

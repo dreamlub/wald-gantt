@@ -16,6 +16,7 @@ import { STATUS_GROUPS, PriorityBars } from '../_constants'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { LabelBadge } from './LabelBadge'
+import { TaskStatusBadge } from './TaskStatusBadge'
 
 interface Props {
   tasks: GanttTask[]
@@ -77,21 +78,9 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
       {((task.priority ?? 0) > 0 || overdue || startDelayed || noUpdate || labels.length > 0 || (task.projects && task.projects.length > 0)) && (
         <div className="flex flex-wrap items-center gap-1 mt-1.5 mb-2">
           {(task.priority ?? 0) > 0 && <PriorityBars priority={task.priority} />}
-          {overdue && (
-            <span className="text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
-              지연 {overdueDays(task.due_date)}일
-            </span>
-          )}
-          {startDelayed && (
-            <span className="text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
-              시작 지연 {startDelayedDays(task.start_date)}일
-            </span>
-          )}
-          {noUpdate && !overdue && !startDelayed && (
-            <span className="text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
-              {daysDiff(task.updated_at)}일 무응답
-            </span>
-          )}
+          {overdue && <TaskStatusBadge type="overdue" days={overdueDays(task.due_date)} />}
+          {startDelayed && <TaskStatusBadge type="start-delayed" days={startDelayedDays(task.start_date)} />}
+          {noUpdate && !overdue && !startDelayed && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
           {task.projects?.slice(0, 2).map(p => (
             <span key={p.id} className="flex items-center gap-0.5 text-3xs text-ink-400">
               <Paperclip size={8} className="shrink-0" />{p.name}

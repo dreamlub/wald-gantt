@@ -7,9 +7,9 @@ type Sb = SupabaseClient
 
 // 브랜드명 → 색상 결정론적 할당 (팔레트 기반 해시)
 const BRAND_PALETTE = [
-  '#818cf8', '#34d399', '#fb7185', '#fbbf24',
-  '#60a5fa', '#fb923c', '#a78bfa', '#4ade80',
-  '#f472b6', '#38bdf8', '#e879f9', '#2dd4bf',
+  '#a5b4fc', '#86efac', '#fda4af', '#fcd34d',
+  '#93c5fd', '#fdba74', '#c4b5fd', '#5eead4',
+  '#f9a8d4', '#7dd3fc', '#f0abfc', '#d9f99d',
 ]
 
 export function brandColor(name: string): string {

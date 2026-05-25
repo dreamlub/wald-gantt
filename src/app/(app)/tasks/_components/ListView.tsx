@@ -7,6 +7,7 @@ import { fmtRange, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ABBR, PriorityBars } from '../_constants'
 import { LabelBadge } from './LabelBadge'
+import { TaskStatusBadge } from './TaskStatusBadge'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
@@ -241,16 +242,8 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             </div>
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
               <span className={`text-xs truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
-              {overdue && (
-                <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
-                  지연 {overdueDays(task.due_date)}일
-                </span>
-              )}
-              {noUpdate && !overdue && (
-                <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
-                  {daysDiff(task.updated_at)}일 무응답
-                </span>
-              )}
+              {overdue && <TaskStatusBadge type="overdue" days={overdueDays(task.due_date)} />}
+              {noUpdate && !overdue && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
               {/* 연결 프로젝트 */}
               {task.projects && task.projects.length > 0 && (
                 <>

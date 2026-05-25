@@ -13,7 +13,7 @@ import { createClient } from '@/lib/supabase/client'
 
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META, TAG_META } from '../_lib/mock-data'
-import { PriorityBars, BrandBadge } from './badges'
+import { PriorityBars, BrandBadge, TagBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { brandColor } from '@/lib/history-service'
 
@@ -217,16 +217,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         )}
         {r.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
-            {r.tags.map(tag => {
-              const meta = TAG_META[tag]
-              if (!meta) return null
-              return (
-                <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
-                  style={{ background: meta.bg, color: meta.color }}>
-                  {meta.label}
-                </span>
-              )
-            })}
+            {r.tags.map(tag => <TagBadge key={tag} tag={tag} variant="solid" />)}
           </div>
         )}
       </div>
@@ -433,16 +424,7 @@ function ActionDetailDrawer({
                   )}
                   {s.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5 ml-[3.5rem]">
-                      {s.tags.map(tag => {
-                        const meta = TAG_META[tag]
-                        if (!meta) return null
-                        return (
-                          <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
-                            style={{ background: meta.bg, color: meta.color }}>
-                            {meta.label}
-                          </span>
-                        )
-                      })}
+                      {s.tags.map(tag => <TagBadge key={tag} tag={tag} variant="solid" />)}
                     </div>
                   )}
                 </div>

@@ -5,7 +5,7 @@ import { ExternalLink, ListTodo } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_KEYS, TAG_META } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
+import { PriorityBars, TagBadge } from './badges'
 
 interface Props {
   items: HistoryItem[]
@@ -64,18 +64,9 @@ function TagSummary({ counts }: { counts: Partial<Record<Tag, number>> }) {
   if (visible.length === 0) return null
   return (
     <div className="flex items-center gap-1.5">
-      {visible.map(tag => {
-        const meta = TAG_META[tag]
-        return (
-          <span
-            key={tag}
-            className="inline-flex items-center gap-1 text-3xs font-medium px-1.5 py-px rounded-full border whitespace-nowrap"
-            style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
-          >
-            {meta.label} {counts[tag]}
-          </span>
-        )
-      })}
+      {visible.map(tag => (
+        <TagBadge key={tag} tag={tag} variant="solid">{TAG_META[tag].label} {counts[tag]}</TagBadge>
+      ))}
     </div>
   )
 }
@@ -122,18 +113,9 @@ function HistoryRow({
         </span>
         <p className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">{item.title}</p>
         <div className="shrink-0 flex items-center gap-1">
-          {(item.tags ?? []).map(tag => {
-            const meta = TAG_META[tag]
-            return (
-              <span
-                key={tag}
-                className="text-3xs font-medium px-1.5 py-px rounded-full border whitespace-nowrap"
-                style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
-              >
-                {meta.label}
-              </span>
-            )
-          })}
+          {(item.tags ?? []).map(tag => (
+            <TagBadge key={tag} tag={tag} variant="solid" />
+          ))}
           {item.thread_count > 0 && (
             <span className="text-3xs px-1.5 py-0.5 rounded bg-lilac-100 text-lilac-600 font-semibold">
               스레드 {item.thread_count}

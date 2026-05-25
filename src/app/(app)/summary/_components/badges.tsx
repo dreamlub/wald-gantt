@@ -35,16 +35,73 @@ export function PriorityBars({ priority, showLabel, onDark }: { priority: Priori
   )
 }
 
-export function TagBadge({ tag }: { tag: Tag }) {
+export function TagBadge({ tag, variant = 'outline', showDot, children }: {
+  tag: Tag
+  variant?: 'outline' | 'solid'
+  showDot?: boolean
+  children?: React.ReactNode
+}) {
+  const meta = TAG_META[tag]
+  if (!meta) return null
+  const style = variant === 'solid'
+    ? { background: meta.bg, color: meta.color }
+    : { backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }
+  return (
+    <span
+      className={`text-3xs px-1.5 py-0.5 rounded-full font-medium inline-flex items-center gap-1 whitespace-nowrap${variant === 'outline' ? ' border' : ''}`}
+      style={style}
+    >
+      {showDot && <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: meta.dot }} />}
+      {children ?? meta.label}
+    </span>
+  )
+}
+
+export function TagFilterBadge({ tag, active, onClick, dimmed }: {
+  tag: Tag
+  active: boolean
+  onClick: () => void
+  dimmed?: boolean
+}) {
   const meta = TAG_META[tag]
   if (!meta) return null
   return (
-    <span
-      className="text-3xs px-2 py-0.5 rounded-full font-medium inline-flex items-center whitespace-nowrap border"
-      style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+        dimmed ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
+      }`}
+      style={active
+        ? { backgroundColor: meta.bg, color: meta.color, borderColor: meta.bg }
+        : { backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }
+      }
     >
       {meta.label}
-    </span>
+    </button>
+  )
+}
+
+export function PriorityFilterBadge({ priority, active, onClick, dimmed }: {
+  priority: Priority
+  active: boolean
+  onClick: () => void
+  dimmed?: boolean
+}) {
+  const meta = PRIORITY_META[priority]
+  return (
+    <button
+      onClick={onClick}
+      className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+        dimmed ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
+      }`}
+      style={active
+        ? { backgroundColor: meta.color, color: 'white', borderColor: meta.color }
+        : { backgroundColor: 'transparent', color: meta.color, borderColor: meta.color }
+      }
+    >
+      <PriorityBars priority={priority} onDark={active} />
+      {meta.label}
+    </button>
   )
 }
 

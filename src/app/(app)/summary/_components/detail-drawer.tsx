@@ -11,7 +11,7 @@ import { createClient } from '@/lib/supabase/client'
 import { fetchThreadRepliesForItem } from '../_lib/thread-replies'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { brandColor } from '@/lib/history-service'
-import { PriorityBars } from './badges'
+import { PriorityBars, TagBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 import { MarkdownBody } from '@/components/MarkdownBody'
 
@@ -293,19 +293,9 @@ export function HistoryDetailDrawer({
               ) : (
                 displayTags.length > 0 ? (
                   <div className="flex flex-wrap gap-1.5">
-                    {displayTags.map(t => {
-                      const meta = TAG_META[t]
-                      if (!meta) return null
-                      return (
-                        <span key={t}
-                          className="inline-flex items-center gap-1 text-2xs px-2 py-[3px] rounded font-medium"
-                          style={{ background: meta.bg, color: meta.color }}
-                        >
-                          <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
-                          {meta.label}
-                        </span>
-                      )
-                    })}
+                    {displayTags.map(t => (
+                      <TagBadge key={t} tag={t} variant="solid" showDot />
+                    ))}
                   </div>
                 ) : <span className="text-xs text-ink-300">—</span>
               )}

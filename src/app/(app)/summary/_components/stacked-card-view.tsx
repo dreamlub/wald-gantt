@@ -8,7 +8,7 @@ import { ExternalLink } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_META, TAG_KEYS } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
+import { PriorityBars, TagBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 
 const PEEK_H   = 34   // 뒤 카드 헤더 높이 (px)
@@ -64,17 +64,9 @@ function TagBadges({ items }: { items: HistoryItem[] }) {
   if (!tags.length) return null
   return (
     <div className="flex items-center gap-1">
-      {tags.map(t => {
-        const meta = TAG_META[t]
-        return (
-          <span key={t}
-            className="text-3xs px-1.5 py-px rounded-full font-semibold leading-none"
-            style={{ background: meta.bg, color: meta.color }}
-          >
-            {counts[t]}
-          </span>
-        )
-      })}
+      {tags.map(t => (
+        <TagBadge key={t} tag={t} variant="solid">{counts[t]}</TagBadge>
+      ))}
     </div>
   )
 }
@@ -94,13 +86,9 @@ function ItemRow({ item, onOpen }: { item: HistoryItem; onOpen: () => void }) {
         <p className="text-xs text-foreground leading-snug line-clamp-2">{item.title}</p>
         {(item.tags ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
-            {(item.tags ?? []).map(t => {
-              const meta = TAG_META[t]
-              return meta ? (
-                <span key={t} className="text-3xs px-1.5 py-px rounded-full font-medium"
-                  style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
-              ) : null
-            })}
+            {(item.tags ?? []).map(t => (
+              <TagBadge key={t} tag={t} variant="solid" />
+            ))}
           </div>
         )}
       </div>

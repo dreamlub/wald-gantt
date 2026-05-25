@@ -12,6 +12,7 @@ import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { LabelBadge } from './LabelBadge'
+import { TaskStatusBadge } from './TaskStatusBadge'
 import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
@@ -101,21 +102,9 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           {task.title}
         </button>
 
-        {overdue && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
-            지연 {odDays}일
-          </span>
-        )}
-        {startDelayed && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
-            시작 지연 {sdDays}일
-          </span>
-        )}
-        {noUpdate && !overdue && !startDelayed && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
-            {daysDiff(task.updated_at)}일 무응답
-          </span>
-        )}
+        {overdue && <TaskStatusBadge type="overdue" days={odDays} />}
+        {startDelayed && <TaskStatusBadge type="start-delayed" days={sdDays} />}
+        {noUpdate && !overdue && !startDelayed && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
 
         {/* 연결 프로젝트 */}
         {task.projects && task.projects.length > 0 && (

@@ -4,8 +4,8 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import type { Tag } from '../_lib/types'
-import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
+import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/mock-data'
+import { TagFilterBadge, PriorityFilterBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { SidebarDatePicker, PRESETS, applyDatePreset, getActivePreset } from './_sidebar-controls'
 import type { PriorityKey } from './_sidebar-utils'
@@ -80,22 +80,15 @@ export function DailyListSidebarPanel({
         <SectionTitle>태그</SectionTitle>
         <div className="flex flex-wrap gap-1.5">
           {TAG_KEYS.map(t => {
-            const meta = TAG_META[t]
             const active = selectedTags.has(t)
             return (
-              <button
+              <TagFilterBadge
                 key={t}
+                tag={t}
+                active={active}
                 onClick={() => onToggleTag(t)}
-                style={active
-                  ? { backgroundColor: meta.bg, color: meta.color, borderColor: meta.bg }
-                  : { backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }
-                }
-                className={`inline-flex items-center text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-                  selectedTags.size > 0 && !active ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
-                }`}
-              >
-                {meta.label}
-              </button>
+                dimmed={selectedTags.size > 0 && !active}
+              />
             )
           })}
         </div>
@@ -106,23 +99,15 @@ export function DailyListSidebarPanel({
         <SectionTitle>중요도</SectionTitle>
         <div className="flex flex-wrap gap-1.5">
           {PRIORITY_KEYS.map(p => {
-            const meta = PRIORITY_META[p]
             const active = priorityKey === p
             return (
-              <button
+              <PriorityFilterBadge
                 key={p}
+                priority={p}
+                active={active}
                 onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)}
-                style={active
-                  ? { backgroundColor: meta.color, color: 'white', borderColor: meta.color }
-                  : { backgroundColor: 'transparent', color: meta.color, borderColor: meta.color }
-                }
-                className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-                  priorityKey !== 'all' && !active ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
-                }`}
-              >
-                <PriorityBars priority={p} onDark={active} />
-                {meta.label}
-              </button>
+                dimmed={priorityKey !== 'all' && !active}
+              />
             )
           })}
         </div>
