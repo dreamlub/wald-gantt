@@ -36,7 +36,7 @@ function dateRange(from: string, to: string): string[] {
 }
 
 export async function POST(req: NextRequest) {
-  const { from, to } = await req.json() as { from: string; to: string }
+  const { from, to, force } = await req.json() as { from: string; to: string; force?: boolean }
 
   if (!from || !to || !DATE_REGEX.test(from) || !DATE_REGEX.test(to) || from > to) {
     return new Response(JSON.stringify({ error: 'from, to 필드 필요 (YYYY-MM-DD, from ≤ to)' }), {
@@ -73,6 +73,7 @@ export async function POST(req: NextRequest) {
 
         const dates = dateRange(from, to)
         let totalRaw = 0
+        let totalSkipped = 0
 
         send('status', { message: `${dates.length}일 Raw 수집 시작 (${from} ~ ${to})` })
 
@@ -178,30 +179,37 @@ export async function POST(req: NextRequest) {
           )
 
           const rawMessages: Array<{ channel: string; channel_id: string; parent_ts: string; raw_json: RawJson }> = []
+          let skippedThreads = 0
 
           for (let i = 0; i < parents.length; i++) {
             if (i % 10 === 0 || i === parents.length - 1) {
-              send('status', { message: `[${di + 1}/${dates.length}] ${date} 스레드 (${i + 1}/${parents.length})` })
+              const skipLabel = skippedThreads > 0 ? `, ${skippedThreads}건 스킵` : ''
+              send('status', { message: `[${di + 1}/${dates.length}] ${date} 스레드 (${i + 1}/${parents.length}${skipLabel})` })
             }
             const m = parents[i]
             let replies: RawReply[] = []
             if ((m.reply_count ?? 0) > 0) {
-              try {
-                const thread = await slack.conversations.replies({ channel: m.channel.id, ts: m.ts })
-                if (thread.ok && thread.messages) {
-                  for (const r of thread.messages.slice(1)) {
-                    if ((r as { bot_id?: string }).bot_id) continue
-                    const rMsg = r as { ts?: string; text?: string; user?: string; username?: string }
-                    replies.push({
-                      ts: rMsg.ts ?? '', text: rMsg.text ?? '', user: rMsg.user ?? '',
-                      user_name: resolveUserName(userDir, rMsg.user, rMsg.username),
-                    })
+              const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
+              if (!force && existing && existing.replies.length === (m.reply_count ?? 0)) {
+                replies = existing.replies
+                skippedThreads++
+              } else {
+                try {
+                  const thread = await slack.conversations.replies({ channel: m.channel.id, ts: m.ts })
+                  if (thread.ok && thread.messages) {
+                    for (const r of thread.messages.slice(1)) {
+                      if ((r as { bot_id?: string }).bot_id) continue
+                      const rMsg = r as { ts?: string; text?: string; user?: string; username?: string }
+                      replies.push({
+                        ts: rMsg.ts ?? '', text: rMsg.text ?? '', user: rMsg.user ?? '',
+                        user_name: resolveUserName(userDir, rMsg.user, rMsg.username),
+                      })
+                    }
                   }
+                  await delay(200)
+                } catch {
+                  replies = existing?.replies ?? []
                 }
-                await delay(200)
-              } catch {
-                const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
-                replies = existing?.replies ?? []
               }
             }
 
@@ -275,12 +283,15 @@ export async function POST(req: NextRequest) {
               send('status', { message: `[${date}] 저장 오류: ${error.message}` })
             } else {
               totalRaw += rawMessages.length
-              send('status', { message: `[${di + 1}/${dates.length}] ${date} 완료 — ${rawMessages.length}건` })
+              totalSkipped += skippedThreads
+              const skipNote = skippedThreads > 0 ? ` (${skippedThreads}건 스레드 스킵)` : ''
+              send('status', { message: `[${di + 1}/${dates.length}] ${date} 완료 — ${rawMessages.length}건${skipNote}` })
             }
           }
         }
 
-        send('result', { message: `완료 — ${dates.length}일 / 총 ${totalRaw}건 Raw 저장` })
+        const skipSummary = totalSkipped > 0 ? ` (${totalSkipped}건 스레드 스킵)` : ''
+        send('result', { message: `완료 — ${dates.length}일 / 총 ${totalRaw}건 Raw 저장${skipSummary}` })
       } catch (err) {
         console.error('[collect-raw]', err)
         send('error', { message: err instanceof Error ? err.message : 'Internal error' })
