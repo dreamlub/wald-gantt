@@ -95,7 +95,7 @@ export async function POST(req: NextRequest) {
           const allMatches: SlackMatch[] = []
           let page = 1
           let searchRetries = 0
-          while (page <= 10) {
+          while (page <= 50) {
             let result
             try {
               result = await slack.search.messages({
@@ -119,6 +119,10 @@ export async function POST(req: NextRequest) {
             allMatches.push(...(result.messages.matches as SlackMatch[]))
             send('status', { message: `[${di + 1}/${dates.length}] ${date} page ${page}: ${result.messages.matches.length}건 (누적 ${allMatches.length}건, 전체 ${result.messages.total ?? '?'})` })
             if (page >= (result.messages.paging?.pages ?? 1)) break
+            if (page >= 50) {
+              send('status', { message: `[${date}] ⚠ 페이지 한계(50) 도달 — 일부 메시지 누락 가능 (전체 ${result.messages.total ?? '?'}건)` })
+              break
+            }
             page++
             await delay(1000)
           }

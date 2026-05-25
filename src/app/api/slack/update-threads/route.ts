@@ -168,7 +168,7 @@ export async function POST() {
             await sb.from('client_history').upsert(
               {
                 workspace_id: workspaceId,
-                brand_name: brandName,
+                brand_name: result.brand || brandName,
                 raw_message_id: raw.id,
                 thread_count: replies.length,
                 type: 'slack',
