@@ -105,7 +105,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (authorKey !== 'all') sp.set('author', authorKey)
     if (searchQuery.trim()) sp.set('q', searchQuery)
     if (cursor) sp.set('cursor', cursor)
-    sp.set('limit', '50')
+    sp.set('limit', '200')
     const res = await fetch(`/api/history?${sp}`)
     if (!res.ok || id !== fetchIdRef.current) return
     const page = await res.json() as HistoryPage
