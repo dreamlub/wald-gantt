@@ -18,7 +18,6 @@ interface Props {
   activeBrand?: string | null
   onLoadMore?: () => void
   onSelectBrand: (brand: string) => void
-  onOpenItem: (item: HistoryItem) => void
   onClearFilters: () => void
   onCreateTask?: (item: HistoryItem) => void
 }
@@ -114,17 +113,17 @@ function EmptyState({ hasFilters, onClearFilters }: { hasFilters: boolean; onCle
 function HistoryRow({
   item,
   expanded,
-  onOpen,
+  onToggle,
   onCreateTask,
 }: {
   item: HistoryItem
   expanded: boolean
-  onOpen: () => void
+  onToggle: () => void
   onCreateTask?: () => void
 }) {
   return (
     <div
-      onClick={onOpen}
+      onClick={onToggle}
       className={`group border border-border bg-card cursor-pointer transition-colors hover:border-ink-300 hover:bg-muted/30 ${
         expanded ? 'rounded-md shadow-sm' : 'rounded-sm'
       }`}
@@ -195,11 +194,11 @@ export function BrandDailyListView({
   activeBrand,
   onLoadMore,
   onSelectBrand,
-  onOpenItem,
   onClearFilters,
   onCreateTask,
 }: Props) {
   const [brandQuery, setBrandQuery] = useState('')
+  const [expandedId, setExpandedId] = useState<string | null | undefined>(undefined)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const brandList = useMemo(() => buildBrandList(items, brandCounts), [items, brandCounts])
   const selectedBrand = activeBrand ?? brandList[0]?.name ?? null
@@ -214,6 +213,12 @@ export function BrandDailyListView({
   }, [items, selectedBrand])
   const dateGroups = useMemo(() => groupByDate(selectedItems), [selectedItems])
   const selectedTagCounts = useMemo(() => tagCounts(selectedItems), [selectedItems])
+  const firstItemId = selectedItems[0]?.id ?? null
+  const expandedItemId = expandedId === undefined
+    ? firstItemId
+    : expandedId && selectedItems.some(item => item.id === expandedId)
+      ? expandedId
+      : expandedId
 
   const handleLoadMore = useCallback(() => {
     if (hasMore && !loadingMore && onLoadMore) onLoadMore()
@@ -301,12 +306,12 @@ export function BrandDailyListView({
                 <span className="text-xs text-ink-400">{group.items.length}건</span>
               </div>
               <div className="space-y-1.5">
-                {group.items.map((item, index) => (
+                {group.items.map(item => (
                   <HistoryRow
                     key={item.id}
                     item={item}
-                    expanded={index === 0}
-                    onOpen={() => onOpenItem(item)}
+                    expanded={expandedItemId === item.id}
+                    onToggle={() => setExpandedId(expandedItemId === item.id ? null : item.id)}
                     onCreateTask={onCreateTask ? () => onCreateTask(item) : undefined}
                   />
                 ))}

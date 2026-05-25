@@ -379,7 +379,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                  onOpenItem={setActiveItem}
                   onCreateTask={handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />
