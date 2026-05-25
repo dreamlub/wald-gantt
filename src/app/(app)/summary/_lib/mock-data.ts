@@ -2,10 +2,10 @@ import type { Tag, Priority } from './types'
 
 // 태그 메타 — 시각화용
 export const TAG_META: Record<Tag, { label: string; emoji: string; bg: string; color: string; dot: string }> = {
-  'issue':       { label: '이슈',      emoji: '🔴', bg: 'var(--color-tag-issue-bg)',        color: 'var(--color-tag-issue-text)',       dot: 'var(--color-tag-issue-dot)' },
-  'decision':    { label: '의사결정',  emoji: '🟡', bg: 'var(--color-tag-decision-bg)',     color: 'var(--color-tag-decision-text)',    dot: 'var(--color-tag-decision-dot)' },
-  'mention':     { label: '나를 멘션', emoji: '🔵', bg: 'var(--color-tag-mention-bg)',      color: 'var(--color-tag-mention-text)',     dot: 'var(--color-tag-mention-dot)' },
-  'schedule':    { label: '일정수립',  emoji: '📅', bg: 'var(--color-tag-schedule-bg)',     color: 'var(--color-tag-schedule-text)',    dot: 'var(--color-tag-schedule-dot)' },
+  'issue':       { label: '이슈',      emoji: '🔴', bg: 'var(--color-tag-issue-dot)',     color: 'white',                          dot: 'var(--color-tag-issue-dot)' },
+  'decision':    { label: '의사결정',  emoji: '🟡', bg: 'var(--color-tag-decision-dot)',  color: 'var(--color-ink-800)',            dot: 'var(--color-tag-decision-dot)' },
+  'mention':     { label: '나를 멘션', emoji: '🔵', bg: 'var(--color-tag-mention-dot)',   color: 'white',                          dot: 'var(--color-tag-mention-dot)' },
+  'schedule':    { label: '일정수립',  emoji: '📅', bg: 'var(--color-tag-schedule-dot)',  color: 'white',                          dot: 'var(--color-tag-schedule-dot)' },
 }
 
 export const TAG_KEYS: Tag[] = ['issue', 'decision', 'mention', 'schedule']

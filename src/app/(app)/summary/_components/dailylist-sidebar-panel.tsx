@@ -86,9 +86,12 @@ export function DailyListSidebarPanel({
               <button
                 key={t}
                 onClick={() => onToggleTag(t)}
-                style={{ background: meta.bg, color: meta.color }}
-                className={`text-2xs font-semibold px-2 py-0.5 rounded transition-opacity ${
-                  selectedTags.size > 0 && !active ? 'opacity-30 hover:opacity-65' : ''
+                style={active
+                  ? { backgroundColor: meta.bg, color: meta.color, borderColor: meta.bg }
+                  : { backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }
+                }
+                className={`inline-flex items-center text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+                  selectedTags.size > 0 && !active ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
                 }`}
               >
                 {meta.label}
@@ -109,12 +112,15 @@ export function DailyListSidebarPanel({
               <button
                 key={p}
                 onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)}
-                style={{ background: meta.bg, color: meta.color }}
-                className={`flex items-center gap-1 text-2xs font-semibold px-2 py-0.5 rounded transition-opacity ${
-                  priorityKey !== 'all' && !active ? 'opacity-30 hover:opacity-65' : ''
+                style={active
+                  ? { backgroundColor: meta.color, color: 'white', borderColor: meta.color }
+                  : { backgroundColor: 'transparent', color: meta.color, borderColor: meta.color }
+                }
+                className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+                  priorityKey !== 'all' && !active ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
                 }`}
               >
-                <PriorityBars priority={p} />
+                <PriorityBars priority={p} onDark={active} />
                 {meta.label}
               </button>
             )

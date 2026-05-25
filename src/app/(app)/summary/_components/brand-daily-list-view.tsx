@@ -69,8 +69,8 @@ function TagSummary({ counts }: { counts: Partial<Record<Tag, number>> }) {
         return (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 text-3xs font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: meta.bg, color: meta.color }}
+            className="inline-flex items-center gap-1 text-3xs font-medium px-1.5 py-px rounded-full border whitespace-nowrap"
+            style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
           >
             {meta.label} {counts[tag]}
           </span>
@@ -127,8 +127,8 @@ function HistoryRow({
             return (
               <span
                 key={tag}
-                className="text-3xs font-semibold px-1.5 py-0.5 rounded"
-                style={{ background: meta.bg, color: meta.color }}
+                className="text-3xs font-medium px-1.5 py-px rounded-full border whitespace-nowrap"
+                style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
               >
                 {meta.label}
               </span>

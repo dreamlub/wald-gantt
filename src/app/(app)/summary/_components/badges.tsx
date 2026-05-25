@@ -6,7 +6,7 @@ import { brandColor } from '@/lib/history-service'
 
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
 
-export function PriorityBars({ priority, showLabel }: { priority: Priority | null; showLabel?: boolean }) {
+export function PriorityBars({ priority, showLabel, onDark }: { priority: Priority | null; showLabel?: boolean; onDark?: boolean }) {
   if (!priority) return showLabel ? <span className="text-3xs text-ink-300">—</span> : null
   const p = PRIORITY_LEVEL[priority]
   const meta = PRIORITY_META[priority]
@@ -19,7 +19,9 @@ export function PriorityBars({ priority, showLabel }: { priority: Priority | nul
             className="w-0.5 rounded-sm"
             style={{
               height: `${3 + i * 2}px`,
-              backgroundColor: i <= p ? meta.color : 'var(--color-ink-150)',
+              backgroundColor: i <= p
+                ? (onDark ? 'white' : meta.color)
+                : (onDark ? 'rgba(255,255,255,0.35)' : 'var(--color-ink-150)'),
             }}
           />
         ))}
@@ -38,8 +40,8 @@ export function TagBadge({ tag }: { tag: Tag }) {
   if (!meta) return null
   return (
     <span
-      className="text-3xs px-1.5 py-[1px] rounded font-medium inline-flex items-center whitespace-nowrap"
-      style={{ background: meta.bg, color: meta.color }}
+      className="text-3xs px-2 py-0.5 rounded-full font-medium inline-flex items-center whitespace-nowrap border"
+      style={{ backgroundColor: 'transparent', color: meta.bg, borderColor: meta.bg }}
     >
       {meta.label}
     </span>
