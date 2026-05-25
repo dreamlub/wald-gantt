@@ -11,10 +11,8 @@ import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { HistoryToolbar } from './history-toolbar'
-import { TableView } from './table-view'
 import { BrandDailyListView } from './brand-daily-list-view'
 import { SummaryView } from './summary-view'
-import { RawDataView } from './raw-data-view'
 import { TimelineView } from './timeline-view'
 import { DailyReportView } from './daily-report-view'
 import { ThreadTimelineView } from './thread-timeline-view'
@@ -62,9 +60,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
-  const [cardMode,     setCardMode]     = useState(false)
   const [reportDates,  setReportDates]  = useState<Set<string>>(new Set())
   const reportInitRef = useRef(false)
+  // brandId가 'all'일 때 전체 브랜드 목록을 유지 (브랜드 필터 적용 시에도 사이드바에 전체 목록 표시)
+  const [allBrandCounts, setAllBrandCounts] = useState<Record<string, number>>({})
   const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
@@ -133,6 +132,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
+
+  // brandId='all' 상태에서 조회된 브랜드 카운트를 캐싱 → 브랜드 선택 후에도 사이드바 목록 유지
+  useEffect(() => {
+    if (brandId === 'all' && pg.brandCounts && Object.keys(pg.brandCounts).length > 0) {
+      setAllBrandCounts(pg.brandCounts)
+    }
+  }, [pg.brandCounts, brandId])
 
   // ── Daily Report: 리포트 날짜 목록 조회 + 초기 날짜 자동 설정 ─
   useEffect(() => {
@@ -296,6 +302,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           onToggleDailyTag={toggleDailyTag}
           onToggleDailyPriority={toggleDailyPriority}
           reportDates={reportDates}
+          brandCounts={allBrandCounts}
         />
       </div>
 
@@ -313,8 +320,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           setSearchOpen={setSearchOpen}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          cardMode={cardMode}
-          setCardMode={setCardMode}
         />
 
         {/* 본문 */}
@@ -327,8 +332,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               dateTo={dateTo || undefined}
               brandFilter={brandId === 'all' ? undefined : brandId}
             />
-          ) : view === 'rawdata' ? (
-            <RawDataView />
           ) : view === 'dailyreport' ? (
             <DailyReportView
               selectedDate={dateFrom || todayStr()}
@@ -343,15 +346,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           ) : (
             <>
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
-              {view !== 'summary' && (
+              {view !== 'summary' && view !== 'dailylist' && (
                 <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
-                      {view === 'dailylist'
-                        ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
-                        : view === 'weeklylist'
-                          ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
-                          : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
+                      {view === 'weeklylist'
+                        ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
+                        : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
                     </span>
                     {brandId !== 'all' && (
@@ -380,38 +381,14 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 </div>
               )}
 
-              {view === 'dailylist' && !cardMode && (
-                <TableView
-                  items={pg.items}
-                  selectedTags={selectedTags}
-                  searchQuery={searchQuery}
-                  hasFilters={hasFilters}
-                  total={pg.total}
-                  hasMore={pg.hasMore}
-                  loadingMore={pg.loading}
-                  brandCounts={pg.brandCounts}
-                  activeBrand={brandId === 'all' ? null : brandId}
-                  onLoadMore={handleLoadMore}
-                  onToggleTag={toggleTag}
-                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                  onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
-                  onOpenItem={setActiveItem}
-                  onClearFilters={resetFilters}
-                  onCreateTask={handleOpenCreateTask}
-                  onCreateProject={handleOpenCreateProject}
-                />
-              )}
-              {view === 'dailylist' && cardMode && (
+              {view === 'dailylist' && (
                 <BrandDailyListView
                   items={pg.items}
                   hasFilters={hasFilters}
                   total={pg.total}
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
-                  brandCounts={pg.brandCounts}
-                  activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
-                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                   onCreateTask={handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />

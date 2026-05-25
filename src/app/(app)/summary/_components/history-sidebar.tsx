@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useEffect } from 'react'
-import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon, Sparkles } from 'lucide-react'
+import { useState, useEffect, useMemo } from 'react'
+import { Check, LayoutList, ChevronLeft, ChevronRight, CalendarIcon, Search } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
@@ -52,7 +52,7 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
+  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'timeline' | 'calendar'
   history: HistoryItem[]
   // table/summary용
   dateFrom: string
@@ -76,6 +76,8 @@ interface Props {
   onToggleDailyPriority: (p: Priority) => void
   // 리포트가 존재하는 날짜 집합 (캘린더 dot 구분용)
   reportDates?: Set<string>
+  // dailylist 브랜드 목록 (pg.brandCounts에서 전달)
+  brandCounts?: Record<string, number>
 }
 
 
@@ -89,6 +91,7 @@ export function HistorySidebar({
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
   reportDates,
+  brandCounts,
 }: Props) {
   const tagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) tagCounts[t] = 0
@@ -98,8 +101,17 @@ export function HistorySidebar({
   for (const p of PRIORITY_KEYS) priCounts[p] = 0
   for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
 
-  if (view === 'rawdata' ) {
-    return <RawDataSidebarPanel />
+  if (view === 'dailylist') {
+    return (
+      <DailyListSidebarPanel
+        dateFrom={dateFrom} dateTo={dateTo}
+        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        selectedTags={selectedTags} onToggleTag={onToggleTag}
+        priorityKey={priorityKey} onPriorityChange={onPriorityChange}
+        brandId={brandId} onBrandChange={onBrandChange}
+        brandCounts={brandCounts}
+      />
+    )
   }
 
   if (view === 'timeline' ) {
@@ -230,7 +242,7 @@ export function HistorySidebar({
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
       {/* ── 기간 ─────────────────────────── */}
-      {view === 'dailylist' || view === 'weeklylist' ? (
+      {view === 'weeklylist' ? (
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -253,7 +265,7 @@ export function HistorySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'weeklylist' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -264,15 +276,15 @@ export function HistorySidebar({
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
           <LayoutList size={12} className="shrink-0" />
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
+          {view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
-        {(view === 'dailylist' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
+        {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
           const meta = PRIORITY_META[p]
           return (
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
+              {view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}
@@ -552,178 +564,125 @@ function GroupTitle({ children }: { children: React.ReactNode }) {
   return <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
 }
 
-// ── Raw Data 전용 사이드바 ───────────────────────────────────
-function RawDataSidebarPanel() {
-  const [from, setFrom] = useState(() => {
-    const now = new Date()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
-  })
-  const [to, setTo] = useState(() => {
-    const now = new Date()
-    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
-    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${last}`
-  })
-  const [status, setStatus]           = useState<string | null>(null)
-  const [classifyStatus, setClassifyStatus] = useState<string | null>(null)
-  const [busy, setBusy]               = useState(false)
+// ── Daily List 전용 사이드바 패널 ─────────────────────────────
+function DailyListSidebarPanel({
+  dateFrom, dateTo, onDateFromChange, onDateToChange,
+  selectedTags, onToggleTag,
+  priorityKey, onPriorityChange,
+  brandId, onBrandChange,
+  brandCounts,
+}: {
+  dateFrom: string; dateTo: string
+  onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
+  selectedTags: Set<Tag>; onToggleTag: (t: Tag) => void
+  priorityKey: PriorityKey; onPriorityChange: (p: PriorityKey) => void
+  brandId: string | 'all'; onBrandChange: (b: string | 'all') => void
+  brandCounts?: Record<string, number>
+}) {
+  const [brandQuery, setBrandQuery] = useState('')
 
-  function dateRange(f: string, t: string): string[] {
-    const dates: string[] = []
-    const [fy, fm, fd] = f.split('-').map(Number)
-    const [ty, tm, td] = t.split('-').map(Number)
-    let d = new Date(Date.UTC(fy, fm - 1, fd))
-    const end = new Date(Date.UTC(ty, tm - 1, td))
-    while (d <= end) {
-      dates.push(d.toISOString().slice(0, 10))
-      d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
-    }
-    return dates
-  }
+  const brandList = useMemo(() => {
+    if (!brandCounts || Object.keys(brandCounts).length === 0) return []
+    return Object.entries(brandCounts)
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'))
+  }, [brandCounts])
 
-  async function handleBatchReclassify() {
-    if (busy) return
-    setBusy(true)
-    setClassifyStatus('준비 중...')
-    const dates = dateRange(from, to)
-    let doneCount = 0
-    try {
-      for (const date of dates) {
-        setClassifyStatus(`[${doneCount + 1}/${dates.length}] ${date} 분류 중...`)
-        const res = await fetch('/api/slack/reclassify', {
-          method: 'POST',
-          headers: { 'Content-Type': 'application/json' },
-          body: JSON.stringify({ date }),
-        })
-        if (!res.ok || !res.body) { setClassifyStatus(`오류: HTTP ${res.status} (${date})`); break }
-        const reader = res.body.getReader()
-        const decoder = new TextDecoder()
-        let buffer = ''
-        while (true) {
-          const { done, value } = await reader.read()
-          if (done) break
-          buffer += decoder.decode(value, { stream: true })
-          const parts = buffer.split('\n\n')
-          buffer = parts.pop() ?? ''
-          for (const part of parts) {
-            let eventType = '', eventData = ''
-            for (const line of part.split('\n')) {
-              if (line.startsWith('event: ')) eventType = line.slice(7).trim()
-              else if (line.startsWith('data: ')) eventData = line.slice(6)
-            }
-            if (!eventData) continue
-            const data = JSON.parse(eventData) as Record<string, unknown>
-            if (eventType === 'status') setClassifyStatus(`[${doneCount + 1}/${dates.length}] ${data.message as string}`)
-            else if (eventType === 'error') setClassifyStatus(`오류: ${data.message as string}`)
-          }
-        }
-        doneCount++
-      }
-      if (doneCount === dates.length) setClassifyStatus(`✓ ${dates.length}일 분류 완료`)
-    } catch (e) {
-      setClassifyStatus(`오류: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setBusy(false)
-    }
-  }
-
-  async function handleCollectRaw() {
-    if (busy) return
-    setBusy(true)
-    setStatus('준비 중...')
-    try {
-      const res = await fetch('/api/slack/collect-raw', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ from, to }),
-      })
-      if (!res.ok || !res.body) throw new Error(`HTTP ${res.status}`)
-      const reader = res.body.getReader()
-      const decoder = new TextDecoder()
-      let buffer = ''
-      while (true) {
-        const { done, value } = await reader.read()
-        if (done) break
-        buffer += decoder.decode(value, { stream: true })
-        const parts = buffer.split('\n\n')
-        buffer = parts.pop() ?? ''
-        for (const part of parts) {
-          let eventType = '', eventData = ''
-          for (const line of part.split('\n')) {
-            if (line.startsWith('event: ')) eventType = line.slice(7).trim()
-            else if (line.startsWith('data: ')) eventData = line.slice(6)
-          }
-          if (!eventData) continue
-          const data = JSON.parse(eventData) as Record<string, unknown>
-          if (eventType === 'status') setStatus(data.message as string)
-          else if (eventType === 'result') setStatus(`✓ ${data.message as string}`)
-          else if (eventType === 'error') setStatus(`오류: ${data.message as string}`)
-        }
-      }
-    } catch (e) {
-      setStatus(`오류: ${e instanceof Error ? e.message : String(e)}`)
-    } finally {
-      setBusy(false)
-    }
-  }
+  const visibleBrands = useMemo(() => {
+    const q = brandQuery.trim().toLowerCase()
+    if (!q) return brandList
+    return brandList.filter(b => b.name.toLowerCase().includes(q))
+  }, [brandList, brandQuery])
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <p className="text-2xs text-ink-400 leading-relaxed">
-        날짜별 수집 현황을 확인하고 재수집을 실행합니다.
-      </p>
+    <div className="flex flex-col flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+      {/* 기간 + 태그 + 중요도 */}
+      <div className="shrink-0 p-2 space-y-3">
+        <DateRangePanel
+          dateFrom={dateFrom} dateTo={dateTo}
+          onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        />
 
-      <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
-        <div className="flex flex-col gap-1.5">
-          <div className="flex items-center gap-1.5">
-            <span className="text-3xs text-ink-400 w-6 shrink-0">from</span>
-            <input
-              type="date"
-              value={from}
-              onChange={e => setFrom(e.target.value)}
-              disabled={busy}
-              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
-            />
-          </div>
-          <div className="flex items-center gap-1.5">
-            <span className="text-3xs text-ink-400 w-6 shrink-0">to</span>
-            <input
-              type="date"
-              value={to}
-              onChange={e => setTo(e.target.value)}
-              disabled={busy}
-              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
-            />
+        <div>
+          <GroupTitle>태그</GroupTitle>
+          <div className="px-2 flex flex-wrap gap-1.5">
+            {TAG_KEYS.map(t => {
+              const meta = TAG_META[t]
+              const active = selectedTags.has(t)
+              return (
+                <button
+                  key={t}
+                  onClick={() => onToggleTag(t)}
+                  style={{ background: meta.bg, color: meta.color }}
+                  className={`text-3xs font-semibold px-2 py-0.5 rounded transition-opacity ${
+                    selectedTags.size > 0 && !active ? 'opacity-30 hover:opacity-65' : ''
+                  }`}
+                >
+                  {meta.label}
+                </button>
+              )
+            })}
           </div>
         </div>
-        <button
-          onClick={handleCollectRaw}
-          disabled={busy || !from || !to || from > to}
-          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <DatabaseZap size={11} className={busy && !classifyStatus ? 'animate-pulse' : ''} />
-          {busy && !classifyStatus ? 'Raw 수집 중...' : 'Raw 수집'}
-        </button>
-        {status && (
-          <p className="text-3xs text-ink-400 leading-relaxed break-all">{status}</p>
-        )}
+
+        <div>
+          <GroupTitle>중요도</GroupTitle>
+          <div className="px-2 flex flex-wrap gap-1.5">
+            {PRIORITY_KEYS.map(p => {
+              const meta = PRIORITY_META[p]
+              const active = priorityKey === p
+              return (
+                <button
+                  key={p}
+                  onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)}
+                  style={{ background: meta.bg, color: meta.color }}
+                  className={`flex items-center gap-1 text-3xs font-semibold px-2 py-0.5 rounded transition-opacity ${
+                    priorityKey !== 'all' && !active ? 'opacity-30 hover:opacity-65' : ''
+                  }`}
+                >
+                  <PriorityBars priority={p} />
+                  {meta.label}
+                </button>
+              )
+            })}
+          </div>
+        </div>
       </div>
 
-      <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 일괄 재분류</div>
-        <p className="text-3xs text-ink-400 leading-relaxed">위 기간의 raw 메시지를 AI로 순차 재분류합니다.</p>
-        <button
-          onClick={handleBatchReclassify}
-          disabled={busy || !from || !to || from > to}
-          className="flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-lilac-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-        >
-          <Sparkles size={11} className={busy && !!classifyStatus ? 'animate-pulse' : ''} />
-          {busy && !!classifyStatus ? '분류 중...' : 'AI 재분류'}
-        </button>
-        {classifyStatus && (
-          <p className="text-3xs text-ink-400 leading-relaxed break-all">{classifyStatus}</p>
-        )}
-      </div>
+      {/* 브랜드 목록 */}
+      {brandList.length > 0 && (
+        <div className="border-t border-border">
+          <div className="px-4 pt-3 pb-1.5">
+            <GroupTitle>브랜드 {brandList.length}</GroupTitle>
+            <div className="relative">
+              <Search size={11} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
+              <input
+                value={brandQuery}
+                onChange={e => setBrandQuery(e.target.value)}
+                placeholder="브랜드 검색"
+                className="w-full h-7 rounded border border-border bg-background pl-6 pr-2 text-2xs outline-none focus:border-lilac-300"
+              />
+            </div>
+          </div>
+          <div className="px-2 pb-3">
+            {visibleBrands.map(brand => {
+              const active = brandId === brand.name
+              return (
+                <button
+                  key={brand.name}
+                  onClick={() => onBrandChange(active ? 'all' : brand.name)}
+                  className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
+                >
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(brand.name) }} />
+                  <span className="flex-1 truncate text-left">{brand.name}</span>
+                  <span className="text-xs text-ink-400">{brand.count}</span>
+                </button>
+              )
+            })}
+          </div>
+        </div>
+      )}
     </div>
   )
 }
+
