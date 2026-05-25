@@ -7,6 +7,7 @@ import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_KEYS, TAG_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
+import { toKSTDate } from '@/lib/history-query-utils'
 
 interface Props {
   items: HistoryItem[]
@@ -20,10 +21,6 @@ interface Props {
   onSelectBrand: (brand: string) => void
   onClearFilters: () => void
   onCreateTask?: (item: HistoryItem) => void
-}
-
-function toKstDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
 }
 
 function shortDateLabel(ymd: string): string {
@@ -44,7 +41,7 @@ function tagCounts(items: HistoryItem[]): Partial<Record<Tag, number>> {
 function groupByDate(items: HistoryItem[]) {
   const map = new Map<string, HistoryItem[]>()
   for (const item of items) {
-    const date = toKstDate(item.occurred_at)
+    const date = toKSTDate(item.occurred_at)
     const group = map.get(date)
     if (group) group.push(item)
     else map.set(date, [item])

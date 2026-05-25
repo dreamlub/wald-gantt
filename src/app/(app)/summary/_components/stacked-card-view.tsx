@@ -10,14 +10,10 @@ import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_META, TAG_KEYS } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
+import { toKSTDate } from '@/lib/history-query-utils'
 
 const PEEK_H   = 34   // 뒤 카드 헤더 높이 (px)
 const MAX_PEEK = 4    // 최대 표시 peek 개수
-
-// ── 유틸 ─────────────────────────────────────────────────────────
-function kstDate(iso: string) {
-  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
-}
 
 function fmtShort(ymd: string) {
   try { return format(new Date(ymd + 'T00:00:00'), 'M/d (eee)', { locale: ko }) }
@@ -35,7 +31,7 @@ function tagCounts(items: HistoryItem[]): Partial<Record<Tag, number>> {
 function groupByDate(items: HistoryItem[]) {
   const map = new Map<string, HistoryItem[]>()
   for (const item of items) {
-    const d = kstDate(item.occurred_at)
+    const d = toKSTDate(item.occurred_at)
     if (!map.has(d)) map.set(d, [])
     map.get(d)!.push(item)
   }

@@ -1,31 +1,47 @@
 # Wald Gantt — 개발 로그
 
-## 최근 변경 (2026-05-26) — 500줄 규칙 적용: 대형 파일 분리 + 중복 제거
+## 최근 변경 (2026-05-26) — 코드 품질 정리 (500줄 분리 / 마이그레이션 추적 / 에러 처리)
 
-### 1. GanttChart.tsx 분리 (967줄 → 499줄)
-- `_GanttConstants.ts` — 상수 + ViewMode 타입 (18줄)
-- `_useGanttDnd.ts` — DnD state + handlers 훅 (133줄)
-- `_useBarDrag.ts` — 바 드래그/리사이즈 훅 (147줄)
-- `_useGanttScroll.ts` — 스크롤 동기화 + 휠 핸들러 (71줄)
-- `_useGanttViewData.ts` — 뷰 파생 값 (그리드, today 계산) (91줄)
-- `_GanttTimelineHeader.tsx` — 달력 헤더 컴포넌트 (104줄)
-- `_CategoryAddDialog.tsx` — 카테고리 추가 모달 (62줄)
+### 1. `daily-report-view.tsx` 500줄 분리
+- `ActionDetailDrawer`, `RelatedItemCard`, `BodyBullets` 등 드로어 관련 코드 → `_action-detail-drawer.tsx` 신규 파일 추출
+- `daily-report-view.tsx` 602줄 → 277줄 / `_action-detail-drawer.tsx` 273줄
 
-### 2. history-sidebar.tsx 분리 (719줄 → 314줄)
-- `_sidebar-date-panels.tsx` — MonthGridSection, DateRangePanel, SidebarDatePicker (262줄)
-- `_raw-data-sidebar.tsx` — RawDataSidebarPanel (179줄)
+### 2. 마이그레이션 미추적 DB 오브젝트 추가
+- `supabase/migrations/20260526000001_add_missing_rpc_and_tables.sql` 신규
+  - `client_history_summaries` 테이블: 재분류 시 이전 분류 결과 아카이브용
+  - `get_raw_messages_by_date(p_workspace_id, p_date)` RPC: KST 날짜 기준 raw 메시지 조회
+  - `get_thread_reply_raw_ids(p_workspace_id)` RPC: 스레드 답글 raw ID 목록 조회
 
-### 3. gantt-service.ts 분리 (684줄 → 302줄)
-- `task-service.ts` — Tasks, 반복 태스크, Bulk, Time Blocking, Search, Archive (358줄)
-- 14개 외부 파일 import 경로 수정
+### 3. `reclassify` 아카이브 에러 무시 수정
+- `client_history_summaries` insert 결과를 체크하지 않던 버그 수정
+- 실패 시 SSE로 경고 메시지 전송 후 계속 진행
 
-### 4. TrashPanel 중복 제거 (270줄 → 235줄)
-- `trash-drawer.tsx` — Generic TrashDrawer 공통 컴포넌트 신규 (135줄)
-- `TrashPanel.tsx` 136줄 → 50줄 (래퍼)
-- `TaskTrashPanel.tsx` 134줄 → 50줄 (래퍼)
-- 중복 코드 ~65줄 제거
+### 4. `history-sidebar.tsx` 워트리 충돌 해결
+- 다른 에이전트가 master에서 분리한 버전을 워트리에 반영
 
-**변경 파일 합계**: 신규 12개, 수정 16개 | tsc 전체 통과
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-26) — Summary 타임존 처리 통일
+
+### 1. KST 변환 `toKSTDate()` 유틸로 통일
+
+- **문제**: Summary 컴포넌트 5개 파일에서 KST 변환 방식이 제각각 사용됨
+  - `new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })` (3개 파일)
+  - `new Date(utc).getTime() + 9 * 60 * 60 * 1000` (1개 파일)
+  - 로컬 함수 중복 정의 (2개 파일)
+- **수정**: 모두 `@/lib/history-query-utils`의 `toKSTDate()` import로 교체
+  - `stacked-card-view.tsx` — 로컬 `kstDate()` 제거
+  - `brand-daily-list-view.tsx` — 로컬 `toKstDate()` 제거
+  - `history-sidebar.tsx` — `toLocaleDateString('sv-SE', ...)` 3곳 교체
+  - `daily-report-view.tsx` — `kstDateLabel()` 내부 구현을 `toKSTDate()` 기반으로 교체 (출력 포맷 `YYYY/M/D` 유지)
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
 
 ## 최근 변경 (2026-05-25) — Summary 뷰 전면 리팩터 + 파이프라인 정렬
 
