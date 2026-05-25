@@ -36,6 +36,7 @@ import {
 
 import type { HistoryPage } from '@/lib/history-service'
 import { brandColor } from '@/lib/history-service'
+import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   initialClients: Client[]
@@ -62,6 +63,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
   const [cardMode,     setCardMode]     = useState(false)
+  const [reportDates,  setReportDates]  = useState<Set<string>>(new Set())
+  const reportInitRef = useRef(false)
   const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
@@ -130,6 +133,25 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
+
+  // ── Daily Report: 리포트 날짜 목록 조회 + 초기 날짜 자동 설정 ─
+  useEffect(() => {
+    if (view !== 'dailyreport') return
+    if (reportInitRef.current) return
+    reportInitRef.current = true
+    ;(async () => {
+      const sb = createClient()
+      const { data } = await sb
+        .from('daily_reports')
+        .select('report_date')
+        .order('report_date', { ascending: false })
+      if (!data?.length) return
+      setReportDates(new Set(data.map(r => r.report_date as string)))
+      // dateFrom이 없거나 오늘 날짜면 → 최신 리포트 날짜로 자동 이동
+      setDateFrom(prev => (!prev || prev === todayStr()) ? (data[0].report_date as string) : prev)
+      setDateTo(prev => (!prev || prev === todayStr()) ? (data[0].report_date as string) : prev)
+    })()
+  }, [view])
 
   // ── 생성 다이얼로그 ────────────────────────────────────────────
   const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
@@ -266,6 +288,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           onToggleDailyBrand={toggleDailyBrand}
           onToggleDailyTag={toggleDailyTag}
           onToggleDailyPriority={toggleDailyPriority}
+          reportDates={reportDates}
         />
       </div>
 

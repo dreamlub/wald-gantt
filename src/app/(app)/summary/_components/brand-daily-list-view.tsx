@@ -33,6 +33,15 @@ function shortDateLabel(ymd: string): string {
     + ` ${dow}요일`
 }
 
+function shortTime(iso: string): string {
+  return new Intl.DateTimeFormat('ko-KR', {
+    timeZone: 'Asia/Seoul',
+    hour: '2-digit',
+    minute: '2-digit',
+    hour12: false,
+  }).format(new Date(iso))
+}
+
 function tagCounts(items: HistoryItem[]): Partial<Record<Tag, number>> {
   const counts: Partial<Record<Tag, number>> = {}
   for (const item of items) {
@@ -133,6 +142,17 @@ function HistoryRow({
           {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
         </span>
         <p className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">{item.title}</p>
+        <span className="shrink-0 text-3xs text-ink-400 tabular-nums">{shortTime(item.occurred_at)}</span>
+        {item.thread_count > 0 && (
+          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-lilac-100 text-lilac-600 font-semibold">
+            스레드 {item.thread_count}
+          </span>
+        )}
+        {item.reclassified_at && (
+          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-amber-100 text-amber-700 font-semibold">
+            업데이트됨
+          </span>
+        )}
         {(item.tags ?? []).slice(0, 1).map(tag => {
           const meta = TAG_META[tag]
           return (
@@ -153,8 +173,7 @@ function HistoryRow({
           {item.body && <p className="text-2xs text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
           <div className="flex items-center gap-2 text-3xs text-ink-400">
             <span className="truncate"># {item.channel}</span>
-            {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
-            <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
+            <div className="ml-auto flex items-center gap-1">
               {item.source_ref && (
                 <a
                   href={item.source_ref}

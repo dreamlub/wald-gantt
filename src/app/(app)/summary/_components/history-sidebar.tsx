@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useState, useEffect } from 'react'
 import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -74,6 +74,8 @@ interface Props {
   onToggleDailyBrand: (b: string) => void
   onToggleDailyTag: (t: Tag) => void
   onToggleDailyPriority: (p: Priority) => void
+  // 리포트가 존재하는 날짜 집합 (캘린더 dot 구분용)
+  reportDates?: Set<string>
 }
 
 
@@ -86,6 +88,7 @@ export function HistorySidebar({
   brandId, onBrandChange,
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
+  reportDates,
 }: Props) {
   const tagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) tagCounts[t] = 0
@@ -150,33 +153,27 @@ export function HistorySidebar({
   }
 
   if (view === 'dailyreport') {
+    // 브랜드 목록: 날짜 기준 raw data에서 추출 (필터 UI 표시용, 카운트는 표시 안 함)
     const selectedDate = dateFrom || dateStr(new Date())
     const dayItems = history.filter(h =>
       new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }) === selectedDate
     )
-    const dayTagCounts: Record<string, number> = {}
-    for (const t of TAG_KEYS) dayTagCounts[t] = 0
-    for (const h of dayItems) for (const t of h.tags ?? []) dayTagCounts[t] = (dayTagCounts[t] ?? 0) + 1
-
-    const brandCounts: Record<string, number> = {}
-    for (const h of dayItems) {
-      const b = h.brand_name ?? '미분류'
-      brandCounts[b] = (brandCounts[b] ?? 0) + 1
-    }
-    const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+    const brandSet = new Map<string, true>()
+    for (const h of dayItems) brandSet.set(h.brand_name ?? '미분류', true)
+    const dayBrands = [...brandSet.keys()]
 
     return (
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <MonthGridSection
           dateFrom={dateFrom} history={history}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+          reportDates={reportDates}
         />
 
+        {/* 중요도 필터 — 항상 3개 표시, raw 카운트 없음 */}
         <div className="mt-3">
-          <GroupTitle>전체 {dayItems.length}건</GroupTitle>
+          <GroupTitle>중요도</GroupTitle>
           {PRIORITY_KEYS.map(p => {
-            const dayPriCount = dayItems.filter(h => h.priority === p).length
-            if (dayPriCount === 0) return null
             const meta = PRIORITY_META[p]
             const active = dailyPriorities.has(p)
             return (
@@ -184,17 +181,15 @@ export function HistorySidebar({
                 <PriorityBars priority={p} />
                 <span className="flex-1 truncate text-left">{meta.label}</span>
                 {active && <Check size={12} className="shrink-0" />}
-                <span className="text-xs text-ink-400">{dayPriCount}</span>
               </button>
             )
           })}
         </div>
 
+        {/* 태그 필터 — 항상 전체 표시, raw 카운트 없음 */}
         <div className="mt-3">
           <GroupTitle>태그</GroupTitle>
           {TAG_KEYS.map(t => {
-            const count = dayTagCounts[t] ?? 0
-            if (count === 0) return null
             const meta = TAG_META[t]
             const active = dailyTags.has(t)
             return (
@@ -202,28 +197,26 @@ export function HistorySidebar({
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
                 <span className="flex-1 truncate text-left">{meta.label}</span>
                 {active && <Check size={12} className="shrink-0" />}
-                <span className="text-xs text-ink-400">{count}</span>
               </button>
             )
           })}
         </div>
 
-        {topBrands.length > 0 && (
+        {/* 브랜드 필터 — raw 카운트 없이 목록만 */}
+        {dayBrands.length > 0 && (
           <div className="mt-3">
             <GroupTitle>브랜드</GroupTitle>
-            {topBrands.map(([name, count]) => {
+            {dayBrands.map(name => {
               const active = dailyBrands.has(name)
-              const color = brandColor(name)
               return (
                 <button
                   key={name}
                   onClick={() => onToggleDailyBrand(name)}
                   className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(name) }} />
                   <span className="flex-1 truncate text-left">{name}</span>
                   {active && <Check size={12} className="shrink-0" />}
-                  <span className="text-xs text-ink-400">{count}</span>
                 </button>
               )
             })}
@@ -291,9 +284,10 @@ export function HistorySidebar({
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
 
-function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange }: {
+function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange, reportDates }: {
   dateFrom: string; history: HistoryItem[]
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
+  reportDates?: Set<string>
 }) {
   const today = new Date()
   const todayYmd = dateStr(today)
@@ -303,6 +297,17 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
 
   const [calYear, setCalYear]   = useState(() => dateFrom ? parseInt(dateFrom.slice(0, 4)) : todayY)
   const [calMonth, setCalMonth] = useState(() => dateFrom ? parseInt(dateFrom.slice(5, 7)) - 1 : todayM)
+
+  // dateFrom 외부 변경(자동 이동 등) 시 캘린더 월 동기화
+  useEffect(() => {
+    if (!dateFrom) return
+    const y = parseInt(dateFrom.slice(0, 4))
+    const m = parseInt(dateFrom.slice(5, 7)) - 1
+    /* eslint-disable react-hooks/set-state-in-effect */
+    setCalYear(y)
+    setCalMonth(m)
+    /* eslint-enable react-hooks/set-state-in-effect */
+  }, [dateFrom])
 
   // 일별 카운트 (점 표시) — KST 기준
   const dayCounts = (() => {
@@ -393,6 +398,7 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
           const isToday    = ymd === todayYmd
           const isFuture   = d.getTime() > todayMs
           const hasItems   = (dayCounts[ymd] ?? 0) > 0
+          const hasReport  = reportDates?.has(ymd) ?? false
 
           let colorClass = ''
           if (isFuture) colorClass = 'text-ink-200'
@@ -419,10 +425,14 @@ function MonthGridSection({ dateFrom, history, onDateFromChange, onDateToChange 
               {isToday && !isSelected && (
                 <span className="absolute -top-0.5 right-1 text-5xs font-bold text-lilac-500 leading-none">·</span>
               )}
-              {hasItems && (
+              {(hasItems || hasReport) && (
                 <span className={[
                   'absolute bottom-0.5 w-1 h-1 rounded-full',
-                  isSelected ? 'bg-white/70' : 'bg-current opacity-40',
+                  isSelected
+                    ? 'bg-white/70'
+                    : hasReport
+                      ? 'bg-lilac-500'          // 리포트 있는 날: 진한 lilac
+                      : 'bg-current opacity-40', // raw data만 있는 날: 연한 dot
                 ].join(' ')} />
               )}
             </button>
