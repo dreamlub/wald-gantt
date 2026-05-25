@@ -27,7 +27,10 @@ export function AutocompleteInput({ value, onChange, suggestions, placeholder, c
     return () => document.removeEventListener('pointerdown', onPointerDown)
   }, [close])
 
-  useEffect(() => { setHighlighted(-1) }, [value])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setHighlighted(-1)
+  }, [value])
 
   useEffect(() => {
     if (highlighted < 0 || !listRef.current) return

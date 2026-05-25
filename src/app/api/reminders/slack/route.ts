@@ -2,10 +2,6 @@ import { createClient } from '@supabase/supabase-js'
 import { WebClient } from '@slack/web-api'
 import type { Block, KnownBlock } from '@slack/web-api'
 
-// 단일 사용자 개인 툴 — 워크스페이스/슬랙 ID 고정
-const WORKSPACE_ID = '07428e7d-3251-41d7-a83a-96deeab483ab'
-const SLACK_USER_ID = 'U09H44MEK5Z'
-
 const PRIORITY_FLAG: Record<number, string> = { 3: '🔺 ', 2: '', 1: '', 0: '' }
 
 interface Task {
@@ -92,13 +88,27 @@ function buildBlocks(
 }
 
 export async function GET(req: Request) {
-  // Vercel Cron 인증 (CRON_SECRET 미설정이면 로컬 테스트로 간주)
+  const cronSecret = process.env.CRON_SECRET
+  if (!cronSecret) {
+    return Response.json({ error: 'CRON_SECRET 미설정' }, { status: 500 })
+  }
+
+  // Vercel Cron 인증
   const auth = req.headers.get('authorization')
-  if (process.env.CRON_SECRET && auth !== `Bearer ${process.env.CRON_SECRET}`) {
+  if (auth !== `Bearer ${cronSecret}`) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // chat:write 권한이 있는 유저 토큰 사용 (봇 토큰은 chat:write 스코프 없음)
+  const workspaceId = process.env.REMINDER_WORKSPACE_ID
+  const reminderChannelId = process.env.SLACK_REMINDER_CHANNEL_ID
+  if (!workspaceId || !reminderChannelId) {
+    return Response.json(
+      { error: 'REMINDER_WORKSPACE_ID 또는 SLACK_REMINDER_CHANNEL_ID 미설정' },
+      { status: 500 }
+    )
+  }
+
+  // chat:write 권한이 있는 토큰 사용
   const botToken = process.env.SLACK_USER_TOKEN ?? process.env.SLACK_BOT_TOKEN
   if (!botToken) {
     return Response.json({ error: 'SLACK_USER_TOKEN 또는 SLACK_BOT_TOKEN 미설정' }, { status: 500 })
@@ -115,7 +125,7 @@ export async function GET(req: Request) {
   const tomorrow = tomorrowKST()
 
   const { data: tasks, error } = await sb.rpc('get_reminder_tasks', {
-    p_workspace_id: WORKSPACE_ID,
+    p_workspace_id: workspaceId,
   })
 
   if (error) {
@@ -137,7 +147,7 @@ export async function GET(req: Request) {
 
   const slack = new WebClient(botToken)
   await slack.chat.postMessage({
-    channel: SLACK_USER_ID,
+    channel: reminderChannelId,
     text: `📋 태스크 리마인더 — ${fmtKSTDate(today)}`,
     blocks,
   })

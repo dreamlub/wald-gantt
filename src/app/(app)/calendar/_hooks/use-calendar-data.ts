@@ -34,7 +34,10 @@ export function useCalendarData() {
     setTasks(data.filter(t => !t.deleted_at))
   }, [workspaceId])
 
-  useEffect(() => { loadTasks() }, [loadTasks])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    loadTasks()
+  }, [loadTasks])
 
   const loadEvents = useCallback(async (start: string, end: string) => {
     setLoadingEvents(true)

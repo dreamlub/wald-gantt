@@ -33,14 +33,6 @@ export function TaskBlock({
   onMove, onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
-  const [highlighted, setHighlighted] = useState(highlight)
-
-  useEffect(() => {
-    if (!highlight) return
-    setHighlighted(true)
-    const t = setTimeout(() => setHighlighted(false), 1200)
-    return () => clearTimeout(t)
-  }, [highlight])
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
   const startHeight  = useRef(0)

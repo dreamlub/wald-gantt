@@ -21,6 +21,13 @@ import { DailyReportView } from './daily-report-view'
 import { ThreadTimelineView } from './thread-timeline-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
+import { FilterChip } from './filter-chip'
+import {
+  PAGE_INIT, pageReducer,
+  parsePriority, parseTags, parseView, presetDates, todayStr,
+  type ViewKey,
+} from './history-shell-state'
+import { filterHistoryItems } from '@/lib/history-query-utils'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import {
@@ -30,51 +37,6 @@ import {
 
 import type { HistoryPage } from '@/lib/history-service'
 import { brandColor } from '@/lib/history-service'
-
-interface PageState {
-  items: HistoryItem[]
-  cursor: string | null
-  total: number
-  loading: boolean
-  hasMore: boolean
-  brandCounts: Record<string, number>
-}
-
-type PageAction =
-  | { type: 'reset' }
-  | { type: 'loading' }
-  | { type: 'loaded'; page: HistoryPage; append: boolean }
-
-function pageReducer(state: PageState, action: PageAction): PageState {
-  switch (action.type) {
-    case 'reset': return { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
-    case 'loading': return { ...state, loading: true }
-    case 'loaded': return {
-      items: action.append ? [...state.items, ...action.page.items] : action.page.items,
-      cursor: action.page.nextCursor,
-      total: action.page.total,
-      loading: false,
-      hasMore: !!action.page.nextCursor,
-      brandCounts: action.append ? state.brandCounts : (action.page.brandCounts ?? {}),
-    }
-  }
-}
-
-const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
-
-type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
-
-const VALID_VIEWS:     readonly ViewKey[]    = ['dailylist', 'weeklylist', 'dailyreport', 'summary', 'rawdata', 'timeline', 'calendar']
-// 'summary' deprecated
-const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
-const VALID_TAGS:       readonly Tag[]       = ['issue', 'decision', 'mention', 'schedule']
-
-function parseView(v: string | null): ViewKey        { return VALID_VIEWS.includes(v as ViewKey)             ? (v as ViewKey)        : 'dailyreport'    }
-function parsePriority(v: string | null): PriorityKey{ return VALID_PRIORITIES.includes(v as PriorityKey)    ? (v as PriorityKey)    : 'all'      }
-function parseTags(v: string | null): Set<Tag> {
-  if (!v) return new Set()
-  return new Set(v.split(',').filter((t): t is Tag => VALID_TAGS.includes(t as Tag)))
-}
 
 interface Props {
   initialClients: Client[]
@@ -89,24 +51,6 @@ const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Newspaper }[] = [
   { key: 'timeline',    label: 'Timeline',     icon: GitMerge },
   { key: 'calendar',    label: 'Calendar',     icon: CalendarDays },
 ]
-
-function presetDates(preset: 'today' | 'week' | 'month' | 'all'): { from: string; to: string } {
-  const now = new Date()
-  function fmt(d: Date) {
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
-  const today = fmt(now)
-  if (preset === 'today') return { from: today, to: today }
-  if (preset === 'week') {
-    const week = new Date(now.getTime() - 6 * 24 * 60 * 60 * 1000)
-    return { from: fmt(week), to: today }
-  }
-  if (preset === 'month') {
-    const month = new Date(now.getFullYear(), now.getMonth() - 1, now.getDate())
-    return { from: fmt(month), to: today }
-  }
-  return { from: '', to: '' }
-}
 
 export function HistoryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
@@ -127,6 +71,8 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
+  const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
+  const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
   const [dailyTags,       setDailyTags]       = useState<Set<Tag>>(new Set())
   const [dailyPriorities, setDailyPriorities] = useState<Set<Priority>>(new Set())
@@ -177,11 +123,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
-
-  function todayStr() {
-    const d = new Date()
-    return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
-  }
 
   // ── 생성 다이얼로그 ────────────────────────────────────────────
   const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
@@ -281,35 +222,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     })
   }
 
-  const filtered = useMemo(() => {
-    const fromMs = dateFrom ? new Date(dateFrom + 'T00:00:00').getTime() : 0
-    const toMs   = dateTo   ? new Date(dateTo   + 'T23:59:59').getTime() : Number.MAX_SAFE_INTEGER
-    let list = initialHistory.filter(h => {
-      const t = new Date(h.occurred_at).getTime()
-      return t >= fromMs && t <= toMs
-    })
-    // 태그: AND — 선택된 모든 태그를 포함해야 함
-    if (selectedTags.size > 0) {
-      list = list.filter(h => {
-        const has = new Set(h.tags ?? [])
-        for (const t of selectedTags) if (!has.has(t)) return false
-        return true
-      })
-    }
-    if (brandId !== 'all')     list = list.filter(h => h.brand_name === brandId)
-    if (priorityKey !== 'all') list = list.filter(h => h.priority === priorityKey)
-    if (authorKey !== 'all')   list = list.filter(h => h.author === authorKey)
-    if (searchQuery.trim()) {
-      const q = searchQuery.toLowerCase()
-      list = list.filter(h =>
-        h.title.toLowerCase().includes(q) ||
-        (h.body ?? '').toLowerCase().includes(q) ||
-        h.channel.toLowerCase().includes(q) ||
-        (h.author ?? '').toLowerCase().includes(q)
-      )
-    }
-    return list.sort((a, b) => b.occurred_at.localeCompare(a.occurred_at))
-  }, [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
+  const filtered = useMemo(() => filterHistoryItems(initialHistory, {
+    dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery,
+  }), [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -455,7 +370,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                     <span className="shrink-0">
                       {view === 'dailylist'
                         ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
-                        : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
+                        : view === 'weeklylist'
+                          ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
+                          : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
                     </span>
                     {brandId !== 'all' && (
@@ -494,6 +411,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
                   brandCounts={pg.brandCounts}
+                  activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
                   onToggleTag={toggleTag}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -509,6 +427,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  onCountChange={handleWeeklyCountChange}
                 />
               )}
               {view === 'summary' && (
@@ -575,21 +494,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         }}
       />
     </div>
-  )
-}
-
-function FilterChip({ children, onClear }: { children: React.ReactNode; onClear: () => void }) {
-  return (
-    <span className="inline-flex items-center gap-1 text-2xs px-2 py-[3px] rounded-full bg-foreground text-background whitespace-nowrap shrink-0">
-      {children}
-      <button
-        onClick={onClear}
-        className="ml-0.5 -mr-0.5 opacity-60 hover:opacity-100 transition-opacity"
-        title="필터 해제"
-      >
-        <X size={10} />
-      </button>
-    </span>
   )
 }
 

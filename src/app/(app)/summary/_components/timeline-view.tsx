@@ -77,9 +77,10 @@ interface Props {
   dateFrom?: string
   dateTo?: string
   onSelectBrand: (id: string) => void
+  onCountChange?: (total: number, filtered: number) => void
 }
 
-export function TimelineView({ dateFrom, dateTo, onSelectBrand }: Props) {
+export function TimelineView({ dateFrom, dateTo, onSelectBrand, onCountChange }: Props) {
   const [rows, setRows]               = useState<WeeklyBrandSummary[]>([])
   const [loading, setLoading]         = useState(true)
   const [activeBrand, setActiveBrand] = useState<string | null>(null)
@@ -104,13 +105,17 @@ export function TimelineView({ dateFrom, dateTo, onSelectBrand }: Props) {
       .select('*')
       .eq('workspace_id', member.workspace_id)
       .order('week_start', { ascending: false })
+      .limit(10000)
 
-    if (error) { console.error(error); return }
+    if (error) return
     setRows((data ?? []) as WeeklyBrandSummary[])
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchSummaries() }, [fetchSummaries])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSummaries()
+  }, [fetchSummaries])
 
   const allBrandCounts = useMemo(() => {
     const counts = new Map<string, number>()
@@ -145,6 +150,10 @@ export function TimelineView({ dateFrom, dateTo, onSelectBrand }: Props) {
       return sortDir === 'desc' ? -cmp : cmp
     })
   }, [rows, activeBrand, dateFrom, dateTo, sortKey, sortDir])
+
+  useEffect(() => {
+    onCountChange?.(rows.length, filtered.length)
+  }, [rows.length, filtered.length, onCountChange])
 
   function toggleSort(key: SortKey) {
     if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')

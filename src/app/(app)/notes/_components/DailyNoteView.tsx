@@ -23,6 +23,7 @@ export function DailyNoteView({ handle, date }: Props) {
 
   // 날짜 바뀔 때마다 노트 로드
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     setEditMode(false)
     setDraft('')

@@ -12,7 +12,7 @@ import { createClient } from '@/lib/supabase/client'
 
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META, TAG_META } from '../_lib/mock-data'
-import { PriorityBars } from './badges'
+import { PriorityBars, BrandBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { brandColor } from '@/lib/history-service'
 
@@ -80,14 +80,6 @@ const PRI_CLS: Record<Priority, string> = {
 }
 const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', low: '낮음' }
 
-function BrandBadge({ brandName }: { brandName: string }) {
-  return (
-    <span className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(brandName) }} />
-      {brandName}
-    </span>
-  )
-}
 
 function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; title: string; count: number }) {
   return (
@@ -239,12 +231,13 @@ function ActionDetailDrawer({
   useEffect(() => {
     if (!item || !open) return
     let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
 
     ;(async () => {
       const sb = createClient()
 
-      // occurred_at은 KST 자정(UTC -9h)으로 저장되므로 +09:00 기준으로 비교
+      // occurred_at은 UTC로 저장하고, 조회 범위만 KST 날짜 경계(+09:00)로 비교한다.
       const [y, mo, d] = date.split('-').map(Number)
       const nextDate = new Date(y, mo - 1, d + 1)
       const nextDay = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`
@@ -566,7 +559,10 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     setLoading(false)
   }, [selectedDate])
 
-  useEffect(() => { fetchReport() }, [fetchReport])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchReport()
+  }, [fetchReport])
 
   const dateLabel = useMemo(() => {
     try {

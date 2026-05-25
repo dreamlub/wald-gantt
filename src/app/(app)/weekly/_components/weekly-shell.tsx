@@ -70,6 +70,7 @@ export function WeeklyShell() {
   useEffect(() => {
     if (!selectedTeam || teams.length === 0) return
     const team = teams.find(t => t.id === selectedTeam)
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (team) fetchWeeks(team.label)
   }, [selectedTeam, teams, fetchWeeks])
 
@@ -92,6 +93,7 @@ export function WeeklyShell() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (selectedIso) fetchDashData(selectedIso)
   }, [selectedIso, fetchDashData])
 

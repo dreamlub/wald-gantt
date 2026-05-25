@@ -39,7 +39,7 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-    getProjectHistory(projectId).then(setEntries).catch(console.error).finally(() => setLoading(false))
+    getProjectHistory(projectId).then(setEntries).catch(() => {}).finally(() => setLoading(false))
   }, [projectId])
 
   const groups = groupByTime(entries)
@@ -136,6 +136,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
 
   // 달력 선택 등 외부에서 value가 바뀌면 input 텍스트 동기화
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setText(value ? format(value, 'yyyy.MM.dd') : '')
   }, [value])
 

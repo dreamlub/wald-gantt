@@ -43,17 +43,13 @@ export function RawDataView() {
       .single()
     if (!member) return
 
-    const [histRes, rawRes] = await Promise.all([
-      sb
-        .from('client_history')
-        .select('occurred_at, updated_at')
-        .eq('workspace_id', member.workspace_id)
-        .is('deleted_at', null),
-      sb.rpc('get_raw_message_stats', { p_workspace_id: member.workspace_id }),
+    const [rawRes, histRes] = await Promise.all([
+      sb.rpc('get_raw_message_stats',  { p_workspace_id: member.workspace_id }),
+      sb.rpc('get_classified_stats',   { p_workspace_id: member.workspace_id }),
     ])
 
+    const rawData  = rawRes.data  ?? []
     const histData = histRes.data ?? []
-    const rawData  = rawRes.data ?? []
 
     // slack_raw_messages → 날짜별 집계 (RPC 결과, 이미 서버에서 그룹화됨)
     const rawMap = new Map<string, { count: number; channelCount: number; lastCollected: string }>()
@@ -65,24 +61,19 @@ export function RawDataView() {
       })
     }
 
-    // client_history → 날짜별 분류 수 (occurred_at은 UTC이므로 KST +9h로 변환)
-    const toKSTDate = (utc: string) => new Date(new Date(utc).getTime() + 9 * 3600_000).toISOString().slice(0, 10)
+    // client_history → 날짜별 분류 수 (RPC에서 이미 KST 기준 집계)
     const histMap = new Map<string, { count: number; lastUpdated: string }>()
-    for (const row of histData) {
-      const date = toKSTDate(row.occurred_at)
-      const existing = histMap.get(date)
-      if (!existing) {
-        histMap.set(date, { count: 1, lastUpdated: row.updated_at ?? row.occurred_at })
-      } else {
-        existing.count++
-        if ((row.updated_at ?? '') > existing.lastUpdated) existing.lastUpdated = row.updated_at ?? row.occurred_at
-      }
+    for (const row of histData as { date_kst: string; classified_count: number; last_updated: string }[]) {
+      histMap.set(row.date_kst, {
+        count: Number(row.classified_count),
+        lastUpdated: row.last_updated ?? '',
+      })
     }
 
     // 두 맵 병합 + 미수집 날짜 채우기 (2026-01-01 ~ 오늘)
     const allDates = new Set([...rawMap.keys(), ...histMap.keys()])
     const today = new Date(); today.setHours(0, 0, 0, 0)
-    const cur = new Date('2026-01-01T00:00:00')
+    const cur = new Date(new Date().getFullYear(), 0, 1)
     while (cur <= today) {
       allDates.add(`${cur.getFullYear()}-${String(cur.getMonth() + 1).padStart(2, '0')}-${String(cur.getDate()).padStart(2, '0')}`)
       cur.setDate(cur.getDate() + 1)
@@ -97,7 +88,7 @@ export function RawDataView() {
           rawCount:     raw?.count ?? 0,
           classified:   hist?.count ?? 0,
           channelCount: raw?.channelCount ?? 0,
-          lastCollectedAt: raw?.lastCollected || hist?.lastUpdated || null,
+          lastCollectedAt: raw?.lastCollected || (hist?.lastUpdated ?? null),
         }
       })
       .sort((a, b) => b.date.localeCompare(a.date))
@@ -106,7 +97,10 @@ export function RawDataView() {
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchStats() }, [fetchStats])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchStats()
+  }, [fetchStats])
 
   async function runSSE(
     url: string, date: string,
@@ -146,7 +140,6 @@ export function RawDataView() {
       }
       await fetchStats()
     } catch (e) {
-      console.error(`[${tag}]`, e)
     } finally {
       setState(prev => { const next = { ...prev }; delete next[date]; return next })
     }

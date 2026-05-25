@@ -184,7 +184,7 @@ client_history (
    태그(다중): issue / decision / mention / in_progress / done / schedule
    중요도: high / medium / low
    작성자: 이름만 표기
-   occurred_at: 슬랙 메시지의 일시 그대로 저장 (YYYY-MM-DDTHH:MM:SS+09:00)
+   occurred_at: 슬랙 메시지의 Unix timestamp를 UTC ISO 문자열로 변환해 저장 (`toISOString()` 기준)
 4. title 30자, body • 3줄 개조식
 5. source_id = 슬랙 ts 그대로, source_ref = 메시지 단위 URL
 6. type = 'slack'

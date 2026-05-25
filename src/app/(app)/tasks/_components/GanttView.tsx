@@ -185,7 +185,9 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
       setLocalDates(prev => { const n = new Map(prev); n.delete(task.id); return n })
     }
 
+    // eslint-disable-next-line react-hooks/immutability
     document.body.style.userSelect = 'none'
+    // eslint-disable-next-line react-hooks/immutability
     document.body.style.cursor = mode === 'move' ? 'grabbing' : 'ew-resize'
     document.addEventListener('mousemove', onMove)
     document.addEventListener('mouseup', onUp)

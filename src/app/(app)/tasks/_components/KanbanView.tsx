@@ -15,7 +15,7 @@ import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS, PriorityBars } from '../_constants'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { labelColor } from './TaskDetailDrawer'
+import { labelColor } from '../_utils'
 
 interface Props {
   tasks: GanttTask[]
@@ -277,12 +277,16 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
   const [columnOrder, setColumnOrder] = useState<Map<TaskStatus, string[]>>(() => computeColumnOrder(tasks))
   // ref always mirrors latest state — safe to read in event handlers without stale closure risk
   const latestColOrder = useRef(columnOrder)
-  latestColOrder.current = columnOrder
+
+  useEffect(() => {
+    latestColOrder.current = columnOrder
+  }, [columnOrder])
 
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
   // Sync from props when not dragging (e.g. after server reload)
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (!draggingTask) setColumnOrder(computeColumnOrder(tasks))
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [tasks])

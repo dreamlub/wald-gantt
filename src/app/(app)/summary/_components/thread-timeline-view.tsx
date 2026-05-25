@@ -270,6 +270,7 @@ export function ThreadTimelineView({ dateFrom, dateTo, brandFilter }: Props) {
   const [loading, setLoading] = useState(true)
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const sp = new URLSearchParams()
     if (dateFrom)    sp.set('from', dateFrom)

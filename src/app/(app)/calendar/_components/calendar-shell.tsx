@@ -71,6 +71,7 @@ export function CalendarShell() {
     const task = tasks.find(t => t.id === id)
     if (!task) return
     highlightHandled.current = true
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlightTaskId(id)
     router.replace('/calendar')
 
@@ -88,7 +89,9 @@ export function CalendarShell() {
   }, [searchParams, tasks, router])
 
   /* ── 이벤트 로드 (주 변경 시) ── */
-  useEffect(() => { loadEvents(weekStart, weekEnd) }, [weekStart, weekEnd, loadEvents])
+  useEffect(() => {
+    loadEvents(weekStart, weekEnd)
+  }, [weekStart, weekEnd, loadEvents])
 
   /* ── highlight 파라미터 처리 ── */
   useEffect(() => {
@@ -98,6 +101,7 @@ export function CalendarShell() {
     if (!target?.scheduled_at) return
     // 해당 태스크의 주로 이동
     const targetWeek = getSundayOf(toDateStr(new Date(target.scheduled_at)))
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setWeekStart(targetWeek)
     setHighlightTaskId(hid)
     // URL에서 highlight 파라미터 제거

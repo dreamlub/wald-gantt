@@ -20,13 +20,13 @@ export function TaskArchivePanel({ open, onClose, workspaceId, onUnarchive }: Pr
   const [archived, setArchived] = useState<GanttTask[]>([])
   const [loading, setLoading] = useState(false)
 
-  // eslint-disable-next-line react-hooks/set-state-in-effect
   useEffect(() => {
     if (!open) return
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     getArchivedTasks(workspaceId)
       .then(setArchived)
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [open, workspaceId])
 

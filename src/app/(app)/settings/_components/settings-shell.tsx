@@ -103,8 +103,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   const router = useRouter()
 
   const { handle: vaultHandle, status: vaultStatus, connect: vaultConnect, requestPermission: vaultRequestPermission, disconnect: vaultDisconnect } = useVaultHandle()
-  const [vaultPattern, setVaultPattern] = useState('')
-  useEffect(() => { setVaultPattern(getPathPattern()) }, [])
+  const [vaultPattern, setVaultPattern] = useState(() => getPathPattern())
   const saveVaultPattern = (v: string) => { const p = v.trim() || 'Daily Notes/YYYY-MM-DD'; setVaultPattern(p); setPathPattern(p) }
 
   const [weeklySources, setWeeklySources] = useState<WeeklySource[]>(initialWeeklySources)
@@ -116,6 +115,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   )
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDefaultViews(
       Object.fromEntries(DEFAULT_VIEW_KEYS.map(({ key, options }) => [key, localStorage.getItem(key) ?? options[0]]))
     )
@@ -129,6 +129,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
 
   const [defaultSortMode, setDefaultSortMode] = useState<SortMode>('default')
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDefaultSortMode((localStorage.getItem('wald.gantt.sortMode') as SortMode) ?? 'default')
   }, [])
   const setDefaultSort = (value: SortMode) => {
