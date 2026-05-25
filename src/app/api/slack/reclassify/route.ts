@@ -134,7 +134,8 @@ export async function POST(req: NextRequest) {
                 occurred_at: tsToISO(rj.ts),
                 reclassified_at: now,
               }
-            } catch {
+            } catch (e) {
+              console.error(`[reclassify] classify error (${rj.ts}):`, e)
               totalError++
               return null
             }
