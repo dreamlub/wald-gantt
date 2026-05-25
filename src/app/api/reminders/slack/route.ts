@@ -4,12 +4,47 @@ import type { Block, KnownBlock } from '@slack/web-api'
 
 const PRIORITY_FLAG: Record<number, string> = { 3: '🔺 ', 2: '', 1: '', 0: '' }
 
-interface Task {
+export interface Task {
   id: string
   title: string
   due_date: string
   status: string
   priority: number | null
+}
+
+type ReminderEnv = Record<string, string | undefined>
+
+type ReminderConfig =
+  | {
+      ok: true
+      cronSecret: string
+      workspaceId: string
+      reminderChannelId: string
+      botToken: string
+      supabaseUrl: string
+      supabaseAnonKey: string
+    }
+  | { ok: false; error: string; status: number }
+
+export function getReminderConfig(env: ReminderEnv): ReminderConfig {
+  if (!env.CRON_SECRET) return { ok: false, error: 'CRON_SECRET 미설정', status: 500 }
+  if (!env.REMINDER_WORKSPACE_ID || !env.SLACK_REMINDER_CHANNEL_ID) {
+    return { ok: false, error: 'REMINDER_WORKSPACE_ID 또는 SLACK_REMINDER_CHANNEL_ID 미설정', status: 500 }
+  }
+  const botToken = env.SLACK_USER_TOKEN ?? env.SLACK_BOT_TOKEN
+  if (!botToken) return { ok: false, error: 'SLACK_USER_TOKEN 또는 SLACK_BOT_TOKEN 미설정', status: 500 }
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+    return { ok: false, error: 'Supabase 환경변수 미설정', status: 500 }
+  }
+  return {
+    ok: true,
+    cronSecret: env.CRON_SECRET,
+    workspaceId: env.REMINDER_WORKSPACE_ID,
+    reminderChannelId: env.SLACK_REMINDER_CHANNEL_ID,
+    botToken,
+    supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL,
+    supabaseAnonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+  }
 }
 
 function todayKST()    { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10) }
@@ -30,7 +65,16 @@ function line(t: Task, suffix?: string) {
   return `${flag}• ${t.title}${suffix ? `  —  ${suffix}` : ''}`
 }
 
-function buildBlocks(
+export function groupReminderTasks(tasks: Task[], today: string, tomorrow: string) {
+  const all = tasks.filter(t => t.due_date <= tomorrow)
+  return {
+    overdue: all.filter(t => t.due_date < today),
+    dueToday: all.filter(t => t.due_date === today),
+    dueTomorrow: all.filter(t => t.due_date === tomorrow),
+  }
+}
+
+export function buildBlocks(
   overdue: Task[], dueToday: Task[], dueTomorrow: Task[], today: string
 ): (KnownBlock | Block)[] {
   const total = overdue.length + dueToday.length + dueTomorrow.length
@@ -88,36 +132,21 @@ function buildBlocks(
 }
 
 export async function GET(req: Request) {
-  const cronSecret = process.env.CRON_SECRET
-  if (!cronSecret) {
-    return Response.json({ error: 'CRON_SECRET 미설정' }, { status: 500 })
+  const config = getReminderConfig(process.env)
+  if (!config.ok) {
+    return Response.json({ error: config.error }, { status: config.status })
   }
 
   // Vercel Cron 인증
   const auth = req.headers.get('authorization')
-  if (auth !== `Bearer ${cronSecret}`) {
+  if (auth !== `Bearer ${config.cronSecret}`) {
     return new Response('Unauthorized', { status: 401 })
-  }
-
-  const workspaceId = process.env.REMINDER_WORKSPACE_ID
-  const reminderChannelId = process.env.SLACK_REMINDER_CHANNEL_ID
-  if (!workspaceId || !reminderChannelId) {
-    return Response.json(
-      { error: 'REMINDER_WORKSPACE_ID 또는 SLACK_REMINDER_CHANNEL_ID 미설정' },
-      { status: 500 }
-    )
-  }
-
-  // chat:write 권한이 있는 토큰 사용
-  const botToken = process.env.SLACK_USER_TOKEN ?? process.env.SLACK_BOT_TOKEN
-  if (!botToken) {
-    return Response.json({ error: 'SLACK_USER_TOKEN 또는 SLACK_BOT_TOKEN 미설정' }, { status: 500 })
   }
 
   // anon key + SECURITY DEFINER 함수로 RLS 우회
   const sb = createClient(
-    process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
+    config.supabaseUrl,
+    config.supabaseAnonKey,
     { auth: { persistSession: false } }
   )
 
@@ -125,7 +154,7 @@ export async function GET(req: Request) {
   const tomorrow = tomorrowKST()
 
   const { data: tasks, error } = await sb.rpc('get_reminder_tasks', {
-    p_workspace_id: workspaceId,
+    p_workspace_id: config.workspaceId,
   })
 
   if (error) {
@@ -133,10 +162,7 @@ export async function GET(req: Request) {
     return Response.json({ error: error.message }, { status: 500 })
   }
 
-  const all = (tasks as Task[]).filter(t => t.due_date <= tomorrow)
-  const overdue     = all.filter(t => t.due_date <  today)
-  const dueToday    = all.filter(t => t.due_date === today)
-  const dueTomorrow = all.filter(t => t.due_date === tomorrow)
+  const { overdue, dueToday, dueTomorrow } = groupReminderTasks(tasks as Task[], today, tomorrow)
 
   if (overdue.length === 0 && dueToday.length === 0 && dueTomorrow.length === 0) {
     console.log('[reminders/slack] 알림할 태스크 없음')
@@ -145,9 +171,9 @@ export async function GET(req: Request) {
 
   const blocks = buildBlocks(overdue, dueToday, dueTomorrow, today)
 
-  const slack = new WebClient(botToken)
+  const slack = new WebClient(config.botToken)
   await slack.chat.postMessage({
-    channel: reminderChannelId,
+    channel: config.reminderChannelId,
     text: `📋 태스크 리마인더 — ${fmtKSTDate(today)}`,
     blocks,
   })

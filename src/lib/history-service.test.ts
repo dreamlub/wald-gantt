@@ -1,4 +1,5 @@
 import { describe, expect, it } from 'vitest'
+import { normalizeBrandCountRows, rowsToBrandCounts } from './history-service'
 
 // permalink 기반 스레드 답글 감지 로직 검증 (history-service 내부 함수 isThreadReplyPermalink 동작 확인)
 function isThreadReplyPermalink(permalink: string, ts: string): boolean {
@@ -36,5 +37,22 @@ describe('isThreadReplyPermalink', () => {
 
   it('invalid URL → not a reply (safe fallback)', () => {
     expect(isThreadReplyPermalink('not-a-url', '123')).toBe(false)
+  })
+})
+
+describe('brand count helpers', () => {
+  it('counts fallback brand rows with 미분류 bucket', () => {
+    expect(rowsToBrandCounts([
+      { brand_name: 'A' },
+      { brand_name: null },
+      { brand_name: 'A' },
+    ])).toEqual({ A: 2, '미분류': 1 })
+  })
+
+  it('normalizes RPC count rows returned as numbers or strings', () => {
+    expect(normalizeBrandCountRows([
+      { brand_name: 'A', count: '7' },
+      { brand_name: null, count: 2 },
+    ])).toEqual({ A: 7, '미분류': 2 })
   })
 })

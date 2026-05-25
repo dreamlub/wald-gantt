@@ -140,6 +140,68 @@ export interface HistoryPage {
   brandCounts?: Record<string, number>
 }
 
+type BrandCountRow = {
+  brand_name: string | null
+  count: number | string | null
+}
+
+export function rowsToBrandCounts(rows: Array<{ brand_name: string | null }>): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const row of rows) {
+    const brand = row.brand_name ?? '미분류'
+    counts[brand] = (counts[brand] ?? 0) + 1
+  }
+  return counts
+}
+
+export function normalizeBrandCountRows(rows: BrandCountRow[]): Record<string, number> {
+  const counts: Record<string, number> = {}
+  for (const row of rows) {
+    const brand = row.brand_name ?? '미분류'
+    const count = typeof row.count === 'string' ? Number(row.count) : row.count
+    counts[brand] = count !== null && Number.isFinite(count) ? count : 0
+  }
+  return counts
+}
+
+async function fetchBrandCountsFromRpc(client: Sb, params: HistoryPageParams): Promise<Record<string, number> | null> {
+  const { data, error } = await client.rpc('get_history_brand_counts', {
+    p_from: params.from ? kstDayStart(params.from) : null,
+    p_to: params.to ? kstDayEnd(params.to) : null,
+    p_brand: params.brand ?? null,
+    p_priority: params.priority ?? null,
+    p_tags: params.tags ?? null,
+    p_author: params.author ?? null,
+    p_q: params.q ?? null,
+  })
+
+  if (error || !data) return null
+  return normalizeBrandCountRows(data as BrandCountRow[])
+}
+
+async function fetchBrandCountsFallback(client: Sb, params: HistoryPageParams): Promise<Record<string, number>> {
+  // eslint-disable-next-line @typescript-eslint/no-explicit-any
+  let brandQ: any = client.from('client_history').select('brand_name').is('deleted_at', null)
+  if (params.from)     brandQ = brandQ.gte('occurred_at', kstDayStart(params.from))
+  if (params.to)       brandQ = brandQ.lte('occurred_at', kstDayEnd(params.to))
+  if (params.brand)    brandQ = brandQ.eq('brand_name', params.brand)
+  if (params.priority) brandQ = brandQ.eq('priority', params.priority)
+  if (params.tags?.length) brandQ = brandQ.contains('tags', params.tags)
+  if (params.author)   brandQ = brandQ.eq('author', params.author)
+  if (params.q)        brandQ = brandQ.or(`title.ilike.%${params.q}%,body.ilike.%${params.q}%,channel.ilike.%${params.q}%,author.ilike.%${params.q}%`)
+
+  const { data, error } = await brandQ
+  if (error) throw error
+  return rowsToBrandCounts(data ?? [])
+}
+
+async function fetchBrandCounts(client: Sb, params: HistoryPageParams): Promise<Record<string, number> | undefined> {
+  if (params.cursor) return undefined
+  const facetParams = { ...params, brand: undefined }
+  const rpcCounts = await fetchBrandCountsFromRpc(client, facetParams)
+  return rpcCounts ?? fetchBrandCountsFallback(client, facetParams)
+}
+
 export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promise<HistoryPage> {
   const client = sb ?? createBrowserClient()
   const limit = Math.min(params.limit ?? 50, 200)
@@ -176,22 +238,8 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
     query = query.or(`occurred_at.lt.${cursorDate},and(occurred_at.eq.${cursorDate},id.lt.${cursorId})`)
   }
 
-  // brand counts — only on first page (no cursor), same filters applied
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  let brandQ: any = null
-  if (!params.cursor) {
-    brandQ = client.from('client_history').select('brand_name').is('deleted_at', null)
-    if (params.from)     brandQ = brandQ.gte('occurred_at', kstDayStart(params.from))
-    if (params.to)       brandQ = brandQ.lte('occurred_at', kstDayEnd(params.to))
-    if (params.brand)    brandQ = brandQ.eq('brand_name', params.brand)
-    if (params.priority) brandQ = brandQ.eq('priority', params.priority)
-    if (params.tags?.length) brandQ = brandQ.contains('tags', params.tags)
-    if (params.author)   brandQ = brandQ.eq('author', params.author)
-    if (params.q)        brandQ = brandQ.or(`title.ilike.%${params.q}%,body.ilike.%${params.q}%,channel.ilike.%${params.q}%,author.ilike.%${params.q}%`)
-  }
-
-  const [pageResult, countResult, brandResult] = await Promise.all([
-    query, countQuery, brandQ ?? Promise.resolve(null),
+  const [pageResult, countResult, brandCounts] = await Promise.all([
+    query, countQuery, fetchBrandCounts(client, params),
   ])
   if (pageResult.error) throw pageResult.error
 
@@ -200,15 +248,6 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
   if (items.length === limit) {
     const last = items[items.length - 1]
     nextCursor = `${last.occurred_at}|${last.id}`
-  }
-
-  let brandCounts: Record<string, number> | undefined
-  if (brandResult?.data) {
-    brandCounts = {}
-    for (const row of brandResult.data as Array<{ brand_name: string | null }>) {
-      const b = row.brand_name ?? '미분류'
-      brandCounts[b] = (brandCounts[b] ?? 0) + 1
-    }
   }
 
   return { items, nextCursor, total: countResult.count ?? 0, brandCounts }

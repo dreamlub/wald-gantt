@@ -63,5 +63,26 @@ describe('filterHistoryItems', () => {
     expect(matchesAllTags(['issue', 'mention'], ['issue', 'mention'])).toBe(true)
     expect(matchesAllTags(['issue'], ['issue', 'mention'])).toBe(false)
   })
-})
 
+  it('filters by brand, priority, author, and search text together', () => {
+    const rows = [
+      item({ id: 'match', brand_name: 'A', priority: 'high', author: '민수', title: '긴급 승인 요청' }),
+      item({ id: 'brand', brand_name: 'B', priority: 'high', author: '민수', title: '긴급 승인 요청' }),
+      item({ id: 'priority', brand_name: 'A', priority: 'low', author: '민수', title: '긴급 승인 요청' }),
+      item({ id: 'author', brand_name: 'A', priority: 'high', author: '지현', title: '긴급 승인 요청' }),
+      item({ id: 'search', brand_name: 'A', priority: 'high', author: '민수', title: '다른 내용' }),
+    ]
+
+    const result = filterHistoryItems(rows, {
+      dateFrom: '',
+      dateTo: '',
+      selectedTags: new Set(),
+      brandId: 'A',
+      priorityKey: 'high',
+      authorKey: '민수',
+      searchQuery: '승인',
+    })
+
+    expect(result.map(r => r.id)).toEqual(['match'])
+  })
+})
