@@ -130,8 +130,6 @@ function HistoryRow({
   onToggle: () => void
   onCreateTask?: () => void
 }) {
-  const authorTime = [item.author, shortTime(item.occurred_at)].filter(Boolean).join(' · ')
-
   return (
     <div
       onClick={onToggle}
@@ -144,7 +142,6 @@ function HistoryRow({
           {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
         </span>
         <p className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">{item.title}</p>
-        <span className="shrink-0 text-3xs text-ink-400 tabular-nums">{authorTime}</span>
         <div className="shrink-0 flex items-center gap-1">
           {(item.tags ?? []).slice(0, 1).map(tag => {
             const meta = TAG_META[tag]
@@ -169,6 +166,8 @@ function HistoryRow({
           </span>
         )}
         </div>
+        {item.author && <span className="shrink-0 text-3xs text-ink-400">{item.author}</span>}
+        <span className="shrink-0 text-3xs text-ink-400 tabular-nums">{shortTime(item.occurred_at)}</span>
       </div>
 
       {expanded && (
