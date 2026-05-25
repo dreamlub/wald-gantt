@@ -111,6 +111,9 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     const res = await fetch(`/api/history?${sp}`)
     if (!res.ok || id !== fetchIdRef.current) return
     const page = await res.json() as HistoryPage
+    if (brandId === 'all' && page.brandCounts && Object.keys(page.brandCounts).length > 0) {
+      setAllBrandCounts(page.brandCounts)
+    }
     pgDispatch({ type: 'loaded', page, append: !!cursor })
   }, [dateFrom, dateTo, brandId, priorityKey, selectedTags, authorKey, searchQuery])
 
@@ -126,19 +129,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       setDateTo(fmt(now))
       return
     }
-    if (view === 'dailylist') fetchPage()
+    if (view === 'dailylist') void Promise.resolve().then(() => fetchPage())
   }, [view, dateFrom, dateTo, fetchPage])
 
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
-
-  // brandId='all' 상태에서 조회된 브랜드 카운트를 캐싱 → 브랜드 선택 후에도 사이드바 목록 유지
-  useEffect(() => {
-    if (brandId === 'all' && pg.brandCounts && Object.keys(pg.brandCounts).length > 0) {
-      setAllBrandCounts(pg.brandCounts)
-    }
-  }, [pg.brandCounts, brandId])
 
   // ── Daily Report: 리포트 날짜 목록 조회 + 초기 날짜 자동 설정 ─
   useEffect(() => {
