@@ -24,11 +24,13 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
 
 function dateRange(from: string, to: string): string[] {
   const dates: string[] = []
-  const d = new Date(from + 'T00:00:00')
-  const end = new Date(to + 'T00:00:00')
+  const [fy, fm, fd] = from.split('-').map(Number)
+  const [ty, tm, td] = to.split('-').map(Number)
+  let d = new Date(Date.UTC(fy, fm - 1, fd))
+  const end = new Date(Date.UTC(ty, tm - 1, td))
   while (d <= end) {
     dates.push(d.toISOString().slice(0, 10))
-    d.setDate(d.getDate() + 1)
+    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
   }
   return dates
 }
@@ -84,17 +86,39 @@ export async function POST(req: NextRequest) {
             subtype?: string; bot_id?: string; reply_count?: number; thread_ts?: string
           }
 
+          // KST 하루 범위를 Unix timestamp로 계산 (토큰 시간대 무관하게 정확히 필터)
+          const kstStart = new Date(date + 'T00:00:00+09:00').getTime() / 1000
+          const kstEnd   = new Date(date + 'T23:59:59+09:00').getTime() / 1000
+
           const allMatches: SlackMatch[] = []
           let page = 1
-          while (page <= 5) {
-            const result = await slack.search.messages({
-              query: `on:${date}`, sort: 'timestamp', count: 100, page,
-            })
-            if (!result.ok || !result.messages?.matches) break
+          let searchRetries = 0
+          while (page <= 10) {
+            let result
+            try {
+              result = await slack.search.messages({
+                query: `on:${date}`, sort: 'timestamp', count: 100, page,
+              })
+            } catch (e: unknown) {
+              const status = (e as { code?: string; data?: { error?: string } }).data?.error
+              if (status === 'ratelimited' && searchRetries < 3) {
+                searchRetries++
+                send('status', { message: `[${date}] 검색 rate limit — ${searchRetries * 60}s 대기 후 재시도` })
+                await delay(searchRetries * 60_000)
+                continue
+              }
+              send('status', { message: `[${date}] 검색 오류: ${e instanceof Error ? e.message : String(e)}` })
+              break
+            }
+            if (!result.ok || !result.messages?.matches) {
+              send('status', { message: `[${date}] 검색 결과 없음 (total=${result.messages?.total ?? '?'})` })
+              break
+            }
             allMatches.push(...(result.messages.matches as SlackMatch[]))
+            send('status', { message: `[${di + 1}/${dates.length}] ${date} page ${page}: ${result.messages.matches.length}건 (누적 ${allMatches.length}건, 전체 ${result.messages.total ?? '?'})` })
             if (page >= (result.messages.paging?.pages ?? 1)) break
             page++
-            await delay(800)
+            await delay(1000)
           }
 
           const cleanMatches = allMatches.filter(m =>
@@ -102,7 +126,9 @@ export async function POST(req: NextRequest) {
             m.subtype !== 'channel_join' &&
             m.subtype !== 'channel_leave' &&
             m.subtype !== 'bot_message' &&
-            !excludedChannels.has(m.channel.id)
+            !excludedChannels.has(m.channel.id) &&
+            parseFloat(m.ts) >= kstStart &&
+            parseFloat(m.ts) <= kstEnd
           )
 
           if (cleanMatches.length === 0) {

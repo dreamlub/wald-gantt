@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -21,7 +20,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
   return member.workspace_id
 }
 
-export async function POST(_req: NextRequest) {
+export async function POST() {
   const token = process.env.SLACK_USER_TOKEN
   if (!token) {
     return new Response(JSON.stringify({ error: 'SLACK_USER_TOKEN 환경변수 미설정' }), {
@@ -159,7 +158,6 @@ export async function POST(_req: NextRequest) {
           )
 
           // 5. 재분류 → client_history 업데이트
-          const fullText = updatedRj.text + ' ' + updatedRj.replies.map(r => r.text).join(' ')
           const brandName = matchBrand(updatedRj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
           try {

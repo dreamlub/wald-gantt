@@ -1,7 +1,6 @@
 'use client'
 
 import { useState, useRef } from 'react'
-import { useRouter } from 'next/navigation'
 import {
   Circle, CheckCircle2, GripVertical, Paperclip, StickyNote, Check, CalendarDays, Trash2, RotateCw,
 } from 'lucide-react'
@@ -10,8 +9,9 @@ import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor, clampTooltipPos } from '../_utils'
-import { labelColor } from './TaskDetailDrawer'
+import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
+import { MemoTooltip } from '@/components/MemoTooltip'
+import { labelColor } from '../_utils'
 import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
@@ -40,7 +40,6 @@ interface TaskRowProps {
 export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dragHandleProps, isDragging, assigneeColor, isSubTask, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect }: TaskRowProps) {
   const [memoPos, setMemoPos] = useState<{ x: number; y: number } | null>(null)
   const memoTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-  const router = useRouter()
 
   const overdue  = isOverdue(task.due_date, task.status)
   const startDelayed = !overdue && isStartDelayed(task.start_date, task.status)
@@ -240,20 +239,9 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         >
           <StickyNote size={12} />
         </button>
-        {memoPos && task.memo && (() => {
-          const pos = clampTooltipPos(memoPos.x, memoPos.y)
-          return (
-            <div
-              className="fixed z-tooltip pointer-events-none max-w-xs"
-              style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
-            >
-              <div className="bg-foreground text-background text-2xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-hidden">
-                {task.memo}
-              </div>
-              <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
-            </div>
-          )
-        })()}
+        {memoPos && task.memo && (
+          <MemoTooltip memo={task.memo} x={memoPos.x} y={memoPos.y} />
+        )}
       </div>
 
       <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-lilac-500 transition-colors">

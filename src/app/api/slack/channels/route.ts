@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import { fetchUserDirectory } from '@/lib/slack-service'
@@ -55,7 +54,7 @@ async function fetchChannelsByType(
   return results
 }
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const token = process.env.SLACK_USER_TOKEN
     if (!token) return Response.json({ error: 'SLACK_USER_TOKEN 미설정' }, { status: 500 })

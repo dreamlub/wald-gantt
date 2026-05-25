@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
@@ -26,7 +25,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
  *   fetch('/api/slack/migrate-user-names', { method: 'POST' })
  *     .then(r => r.json()).then(console.log)
  */
-export async function POST(_req: NextRequest) {
+export async function POST() {
   const token = process.env.SLACK_USER_TOKEN
   if (!token) {
     return Response.json({ error: 'SLACK_USER_TOKEN 미설정' }, { status: 500 })

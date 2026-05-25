@@ -165,7 +165,6 @@ async function analyzeReport(
   report: DbReport,
   prevItems: WeeklyReportItem[],
   weekStart: string,
-  prevWeekStart: string,
 ): Promise<WeeklyReportSummary> {
   if (!report.raw_content) {
     return { items: [], summary: '', diff_summary: buildDiffSummary([], prevItems, prevItems) }
@@ -328,7 +327,7 @@ export async function POST(req: NextRequest) {
 
             send('status', { message: `${wk} 분석 중... (${i + 1}/${reports.length}: ${report.team})` })
 
-            const summaryData = await analyzeReport(sb, report, prevItems, wk, prevWk)
+            const summaryData = await analyzeReport(sb, report, prevItems, wk)
             currTeamMap.set(report.team, summaryData)
           }
 

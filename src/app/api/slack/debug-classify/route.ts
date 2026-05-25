@@ -1,8 +1,7 @@
-import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { classifyMessage, matchBrand, fetchBrandMappings, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
 
-export async function GET(_req: NextRequest) {
+export async function GET() {
   try {
     const sb = await createClient()
 

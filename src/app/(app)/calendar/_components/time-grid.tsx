@@ -180,9 +180,7 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
           totalCols={totalCols}
           highlight={highlightTaskId === task.id}
           onHighlightClear={onHighlightClear}
-          getMinutesFromY={getMinutesFromY}
           date={date}
-          onMove={onMove}
           onResize={onResize}
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}

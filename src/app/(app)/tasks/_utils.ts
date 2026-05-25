@@ -1,6 +1,17 @@
 import { todayStrKST, parseDateStr, MS_PER_DAY } from '@/lib/gantt-utils'
 import type { TaskStatus } from '@/types'
 
+const LABEL_COLORS = [
+  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
+  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#64748b',
+]
+
+export function labelColor(name: string): string {
+  let hash = 0
+  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
+  return LABEL_COLORS[hash % LABEL_COLORS.length]
+}
+
 /** "YYYY-MM-DD" 또는 타임스탬프 → "M/D" 표시 */
 export function fmtDate(d: string | null) {
   if (!d) return '—'

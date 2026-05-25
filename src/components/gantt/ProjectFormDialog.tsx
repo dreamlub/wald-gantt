@@ -223,14 +223,14 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setPriority(editProject.priority ?? 0)
     } else {
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
       setName(initialName ?? ''); setStatus('to-do'); setPriority(2)
       setStartDate(undefined); setEndDate(undefined)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
       setTeam(''); setPm(''); setMemo(initialMemo ?? '')
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [editProject, open, defaultCategoryId, categories])
+  }, [editProject, open, defaultCategoryId, categories, initialName, initialMemo])
 
   const dateError = startDate && endDate && startDate > endDate
     ? '종료일은 시작일 이후여야 합니다.' : null

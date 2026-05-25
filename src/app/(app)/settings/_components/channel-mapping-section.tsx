@@ -18,7 +18,6 @@ export function ChannelMappingSection({ clients }: Props) {
   const [loading, setLoading] = useState(false)
   const [saving, setSaving] = useState(false)
   const [loaded, setLoaded] = useState(false)
-  const [synced, setSynced] = useState(false)
   const [missingScopes, setMissingScopes] = useState<string[]>([])
   const [dirty, setDirty] = useState<Set<string>>(new Set())
   const [filter, setFilter] = useState<Filter>('all')
@@ -54,7 +53,6 @@ export function ChannelMappingSection({ clients }: Props) {
       setChannels(json.channels as SlackChannelItem[])
       setMissingScopes(json.missing_scopes ?? [])
       setLoaded(true)
-      setSynced(true)
       setDirty(new Set())
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '채널 목록 로드 실패')

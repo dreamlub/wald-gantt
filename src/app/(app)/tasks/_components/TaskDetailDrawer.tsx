@@ -1,13 +1,11 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, CalendarIcon, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Copy, RotateCw } from 'lucide-react'
-import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
+import { useClickAway } from '@/hooks/use-click-away'
+import { X, Search, Tag, Plus, CheckCircle2, Circle, Trash2, ChevronDown, Copy, RotateCw } from 'lucide-react'
 import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule } from '@/types'
-import { fmtDate } from '../_utils'
+import { fmtDate, labelColor } from '../_utils'
+import { DatePickerButton } from '@/components/ui/date-picker-button'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '../_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
@@ -22,16 +20,6 @@ interface ProjectOption {
   board_name: string
 }
 
-const LABEL_COLORS = [
-  '#6366f1', '#8b5cf6', '#ec4899', '#f43f5e',
-  '#f97316', '#eab308', '#22c55e', '#14b8a6', '#3b82f6', '#64748b',
-]
-
-export function labelColor(name: string): string {
-  let hash = 0
-  for (const c of name) hash = (hash * 31 + c.charCodeAt(0)) & 0xffff
-  return LABEL_COLORS[hash % LABEL_COLORS.length]
-}
 
 const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'backlog',      label: 'Backlog' },
@@ -48,35 +36,6 @@ const RECURRENCE_OPTIONS: { value: RecurrenceRule; label: string }[] = [
   { value: 'yearly',  label: '매년' },
 ]
 
-function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
-  value: Date | undefined
-  onChange: (d: Date | undefined) => void
-  placeholder: string
-  disabledDates?: (date: Date) => boolean
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
-        <CalendarIcon size={13} className="text-ink-400 shrink-0" />
-        {value
-          ? <span className="text-ink-700">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
-          : <span className="text-ink-300">{placeholder}</span>
-        }
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={value}
-          defaultMonth={value}
-          onSelect={d => { onChange(d); setOpen(false) }}
-          locale={ko}
-          disabled={disabledDates}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 interface Props {
   open: boolean
@@ -116,14 +75,14 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
   const [addingSub,  setAddingSub]  = useState(false)
   const [labelOpen,  setLabelOpen]  = useState(false)
   const subInputRef = useRef<HTMLInputElement>(null)
-  const labelRef = useRef<HTMLDivElement>(null)
 
   const [linkedProjects, setLinkedProjects] = useState<ProjectOption[]>([])
   const [projSearch,     setProjSearch]     = useState('')
   const [projResults,    setProjResults]    = useState<ProjectOption[]>([])
   const [showProjDrop,   setShowProjDrop]   = useState(false)
   const [tab,            setTab]            = useState<DrawerTab>('info')
-  const projRef  = useRef<HTMLDivElement>(null)
+  const projRef  = useClickAway<HTMLDivElement>(showProjDrop, () => setShowProjDrop(false))
+  const labelRef = useClickAway<HTMLDivElement>(labelOpen,    () => setLabelOpen(false))
   const titleRef = useRef<HTMLInputElement>(null)
 
   const dateError = startDate && dueDate && startDate > dueDate
@@ -167,16 +126,6 @@ export function TaskDetailDrawer({ open, task, subTasks, parentTask, initialTab,
     return () => clearTimeout(timer)
   }, [projSearch, linkedProjects, onSearchProjects, showProjDrop])
 
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (projRef.current && !projRef.current.contains(e.target as Node))
-        setShowProjDrop(false)
-      if (labelRef.current && !labelRef.current.contains(e.target as Node))
-        setLabelOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
 
   async function handleSave() {
     if (!isValid || !task) return

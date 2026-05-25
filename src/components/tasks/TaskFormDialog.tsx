@@ -1,16 +1,13 @@
 'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { X, Search, ChevronDown, CalendarIcon, Tag, RotateCw } from 'lucide-react'
-import { format } from 'date-fns'
-import { ko } from 'date-fns/locale'
-import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import { Calendar } from '@/components/ui/calendar'
+import { X, Search, ChevronDown, Tag, RotateCw } from 'lucide-react'
 import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
-import { labelColor } from '@/app/(app)/tasks/_components/TaskDetailDrawer'
+import { labelColor } from '@/app/(app)/tasks/_utils'
+import { DatePickerButton } from '@/components/ui/date-picker-button'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { TaskHistorySection } from '@/app/(app)/tasks/_components/TaskHistorySection'
 
@@ -56,36 +53,6 @@ const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
   { value: 'pending',     label: 'Pending' },
 ]
 
-// ── DatePickerButton ─────────────────────────────────────────
-function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
-  value: Date | undefined
-  onChange: (d: Date | undefined) => void
-  placeholder: string
-  disabledDates?: (date: Date) => boolean
-}) {
-  const [open, setOpen] = useState(false)
-  return (
-    <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
-        <CalendarIcon size={13} className="text-muted-foreground shrink-0" />
-        {value
-          ? <span className="text-foreground">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>
-          : <span className="text-ink-300">{placeholder}</span>
-        }
-      </PopoverTrigger>
-      <PopoverContent className="w-auto p-0" align="start">
-        <Calendar
-          mode="single"
-          selected={value}
-          defaultMonth={value}
-          onSelect={d => { onChange(d); setOpen(false) }}
-          locale={ko}
-          disabled={disabledDates}
-        />
-      </PopoverContent>
-    </Popover>
-  )
-}
 
 // ── TaskFormDialog ────────────────────────────────────────────
 export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], labelSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
@@ -148,16 +115,16 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
       setRecurrenceRule(editTask.recurrence_rule ?? null)
       setRecurrenceInterval(editTask.recurrence_interval ?? 1)
     } else {
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
       setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
-      // eslint-disable-next-line react-hooks/exhaustive-deps
+
       setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
       setLabels([]); setLinkedProjects(defaultProjects ?? [])
       setRecurrenceRule(null); setRecurrenceInterval(1)
     }
     setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput(''); setLabelOpen(false)
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [open, editTask, defaultStatus, defaultProjects])
+  }, [open, editTask, defaultStatus, defaultProjects, initialTitle, initialMemo])
 
   useEffect(() => {
     if (!showProjDrop) return

@@ -29,7 +29,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
     setLoading(true)
     getDeletedTasks(workspaceId)
       .then(setDeleted)
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [open, workspaceId])
 

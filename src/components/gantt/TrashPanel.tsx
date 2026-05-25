@@ -29,7 +29,7 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
     setLoading(true)
     getDeletedProjects(boardId)
       .then(setDeleted)
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   }, [open, boardId])
 

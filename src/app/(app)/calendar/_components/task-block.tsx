@@ -13,13 +13,11 @@ interface Props {
   task: GanttTask
   top: number
   height: number
-  getMinutesFromY: (clientY: number) => number
   date: string
   colIndex?: number
   totalCols?: number
   highlight?: boolean
   onHighlightClear?: () => void
-  onMove: (taskId: string, scheduledAt: string) => void
   onResize: (taskId: string, durationMinutes: number) => void
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
@@ -27,10 +25,10 @@ interface Props {
 }
 
 export function TaskBlock({
-  task, top, height, getMinutesFromY, date,
+  task, top, height, date,
   colIndex = 0, totalCols = 1,
   highlight = false, onHighlightClear,
-  onMove, onResize, onUnschedule, onStatusChange, onClick,
+  onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
   const dragOffsetY  = useRef(0)
@@ -124,7 +122,6 @@ export function TaskBlock({
 
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
-  const isOverlapping = totalCols > 1
 
   return (
     <Tooltip>

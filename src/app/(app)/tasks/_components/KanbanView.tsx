@@ -177,15 +177,13 @@ function DraggableCard({ task, ...props }: {
 
 // ── 컬럼 ─────────────────────────────────────────────────────
 function KanbanColumn({
-  status, label, color, bgColor, abbr, tasks, allTasks, assigneeColorMap, getAssigneeKey,
+  status, label, color, tasks, allTasks, assigneeColorMap, getAssigneeKey,
   orderedIds, onEdit, onMemoHover, onMemoLeave,
   quickAddOpen, quickAddTitle, onQuickAddStart, onQuickAddChange, onQuickAddCommit, onQuickAddCancel,
 }: {
   status: TaskStatus
   label: string
   color: string
-  bgColor: string
-  abbr: string
   tasks: GanttTask[]
   allTasks: GanttTask[]
   assigneeColorMap: Map<string, string>
@@ -374,7 +372,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
     >
       <div className="flex-1 overflow-x-auto overflow-y-hidden bg-card">
         <div className="flex gap-3 px-4 py-4 h-full min-h-0" style={{ minWidth: STATUS_GROUPS.length * 304 }}>
-          {STATUS_GROUPS.map(({ status, label, color, bgColor, abbr }) => {
+          {STATUS_GROUPS.map(({ status, label, color }) => {
             const orderedIds  = columnOrder.get(status) ?? []
             const taskIds     = new Set(tasks.map(t => t.id))
           const taskMap     = new Map(tasks.filter(t => t.status === status && (!t.parent_id || !taskIds.has(t.parent_id))).map(t => [t.id, t]))
@@ -385,8 +383,6 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
                 status={status}
                 label={label}
                 color={color}
-                bgColor={bgColor}
-                abbr={abbr}
                 tasks={columnTasks}
                 allTasks={tasks}
                 orderedIds={orderedIds}

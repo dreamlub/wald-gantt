@@ -19,8 +19,8 @@ import {
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
-import { clampTooltipPos } from '@/app/(app)/tasks/_utils'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
+import { MemoTooltip } from '@/components/MemoTooltip'
 import {
   CAT_ROW_H, PROJ_ROW_H, CAT_COLORS, STATUS_META, STATUS_ORDER,
   randomCatColor, isProjectOverdue, isStartDelayed, formatBarDate,
@@ -110,8 +110,14 @@ export function GanttChart({
 
   // 뷰 모드별 파생 값
   const colW      = viewMode === 'week' ? WEEK_COL_WIDTH : viewMode === 'day' ? DAY_COL_WIDTH : COL_WIDTH
-  const weeks     = viewMode === 'week' ? buildWeekRange(viewStart, viewEnd) : ([] as WeekInfo[])
-  const days      = viewMode === 'day'  ? buildDayRange(viewStart, viewEnd)  : ([] as DayInfo[])
+  const weeks = useMemo(
+    () => viewMode === 'week' ? buildWeekRange(viewStart, viewEnd) : ([] as WeekInfo[]),
+    [viewMode, viewStart, viewEnd]
+  )
+  const days = useMemo(
+    () => viewMode === 'day' ? buildDayRange(viewStart, viewEnd) : ([] as DayInfo[]),
+    [viewMode, viewStart, viewEnd]
+  )
   const totalCols = viewMode === 'week' ? weeks.length : viewMode === 'day' ? days.length : months.length
   const totalWidth = colW * totalCols
 
@@ -823,7 +829,7 @@ export function GanttChart({
                     )
                   })
                 ) : (
-                  days.map((d, i) => {
+                  days.map(d => {
                     const isToday = d.key === todayStr
                     return (
                       <div
@@ -912,20 +918,9 @@ export function GanttChart({
       )}
 
       {/* 메모 hover 툴팁 */}
-      {memoHover && (() => {
-        const pos = clampTooltipPos(memoHover.x, memoHover.y)
-        return (
-          <div
-            className="fixed z-tooltip pointer-events-none max-w-xs"
-            style={{ left: pos.left, top: pos.top, bottom: pos.bottom }}
-          >
-            <div className="bg-foreground text-background text-2xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-[60vh] overflow-hidden">
-              {memoHover.text}
-            </div>
-            <div className={`absolute ${pos.flipX ? '-right-1.5' : '-left-1.5'} ${pos.flipY ? 'bottom-3' : 'top-3'} w-3 h-3 bg-foreground rotate-45`} />
-          </div>
-        )
-      })()}
+      {memoHover && (
+        <MemoTooltip memo={memoHover.text} x={memoHover.x} y={memoHover.y} />
+      )}
 
       {/* 카테고리 추가 모달 */}
       <Dialog open={addingCat} onOpenChange={open => { if (!open) { setAddingCat(false); setNewCatName('') } }}>

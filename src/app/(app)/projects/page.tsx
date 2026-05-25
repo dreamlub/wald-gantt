@@ -58,8 +58,8 @@ export default function GanttPage() {
       const boardList = await getBoards(ws.id)
       setBoards(boardList)
       if (boardList.length > 0) setSelectedBoardId(boardList[0].id)
-    } catch (e) {
-      console.error(e)
+    } catch {
+      // 워크스페이스 로드 실패 — 빈 상태 유지
     }
   }, [])
 
@@ -81,7 +81,7 @@ export default function GanttPage() {
     setTrashOpen(false)
     Promise.all([getCategories(selectedBoardId), getProjects(selectedBoardId), getDeletedProjectsCount(selectedBoardId)])
       .then(([cats, projs, count]) => { setCategories(cats); setProjects(projs); setTrashCount(count) })
-      .catch(console.error)
+      .catch(() => {})
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBoardId])

@@ -33,7 +33,7 @@ export function TaskHistorySection({ taskId }: { taskId: string }) {
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
-    getTaskHistory(taskId).then(setEntries).catch(console.error).finally(() => setLoading(false))
+    getTaskHistory(taskId).then(setEntries).catch(() => {}).finally(() => setLoading(false))
   }, [taskId])
 
   const groups = groupHistByTime(entries)

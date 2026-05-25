@@ -1,4 +1,3 @@
-import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
@@ -14,7 +13,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
 }
 
 // 채널 매핑 기준으로 client_history.brand_name을 재매핑 (AI 재분류 없이 즉시 처리)
-export async function POST(_req: NextRequest) {
+export async function POST() {
   try {
     const sb = await createClient()
     const workspaceId = await getWorkspaceId(sb)

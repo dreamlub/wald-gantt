@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useRef, useState } from 'react'
+import { useClickAway } from '@/hooks/use-click-away'
 import { Plus, ChevronDown, Undo2, Redo2, Search, X, ArrowUpDown, Filter } from 'lucide-react'
 import type { GanttCategory } from '@/types'
 
@@ -55,7 +56,7 @@ interface Props {
 }
 
 export function GanttToolbar({
-  boardName, readOnly,
+  readOnly,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
   overdueCount = 0, overdueFilter = false, onToggleOverdueFilter,
   startDelayedCount = 0, startDelayedFilter = false, onToggleStartDelayedFilter,
@@ -71,10 +72,11 @@ export function GanttToolbar({
   const [showFilter, setShowFilter] = useState(false)
   const [showSort,   setShowSort]   = useState(false)
 
-  const searchRef = useRef<HTMLDivElement>(null)
   const searchInputRef = useRef<HTMLInputElement>(null)
-  const filterRef = useRef<HTMLDivElement>(null)
-  const sortRef   = useRef<HTMLDivElement>(null)
+
+  const searchRef = useClickAway<HTMLDivElement>(searchOpen, () => { if (!searchQuery) setSearchOpen(false) })
+  const filterRef = useClickAway<HTMLDivElement>(showFilter, () => setShowFilter(false))
+  const sortRef   = useClickAway<HTMLDivElement>(showSort,   () => setShowSort(false))
 
   const totalExcluded = excludedTeams.size + excludedPMs.size
 
@@ -82,37 +84,6 @@ export function GanttToolbar({
   useEffect(() => {
     if (searchOpen) searchInputRef.current?.focus()
   }, [searchOpen])
-
-  // 검색 — 외부 클릭 시 값이 비어있으면 자동 닫힘
-  useEffect(() => {
-    function onPointerDown(e: PointerEvent) {
-      if (!searchRef.current?.contains(e.target as Node)) {
-        if (!searchQuery) setSearchOpen(false)
-      }
-    }
-    if (searchOpen) document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [searchOpen, searchQuery])
-
-  // 필터 드롭다운 외부 클릭 닫힘
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (filterRef.current && !filterRef.current.contains(e.target as Node))
-        setShowFilter(false)
-    }
-    if (showFilter) document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [showFilter])
-
-  // 정렬 드롭다운 외부 클릭 닫힘
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (sortRef.current && !sortRef.current.contains(e.target as Node))
-        setShowSort(false)
-    }
-    if (showSort) document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [showSort])
 
   const hasAnyFilter = allTeams.length > 0 || allPMs.length > 0
   const sortActive = sortMode !== 'default'

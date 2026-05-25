@@ -4,7 +4,7 @@ import {
   LayoutList, Search, PanelLeftClose, Trash2, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
-import { labelColor } from './TaskDetailDrawer'
+import { labelColor } from '../_utils'
 import { isLightColor } from '../_utils'
 import type { QuickFilterKey } from '../_hooks/use-task-filters'
 
@@ -65,7 +65,6 @@ export function TasksSidebar({
   assigneesExpanded, onAssigneesExpandedChange, assigneesHidden, isSearching,
   assigneeColorMap,
   labels, filterLabel, onFilterLabelChange,
-  hideDone, onHideDoneChange,
   archiveCount, onArchiveOpen,
   trashCount, onTrashOpen,
 }: TasksSidebarProps) {

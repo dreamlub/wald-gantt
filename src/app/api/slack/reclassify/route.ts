@@ -133,7 +133,7 @@ export async function POST(req: NextRequest) {
                 occurred_at: tsToISO(rj.ts),
                 reclassified_at: now,
               }
-            } catch (e) {
+            } catch {
               totalError++
               return null
             }

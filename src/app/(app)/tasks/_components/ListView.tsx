@@ -6,7 +6,7 @@ import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { STATUS_COLOR, STATUS_LABEL, STATUS_ABBR, PriorityBars } from '../_constants'
-import { labelColor } from './TaskDetailDrawer'
+import { labelColor } from '../_utils'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 

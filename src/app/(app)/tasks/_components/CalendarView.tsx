@@ -187,7 +187,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
       {/* 날짜 오버플로우 팝오버 */}
       {overflow && (() => {
         const popTasks = tasksForDay(overflow.key)
-        const [y, m, d] = overflow.key.split('-').map(Number)
+        const [, m, d] = overflow.key.split('-').map(Number)
         const label = `${m}월 ${d}일`
         const left = Math.min(overflow.x, window.innerWidth - 220)
         const top  = overflow.y + 8 + (window.innerHeight - overflow.y < 260 ? -260 : 0)
