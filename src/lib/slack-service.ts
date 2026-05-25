@@ -26,10 +26,16 @@ import type { WebClient } from '@slack/web-api'
 
 const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
 
-// 발트루스트 슬랙 워크스페이스 도메인
-const WORKSPACE_DOMAIN = 'waldlust-product'
-// 멘션 감지 대상 User ID
-const MENTION_USER_ID = 'U09H44MEK5Z'
+export interface SlackIdentity { domain: string; userId: string }
+let _cachedIdentity: SlackIdentity | null = null
+
+export async function getSlackIdentity(slack: WebClient): Promise<SlackIdentity> {
+  if (_cachedIdentity) return _cachedIdentity
+  const auth = await slack.auth.test()
+  const domain = new URL(auth.url as string).hostname.split('.')[0]
+  _cachedIdentity = { domain, userId: auth.user_id as string }
+  return _cachedIdentity
+}
 
 // ── 타입 ─────────────────────────────────────────────────────────
 
@@ -75,9 +81,9 @@ export function tsToISO(ts: string): string {
 }
 
 /** 슬랙 메시지 permalink URL 생성 */
-export function buildSourceRef(channelId: string, ts: string): string {
+export function buildSourceRef(domain: string, channelId: string, ts: string): string {
   const pTs = ts.replace('.', '')
-  return `https://${WORKSPACE_DOMAIN}.slack.com/archives/${channelId}/p${pTs}`
+  return `https://${domain}.slack.com/archives/${channelId}/p${pTs}`
 }
 
 /** JSON 문자열 내부 리터럴 줄바꿈/탭 이스케이프 */
@@ -256,6 +262,7 @@ export function resolveChannelName(dir: UserDirectory, name: string): string {
 export async function classifyMessage(
   raw: RawJson,
   brandName: string,
+  mentionUserId?: string,
 ): Promise<ClassifyResult | null> {
   const clientName = brandName || '미분류'
 
@@ -332,7 +339,7 @@ ${fullText}
 
   const tags = Array.isArray(parsed.tags) ? parsed.tags as string[] : []
   const allText = raw.text + ' ' + raw.replies.map(r => r.text).join(' ')
-  if (allText.includes(`<@${MENTION_USER_ID}>`) && !tags.includes('mention')) {
+  if (mentionUserId && allText.includes(`<@${mentionUserId}>`) && !tags.includes('mention')) {
     tags.push('mention')
   }
 

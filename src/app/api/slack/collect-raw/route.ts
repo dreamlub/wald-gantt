@@ -3,7 +3,7 @@ import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
   fetchBrandMappings, getExcludedChannelIds,
-  buildSourceRef, delay,
+  buildSourceRef, delay, getSlackIdentity,
   fetchUserDirectory, resolveUserName, resolveChannelName,
   type RawJson, type RawReply,
 } from '@/lib/slack-service'
@@ -65,9 +65,10 @@ export async function POST(req: NextRequest) {
         const workspaceId = await getWorkspaceId(sb)
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
-        const [brandMappings, userDir] = await Promise.all([
+        const [brandMappings, userDir, identity] = await Promise.all([
           fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
+          getSlackIdentity(slack),
         ])
         const excludedChannels = getExcludedChannelIds(brandMappings)
 
@@ -254,7 +255,7 @@ export async function POST(req: NextRequest) {
                   ts: parentTs, text: parentMsg.text ?? '', user: parentMsg.user ?? '',
                   user_name: resolveUserName(userDir, parentMsg.user, parentMsg.username),
                   channel: opChName, channel_id: op.channelId,
-                  permalink: buildSourceRef(op.channelId, parentTs),
+                  permalink: buildSourceRef(identity.domain, op.channelId, parentTs),
                   reply_count: replies.length, replies,
                 },
               })

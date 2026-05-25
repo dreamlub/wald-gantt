@@ -2,7 +2,7 @@ import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import {
   matchBrand, classifyMessage, fetchBrandMappings, getExcludedChannelIds,
-  buildSourceRef, tsToISO, delay,
+  buildSourceRef, tsToISO, delay, getSlackIdentity,
   fetchUserDirectory, resolveUserName,
   getReplySourceIds, softDeleteReplyHistoryRows,
   type RawJson,
@@ -75,9 +75,10 @@ export async function POST() {
 
         send('status', { message: `${rawRows.length}건 스레드 업데이트 중...` })
 
-        const [brandMappings, userDir] = await Promise.all([
+        const [brandMappings, userDir, identity] = await Promise.all([
           fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
+          getSlackIdentity(slack),
         ])
         const excludedChannels = getExcludedChannelIds(brandMappings)
         const FALLBACK_BRAND = '미분류'
@@ -161,7 +162,7 @@ export async function POST() {
           const brandName = matchBrand(updatedRj.channel_id, brandMappings) ?? FALLBACK_BRAND
 
           try {
-            const result = await classifyMessage(updatedRj, brandName)
+            const result = await classifyMessage(updatedRj, brandName, identity.userId)
             if (!result) { skipped++; await delay(80); continue }
 
             await sb.from('client_history').upsert(
@@ -174,7 +175,7 @@ export async function POST() {
                 tags: result.tags,
                 channel: updatedRj.channel,
                 source_id: updatedRj.ts,
-                source_ref: buildSourceRef(updatedRj.channel_id, updatedRj.ts),
+                source_ref: buildSourceRef(identity.domain, updatedRj.channel_id, updatedRj.ts),
                 title: result.title,
                 body: result.body,
                 priority: result.priority,

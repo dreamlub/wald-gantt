@@ -3,7 +3,7 @@ import { createClient } from '@/lib/supabase/server'
 import {
   matchBrand, classifyMessage, fetchBrandMappings,
   buildSourceRef, tsToISO, delay, isObviousNoise,
-  fetchUserDirectory, resolveUserName,
+  fetchUserDirectory, resolveUserName, getSlackIdentity,
   type RawJson,
 } from '@/lib/slack-service'
 import { WebClient } from '@slack/web-api'
@@ -52,9 +52,10 @@ export async function POST(req: NextRequest) {
         const workspaceId = await getWorkspaceId(sb)
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
-        const [brandMappings, userDir] = await Promise.all([
+        const [brandMappings, userDir, identity] = await Promise.all([
           fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
+          getSlackIdentity(slack),
         ])
         const FALLBACK_BRAND = '미분류'
 
@@ -114,7 +115,7 @@ export async function POST(req: NextRequest) {
 
             const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
             try {
-              const result = await classifyMessage(rj, brandName)
+              const result = await classifyMessage(rj, brandName, identity.userId)
               if (!result) { totalAiSkip++; return null }
               return {
                 workspace_id: workspaceId,
@@ -125,7 +126,7 @@ export async function POST(req: NextRequest) {
                 tags: result.tags,
                 channel: rj.channel,
                 source_id: rj.ts,
-                source_ref: buildSourceRef(rj.channel_id, rj.ts),
+                source_ref: buildSourceRef(identity.domain, rj.channel_id, rj.ts),
                 title: result.title,
                 body: result.body,
                 priority: result.priority,

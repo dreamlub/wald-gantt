@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
-import { classifyMessage, matchBrand, fetchBrandMappings, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
+import { WebClient } from '@slack/web-api'
+import { classifyMessage, matchBrand, fetchBrandMappings, buildSourceRef, tsToISO, getSlackIdentity, type RawJson } from '@/lib/slack-service'
 
 export async function GET() {
   try {
@@ -28,7 +29,13 @@ export async function GET() {
     if (error) return Response.json({ error: error.message }, { status: 500 })
     if (!rows?.length) return Response.json({ error: 'No raw messages found' }, { status: 404 })
 
-    const brandMappings = await fetchBrandMappings(sb, workspaceId)
+    const token = process.env.SLACK_USER_TOKEN
+    if (!token) return Response.json({ error: 'SLACK_USER_TOKEN 환경변수 미설정' }, { status: 500 })
+    const slack = new WebClient(token)
+    const [brandMappings, identity] = await Promise.all([
+      fetchBrandMappings(sb, workspaceId),
+      getSlackIdentity(slack),
+    ])
     const FALLBACK_BRAND = '미분류'
 
     const results = []
@@ -42,7 +49,7 @@ export async function GET() {
       let upsertData = null
 
       try {
-        classifyResult = await classifyMessage(rj, brandName)
+        classifyResult = await classifyMessage(rj, brandName, identity.userId)
       } catch (e) {
         classifyError = e instanceof Error ? e.message : String(e)
       }
@@ -57,7 +64,7 @@ export async function GET() {
           tags: classifyResult.tags,
           channel: rj.channel,
           source_id: rj.ts,
-          source_ref: buildSourceRef(rj.channel_id, rj.ts),
+          source_ref: buildSourceRef(identity.domain, rj.channel_id, rj.ts),
           title: classifyResult.title,
           body: classifyResult.body,
           priority: classifyResult.priority,
