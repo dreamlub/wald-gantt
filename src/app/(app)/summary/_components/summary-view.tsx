@@ -3,7 +3,7 @@
 import { useMemo } from 'react'
 import { Sparkles, BarChart3, Tag as TagIcon, Users, Hash } from 'lucide-react'
 import type { HistoryItem, Priority, Tag } from '../_lib/types'
-import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
+import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/constants'
 import { Avatar } from './badges'
 import { brandColor } from '@/lib/history-service'
 

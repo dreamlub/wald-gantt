@@ -5,7 +5,7 @@ import { ArrowRight, Plus, X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 import type { ActionItem, Priority, Tag } from '../_lib/types'
-import { PRIORITY_META, TAG_META } from '../_lib/mock-data'
+import { PRIORITY_META, TAG_META } from '../_lib/constants'
 import { PriorityBars, BrandBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { toKSTDate } from '@/lib/history-query-utils'

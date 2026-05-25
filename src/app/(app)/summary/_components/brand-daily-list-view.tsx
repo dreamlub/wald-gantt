@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, ListTodo, Search } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
-import { TAG_KEYS, TAG_META } from '../_lib/mock-data'
+import { TAG_KEYS, TAG_META } from '../_lib/constants'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { toKSTDate } from '@/lib/history-query-utils'

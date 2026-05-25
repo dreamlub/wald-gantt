@@ -7,7 +7,7 @@ import { ko } from 'date-fns/locale'
 import { ExternalLink } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
-import { TAG_META, TAG_KEYS } from '../_lib/mock-data'
+import { TAG_META, TAG_KEYS } from '../_lib/constants'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { toKSTDate } from '@/lib/history-query-utils'

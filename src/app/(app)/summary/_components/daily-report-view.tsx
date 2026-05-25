@@ -10,11 +10,11 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
-import { PRIORITY_META, TAG_META } from '../_lib/mock-data'
+import { PRIORITY_META, TAG_META } from '../_lib/constants'
 import { PriorityBars, BrandBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { createClient } from '@/lib/supabase/client'
-import { ActionDetailDrawer, BodyBullets, SEV_TO_PRIORITY } from './_action-detail-drawer'
+import { ActionDetailDrawer, BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
 
 interface Props {
   selectedDate: string

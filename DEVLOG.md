@@ -1,5 +1,32 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-26) — 코드 품질 정리 2차 (unsafe assertion 제거 / 파일 명칭 정리 / 훅 분리)
+
+### 1. `detail-drawer.tsx` unsafe `d!` non-null assertion 제거
+- `setDraft(d => ({ ...d!, ... }))` 패턴 4곳 → `setDraft(d => d ? { ...d, ... } : d)` 로 교체
+- `d`가 null인 상태에서 호출될 경우 런타임 에러 방지
+
+### 2. `_lib/mock-data.ts` → `_lib/constants.ts` 이름 변경
+- 파일명이 의미를 잘못 전달(mock 데이터가 아닌 상수/메타 정의)
+- 10개 파일 import 일괄 업데이트: `badges`, `brand-daily-list-view`, `daily-report-view`, `detail-drawer`, `history-shell`, `history-sidebar`, `stacked-card-view`, `summary-view`, `table-view`, `action-detail-drawer`
+- `page.tsx` import 누락분도 함께 수정
+
+### 3. `_components` 내 파일명 언더스코어 접두어 제거
+- `_action-detail-drawer.tsx` → `action-detail-drawer.tsx`
+- `_sidebar-date-panels.tsx` → `sidebar-date-panels.tsx`
+- `_raw-data-sidebar.tsx` → `raw-data-sidebar.tsx`
+- 의존 파일(`daily-report-view`, `history-sidebar`) import 업데이트
+
+### 4. `history-shell.tsx` 다이얼로그/워크스페이스 로직 훅 분리
+- `use-create-dialogs.ts` 신규 훅 추출 (77줄)
+- `history-shell.tsx` 461줄 → 398줄 (500줄 상한에 여유 확보)
+- 태스크/프로젝트 생성 관련 상태 및 핸들러를 단일 훅으로 캡슐화
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
 ## 최근 변경 (2026-05-26) — 코드 품질 정리 (500줄 분리 / 마이그레이션 추적 / 에러 처리)
 
 ### 1. `daily-report-view.tsx` 500줄 분리
