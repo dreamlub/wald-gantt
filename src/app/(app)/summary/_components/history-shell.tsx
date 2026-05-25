@@ -2,10 +2,7 @@
 
 import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useReducer } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import {
-  Search, X, PanelLeftClose, PanelLeftOpen,
-  Newspaper, LayoutList, Database, Table, GitMerge, CalendarDays,
-} from 'lucide-react'
+import { PanelLeftClose } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag } from '../_lib/types'
 
@@ -13,7 +10,9 @@ import type { Priority } from '../_lib/types'
 import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
+import { HistoryToolbar } from './history-toolbar'
 import { TableView } from './table-view'
+import { BrandDailyListView } from './brand-daily-list-view'
 import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
 import { TimelineView } from './timeline-view'
@@ -24,7 +23,7 @@ import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
 import {
   PAGE_INIT, pageReducer,
-  parsePriority, parseTags, parseView, presetDates, todayStr,
+  parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
 } from './history-shell-state'
 import { filterHistoryItems } from '@/lib/history-query-utils'
@@ -43,15 +42,6 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
-const VIEW_TABS: { key: ViewKey; label: string; icon: typeof Newspaper }[] = [
-  { key: 'rawdata',     label: 'Raw Data',     icon: Database },
-  { key: 'dailylist',   label: 'Daily List',   icon: LayoutList },
-  { key: 'dailyreport', label: 'Daily Report', icon: Newspaper },
-  { key: 'weeklylist',  label: 'Weekly List',  icon: Table },
-  { key: 'timeline',    label: 'Timeline',     icon: GitMerge },
-  { key: 'calendar',    label: 'Calendar',     icon: CalendarDays },
-]
-
 export function HistoryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
@@ -62,7 +52,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [view,         setView]         = useState<ViewKey>(() => parseView(searchParams.get('view')))
   const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
   const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
-  const [weekStart,    setWeekStart]    = useState<string>(searchParams.get('week') ?? getCurrentWeekStart())
+  const weekStart = searchParams.get('week') ?? getCurrentWeekStart()
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => parseTags(searchParams.get('tags')))
   const [priorityKey,  setPriorityKey]  = useState<PriorityKey>(() => parsePriority(searchParams.get('priority')))
@@ -71,14 +61,30 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
+  const [cardMode,     setCardMode]     = useState(false)
   const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
   const [dailyTags,       setDailyTags]       = useState<Set<Tag>>(new Set())
   const [dailyPriorities, setDailyPriorities] = useState<Set<Priority>>(new Set())
-  const toggleDailyBrand = (b: string) => setDailyBrands(prev => { const next = new Set(prev); next.has(b) ? next.delete(b) : next.add(b); return next })
-  const toggleDailyTag = (t: Tag) => setDailyTags(prev => { const next = new Set(prev); next.has(t) ? next.delete(t) : next.add(t); return next })
-  const toggleDailyPriority = (p: Priority) => setDailyPriorities(prev => { const next = new Set(prev); next.has(p) ? next.delete(p) : next.add(p); return next })
+  const toggleDailyBrand = (b: string) => setDailyBrands(prev => {
+    const next = new Set(prev)
+    if (next.has(b)) next.delete(b)
+    else next.add(b)
+    return next
+  })
+  const toggleDailyTag = (t: Tag) => setDailyTags(prev => {
+    const next = new Set(prev)
+    if (next.has(t)) next.delete(t)
+    else next.add(t)
+    return next
+  })
+  const toggleDailyPriority = (p: Priority) => setDailyPriorities(prev => {
+    const next = new Set(prev)
+    if (next.has(p)) next.delete(p)
+    else next.add(p)
+    return next
+  })
 
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
@@ -95,6 +101,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (dateTo) sp.set('to', dateTo)
     if (brandId !== 'all') sp.set('brand', brandId)
     if (priorityKey !== 'all') sp.set('priority', priorityKey)
+    if (selectedTags.size > 0) sp.set('tags', [...selectedTags].join(','))
     if (authorKey !== 'all') sp.set('author', authorKey)
     if (searchQuery.trim()) sp.set('q', searchQuery)
     if (cursor) sp.set('cursor', cursor)
@@ -103,7 +110,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (!res.ok || id !== fetchIdRef.current) return
     const page = await res.json() as HistoryPage
     pgDispatch({ type: 'loaded', page, append: !!cursor })
-  }, [dateFrom, dateTo, brandId, priorityKey, authorKey, searchQuery])
+  }, [dateFrom, dateTo, brandId, priorityKey, selectedTags, authorKey, searchQuery])
 
   const tableInitRef = useRef(false)
 
@@ -118,7 +125,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       return
     }
     if (view === 'dailylist') fetchPage()
-  }, [view, fetchPage])
+  }, [view, dateFrom, dateTo, fetchPage])
 
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
@@ -209,11 +216,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const hasFilters = brandId !== 'all' || selectedTags.size > 0 || priorityKey !== 'all'
                   || authorKey !== 'all' || !!dateFrom || !!dateTo || !!searchQuery.trim()
 
-  function applyPreset(preset: 'today' | 'week' | 'month' | 'all') {
-    const { from, to } = presetDates(preset)
-    setDateFrom(from); setDateTo(to)
-  }
-
   function toggleTag(t: Tag) {
     setSelectedTags(prev => {
       const next = new Set(prev)
@@ -250,13 +252,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           history={initialHistory}
           dateFrom={dateFrom}
           dateTo={dateTo}
-          weekStart={weekStart}
           selectedTags={selectedTags}
           priorityKey={priorityKey}
           onDateFromChange={setDateFrom}
           onDateToChange={setDateTo}
-          onPresetClick={applyPreset}
-          onWeekChange={setWeekStart}
           onToggleTag={toggleTag}
           onPriorityChange={setPriorityKey}
           brandId={brandId}
@@ -273,73 +272,20 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       {/* ── 메인 ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        {/* 액션 바 */}
-        <div className="h-12 flex items-center border-b bg-card shrink-0 px-4 gap-2">
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
-              title="사이드바 열기"
-            >
-              <PanelLeftOpen size={14} />
-            </button>
-          )}
-
-          {/* 뷰 탭 */}
-          <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
-            {VIEW_TABS.map(tab => {
-              const Icon = tab.icon
-              return (
-                <button
-                  key={tab.key}
-                  onClick={() => setView(tab.key)}
-                  className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
-                    ${view === tab.key
-                      ? 'bg-card text-ink-700 shadow-sm'
-                      : 'text-muted-foreground hover:text-ink-700'}`}
-                >
-                  <Icon size={12} />
-                  {tab.label}
-                </button>
-              )
-            })}
-          </div>
-
-          {/* 검색 */}
-          <div ref={searchRef} className="relative flex items-center ml-2">
-            {searchOpen || searchQuery ? (
-              <div className="relative flex items-center">
-                <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
-                <input
-                  ref={searchInputRef}
-                  type="text"
-                  value={searchQuery}
-                  onChange={e => setSearchQuery(e.target.value)}
-                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
-                  placeholder="검색"
-                  className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
-                    className="absolute right-1 text-ink-300 hover:text-muted-foreground"
-                  >
-                    <X size={12} />
-                  </button>
-                )}
-              </div>
-            ) : (
-              <button
-                onClick={() => setSearchOpen(true)}
-                title="검색"
-                className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
-              >
-                <Search size={13} />
-              </button>
-            )}
-          </div>
-
-        </div>
+        <HistoryToolbar
+          sidebarOpen={sidebarOpen}
+          onOpenSidebar={() => setSidebarOpen(true)}
+          view={view}
+          onViewChange={setView}
+          searchRef={searchRef}
+          searchInputRef={searchInputRef}
+          searchOpen={searchOpen}
+          setSearchOpen={setSearchOpen}
+          searchQuery={searchQuery}
+          setSearchQuery={setSearchQuery}
+          cardMode={cardMode}
+          setCardMode={setCardMode}
+        />
 
         {/* 본문 */}
         <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -401,7 +347,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 </div>
               )}
 
-              {view === 'dailylist' && (
+              {view === 'dailylist' && !cardMode && (
                 <TableView
                   items={pg.items}
                   selectedTags={selectedTags}
@@ -420,6 +366,22 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   onClearFilters={resetFilters}
                   onCreateTask={handleOpenCreateTask}
                   onCreateProject={handleOpenCreateProject}
+                />
+              )}
+              {view === 'dailylist' && cardMode && (
+                <BrandDailyListView
+                  items={pg.items}
+                  hasFilters={hasFilters}
+                  total={pg.total}
+                  hasMore={pg.hasMore}
+                  loadingMore={pg.loading}
+                  brandCounts={pg.brandCounts}
+                  activeBrand={brandId === 'all' ? null : brandId}
+                  onLoadMore={handleLoadMore}
+                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  onOpenItem={setActiveItem}
+                  onCreateTask={handleOpenCreateTask}
+                  onClearFilters={resetFilters}
                 />
               )}
               {view === 'weeklylist' && (

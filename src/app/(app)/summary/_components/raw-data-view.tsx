@@ -139,7 +139,7 @@ export function RawDataView() {
         }
       }
       await fetchStats()
-    } catch (e) {
+    } catch {
     } finally {
       setState(prev => { const next = { ...prev }; delete next[date]; return next })
     }

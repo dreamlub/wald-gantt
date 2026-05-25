@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon } from 'lucide-react'
+import { Check, LayoutList, ChevronLeft, ChevronRight, DatabaseZap, CalendarIcon, Sparkles } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
@@ -59,10 +59,6 @@ interface Props {
   dateTo: string
   onDateFromChange: (s: string) => void
   onDateToChange: (s: string) => void
-  onPresetClick: (preset: 'today' | 'week' | 'month' | 'all') => void
-  // insight용
-  weekStart: string
-  onWeekChange: (weekStart: string) => void
   // 공통
   selectedTags: Set<Tag>
   priorityKey: PriorityKey
@@ -84,8 +80,7 @@ interface Props {
 export function HistorySidebar({
   view,
   history,
-  dateFrom, dateTo, onDateFromChange, onDateToChange, onPresetClick,
-  weekStart, onWeekChange,
+  dateFrom, dateTo, onDateFromChange, onDateToChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
   brandId, onBrandChange,
@@ -195,6 +190,24 @@ export function HistorySidebar({
           })}
         </div>
 
+        <div className="mt-3">
+          <GroupTitle>태그</GroupTitle>
+          {TAG_KEYS.map(t => {
+            const count = dayTagCounts[t] ?? 0
+            if (count === 0) return null
+            const meta = TAG_META[t]
+            const active = dailyTags.has(t)
+            return (
+              <button key={t} onClick={() => onToggleDailyTag(t)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
+                <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
+                <span className="flex-1 truncate text-left">{meta.label}</span>
+                {active && <Check size={12} className="shrink-0" />}
+                <span className="text-xs text-ink-400">{count}</span>
+              </button>
+            )
+          })}
+        </div>
+
         {topBrands.length > 0 && (
           <div className="mt-3">
             <GroupTitle>브랜드</GroupTitle>
@@ -271,86 +284,6 @@ export function HistorySidebar({
           )
         })}
       </div>
-    </div>
-  )
-}
-
-// ── 주 네비게이션 (인사이트 전용) ───────────────────────────
-function WeekNavSection({ weekStart, onWeekChange }: { weekStart: string; onWeekChange: (s: string) => void }) {
-  const monday = new Date(weekStart + 'T00:00:00')
-  const isCurrent = isCurrentWeek(weekStart)
-  const thisMonday = getMondayOfDate(new Date())
-
-  function movePrev() {
-    const prev = new Date(monday)
-    prev.setDate(monday.getDate() - 7)
-    onWeekChange(dateStr(prev))
-  }
-
-  function moveNext() {
-    if (!isCurrent) {
-      const next = new Date(monday)
-      next.setDate(monday.getDate() + 7)
-      onWeekChange(dateStr(next))
-    }
-  }
-
-  // 이번 주 포함 최근 4주
-  const recentWeeks = Array.from({ length: 4 }, (_, i) => {
-    const m = new Date(thisMonday)
-    m.setDate(thisMonday.getDate() - i * 7)
-    return m
-  })
-
-  function getShortLabel(m: Date, i: number): string {
-    if (i === 0) return '이번 주'
-    if (i === 1) return '지난 주'
-    return getWeekLabel(m)
-  }
-
-  return (
-    <div className="pb-1">
-
-      {/* 상단 네비게이터 */}
-      <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
-        <button onClick={movePrev}
-          className="w-7 flex items-center justify-center text-ink-400 border-r border-border hover:bg-muted hover:text-foreground transition-colors">
-          <ChevronLeft size={13} />
-        </button>
-        <div className="flex-1 flex flex-col items-center justify-center py-1.5 px-1">
-          <div className="flex items-center gap-1.5 text-xs font-semibold text-foreground">
-            {getWeekLabel(monday)}
-            {isCurrent && (
-              <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
-            )}
-          </div>
-          <div className="text-3xs text-ink-400 mt-0.5">{getWeekDateRange(monday)}</div>
-        </div>
-        <button onClick={moveNext} disabled={isCurrent}
-          className="w-7 flex items-center justify-center text-ink-400 border-l border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
-          <ChevronRight size={13} />
-        </button>
-      </div>
-
-      {/* 최근 주 목록 */}
-      {recentWeeks.map((m, i) => {
-        const ws = dateStr(m)
-        const isSelected = weekStart === ws
-        return (
-          <button key={ws} onClick={() => onWeekChange(ws)}
-            className={`sidebar-btn ${isSelected ? 'sidebar-btn-active' : ''}`}>
-            <span className="flex-1 flex items-center gap-1.5 truncate">
-              {getShortLabel(m, i)}
-              {i === 0 && (
-                <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
-              )}
-            </span>
-            <span className="text-2xs shrink-0 text-ink-400">
-              {getWeekDateRange(m)}
-            </span>
-          </button>
-        )
-      })}
     </div>
   )
 }
@@ -611,10 +544,77 @@ function GroupTitle({ children }: { children: React.ReactNode }) {
 
 // ── Raw Data 전용 사이드바 ───────────────────────────────────
 function RawDataSidebarPanel() {
-  const [from, setFrom] = useState('2026-04-01')
-  const [to, setTo]     = useState('2026-04-30')
-  const [status, setStatus] = useState<string | null>(null)
-  const [busy, setBusy]     = useState(false)
+  const [from, setFrom] = useState(() => {
+    const now = new Date()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
+  })
+  const [to, setTo] = useState(() => {
+    const now = new Date()
+    const last = new Date(now.getFullYear(), now.getMonth() + 1, 0).getDate()
+    return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${last}`
+  })
+  const [status, setStatus]           = useState<string | null>(null)
+  const [classifyStatus, setClassifyStatus] = useState<string | null>(null)
+  const [busy, setBusy]               = useState(false)
+
+  function dateRange(f: string, t: string): string[] {
+    const dates: string[] = []
+    const [fy, fm, fd] = f.split('-').map(Number)
+    const [ty, tm, td] = t.split('-').map(Number)
+    let d = new Date(Date.UTC(fy, fm - 1, fd))
+    const end = new Date(Date.UTC(ty, tm - 1, td))
+    while (d <= end) {
+      dates.push(d.toISOString().slice(0, 10))
+      d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
+    }
+    return dates
+  }
+
+  async function handleBatchReclassify() {
+    if (busy) return
+    setBusy(true)
+    setClassifyStatus('준비 중...')
+    const dates = dateRange(from, to)
+    let doneCount = 0
+    try {
+      for (const date of dates) {
+        setClassifyStatus(`[${doneCount + 1}/${dates.length}] ${date} 분류 중...`)
+        const res = await fetch('/api/slack/reclassify', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ date }),
+        })
+        if (!res.ok || !res.body) { setClassifyStatus(`오류: HTTP ${res.status} (${date})`); break }
+        const reader = res.body.getReader()
+        const decoder = new TextDecoder()
+        let buffer = ''
+        while (true) {
+          const { done, value } = await reader.read()
+          if (done) break
+          buffer += decoder.decode(value, { stream: true })
+          const parts = buffer.split('\n\n')
+          buffer = parts.pop() ?? ''
+          for (const part of parts) {
+            let eventType = '', eventData = ''
+            for (const line of part.split('\n')) {
+              if (line.startsWith('event: ')) eventType = line.slice(7).trim()
+              else if (line.startsWith('data: ')) eventData = line.slice(6)
+            }
+            if (!eventData) continue
+            const data = JSON.parse(eventData) as Record<string, unknown>
+            if (eventType === 'status') setClassifyStatus(`[${doneCount + 1}/${dates.length}] ${data.message as string}`)
+            else if (eventType === 'error') setClassifyStatus(`오류: ${data.message as string}`)
+          }
+        }
+        doneCount++
+      }
+      if (doneCount === dates.length) setClassifyStatus(`✓ ${dates.length}일 분류 완료`)
+    } catch (e) {
+      setClassifyStatus(`오류: ${e instanceof Error ? e.message : String(e)}`)
+    } finally {
+      setBusy(false)
+    }
+  }
 
   async function handleCollectRaw() {
     if (busy) return
@@ -691,11 +691,27 @@ function RawDataSidebarPanel() {
           disabled={busy || !from || !to || from > to}
           className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <DatabaseZap size={11} className={busy ? 'animate-pulse' : ''} />
-          {busy ? 'Raw 수집 중...' : 'Raw 수집'}
+          <DatabaseZap size={11} className={busy && !classifyStatus ? 'animate-pulse' : ''} />
+          {busy && !classifyStatus ? 'Raw 수집 중...' : 'Raw 수집'}
         </button>
         {status && (
           <p className="text-3xs text-ink-400 leading-relaxed break-all">{status}</p>
+        )}
+      </div>
+
+      <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
+        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 일괄 재분류</div>
+        <p className="text-3xs text-ink-400 leading-relaxed">위 기간의 raw 메시지를 AI로 순차 재분류합니다.</p>
+        <button
+          onClick={handleBatchReclassify}
+          disabled={busy || !from || !to || from > to}
+          className="flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-lilac-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+        >
+          <Sparkles size={11} className={busy && !!classifyStatus ? 'animate-pulse' : ''} />
+          {busy && !!classifyStatus ? '분류 중...' : 'AI 재분류'}
+        </button>
+        {classifyStatus && (
+          <p className="text-3xs text-ink-400 leading-relaxed break-all">{classifyStatus}</p>
         )}
       </div>
     </div>

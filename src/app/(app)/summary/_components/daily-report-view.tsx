@@ -542,6 +542,10 @@ function filterByBrand<T extends { brand: string }>(items: T[], brands: Set<stri
   return items.filter(item => brands.has(item.brand))
 }
 
+function tagAllowed(tags: Set<Tag>, tag: Tag): boolean {
+  return tags.size === 0 || tags.has(tag)
+}
+
 export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask }: Props) {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
@@ -591,14 +595,16 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   }
 
   const raw = report.content
-  const filteredActions = filterByBrand(raw.action_items, filterBrands)
-    .filter(a => filterPriorities.size === 0 || filterPriorities.has(SEV_TO_PRIORITY[a.severity] ?? 'medium'))
+  const filteredActions = tagAllowed(filterTags, 'issue')
+    ? filterByBrand(raw.action_items, filterBrands)
+      .filter(a => filterPriorities.size === 0 || filterPriorities.has(SEV_TO_PRIORITY[a.severity] ?? 'medium'))
+    : []
   const content: InsightContent = {
     headline: raw.headline,
     action_items: filteredActions,
-    upcoming: filterByBrand(raw.upcoming, filterBrands),
-    pending: filterByBrand(raw.pending, filterBrands),
-    decisions: filterByBrand(raw.decisions, filterBrands),
+    upcoming: tagAllowed(filterTags, 'schedule') ? filterByBrand(raw.upcoming, filterBrands) : [],
+    pending: tagAllowed(filterTags, 'mention') ? filterByBrand(raw.pending, filterBrands) : [],
+    decisions: tagAllowed(filterTags, 'decision') ? filterByBrand(raw.decisions, filterBrands) : [],
   }
   const reportWithLabel = { ...report, dateLabel }
 

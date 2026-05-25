@@ -3,7 +3,8 @@
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { X, ExternalLink, Copy, Check, Plus, Pencil, ChevronDown } from 'lucide-react'
-import { useEffect, useRef, useState } from 'react'
+import { useEffect, useState } from 'react'
+import { useClickAway } from '@/hooks/use-click-away'
 
 import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
 import { createClient } from '@/lib/supabase/client'
@@ -12,22 +13,7 @@ import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
 import { brandColor } from '@/lib/history-service'
 import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
-
-function MarkdownBody({ text, className }: { text: string; className?: string }) {
-  const lines = text.split('\n')
-  return (
-    <div className={className}>
-      {lines.map((line, i) => {
-        const parts = line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-          part.startsWith('**') && part.endsWith('**')
-            ? <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-            : <span key={j}>{part}</span>
-        )
-        return <div key={i}>{parts}</div>
-      })}
-    </div>
-  )
-}
+import { MarkdownBody } from '@/components/MarkdownBody'
 
 interface EditDraft {
   brand_name: string | null
@@ -57,7 +43,7 @@ export function HistoryDetailDrawer({
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [brandDropOpen, setBrandDropOpen] = useState(false)
   const [threadReplies, setThreadReplies] = useState<ThreadReply[]>([])
-  const brandDropRef = useRef<HTMLDivElement>(null)
+  const brandDropRef = useClickAway<HTMLDivElement>(brandDropOpen, () => setBrandDropOpen(false))
 
   // 슬랙 스레드 답글 lazy-fetch
   useEffect(() => {
@@ -66,21 +52,11 @@ export function HistoryDetailDrawer({
     const sb = createClient()
     fetchThreadRepliesForItem(sb, item)
       .then(replies => { if (!cancelled) setThreadReplies(replies) })
-      .catch(error => {
-        console.error('[summary/detail] thread replies fetch failed:', error)
+      .catch(() => {
         if (!cancelled) setThreadReplies([])
       })
     return () => { cancelled = true }
   }, [item])
-
-  useEffect(() => {
-    if (!brandDropOpen) return
-    function onPointerDown(e: PointerEvent) {
-      if (!brandDropRef.current?.contains(e.target as Node)) setBrandDropOpen(false)
-    }
-    document.addEventListener('pointerdown', onPointerDown)
-    return () => document.removeEventListener('pointerdown', onPointerDown)
-  }, [brandDropOpen])
 
   useEffect(() => {
     if (!open) return
@@ -103,8 +79,6 @@ export function HistoryDetailDrawer({
       setSaveError(null)
     })
   }, [open, item?.id])
-
-  const client = clients.find(c => c.name === (isEditing && draft ? draft.brand_name : item?.brand_name))
 
   async function copyBody() {
     if (!item?.body) return

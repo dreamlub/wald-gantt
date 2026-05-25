@@ -1,7 +1,8 @@
 'use client'
 
-import type { Client, Tag, Priority } from '../_lib/types'
+import type { Tag, Priority } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
+import { brandColor } from '@/lib/history-service'
 
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
 
@@ -56,14 +57,14 @@ export function TagList({ tags }: { tags: Tag[] }) {
   )
 }
 
-export function BrandBadge({ client }: { client: Client }) {
+export function BrandBadge({ brandName }: { brandName: string }) {
+  const color = brandColor(brandName)
   return (
     <span
-      className="inline-flex items-center gap-1.5 text-2xs px-2 py-[3px] rounded font-medium whitespace-nowrap"
-      style={{ background: `color-mix(in srgb, ${client.color} 10%, transparent)`, color: client.color }}
+      className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap"
     >
-      <span className="w-2 h-2 rounded-full shrink-0" style={{ background: client.color }} />
-      {client.name}
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+      {brandName}
     </span>
   )
 }

@@ -103,7 +103,7 @@ export function SlackText({ text, className }: SlackTextProps) {
     <div
       className={className}
       // text comes from our own Slack workspace via API, mrkdwn→HTML conversion escapes user content
-      // eslint-disable-next-line react/no-danger
+
       dangerouslySetInnerHTML={{ __html: html }}
     />
   )

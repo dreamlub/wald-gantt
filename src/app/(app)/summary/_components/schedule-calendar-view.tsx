@@ -17,9 +17,10 @@ interface UpcomingEvent {
   fuzzy: boolean
 }
 
-// M/D → 연도 추론: 2026 기준으로 단순 적용
+// M/D → 연도 추론: 현재 연도 기준, 이미 3개월 이상 지난 월이면 다음 연도로 간주
 function parseEventDate(dateStr: string): { start: Date | null; end: Date | null; fuzzy: boolean } {
-  const YEAR = 2026
+  const now = new Date()
+  const YEAR = now.getMonth() >= 9 ? now.getFullYear() + 1 : now.getFullYear()
   const str = dateStr.trim()
 
   // 완전 미정
@@ -186,7 +187,8 @@ export function ScheduleCalendarView() {
   const toggleBrand = (brand: string) =>
     setActiveBrands(prev => {
       const next = new Set(prev)
-      next.has(brand) ? next.delete(brand) : next.add(brand)
+      if (next.has(brand)) next.delete(brand)
+      else next.add(brand)
       return next
     })
 

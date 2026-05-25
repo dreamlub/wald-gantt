@@ -5,8 +5,8 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { ExternalLink, ListTodo, Hash } from 'lucide-react'
 
-import type { HistoryItem, Tag, Priority } from '../_lib/types'
-import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
+import type { HistoryItem, Tag } from '../_lib/types'
+import { TAG_META } from '../_lib/mock-data'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
 
@@ -19,6 +19,7 @@ interface Props {
   hasMore?:         boolean
   loadingMore?:     boolean
   brandCounts?:     Record<string, number>
+  activeBrand?:     string | null
   onLoadMore?:      () => void
   onToggleTag:      (t: Tag) => void
   onSelectBrand:    (id: string) => void
@@ -31,10 +32,6 @@ interface Props {
 
 function fmtDate(iso: string): string {
   return format(new Date(iso), 'yyyy-MM-dd (eee)', { locale: ko })
-}
-
-function fmtDateTime(iso: string): string {
-  return format(new Date(iso), 'yyyy-MM-dd HH:mm', { locale: ko })
 }
 
 function MarkdownBody({ text, className }: { text: string; className?: string }) {
@@ -74,10 +71,10 @@ function Highlight({ text, query }: { text: string; query?: string }) {
 
 export function TableView({
   items, searchQuery, hasFilters,
-  total, hasMore, loadingMore, brandCounts,
+  total, hasMore, loadingMore, brandCounts, activeBrand,
   onLoadMore,
   onToggleTag, onSelectBrand, onSelectAuthor, onClearFilters,
-  onCreateTask, onCreateProject,
+  onOpenItem, onCreateTask,
 }: Props) {
   const sentinelRef = useRef<HTMLDivElement>(null)
 
@@ -113,13 +110,6 @@ export function TableView({
       .sort((a, b) => b.count - a.count)
   }, [items, brandCounts])
 
-  const [activeBrand, setActiveBrand] = useState<string | null>(null)
-
-  const filteredItems = useMemo(() => {
-    if (!activeBrand) return items
-    return items.filter(i => (i.brand_name ?? '미분류') === activeBrand)
-  }, [items, activeBrand])
-
   if (items.length === 0 && !loadingMore) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
@@ -148,7 +138,7 @@ export function TableView({
       {/* 브랜드 배지 */}
       <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
         <button
-          onClick={() => setActiveBrand(null)}
+          onClick={() => activeBrand && onSelectBrand(activeBrand)}
           className={`text-xs px-2.5 py-[3px] rounded-full border transition-colors ${
             !activeBrand
               ? 'bg-foreground text-white border-foreground'
@@ -163,7 +153,7 @@ export function TableView({
           return (
             <button
               key={b.name}
-              onClick={() => setActiveBrand(active ? null : b.name)}
+              onClick={() => onSelectBrand(b.name)}
               className={`inline-flex items-center gap-1.5 text-xs px-2.5 py-[3px] rounded-full border transition-colors ${
                 active
                   ? 'text-white border-transparent'
@@ -194,14 +184,15 @@ export function TableView({
             </tr>
           </thead>
           <tbody>
-            {filteredItems.map(item => {
+            {items.map(item => {
               const isHovered = hoveredId === item.id
               return (
                 <tr
                   key={item.id}
                   onMouseEnter={() => setHoveredId(item.id)}
                   onMouseLeave={() => setHoveredId(null)}
-                  className="border-b border-border hover:bg-muted/50 transition-colors align-top"
+                  onClick={() => onOpenItem?.(item)}
+                  className="border-b border-border hover:bg-muted/50 transition-colors align-top cursor-pointer"
                 >
                   {/* 날짜 */}
                   <td className="px-3 py-2.5 text-2xs text-ink-500 tabular-nums whitespace-nowrap">
@@ -212,7 +203,7 @@ export function TableView({
                   <td className="px-3 py-2.5">
                     {item.brand_name ? (
                       <button
-                        onClick={() => onSelectBrand(item.brand_name!)}
+                        onClick={(e) => { e.stopPropagation(); onSelectBrand(item.brand_name!); }}
                         className="inline-flex items-center gap-1.5 text-xs text-ink-700 hover:text-foreground transition-colors"
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(item.brand_name) }} />
@@ -243,6 +234,7 @@ export function TableView({
                             href={item.source_ref}
                             target="_blank"
                             rel="noreferrer"
+                            onClick={(e) => e.stopPropagation()}
                             className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
                           >
                             <ExternalLink size={10} />
@@ -251,7 +243,7 @@ export function TableView({
                         )}
                         {onCreateTask && (
                           <button
-                            onClick={() => onCreateTask(item)}
+                            onClick={(e) => { e.stopPropagation(); onCreateTask(item); }}
                             className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
                           >
                             <ListTodo size={10} />
@@ -278,7 +270,7 @@ export function TableView({
                         return (
                           <button
                             key={t}
-                            onClick={() => onToggleTag(t)}
+                            onClick={(e) => { e.stopPropagation(); onToggleTag(t); }}
                             className="inline-flex items-center text-3xs px-1.5 py-[1px] rounded font-medium"
                             style={{ background: meta.bg, color: meta.color }}
                           >
@@ -300,7 +292,7 @@ export function TableView({
                   <td className="px-3 py-2.5">
                     {item.author ? (
                       <button
-                        onClick={() => onSelectAuthor(item.author!)}
+                        onClick={(e) => { e.stopPropagation(); onSelectAuthor(item.author!); }}
                         className="text-2xs text-ink-700 hover:text-foreground transition-colors truncate max-w-[70px] block"
                       >
                         {item.author}
@@ -328,8 +320,7 @@ export function TableView({
                 {loadingMore
                   ? <span className="text-ink-300">불러오는 중...</span>
                   : <>
-                      전체 <b className="text-foreground font-semibold">{total ?? items.length}</b>건 중{' '}
-                      <b className="text-foreground font-semibold">{filteredItems.length}</b>건
+                      <b className="text-foreground font-semibold">{items.length}</b> / {total ?? items.length} 건 표시
                     </>
                 }
               </td>
