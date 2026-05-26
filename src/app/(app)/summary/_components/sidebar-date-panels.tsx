@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 import type { HistoryItem } from '../_lib/types'
-import { dateStr } from './history-sidebar'
+import { dateStr } from './summary-sidebar'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 

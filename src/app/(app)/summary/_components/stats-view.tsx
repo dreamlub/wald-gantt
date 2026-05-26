@@ -11,7 +11,7 @@ interface Props {
   items: HistoryItem[]
 }
 
-export function SummaryView({ items }: Props) {
+export function StatsView({ items }: Props) {
   const total = items.length
 
   // 태그별 카운트 (한 항목이 여러 태그 가지면 모두 +1)

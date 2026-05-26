@@ -69,7 +69,7 @@ interface Props {
   onToggleDailyPriority: (p: Priority) => void
 }
 
-export function HistorySidebar({
+export function SummarySidebar({
   view,
   history,
   dateFrom, dateTo, onDateFromChange, onDateToChange,

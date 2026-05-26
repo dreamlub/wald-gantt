@@ -1,15 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
-import { format } from 'date-fns'
-import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
-import { createClient } from '@/lib/supabase/client'
+import { Fragment, useState, useEffect, useMemo } from 'react'
+import { Loader2 } from 'lucide-react'
 import { brandColor } from '@/lib/history-service'
 
-import type { Tag, Priority } from '../_lib/types'
-import { PriorityBars, TagList } from './badges'
+// ── Types ─────────────────────────────────────────────────────
+type CardStatus = 'ongoing' | 'partial' | 'resolved' | 'abandoned'
 
-interface WeeklyBrandSummary {
+interface TimelineRow {
   id: string
   week_start: string
   brand_name: string
@@ -18,152 +16,299 @@ interface WeeklyBrandSummary {
   item_count: number
   key_tags: string[]
   max_priority: string | null
+  thread_id: string
+  parent_thread_ids: string[] | null
 }
 
-function renderInline(line: string) {
-  return line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
-    part.startsWith('**') && part.endsWith('**')
-      ? <strong key={j} className="font-semibold text-foreground">{part.slice(2, -2)}</strong>
-      : <span key={j}>{part.replace(/\*/g, '')}</span>
-  )
+interface IssueRow {
+  id: string
+  label: string
+  brand: string
+  brandColor: string
+  status: CardStatus
+  indent: boolean
 }
 
-function MarkdownBody({ text, className }: { text: string; className?: string }) {
-  const sentences = text
-    .split('\n')
-    .map(l => l.trim().replace(/^[-•*]\s*/, ''))
-    .filter(Boolean)
-    .flatMap(line => line.split(/(?<=[.!?])\s+/).filter(Boolean))
+interface WeekDef {
+  start: string
+  label: string
+  endLabel: string
+  weekName: string
+  isNow: boolean
+}
 
+interface TimelineCard {
+  id: string
+  issueId: string
+  weekStart: string
+  brand: string
+  brandColor: string
+  relatedCount: number
+  dateLabel: string
+  title: string
+  body: string
+  status: CardStatus
+}
+
+interface ArrowDef { from: string; to: string }
+interface RenderedArrow { d: string; color: string; status: CardStatus; sameRow: boolean }
+
+// ── Status config ─────────────────────────────────────────────
+// CSS variables won't resolve in SVG presentation attributes, so use hex fallbacks
+const SC: Record<CardStatus, { label: string; color: string; badgeCls: string }> = {
+  ongoing:   { label: '미완',      color: '#e53e3e', badgeCls: 'bg-status-late/10 text-status-late border-status-late/30' },
+  partial:   { label: '진행 중',   color: '#dd6b20', badgeCls: 'bg-status-warn/10 text-status-warn border-status-warn/30' },
+  resolved:  { label: '완료',      color: '#38b2ac', badgeCls: 'bg-mint-100 text-mint-500 border-mint-300' },
+  abandoned: { label: '언급 없음', color: '#a0aec0', badgeCls: 'bg-ink-100 text-ink-400 border-ink-200' },
+}
+
+// ── Layout constants ──────────────────────────────────────────
+const COL_W   = 248
+const ROW_H   = 180
+const HDR_H   = 56
+const LEFT_W  = 220
+const RIGHT_W = 80
+
+// ── Helpers ───────────────────────────────────────────────────
+function toStatus(priority: string | null): CardStatus {
+  if (priority === 'high')   return 'ongoing'
+  if (priority === 'medium') return 'partial'
+  if (priority === 'low')    return 'resolved'
+  return 'abandoned'
+}
+
+function weekMeta(dateStr: string) {
+  const [, m, d] = dateStr.split('-').map(Number)
+  const end = new Date(dateStr + 'T00:00:00')
+  end.setDate(end.getDate() + 6)
+  const em = end.getMonth() + 1
+  const ed = end.getDate()
+  const weekNum = Math.ceil(d / 7)
+  return { label: `${m}/${d}`, endLabel: `${em}/${ed}`, weekName: `${m}월 ${weekNum}주` }
+}
+
+function currentWeekStart(): string {
+  const now = new Date()
+  const day = now.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  const monday = new Date(now)
+  monday.setDate(now.getDate() + diff)
+  return monday.toISOString().split('T')[0]
+}
+
+// Orthogonal (Mermaid-style) routing through the column gutter with rounded corners.
+// Vertical travel happens in the 16px gutter (8px pad each side) between columns —
+// never cutting through card content.
+function orthogonalPath(fc: number, fr: number, tc: number, tr: number): string {
+  const PAD = 8   // p-2 cell padding — gutter width = PAD × 2
+  const R   = 7   // corner radius
+
+  const srcRightX = LEFT_W + (fc + 1) * COL_W - PAD   // source card right edge
+  const gutterX   = LEFT_W + (fc + 1) * COL_W          // column border (gutter center)
+  const dstLeftX  = LEFT_W + tc * COL_W + PAD           // dest card left edge
+  const srcY      = HDR_H + fr * ROW_H + ROW_H / 2
+  const dstY      = HDR_H + tr * ROW_H + ROW_H / 2
+
+  if (fr === tr) {
+    // Same row — straight horizontal line through empty space
+    return `M ${srcRightX},${srcY} H ${dstLeftX}`
+  }
+
+  const ds = dstY > srcY ? 1 : -1                   // vertical direction
+  const rs = dstLeftX >= gutterX ? 1 : -1            // horizontal direction (exit gutter)
+
+  return [
+    `M ${srcRightX},${srcY}`,
+    `H ${gutterX - R}`,
+    `Q ${gutterX},${srcY} ${gutterX},${srcY + ds * R}`,
+    `V ${dstY - ds * R}`,
+    `Q ${gutterX},${dstY} ${gutterX + rs * R},${dstY}`,
+    `H ${dstLeftX}`,
+  ].join(' ')
+}
+
+function deriveData(rows: TimelineRow[]) {
+  if (rows.length === 0) return { weeks: [], issues: [], cards: [], arrows: [] }
+
+  const nowWeek   = currentWeekStart()
+  const weekStarts = [...new Set(rows.map(r => r.week_start))].sort()
+
+  const weeks: WeekDef[] = weekStarts.map(ws => {
+    const { label, endLabel, weekName } = weekMeta(ws)
+    return { start: ws, label, endLabel, weekName, isNow: false }
+  })
+  const nowIdx = weeks.findIndex(w => w.start === nowWeek)
+  if (nowIdx >= 0) weeks[nowIdx].isNow = true
+
+  // Group by thread_id
+  const threadMap = new Map<string, TimelineRow[]>()
+  for (const row of rows) {
+    if (!threadMap.has(row.thread_id)) threadMap.set(row.thread_id, [])
+    threadMap.get(row.thread_id)!.push(row)
+  }
+
+  // Issues sorted by first week, then brand
+  const issues: IssueRow[] = []
+  for (const [threadId, threadRows] of threadMap) {
+    const sorted = [...threadRows].sort((a, b) => a.week_start.localeCompare(b.week_start))
+    const first = sorted[0]
+    const last  = sorted[sorted.length - 1]
+    issues.push({
+      id: threadId,
+      label: `${first.brand_name} — ${first.topic}`,
+      brand: first.brand_name,
+      brandColor: brandColor(first.brand_name),
+      status: toStatus(last.max_priority),
+      indent: !!(first.parent_thread_ids?.length),
+    })
+  }
+  issues.sort((a, b) => {
+    const bc = a.brand.localeCompare(b.brand)
+    if (bc !== 0) return bc
+    const af = threadMap.get(a.id)![0]
+    const bf = threadMap.get(b.id)![0]
+    return af.week_start.localeCompare(bf.week_start)
+  })
+
+  // Cards
+  const cards: TimelineCard[] = rows.map(row => ({
+    id: `${row.thread_id}-${row.week_start}`,
+    issueId: row.thread_id,
+    weekStart: row.week_start,
+    brand: row.brand_name,
+    brandColor: brandColor(row.brand_name),
+    relatedCount: row.item_count,
+    dateLabel: weekMeta(row.week_start).label,
+    title: row.topic,
+    body: row.summary,
+    status: toStatus(row.max_priority),
+  }))
+
+  // Arrows: same thread consecutive weeks
+  const arrows: ArrowDef[] = []
+  for (const [, threadRows] of threadMap) {
+    const sorted = [...threadRows].sort((a, b) => a.week_start.localeCompare(b.week_start))
+    for (let i = 0; i < sorted.length - 1; i++) {
+      arrows.push({
+        from: `${sorted[i].thread_id}-${sorted[i].week_start}`,
+        to:   `${sorted[i + 1].thread_id}-${sorted[i + 1].week_start}`,
+      })
+    }
+  }
+  // Arrows: parent_thread_ids branch
+  for (const row of rows) {
+    if (!row.parent_thread_ids?.length) continue
+    for (const parentId of row.parent_thread_ids) {
+      const parentRows = threadMap.get(parentId)
+      if (!parentRows) continue
+      const parent = [...parentRows]
+        .sort((a, b) => b.week_start.localeCompare(a.week_start))
+        .find(p => p.week_start <= row.week_start)
+      if (parent) {
+        arrows.push({
+          from: `${parent.thread_id}-${parent.week_start}`,
+          to:   `${row.thread_id}-${row.week_start}`,
+        })
+      }
+    }
+  }
+
+  return { weeks, issues, cards, arrows }
+}
+
+// ── Sub-components ─────────────────────────────────────────────
+function StatusDot({ status, size = 'sm' }: { status: CardStatus; size?: 'sm' | 'md' }) {
+  const sz = size === 'md' ? 'w-2.5 h-2.5' : 'w-2 h-2'
+  if (status === 'abandoned')
+    return <span className={`${sz} rounded-full shrink-0 border border-ink-400`} />
+  return <span className={`${sz} rounded-full shrink-0`} style={{ background: SC[status].color }} />
+}
+
+function StatusBadge({ status }: { status: CardStatus }) {
   return (
-    <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
-      {sentences.map((sentence, i) => (
-        <li key={i} className="flex items-start gap-1.5">
-          <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
-          <span>{renderInline(sentence)}</span>
-        </li>
-      ))}
-    </ul>
+    <span className={`inline-flex items-center gap-1 text-2xs font-medium px-2 py-px rounded-full border ${SC[status].badgeCls}`}>
+      <StatusDot status={status} />
+      {SC[status].label}
+    </span>
   )
 }
 
-function getWeekLabel(mondayStr: string): string {
-  const d = new Date(mondayStr + 'T00:00:00')
-  const month = d.getMonth()
-  const dow = new Date(d.getFullYear(), month, 1).getDay()
-  const firstMondayDate = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
-  const weekNum = Math.floor((d.getDate() - firstMondayDate) / 7) + 1
-  return `${month + 1}월 ${weekNum}주`
+function CardCell({ card }: { card: TimelineCard }) {
+  return (
+    <div
+      className="flex flex-col rounded-lg bg-card border border-ink-200 overflow-hidden h-full"
+      style={{ borderLeftColor: SC[card.status].color, borderLeftWidth: '3px' }}
+    >
+      <div className="flex items-center justify-between px-3 pt-2.5 mb-1">
+        <div className="flex items-center gap-1 text-2xs text-ink-500">
+          <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: card.brandColor }} />
+          <span className="font-medium">{card.brand}</span>
+          <span className="text-ink-300">·</span>
+          <span>{card.relatedCount}건</span>
+        </div>
+        <span className="text-2xs text-ink-400 tabular-nums">{card.dateLabel}</span>
+      </div>
+      <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 px-3 mb-1">
+        {card.title}
+      </p>
+      <p className="text-2xs text-ink-500 leading-relaxed line-clamp-3 px-3 pb-2.5 flex-1">
+        {card.body}
+      </p>
+    </div>
+  )
 }
 
-function getWeekRange(mondayStr: string): string {
-  const mon = new Date(mondayStr + 'T00:00:00')
-  const sun = new Date(mon)
-  sun.setDate(mon.getDate() + 6)
-  return `${format(mon, 'M/d')} ~ ${format(sun, 'M/d')}`
-}
-
-type SortKey = 'week' | 'brand' | 'count' | 'priority'
-type SortDir = 'asc' | 'desc'
-
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
-
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <ChevronsUpDown size={9} className="text-ink-300" />
-  return dir === 'desc' ? <ChevronDown size={9} /> : <ChevronUp size={9} />
-}
-
+// ── Main component ────────────────────────────────────────────
 interface Props {
   dateFrom?: string
   dateTo?: string
-  onSelectBrand: (id: string) => void
-  onCountChange?: (total: number, filtered: number) => void
+  brandFilter?: string
 }
 
-export function TimelineView({ dateFrom, dateTo, onSelectBrand, onCountChange }: Props) {
-  const [rows, setRows]               = useState<WeeklyBrandSummary[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [activeBrand, setActiveBrand] = useState<string | null>(null)
-  const [sortKey, setSortKey]         = useState<SortKey>('week')
-  const [sortDir, setSortDir]         = useState<SortDir>('desc')
-
-  const fetchSummaries = useCallback(async () => {
-    setLoading(true)
-    const sb = createClient()
-    const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
-
-    const { data: member } = await sb
-      .from('workspace_members')
-      .select('workspace_id')
-      .eq('user_id', user.id)
-      .single()
-    if (!member) return
-
-    const { data, error } = await sb
-      .from('weekly_brand_summaries')
-      .select('*')
-      .eq('workspace_id', member.workspace_id)
-      .order('week_start', { ascending: false })
-      .limit(10000)
-
-    if (error) return
-    setRows((data ?? []) as WeeklyBrandSummary[])
-    setLoading(false)
-  }, [])
+export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
+  const [rows,    setRows]    = useState<TimelineRow[]>([])
+  const [loading, setLoading] = useState(true)
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchSummaries()
-  }, [fetchSummaries])
+    setLoading(true)
+    const sp = new URLSearchParams()
+    if (dateFrom)    sp.set('from', dateFrom)
+    if (dateTo)      sp.set('to', dateTo)
+    if (brandFilter) sp.set('brand', brandFilter)
+    fetch(`/api/timeline?${sp}`)
+      .then(r => r.json())
+      .then(({ rows: r }: { rows: TimelineRow[] }) => { setRows(r ?? []); setLoading(false) })
+      .catch(() => setLoading(false))
+  }, [dateFrom, dateTo, brandFilter])
 
-  const allBrandCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const r of rows) counts.set(r.brand_name, (counts.get(r.brand_name) ?? 0) + 1)
-    return [...counts.entries()]
-      .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
-  }, [rows])
+  const { weeks, issues, cards, arrows } = useMemo(() => deriveData(rows), [rows])
 
-  const filtered = useMemo(() => {
-    let result = rows
+  const svgArrows = useMemo<RenderedArrow[]>(() => {
+    if (!weeks.length || !issues.length) return []
+    const wIdx    = new Map(weeks.map((w, i) => [w.start, i]))
+    const rIdx    = new Map(issues.map((iss, i) => [iss.id, i]))
+    const cardMap = new Map(cards.map(c => [c.id, c]))
 
-    if (dateFrom || dateTo) {
-      result = result.filter(r => {
-        const sun = new Date(r.week_start + 'T00:00:00')
-        sun.setDate(sun.getDate() + 6)
-        const weekEnd = sun.toISOString().split('T')[0]
-        if (dateFrom && weekEnd < dateFrom) return false
-        if (dateTo && r.week_start > dateTo) return false
-        return true
-      })
-    }
-
-    if (activeBrand) result = result.filter(r => r.brand_name === activeBrand)
-
-    return [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'week')          cmp = a.week_start.localeCompare(b.week_start)
-      else if (sortKey === 'brand')    cmp = a.brand_name.localeCompare(b.brand_name)
-      else if (sortKey === 'count')    cmp = a.item_count - b.item_count
-      else if (sortKey === 'priority') cmp = (PRIORITY_ORDER[a.max_priority ?? ''] ?? 3) - (PRIORITY_ORDER[b.max_priority ?? ''] ?? 3)
-      return sortDir === 'desc' ? -cmp : cmp
+    return arrows.flatMap(arrow => {
+      const fromCard = cardMap.get(arrow.from)
+      const toCard   = cardMap.get(arrow.to)
+      if (!fromCard || !toCard) return []
+      const fc = wIdx.get(fromCard.weekStart)
+      const tc = wIdx.get(toCard.weekStart)
+      const fr = rIdx.get(fromCard.issueId)
+      const tr = rIdx.get(toCard.issueId)
+      if (fc === undefined || tc === undefined || fr === undefined || tr === undefined) return []
+      const sameRow = fr === tr
+      const d = orthogonalPath(fc, fr!, tc, tr!)
+      return [{ d, color: SC[fromCard.status].color, status: fromCard.status, sameRow }]
     })
-  }, [rows, activeBrand, dateFrom, dateTo, sortKey, sortDir])
-
-  useEffect(() => {
-    onCountChange?.(rows.length, filtered.length)
-  }, [rows.length, filtered.length, onCountChange])
-
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('desc') }
-  }
+  }, [weeks, issues, cards, arrows])
 
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-ink-400">주간 요약을 불러오는 중...</p>
+        <Loader2 size={20} className="animate-spin text-ink-400" />
       </div>
     )
   }
@@ -171,149 +316,120 @@ export function TimelineView({ dateFrom, dateTo, onSelectBrand, onCountChange }:
   if (rows.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-ink-400">주간 브랜드 요약이 없습니다. MCP classify 스킬로 생성해주세요.</p>
+        <p className="text-sm text-ink-400">이 기간에 타임라인 데이터가 없습니다</p>
       </div>
     )
   }
 
+  const totalW = LEFT_W + weeks.length * COL_W + RIGHT_W
+  const totalH = HDR_H + issues.length * ROW_H
+
+  const gridStyle: React.CSSProperties = {
+    display: 'grid',
+    gridTemplateColumns: `${LEFT_W}px repeat(${weeks.length}, ${COL_W}px) ${RIGHT_W}px`,
+    gridTemplateRows:    `${HDR_H}px repeat(${issues.length}, ${ROW_H}px)`,
+    minWidth: totalW,
+  }
+
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* 브랜드 필터 칩 */}
-      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
-        <button
-          onClick={() => setActiveBrand(null)}
-          className={`text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
-            !activeBrand
-              ? 'bg-foreground text-white border-foreground'
-              : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-          }`}
-        >
-          전체 {rows.length}
-        </button>
-        {allBrandCounts.map(b => {
-          const active = activeBrand === b.name
-          const color = brandColor(b.name)
-          return (
-            <button
-              key={b.name}
-              onClick={() => setActiveBrand(prev => prev === b.name ? null : b.name)}
-              className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
-                active
-                  ? 'text-white border-transparent'
-                  : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-              }`}
-              style={active ? { backgroundColor: color, borderColor: color } : undefined}
+    <div className="flex-1 overflow-auto bg-background">
+    <div style={{ position: 'relative', minWidth: totalW }}>
+
+      {/* SVG rendered first (behind grid cards) */}
+      <svg
+        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 1, pointerEvents: 'none' }}
+      >
+        <defs>
+          {(Object.keys(SC) as CardStatus[]).map(s => (
+            <marker key={s} id={`ah-${s}`} markerWidth="7" markerHeight="7" refX="5.5" refY="3.5" orient="auto">
+              <path d="M 0,1 L 5,3.5 L 0,6" fill="none" stroke={SC[s].color} strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
+            </marker>
+          ))}
+        </defs>
+        {svgArrows.map((a, i) => (
+          <path
+            key={i}
+            d={a.d}
+            fill="none"
+            style={{ stroke: a.color, strokeWidth: 1.5, strokeOpacity: 0.75 }}
+            markerEnd={`url(#ah-${a.status})`}
+          />
+        ))}
+      </svg>
+
+      <div style={{ ...gridStyle, position: 'relative', zIndex: 2 }}>
+
+        {/* ── Header row ─────────────────────────────────── */}
+        <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">
+          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
+          <div className="flex items-center gap-2.5 flex-wrap">
+            {(Object.entries(SC) as [CardStatus, typeof SC[CardStatus]][]).map(([s, cfg]) => (
+              <div key={s} className="flex items-center gap-0.5">
+                <StatusDot status={s} />
+                <span className="text-3xs text-ink-400">{cfg.label}</span>
+              </div>
+            ))}
+          </div>
+        </div>
+
+        {weeks.map(week => (
+          <div
+            key={`hdr-${week.start}`}
+            className={`sticky top-0 z-20 border-b border-r border-ink-200 flex flex-col items-start justify-end px-4 pb-2.5 gap-0.5 ${week.isNow ? 'bg-lilac-50' : 'bg-card'}`}
+          >
+            <div className="flex items-center gap-1.5">
+              <span className={`text-sm font-bold ${week.isNow ? 'text-lilac-600' : 'text-foreground'}`}>
+                {week.label}
+              </span>
+              {week.isNow && (
+                <span className="text-3xs bg-lilac-500 text-white px-1.5 py-px rounded-full font-semibold leading-none">
+                  NOW
+                </span>
+              )}
+            </div>
+            <span className={`text-2xs ${week.isNow ? 'text-lilac-400' : 'text-ink-400'}`}>
+              {week.weekName}&nbsp;·&nbsp;~{week.endLabel}
+            </span>
+          </div>
+        ))}
+
+        <div className="sticky top-0 right-0 z-30 bg-card border-b border-l border-ink-200 flex items-end justify-center pb-2.5">
+          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
+        </div>
+
+        {/* ── Issue rows ─────────────────────────────────── */}
+        {issues.map(issue => (
+          <Fragment key={issue.id}>
+            <div
+              className="sticky left-0 z-10 bg-card border-b border-r border-ink-200 flex items-center gap-2"
+              style={{ paddingLeft: issue.indent ? 28 : 12, paddingRight: 8 }}
             >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
-              {b.name}
-              <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
-            </button>
-          )
-        })}
-      </div>
+              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: issue.brandColor }} />
+              <span className="text-2xs text-foreground font-medium leading-tight line-clamp-3">
+                {issue.label}
+              </span>
+            </div>
 
-      {/* 테이블 */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
-            <tr>
-              <th
-                className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('week')}
-              >
-                <span className="flex items-center gap-1">주차 <SortIcon active={sortKey === 'week'} dir={sortDir} /></span>
-              </th>
-              <th
-                className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('brand')}
-              >
-                <span className="flex items-center gap-1">브랜드 <SortIcon active={sortKey === 'brand'} dir={sortDir} /></span>
-              </th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[180px]">주제</th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider min-w-[240px]">요약</th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider">태그</th>
-              <th
-                className="text-center px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('priority')}
-              >
-                <span className="flex items-center justify-center gap-1">중요도 <SortIcon active={sortKey === 'priority'} dir={sortDir} /></span>
-              </th>
-              <th
-                className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('count')}
-              >
-                <span className="flex items-center justify-end gap-1">건수 <SortIcon active={sortKey === 'count'} dir={sortDir} /></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(row => {
-              const color = brandColor(row.brand_name)
+            {weeks.map(week => {
+              const card = cards.find(c => c.issueId === issue.id && c.weekStart === week.start)
               return (
-                <tr key={row.id} className="border-t border-border hover:bg-muted/40 transition-colors align-top">
-                  {/* 주차 */}
-                  <td className="px-5 py-2 whitespace-nowrap tabular-nums">
-                    <div className="text-xs font-medium text-foreground">{getWeekLabel(row.week_start)}</div>
-                    <div className="text-3xs text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
-                  </td>
-
-                  {/* 브랜드 */}
-                  <td className="px-5 py-2 whitespace-nowrap">
-                    <button
-                      onClick={() => onSelectBrand(row.brand_name)}
-                      className="inline-flex items-center gap-1.5 text-xs text-ink-700 hover:text-foreground transition-colors"
-                    >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="truncate max-w-[100px]">{row.brand_name}</span>
-                    </button>
-                  </td>
-
-                  {/* 주제 */}
-                  <td className="px-5 py-2">
-                    <p className="text-xs font-medium text-foreground leading-snug">{row.topic}</p>
-                  </td>
-
-                  {/* 요약 */}
-                  <td className="px-5 py-2">
-                    <MarkdownBody
-                      text={row.summary}
-                      className="text-xs text-ink-400 leading-[1.6]"
-                    />
-                  </td>
-
-                  {/* 태그 */}
-                  <td className="px-5 py-2">
-                    <TagList tags={row.key_tags as Tag[]} />
-                  </td>
-
-                  {/* 중요도 */}
-                  <td className="px-5 py-2 text-center">
-                    <PriorityBars priority={row.max_priority as Priority | null} />
-                  </td>
-
-                  {/* 건수 */}
-                  <td className="px-5 py-2 text-right text-xs font-medium text-ink-500 whitespace-nowrap tabular-nums">
-                    {row.item_count}건
-                  </td>
-                </tr>
+                <div
+                  key={`${issue.id}-${week.start}`}
+                  className={`border-b border-r border-ink-200 p-2 ${week.isNow ? 'bg-lilac-50/20' : ''}`}
+                >
+                  {card && <CardCell card={card} />}
+                </div>
               )
             })}
-          </tbody>
-          <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
-            <tr>
-              <td colSpan={7} className="px-5 py-2 text-right text-3xs text-ink-400 tabular-nums">
-                {filtered.length === 0
-                  ? <span className="text-ink-300">해당 조건의 위클리 요약이 없습니다.</span>
-                  : <>
-                      전체 <b className="text-foreground font-semibold">{rows.length}</b>건 중{' '}
-                      <b className="text-foreground font-semibold">{filtered.length}</b>건
-                    </>
-                }
-              </td>
-            </tr>
-          </tfoot>
-        </table>
+
+            <div className="sticky right-0 z-10 bg-card border-b border-l border-ink-200 flex items-center justify-center px-2">
+              <StatusBadge status={issue.status} />
+            </div>
+          </Fragment>
+        ))}
       </div>
+
+    </div>
     </div>
   )
 }

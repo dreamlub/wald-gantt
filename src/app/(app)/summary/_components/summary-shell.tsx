@@ -6,15 +6,15 @@ import { PanelLeftClose } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/constants'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
-import { HistoryToolbar } from './history-toolbar'
+import { SummarySidebar, type PriorityKey, getCurrentWeekStart } from './summary-sidebar'
+import { SummaryToolbar } from './summary-toolbar'
 import { TableView } from './table-view'
 import { BrandDailyListView } from './brand-daily-list-view'
-import { SummaryView } from './summary-view'
+import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
-import { TimelineView } from './timeline-view'
+import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
-import { ThreadTimelineView } from './thread-timeline-view'
+import { TimelineView } from './timeline-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
@@ -22,7 +22,7 @@ import {
   PAGE_INIT, pageReducer,
   parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
-} from './history-shell-state'
+} from './summary-shell-state'
 import { filterHistoryItems } from '@/lib/history-query-utils'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
@@ -35,7 +35,7 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
-export function HistoryShell({ initialClients, initialHistory }: Props) {
+export function SummaryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
@@ -206,7 +206,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           </button>
         </div>
 
-        <HistorySidebar
+        <SummarySidebar
           view={view}
           history={initialHistory}
           dateFrom={dateFrom}
@@ -231,7 +231,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       {/* ── 메인 ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <HistoryToolbar
+        <SummaryToolbar
           sidebarOpen={sidebarOpen}
           onOpenSidebar={() => setSidebarOpen(true)}
           view={view}
@@ -251,7 +251,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           {view === 'calendar' ? (
             <ScheduleCalendarView />
           ) : view === 'timeline' ? (
-            <ThreadTimelineView
+            <TimelineView
               dateFrom={dateFrom || undefined}
               dateTo={dateTo || undefined}
               brandFilter={brandId === 'all' ? undefined : brandId}
@@ -343,7 +343,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 />
               )}
               {view === 'weeklylist' && (
-                <TimelineView
+                <WeeklyBrandView
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -353,7 +353,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'summary' && (
                 <div data-scrolltop className="flex-1 overflow-y-auto">
                   <div className="px-6 pb-5">
-                    <SummaryView items={filtered} />
+                    <StatsView items={filtered} />
                   </div>
                 </div>
               )}
