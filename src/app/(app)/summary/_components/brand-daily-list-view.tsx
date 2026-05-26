@@ -6,6 +6,7 @@ import { ExternalLink, ListTodo } from 'lucide-react'
 import type { HistoryItem, Tag } from '../_lib/types'
 import { TAG_KEYS, TAG_META } from '../_lib/constants'
 import { PriorityBars, TagBadge } from './badges'
+import { toKSTDate } from '@/lib/history-query-utils'
 
 interface Props {
   items: HistoryItem[]
@@ -13,7 +14,10 @@ interface Props {
   total?: number
   hasMore?: boolean
   loadingMore?: boolean
+  brandCounts?: Record<string, number>
+  activeBrand?: string | null
   onLoadMore?: () => void
+  onSelectBrand?: (brand: string) => void
   onClearFilters: () => void
   onCreateTask?: (item: HistoryItem) => void
 }

@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
 import type { Tag } from '../_lib/types'
-import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/mock-data'
+import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
 import { TagFilterBadge, PriorityFilterBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { SidebarDatePicker, PRESETS, applyDatePreset, getActivePreset } from './_sidebar-controls'
