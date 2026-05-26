@@ -216,7 +216,7 @@ export function TableView({
 
                   {/* 제목 + 호버 액션 */}
                   <td className="px-3 py-2.5 relative">
-                    <div className="text-xs font-semibold text-foreground leading-snug">
+                    <div className="text-sm font-semibold text-foreground leading-snug">
                       <Highlight text={item.title} query={searchQuery} />
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">

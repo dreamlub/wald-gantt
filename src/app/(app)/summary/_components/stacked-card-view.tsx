@@ -91,7 +91,7 @@ function ItemRow({ item, onOpen }: { item: HistoryItem; onOpen: () => void }) {
     >
       {item.priority && <div className="mt-0.5 shrink-0"><PriorityBars priority={item.priority} /></div>}
       <div className="flex-1 min-w-0">
-        <p className="text-xs text-foreground leading-snug line-clamp-2">{item.title}</p>
+        <p className="text-sm text-foreground leading-snug line-clamp-2">{item.title}</p>
         {(item.tags ?? []).length > 0 && (
           <div className="flex flex-wrap gap-1 mt-1">
             {(item.tags ?? []).map(t => {

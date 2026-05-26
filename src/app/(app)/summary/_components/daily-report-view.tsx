@@ -176,7 +176,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
           </div>
         </div>
         {r.body && (
-          <BodyBullets text={r.body} className="text-2xs text-ink-500 leading-relaxed mb-2" />
+          <BodyBullets text={r.body} className="text-sm text-ink-500 leading-relaxed mb-2" />
         )}
         {r.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
@@ -205,7 +205,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
             <span className={`transition-transform ${rawOpen ? 'rotate-180' : ''}`}>▾</span>
           </button>
           {rawOpen && (
-            <div className="px-3.5 pb-3.5 text-2xs text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
+            <div className="px-3.5 pb-3.5 text-sm text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
               {slackTextClean(r.raw_text!)}
             </div>
           )}
@@ -392,7 +392,7 @@ function ActionDetailDrawer({
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
                   {s.body && (
-                    <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-[3.5rem]" />
+                    <BodyBullets text={s.body} className="text-xs text-ink-400 leading-relaxed ml-[3.5rem]" />
                   )}
                   {s.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5 ml-[3.5rem]">
@@ -464,9 +464,9 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
               <BrandBadge brandName={a.brand} />
               <span className="text-xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
-            <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
+            <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
-            <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
+            <div className="flex items-center gap-2 text-xs font-medium px-3 py-2 rounded border border-dashed"
               style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
               <span>{a.action}</span>
@@ -484,7 +484,7 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-2xs text-ink-700 min-w-[80px] flex items-center gap-1">
+          <span className="text-xs text-ink-700 min-w-[80px] flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
@@ -510,7 +510,7 @@ function PendingList({ items }: { items: InsightContent['pending'] }) {
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(p.brand) }} />
               {p.brand}
             </span>
-            <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
+            <span className="flex-1 text-sm text-ink-500 leading-relaxed">{p.items}</span>
             <span className="text-xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
           </div>
         )
@@ -527,9 +527,9 @@ function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
         <div key={d.id} className="bg-card border border-l-[3px] border-l-status-warn border-border rounded-lg p-3 transition-colors">
           <div className="flex items-start gap-1.5 mb-1.5">
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
-            <p className="text-xs font-semibold text-foreground leading-snug">{d.title}</p>
+            <p className="text-sm font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
+          <BodyBullets text={d.desc} className="text-sm text-ink-500 leading-relaxed mb-2" />
           <BrandBadge brandName={d.brand} />
         </div>
       ))}

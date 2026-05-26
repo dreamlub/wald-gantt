@@ -132,7 +132,7 @@ function HistoryRow({
         <span className="w-3.5 flex justify-center shrink-0">
           {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
         </span>
-        <p className="flex-1 min-w-0 text-xs font-semibold text-foreground truncate">{item.title}</p>
+        <p className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
         {(item.tags ?? []).slice(0, 1).map(tag => {
           const meta = TAG_META[tag]
           return (
@@ -150,7 +150,7 @@ function HistoryRow({
 
       {expanded && (
         <div className="border-t border-border px-5 py-3 space-y-2">
-          {item.body && <p className="text-2xs text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
+          {item.body && <p className="text-sm text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
           <div className="flex items-center gap-2 text-xs text-ink-400">
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
