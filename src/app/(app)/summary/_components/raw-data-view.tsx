@@ -173,7 +173,7 @@ export function RawDataView() {
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* 요약 바 */}
       <div className="shrink-0 px-5 py-2.5 border-b border-border bg-card">
-        <span className="text-xs text-ink-400">
+        <span className="text-sm text-ink-400">
           총 <b className="text-foreground font-semibold">{rows.length}일</b> ·{' '}
           수집 <b className="text-foreground font-semibold">{totalRaw.toLocaleString()}</b> ·{' '}
           분류 <b className="text-foreground font-semibold">{totalClassified.toLocaleString()}</b> ·{' '}
@@ -206,14 +206,14 @@ export function RawDataView() {
                 <React.Fragment key={month}>
                   {/* 월 부분합 행 */}
                   <tr key={`month-${month}`} className="bg-status-warn/10 border-t-2 border-status-warn/30">
-                    <td className="px-5 py-2 text-2xs font-semibold text-ink-600 whitespace-nowrap">
+                    <td className="px-5 py-2 text-sm font-semibold text-ink-600 whitespace-nowrap">
                       {monthLabel}
                       <span className="ml-2 text-xs font-normal text-ink-400">{mRows.length}일</span>
                     </td>
-                    <td className="px-5 py-2 text-right text-2xs text-ink-400">—</td>
-                    <td className="px-5 py-2 text-right text-2xs font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
-                    <td className="px-5 py-2 text-right text-2xs font-semibold text-ink-600 tabular-nums">{mClassified.toLocaleString()}</td>
-                    <td className="px-5 py-2 text-right text-2xs text-ink-400 tabular-nums">
+                    <td className="px-5 py-2 text-right text-sm text-ink-400">—</td>
+                    <td className="px-5 py-2 text-right text-sm font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
+                    <td className="px-5 py-2 text-right text-sm font-semibold text-ink-600 tabular-nums">{mClassified.toLocaleString()}</td>
+                    <td className="px-5 py-2 text-right text-sm text-ink-400 tabular-nums">
                       {mExcluded > 0 ? mExcluded.toLocaleString() : <span className="text-ink-200">—</span>}
                     </td>
                     <td className="px-5 py-2" />
@@ -229,19 +229,19 @@ export function RawDataView() {
                     const excluded = row.rawCount - row.classified
                     return (
                       <tr key={row.date} className="border-t border-border hover:bg-muted/40 transition-colors">
-                        <td className="px-5 py-2 text-xs font-medium text-foreground tabular-nums whitespace-nowrap">
+                        <td className="px-5 py-2 text-sm font-medium text-foreground tabular-nums whitespace-nowrap">
                           {format(new Date(row.date + 'T00:00:00'), 'yyyy.MM.dd (eee)', { locale: ko })}
                         </td>
-                        <td className="px-5 py-2 text-right text-xs tabular-nums text-ink-400">
+                        <td className="px-5 py-2 text-right text-sm tabular-nums text-ink-400">
                           {row.channelCount}
                         </td>
-                        <td className="px-5 py-2 text-right text-xs tabular-nums text-ink-500 font-medium">
+                        <td className="px-5 py-2 text-right text-sm tabular-nums text-ink-500 font-medium">
                           {row.rawCount.toLocaleString()}
                         </td>
-                        <td className="px-5 py-2 text-right text-xs tabular-nums text-foreground font-medium">
+                        <td className="px-5 py-2 text-right text-sm tabular-nums text-foreground font-medium">
                           {row.classified.toLocaleString()}
                         </td>
-                        <td className="px-5 py-2 text-right text-xs tabular-nums text-ink-400">
+                        <td className="px-5 py-2 text-right text-sm tabular-nums text-ink-400">
                           {excluded > 0 ? excluded.toLocaleString() : <span className="text-ink-200">—</span>}
                         </td>
                         <td className="px-5 py-2 text-2xs text-ink-400 tabular-nums">
