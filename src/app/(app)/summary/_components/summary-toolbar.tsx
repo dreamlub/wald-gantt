@@ -2,7 +2,7 @@
 
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import {
-  CalendarDays, Database, GitMerge, LayoutGrid, LayoutList,
+  CalendarDays, Database, GitMerge, LayoutList,
   Newspaper, PanelLeftOpen, Search, Table, X,
   type LucideIcon,
 } from 'lucide-react'
@@ -29,8 +29,6 @@ interface Props {
   setSearchOpen: Dispatch<SetStateAction<boolean>>
   searchQuery: string
   setSearchQuery: Dispatch<SetStateAction<string>>
-  cardMode: boolean
-  setCardMode: Dispatch<SetStateAction<boolean>>
 }
 
 export function SummaryToolbar({
@@ -44,8 +42,6 @@ export function SummaryToolbar({
   setSearchOpen,
   searchQuery,
   setSearchQuery,
-  cardMode,
-  setCardMode,
 }: Props) {
   return (
     <div className="h-12 flex items-center border-b bg-card shrink-0 px-4 gap-2">
@@ -107,24 +103,6 @@ export function SummaryToolbar({
         )}
       </div>
 
-      {view === 'dailylist' && (
-        <div className="flex items-center gap-0.5 ml-auto">
-          <button
-            onClick={() => setCardMode(false)}
-            title="테이블 뷰"
-            className={`p-1.5 rounded transition-colors ${!cardMode ? 'bg-muted text-foreground' : 'text-ink-400 hover:text-foreground hover:bg-muted'}`}
-          >
-            <LayoutList size={13} />
-          </button>
-          <button
-            onClick={() => setCardMode(true)}
-            title="카드 뷰"
-            className={`p-1.5 rounded transition-colors ${cardMode ? 'bg-muted text-foreground' : 'text-ink-400 hover:text-foreground hover:bg-muted'}`}
-          >
-            <LayoutGrid size={13} />
-          </button>
-        </div>
-      )}
     </div>
   )
 }
