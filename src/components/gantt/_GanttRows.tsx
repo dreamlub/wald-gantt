@@ -233,7 +233,7 @@ export function GanttCategoryLeft({
                           {sm.abbr}
                         </button>
                         <span
-                          className={`text-xs truncate min-w-0 cursor-pointer ${
+                          className={`text-sm truncate min-w-0 cursor-pointer ${
                             project.priority === 3 ? 'font-semibold text-coral-500' :
                             project.priority === 2 ? 'font-medium text-foreground' :
                             project.priority === 1 ? 'font-normal text-muted-foreground' :
