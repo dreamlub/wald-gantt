@@ -216,7 +216,7 @@ export function HistoryDetailDrawer({
                         <button
                           key={p}
                           onClick={() => setDraft(d => d ? { ...d, priority: d.priority === p ? null : p } : d)}
-                          className={`inline-flex items-center gap-1.5 text-2xs px-2 py-1 rounded border transition-colors ${
+                          className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors ${
                             active ? 'border-transparent font-medium' : 'border-border text-muted-foreground hover:border-ink-300'
                           }`}
                           style={active ? { background: meta.bg, color: meta.color } : undefined}
@@ -278,7 +278,7 @@ export function HistoryDetailDrawer({
                           const tags = d.tags.includes(t) ? d.tags.filter(x => x !== t) : [...d.tags, t]
                           return { ...d, tags }
                         })}
-                        className={`inline-flex items-center gap-1 text-2xs px-2 py-[3px] rounded font-medium transition-colors ${
+                        className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium transition-colors ${
                           active ? '' : 'bg-muted text-ink-500 hover:text-foreground'
                         }`}
                         style={active ? { background: meta.bg, color: meta.color } : undefined}
@@ -370,19 +370,19 @@ export function HistoryDetailDrawer({
         {/* 편집 푸터 */}
         {isEditing && item && (
           <div className="shrink-0 px-5 py-3 border-t flex flex-col gap-2">
-            {saveError && <p className="text-2xs text-destructive">{saveError}</p>}
+            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={cancelEdit}
                 disabled={isSaving}
-                className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-60"
+                className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors disabled:opacity-60"
               >
                 취소
               </button>
               <button
                 onClick={saveEdit}
                 disabled={isSaving}
-                className="px-4 py-1.5 text-xs bg-foreground text-background rounded font-medium hover:bg-ink-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+                className="px-4 py-1.5 text-sm bg-foreground text-background rounded font-medium hover:bg-ink-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
               >
                 {isSaving ? '저장 중...' : '저장'}
               </button>
