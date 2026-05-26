@@ -97,7 +97,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
           {DAY_HEADERS.map((d, i) => (
             <div
               key={d}
-              className={`text-4xs text-center py-0.5 ${
+              className={`text-2xs text-center py-0.5 ${
                 i === 0 ? 'text-day-sun-muted' : i === 6 ? 'text-day-sat-muted' : 'text-ink-400'
               }`}
             >

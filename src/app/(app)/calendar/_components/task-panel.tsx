@@ -247,7 +247,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                         {task.title}
                       </p>
                       {task.due_date && (
-                        <span className="text-4xs text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
+                        <span className="text-2xs text-ink-400 shrink-0 mt-0.5">{fmtDate(task.due_date)}</span>
                       )}
                     </div>
                     <div className="flex items-center gap-1.5 mt-1.5 flex-wrap">
@@ -264,7 +264,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                         </span>
                       )}
                       {task.assignee && (
-                        <span className="text-4xs text-ink-400 truncate">{task.assignee}</span>
+                        <span className="text-2xs text-ink-400 truncate">{task.assignee}</span>
                       )}
                     </div>
                   </div>
