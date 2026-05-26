@@ -80,7 +80,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
     <div className="rounded-lg border border-border overflow-hidden">
       <div className="bg-muted/40 p-3.5">
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <p className="text-xs font-semibold text-foreground leading-snug flex-1">{r.title}</p>
+          <p className="text-sm font-semibold text-foreground leading-snug flex-1">{r.title}</p>
           <div className="flex items-center gap-2 shrink-0">
             {r.thread_count > 0 && <span className="text-3xs text-ink-400">{r.thread_count}개 답글</span>}
             {r.author && <span className="text-3xs text-ink-400">{r.author}</span>}
@@ -223,7 +223,7 @@ export function ActionDetailDrawer({
             <X size={15} />
           </button>
         </div>
-        <p className="px-5 pb-4 text-sm font-semibold text-foreground leading-snug">{item?.title}</p>
+        <p className="px-5 pb-4 text-base font-semibold text-foreground leading-snug">{item?.title}</p>
       </DrawerHeader>
 
       <DrawerBody className="[&::-webkit-scrollbar]:hidden [scrollbar-width:none]">

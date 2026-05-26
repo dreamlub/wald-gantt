@@ -129,7 +129,7 @@ function HistoryRow({
         <span className="w-3.5 flex justify-center shrink-0">
           {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
         </span>
-        <p className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
+        <p className="flex-1 min-w-0 text-base font-semibold text-foreground truncate">{item.title}</p>
         {(item.tags ?? []).slice(0, 1).map(tag => {
           const meta = TAG_META[tag]
           return (

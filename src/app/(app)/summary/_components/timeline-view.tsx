@@ -248,7 +248,7 @@ function CardCell({ card }: { card: TimelineCard }) {
         </div>
         <span className="text-2xs text-ink-400 tabular-nums">{card.dateLabel}</span>
       </div>
-      <p className="text-xs font-bold text-foreground leading-snug line-clamp-2 px-3 mb-1">
+      <p className="text-sm font-bold text-foreground leading-snug line-clamp-2 px-3 mb-1">
         {card.title}
       </p>
       <p className="text-2xs text-ink-500 leading-relaxed line-clamp-3 px-3 pb-2.5 flex-1">
