@@ -119,7 +119,7 @@ export function CalendarShell() {
       {/* 사이드바 */}
       <div
         className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: panelOpen ? 240 : 0 }}
+        style={{ width: panelOpen ? 'var(--sidebar-w)' : 0 }}
       >
         <TaskPanel
           tasks={tasks}

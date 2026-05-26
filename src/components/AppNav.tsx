@@ -26,7 +26,7 @@ export function AppNav() {
   }
 
   return (
-    <div className="shrink-0 flex flex-col bg-ink-900 text-white" style={{ width: 56 }}>
+    <div className="shrink-0 flex flex-col bg-ink-900 text-white w-14">
       {/* 브랜드 */}
       <div className="h-12 flex items-center justify-center border-b border-white/10 shrink-0">
         <span className="text-sm font-black text-white tracking-tight">W</span>

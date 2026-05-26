@@ -337,7 +337,7 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
 
       {/* SVG rendered first (behind grid cards) */}
       <svg
-        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 1, pointerEvents: 'none' }}
+        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 'var(--z-base, 1)', pointerEvents: 'none' }}
       >
         <defs>
           {(Object.keys(SC) as CardStatus[]).map(s => (
@@ -357,7 +357,7 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
         ))}
       </svg>
 
-      <div style={{ ...gridStyle, position: 'relative', zIndex: 2 }}>
+      <div style={{ ...gridStyle, position: 'relative', zIndex: 'var(--z-above, 2)' }}>
 
         {/* ── Header row ─────────────────────────────────── */}
         <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">

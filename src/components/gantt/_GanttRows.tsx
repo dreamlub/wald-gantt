@@ -206,7 +206,7 @@ export function GanttCategoryLeft({
                   {({ listeners, isDragging }) => (
                     <div className="relative" style={{ opacity: isDragging ? 0 : 1 }}>
                       <div
-                        className={`flex items-center gap-1.5 group border-b pl-3 pr-2 relative hover:bg-muted transition-colors ${isBacklog ? 'bg-[#f3f4f6]' : 'bg-card'}`}
+                        className={`flex items-center gap-1.5 group border-b pl-3 pr-2 relative hover:bg-muted transition-colors ${isBacklog ? 'bg-ink-100' : 'bg-card'}`}
                         style={{
                           height: PROJ_ROW_H,
                           ...(readOnly && { paddingLeft: 14 }),
@@ -386,7 +386,7 @@ export function GanttCategoryRight({
           <div
             key={project.id}
             className="relative border-b"
-            style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? '#f3f4f6' : 'transparent' }}
+            style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? 'var(--color-ink-100)' : 'transparent' }}
           >
             {!cols && !readOnly && onBarCreate && (
               <EmptyBarHint

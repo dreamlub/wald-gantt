@@ -162,7 +162,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
             }`}
           >
             <span
-              className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${
+              className={`absolute top-0.5 w-3 h-3 rounded-full bg-background shadow-sm transition-transform duration-200 ${
                 hideDone ? 'translate-x-0.5' : 'translate-x-3.5'
               }`}
             />
@@ -226,7 +226,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                 }`}
                 style={{
                   borderLeft: `4px solid ${color}`,
-                  backgroundColor: isDone ? undefined : `color-mix(in srgb, ${color} 8%, white)`,
+                  backgroundColor: isDone ? undefined : `color-mix(in srgb, ${color} 8%, var(--color-background))`,
                 }}
               >
                 <div className="px-1.5 py-1.5 flex items-start gap-1">

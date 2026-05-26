@@ -205,7 +205,7 @@ export function RawDataView() {
               return (
                 <React.Fragment key={month}>
                   {/* 월 부분합 행 */}
-                  <tr key={`month-${month}`} className="bg-amber-50 border-t-2 border-amber-200">
+                  <tr key={`month-${month}`} className="bg-status-warn/10 border-t-2 border-status-warn/30">
                     <td className="px-5 py-2 text-2xs font-semibold text-ink-600 whitespace-nowrap">
                       {monthLabel}
                       <span className="ml-2 text-xs font-normal text-ink-400">{mRows.length}일</span>

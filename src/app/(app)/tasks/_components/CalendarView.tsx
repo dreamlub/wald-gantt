@@ -131,7 +131,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                 <div className="flex items-center justify-end px-2 pt-1.5 pb-1 shrink-0">
                   <span className={`text-2xs font-medium w-5 h-5 flex items-center justify-center rounded-full
                     ${isToday
-                      ? 'bg-lilac-500 text-white font-semibold'
+                      ? 'bg-lilac-500 text-background font-semibold'
                       : dow === 0 ? 'text-status-late'
                       : dow === 6 ? 'text-lilac-400'
                       : 'text-ink-500'
@@ -158,7 +158,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                       >
                         <span className={`truncate flex-1 leading-tight ${
                           isDone           ? 'line-through text-ink-400' :
-                          task.priority === 3 ? 'font-semibold text-rose-500' :
+                          task.priority === 3 ? 'font-semibold text-status-late' :
                           task.priority === 2 ? 'font-medium text-foreground' :
                           task.priority === 1 ? 'text-ink-600' :
                           'text-muted-foreground'

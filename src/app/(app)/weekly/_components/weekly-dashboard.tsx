@@ -34,11 +34,11 @@ const CHANGE_META: Record<ChangeKey, {
   dotCls: string
   badgeCls: string
 }> = {
-  new:       { label: '신규',   sectionLabel: '신규',               dotCls: 'bg-lilac-500',   badgeCls: 'bg-lilac-100 text-lilac-700' },
-  continued: { label: '진행중', sectionLabel: '진행중',             dotCls: 'bg-blue-500',    badgeCls: 'bg-blue-50 text-blue-700' },
-  completed: { label: '완료',   sectionLabel: '완료',               dotCls: 'bg-mint-500',    badgeCls: 'bg-mint-50 text-mint-700' },
-  blocked:   { label: '블로킹', sectionLabel: '블로킹',             dotCls: 'bg-status-late', badgeCls: 'bg-red-50 text-status-late' },
-  dropped:   { label: '미언급', sectionLabel: '미언급 (전주 대비)', dotCls: 'bg-amber-400',   badgeCls: 'bg-amber-50 text-amber-700' },
+  new:       { label: '신규',   sectionLabel: '신규',               dotCls: 'bg-lilac-500',      badgeCls: 'bg-lilac-100 text-lilac-600' },
+  continued: { label: '진행중', sectionLabel: '진행중',             dotCls: 'bg-status-future',  badgeCls: 'bg-status-future/10 text-status-future' },
+  completed: { label: '완료',   sectionLabel: '완료',               dotCls: 'bg-mint-500',       badgeCls: 'bg-mint-100 text-mint-500' },
+  blocked:   { label: '블로킹', sectionLabel: '블로킹',             dotCls: 'bg-status-late',    badgeCls: 'bg-status-late/10 text-status-late' },
+  dropped:   { label: '미언급', sectionLabel: '미언급 (전주 대비)', dotCls: 'bg-status-warn',    badgeCls: 'bg-status-warn/10 text-status-warn' },
 }
 
 const SECTION_ORDER: ChangeKey[] = ['new', 'continued', 'completed', 'blocked', 'dropped']
@@ -94,9 +94,9 @@ function StatusChip({ status, dim }: { status: string | null; dim?: boolean }) {
     <span className={`text-xs font-medium px-1.5 py-0.5 rounded-xs ${
       dim
         ? 'bg-ink-100 text-ink-400 line-through'
-        : status === 'completed' ? 'bg-mint-50 text-mint-600'
-        : status === 'blocked'   ? 'bg-red-50 text-status-late'
-        : status === 'in_progress' ? 'bg-blue-50 text-blue-600'
+        : status === 'completed' ? 'bg-mint-100 text-mint-500'
+        : status === 'blocked'   ? 'bg-status-late/10 text-status-late'
+        : status === 'in_progress' ? 'bg-status-future/10 text-status-future'
         : 'bg-muted text-ink-500'
     }`}>
       {label}
@@ -116,8 +116,8 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
   return (
     <div className={`bg-card border rounded-lg p-3.5 flex flex-col gap-2 hover:border-ink-300 transition-colors ${
       compareMode && item.change === 'new'     ? 'border-lilac-300 ring-1 ring-lilac-100' :
-      compareMode && item.change === 'dropped' ? 'border-amber-200 bg-amber-50/30' :
-      compareMode && item.change === 'blocked' ? 'border-red-200' :
+      compareMode && item.change === 'dropped' ? 'border-status-warn/30 bg-status-warn/5' :
+      compareMode && item.change === 'blocked' ? 'border-status-late/30' :
       'border-border'
     }`}>
       {/* 헤더: 브랜드 + 담당자 */}
@@ -148,7 +148,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* 블로킹 사유 */}
       {item.change === 'blocked' && item.block_reason && (
-        <div className="text-2xs text-status-late bg-red-50 border border-red-100 rounded px-2 py-1 leading-snug">
+        <div className="text-2xs text-status-late bg-status-late/10 border border-status-late/20 rounded px-2 py-1 leading-snug">
           블로킹 사유 {item.block_reason}
         </div>
       )}
@@ -163,7 +163,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
       )}
 
       {compareMode && item.change === 'dropped' && (
-        <div className="flex items-center gap-1.5 text-2xs text-amber-600">
+        <div className="flex items-center gap-1.5 text-2xs text-status-warn">
           <StatusChip status={item.prev_status ?? null} dim />
           <span>→</span>
           <span className="font-medium">이번 주 미언급</span>
@@ -254,10 +254,10 @@ function FilterBar({
   const pills: { key: FilterKey; label: string; dotCls?: string }[] = [
     { key: 'all',       label: '전체' },
     { key: 'new',       label: '신규',   dotCls: 'bg-lilac-500' },
-    { key: 'continued', label: '진행중', dotCls: 'bg-blue-500' },
+    { key: 'continued', label: '진행중', dotCls: 'bg-status-future' },
     { key: 'completed', label: '완료',   dotCls: 'bg-mint-500' },
     { key: 'blocked',   label: '블로킹', dotCls: 'bg-status-late' },
-    { key: 'dropped',   label: '미언급', dotCls: 'bg-amber-400' },
+    { key: 'dropped',   label: '미언급', dotCls: 'bg-status-warn' },
   ]
 
   return (
@@ -272,7 +272,7 @@ function FilterBar({
         }`}
       >
         <span
-          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-white shadow transition-transform ${
+          className={`inline-block h-3.5 w-3.5 transform rounded-full bg-background shadow transition-transform ${
             compareMode ? 'translate-x-4' : 'translate-x-0.5'
           }`}
         />

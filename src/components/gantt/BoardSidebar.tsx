@@ -149,7 +149,7 @@ export function BoardSidebar({
   return (
     <div
       className="shrink-0 flex flex-col border-r bg-muted overflow-hidden transition-all duration-200"
-      style={{ width: open ? 240 : 0 }}
+      style={{ width: open ? 'var(--sidebar-w)' : 0 }}
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
