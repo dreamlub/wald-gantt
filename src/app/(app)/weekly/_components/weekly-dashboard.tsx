@@ -5,6 +5,7 @@ import { Sparkles, RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight, WeeklyReportSummary, WeeklyReportItem } from '@/types/index'
 import { analyzeWeekly } from '@/lib/weekly-service'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
+import { SectionDivider } from '@/app/(app)/summary/_components/sidebar-date-panels'
 
 // ── 유틸 ─────────────────────────────────────────────────────────
 
@@ -222,10 +223,8 @@ function ChangeSection({ changeKey, items, compareMode }: {
   const meta = CHANGE_META[changeKey]
   return (
     <section className="mb-6">
-      <div className="flex items-center gap-2 mb-3">
-        <span className={`w-2 h-2 rounded-full shrink-0 ${meta.dotCls}`} />
-        <span className="text-sm font-semibold text-foreground">{meta.sectionLabel}</span>
-        <span className="text-xs text-ink-400">{items.length}건</span>
+      <div className="mb-3">
+        <SectionDivider label={meta.sectionLabel} count={items.length} dotClass={meta.dotCls} border={false} />
       </div>
       <div className="grid grid-cols-2 gap-3">
         {items.map((item, i) => (

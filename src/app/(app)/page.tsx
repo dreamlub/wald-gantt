@@ -20,6 +20,7 @@ import type { HistoryItem, Priority, Tag } from './summary/_lib/types'
 import { brandColor } from '@/lib/history-service'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
 import { TAG_META, PRIORITY_META } from './summary/_lib/constants'
+import { toYMD, toShortDate } from '@/lib/date-utils'
 
 type WeeklyInsightRow = {
   week_start: string
@@ -30,21 +31,16 @@ type WeeklyInsightRow = {
 const DAY_MS = 86_400_000
 
 function todayLocal(): string {
-  const now = new Date()
-  return `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-${String(now.getDate()).padStart(2, '0')}`
+  return toYMD(new Date())
 }
 
 function addDays(date: string, days: number): string {
   const d = new Date(date + 'T00:00:00')
   d.setDate(d.getDate() + days)
-  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  return toYMD(d)
 }
 
-function fmtDay(iso: string | null | undefined): string {
-  if (!iso) return '-'
-  const d = new Date(iso.length === 10 ? iso + 'T00:00:00' : iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
+const fmtDay = (iso: string | null | undefined) => toShortDate(iso)
 
 function plainInsightText(text: string): string {
   return text
@@ -349,7 +345,7 @@ export default async function CommandCenterPage() {
             <Panel title="Weekly 인사이트" href="/weekly" icon={<FileText size={13} />}>
               {latestWeekly?.content ? (
                 <div className="space-y-3">
-                  <p className="text-sm font-semibold text-foreground leading-relaxed">{plainInsightText(latestWeekly.content.headline)}</p>
+                  <p className="text-xs font-semibold text-foreground leading-relaxed">{plainInsightText(latestWeekly.content.headline)}</p>
                   <p className="text-xs text-muted-foreground leading-relaxed">{plainInsightText(latestWeekly.content.changes)}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <MiniStat label="작성" value={latestWeekly.content.stats.authors.count} />

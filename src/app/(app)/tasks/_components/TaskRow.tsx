@@ -10,6 +10,7 @@ import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
+import { toShortDate } from '@/lib/date-utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { labelColor } from '../_utils'
 import { PriorityBars } from '../_constants'
@@ -96,7 +97,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {/* 제목 — 클릭 시 드로어 */}
         <button
           onClick={() => onEdit(task)}
-          className={`text-xs min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
+          className={`text-sm min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
         >
           {task.title}
         </button>
@@ -136,7 +137,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           return (
             <span
               key={l}
-              className="shrink-0 text-4xs leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
+              className="shrink-0 text-4xs leading-none px-1 py-0.5 rounded font-medium whitespace-nowrap"
               style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
             >
               {l}
@@ -149,7 +150,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {task.scheduled_at && (() => {
           const d = new Date(task.scheduled_at)
           const isAllDay = d.getHours() === 0 && d.getMinutes() === 0
-          const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`
+          const dateLabel = toShortDate(task.scheduled_at)
           const label = isAllDay
             ? `${dateLabel} 종일`
             : (() => {

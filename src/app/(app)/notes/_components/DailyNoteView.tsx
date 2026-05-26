@@ -133,14 +133,14 @@ export function DailyNoteView({ handle, date }: Props) {
             remarkPlugins={[remarkGfm]}
             components={{
               h1: ({ children }) => <h1 className="text-xl font-bold mb-3 mt-5 first:mt-0 text-foreground">{children}</h1>,
-              h2: ({ children }) => <h2 className="text-base font-semibold mb-2 mt-4 first:mt-0 text-foreground">{children}</h2>,
-              h3: ({ children }) => <h3 className="text-sm font-semibold mb-1.5 mt-3 first:mt-0 text-foreground">{children}</h3>,
-              p:  ({ children }) => <p className="text-sm leading-relaxed mb-3 text-foreground">{children}</p>,
-              ul: ({ children }) => <ul className="mb-3 pl-5 text-sm space-y-1 list-disc text-foreground">{children}</ul>,
-              ol: ({ children }) => <ol className="mb-3 pl-5 text-sm space-y-1 list-decimal text-foreground">{children}</ol>,
+              h2: ({ children }) => <h2 className="text-sm font-semibold mb-2 mt-4 first:mt-0 text-foreground">{children}</h2>,
+              h3: ({ children }) => <h3 className="text-xs font-semibold mb-1.5 mt-3 first:mt-0 text-foreground">{children}</h3>,
+              p:  ({ children }) => <p className="text-xs leading-relaxed mb-3 text-foreground">{children}</p>,
+              ul: ({ children }) => <ul className="mb-3 pl-5 text-xs space-y-1 list-disc text-foreground">{children}</ul>,
+              ol: ({ children }) => <ol className="mb-3 pl-5 text-xs space-y-1 list-decimal text-foreground">{children}</ol>,
               li: ({ children }) => <li className="leading-relaxed text-foreground">{children}</li>,
               blockquote: ({ children }) => (
-                <blockquote className="border-l-2 border-lilac-300 pl-3 my-2 text-sm text-muted-foreground italic">
+                <blockquote className="border-l-2 border-lilac-300 pl-3 my-2 text-xs text-muted-foreground italic">
                   {children}
                 </blockquote>
               ),

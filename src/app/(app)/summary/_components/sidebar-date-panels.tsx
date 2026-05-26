@@ -15,6 +15,38 @@ export function GroupTitle({ children }: { children: React.ReactNode }) {
   return <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
 }
 
+// ── SectionDivider — 날짜·섹션 구분선 (리스트 뷰 공용) ──────
+// 날짜/섹션은 콘텐츠를 조직하는 헤더 → text-sm(14px), muted color로 아이템 타이틀과 구분
+// border: 하단 구분선 표시 여부 (default true)
+// dotColor: 인라인 컬러 dot (브랜드/상태 색상용)
+// dotClass: Tailwind 클래스 dot (고정 팔레트용)
+export function SectionDivider({
+  label,
+  count,
+  dotColor,
+  dotClass,
+  border = true,
+}: {
+  label: string
+  count?: number
+  dotColor?: string
+  dotClass?: string
+  border?: boolean
+}) {
+  return (
+    <div className={`flex items-center gap-2 ${border ? 'pb-1 border-b border-border' : ''}`}>
+      {(dotColor || dotClass) && (
+        <span
+          className={`w-2 h-2 rounded-full shrink-0 ${dotClass ?? ''}`}
+          style={dotColor ? { background: dotColor } : undefined}
+        />
+      )}
+      <span className="text-sm font-bold text-ink-400">{label}</span>
+      {count !== undefined && <span className="text-xs text-ink-300">{count}건</span>}
+    </div>
+  )
+}
+
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
 const DAY_HEADERS = ['일', '월', '화', '수', '목', '금', '토'] as const
 

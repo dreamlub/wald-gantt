@@ -185,7 +185,7 @@ export function TaskDetailDrawer({
             </button>
             <input
               ref={titleRef}
-              className="flex-1 text-xs font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
+              className="flex-1 text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
               placeholder="태스크 제목"
               value={title}
               onChange={e => setTitle(e.target.value)}
@@ -320,14 +320,14 @@ export function TaskDetailDrawer({
           {task?.parent_id && parentTask && (
             <div className="pt-2 border-t border-border">
               <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
-              <p className="mt-1 text-sm font-medium text-foreground">{parentTask.title}</p>
+              <p className="mt-1 text-xs font-medium text-foreground">{parentTask.title}</p>
             </div>
           )}
         </DrawerBody>
       ) : tab === 'memo' ? (
         <DrawerBody scrollable={false} className="p-5">
           <textarea
-            className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700 resize-none leading-relaxed"
+            className="w-full h-full text-sm border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700 resize-none leading-relaxed"
             placeholder="메모를 입력하세요"
             value={memo}
             onChange={e => setMemo(e.target.value)}

@@ -18,12 +18,3 @@ export const PRIORITY_META: Record<Priority, { label: string; color: string; bg:
 
 export const PRIORITY_KEYS: Priority[] = ['high', 'medium', 'low']
 
-export function fmtMonthDay(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getMonth() + 1}/${d.getDate()}`
-}
-
-export function fmtMonth(iso: string): string {
-  const d = new Date(iso)
-  return `${d.getFullYear()}년 ${d.getMonth() + 1}월`
-}

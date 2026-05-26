@@ -117,7 +117,7 @@ export function TasksActionBar({
               aria-checked={!hideDone}
               className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${hideDone ? 'bg-border' : 'bg-foreground'}`}
             >
-              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-white shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
+              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
             </div>
           </div>
           {(view === 'basic' || view === 'listview') && (
@@ -149,7 +149,7 @@ export function TasksActionBar({
           <button
             onClick={() => onFilterAssigneeChange(null)}
             className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-              ${!filterAssignee ? 'bg-foreground border-foreground text-white' : 'border-border text-muted-foreground hover:border-ink-400'}`}
+              ${!filterAssignee ? 'bg-foreground border-foreground text-background' : 'border-border text-muted-foreground hover:border-ink-400'}`}
           >
             전체
           </button>

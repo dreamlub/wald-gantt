@@ -1,5 +1,51 @@
 # Wald Gantt — 개발 로그
 
+## 백로그
+
+| 항목 | 내용 | 우선순위 |
+|---|---|---|
+| bulk 완료 + 반복 태스크 | bulk 상태 변경 시 반복 태스크 다음 인스턴스가 생성되지 않음 (`handleBulkStatusChange`에 recurrence 처리 없음) | 낮음 |
+| autoArchiveTasks 성능 | `load()` 호출마다 archive 쿼리 실행 → 하루 1회로 제한 필요 (페이지 진입 시에만 또는 별도 cron) | 낮음 |
+
+---
+
+## 최근 변경 (2026-05-26) — Tasks 디자인 시스템 정합 수정
+
+### 1. 하드코딩 색상 → 디자인 토큰 교체
+- `TasksSidebar.tsx`: `bg-orange-400` → `bg-status-soon`, `bg-sky-400` → `bg-status-future`
+- `TasksActionBar.tsx`: `bg-white` (토글 썸) → `bg-background`, `text-white` (전체 활성) → `text-background`
+- 다크모드 대응 완성
+
+### 2. 라벨 뱃지 `py-[3px]` 매직넘버 제거
+- `TaskRow.tsx`, `KanbanView.tsx`, `ListView.tsx`, `CalendarView.tsx` 전수 교체 → `py-0.5`
+
+---
+
+## 최근 변경 (2026-05-26) — Tasks 페이지 버그 수정 및 리팩터링
+
+### 1. `TaskDetailDrawer.tsx` 500줄 규칙 위반 해소 (632 → 368줄)
+- `DrawerProjectSection.tsx` — 연결 프로젝트 검색 드롭다운 분리
+- `DrawerLabelSection.tsx` — 라벨 입력/자동완성 분리
+- `DrawerRecurrenceSection.tsx` — 반복 설정 분리
+- `DrawerSubTaskSection.tsx` — 하위 태스크 목록+추가 분리
+- 각 섹션의 내부 상태(projSearch, labelInput 등)를 해당 컴포넌트로 이동
+
+### 2. `handleBulkStatusChange` 에러 롤백 누락 수정
+- catch 블록에 `await load()` 추가 → 실패 시 낙관적 업데이트 롤백
+
+### 3. KanbanView "완료 포함" 토글 노출
+- `view !== 'kanban'` 조건 제거 → 모든 뷰에서 토글 표시
+- hideDone 필터가 칸반에도 적용되고 있었으나 UI에서 제어 불가능했던 문제 해소
+
+### 4. `listSubQuickCreate` 부모 속성 상속 수정
+- `type/assignee/labels/priority/start_date/due_date` 하드코딩 → 부모 태스크 값 상속
+- `commitQuickAddSub`와 동작 일치
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
 ## 최근 변경 (2026-05-26) — 코드 품질 정리 2차 (unsafe assertion 제거 / 파일 명칭 정리 / 훅 분리)
 
 ### 1. `detail-drawer.tsx` unsafe `d!` non-null assertion 제거

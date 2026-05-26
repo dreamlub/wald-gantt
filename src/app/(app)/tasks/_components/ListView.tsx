@@ -240,7 +240,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               )}
             </div>
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
-              <span className={`text-xs truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
+              <span className={`text-sm truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
               {overdue && (
                 <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                   지연 {overdueDays(task.due_date)}일
@@ -269,7 +269,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 return (
                   <span
                     key={l}
-                    className="shrink-0 text-4xs leading-none px-1 py-[3px] rounded font-medium whitespace-nowrap"
+                    className="shrink-0 text-4xs leading-none px-1 py-0.5 rounded font-medium whitespace-nowrap"
                     style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
                   >
                     {l}

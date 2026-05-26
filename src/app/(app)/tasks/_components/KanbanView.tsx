@@ -13,6 +13,7 @@ import {
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS, PriorityBars } from '../_constants'
+import { SectionDivider } from '@/app/(app)/summary/_components/sidebar-date-panels'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { labelColor } from '../_utils'
@@ -69,7 +70,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
       onClick={() => onEdit(task)}
     >
       {/* 제목 */}
-      <div className={`text-xs leading-snug break-words ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}>
+      <div className={`text-sm leading-snug break-words ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}>
         {task.title}
       </div>
 
@@ -105,7 +106,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
             return (
               <span
                 key={l}
-                className="text-4xs leading-none px-1.5 py-[3px] rounded font-medium"
+                className="text-4xs leading-none px-1.5 py-0.5 rounded font-medium"
                 style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
               >
                 {l}
@@ -203,13 +204,8 @@ function KanbanColumn({
 
   return (
     <div className="flex flex-col shrink-0 w-72 h-full border-r border-border/30 last:border-r-0">
-      <div className="flex items-center gap-2 px-3 py-3">
-        <span
-          className="shrink-0 w-2 h-2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-        <span className="text-xs font-semibold text-foreground">{label}</span>
-        <span className="text-2xs text-muted-foreground">{tasks.length}</span>
+      <div className="px-3 py-3">
+        <SectionDivider label={label} count={tasks.length} dotColor={color} border={false} />
       </div>
 
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>

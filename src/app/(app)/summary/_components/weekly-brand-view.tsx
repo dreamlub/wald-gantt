@@ -277,7 +277,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
                   <td className="px-5 py-2">
                     <MarkdownBody
                       text={row.summary}
-                      className="text-xs text-ink-400 leading-[1.6]"
+                      className="text-sm text-ink-400 leading-[1.6]"
                     />
                   </td>
 

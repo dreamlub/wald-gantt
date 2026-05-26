@@ -75,7 +75,7 @@ export function StatsView({ items }: Props) {
     <div>
       {/* Hero */}
       <div className="bg-gradient-to-br from-lilac-100 to-rose-100 border border-lilac-200/60 rounded-xl px-6 py-5 mb-6">
-        <div className="text-xs leading-[1.85] text-foreground">
+        <div className="text-sm leading-[1.85] text-foreground">
           현재 필터 기준 <b className="text-lilac-600 font-semibold">총 {total}건</b> 수집됐어요.
           {tagCounts.issue > 0 && <> 그 중 <b className="text-lilac-600 font-semibold">이슈 {tagCounts.issue}건</b></>}
           {tagCounts.decision > 0 && <>, <b className="text-lilac-600 font-semibold">의사결정 {tagCounts.decision}건</b></>}

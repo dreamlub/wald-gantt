@@ -316,7 +316,7 @@ export default function GanttPage() {
             </button>
           )}
           {selectedBoard?.name && (
-            <h1 className="text-base font-semibold text-foreground">{selectedBoard.name}</h1>
+            <h1 className="text-sm font-semibold text-foreground">{selectedBoard.name}</h1>
           )}
           <div className="flex-1" />
           <button

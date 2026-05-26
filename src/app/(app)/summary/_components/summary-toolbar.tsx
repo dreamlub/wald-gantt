@@ -44,26 +44,29 @@ export function SummaryToolbar({
   setSearchQuery,
 }: Props) {
   return (
-    <div className="h-12 flex items-center border-b bg-card shrink-0 px-4 gap-2">
+    <div className="h-12 flex items-stretch border-b bg-card shrink-0">
       {!sidebarOpen && (
         <button
           onClick={onOpenSidebar}
-          className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
+          className="self-center ml-3 mr-1 p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors shrink-0"
           title="사이드바 열기"
         >
           <PanelLeftOpen size={14} />
         </button>
       )}
 
-      <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+      <nav className="flex items-stretch pl-3">
         {VIEW_TABS.map(tab => {
           const Icon = tab.icon
+          const active = view === tab.key
           return (
             <button
               key={tab.key}
               onClick={() => onViewChange(tab.key)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors ${
-                view === tab.key ? 'bg-card text-ink-700 shadow-sm' : 'text-muted-foreground hover:text-ink-700'
+              className={`flex items-center gap-1.5 px-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                active
+                  ? 'border-lilac-500 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
               }`}
             >
               <Icon size={12} />
@@ -71,9 +74,9 @@ export function SummaryToolbar({
             </button>
           )
         })}
-      </div>
+      </nav>
 
-      <div ref={searchRef} className="relative flex items-center ml-2">
+      <div ref={searchRef} className="relative flex items-center ml-auto mr-3">
         {searchOpen || searchQuery ? (
           <div className="relative flex items-center">
             <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
@@ -87,7 +90,10 @@ export function SummaryToolbar({
               className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
             />
             {searchQuery && (
-              <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1 text-ink-300 hover:text-muted-foreground">
+              <button
+                onClick={() => { setSearchQuery(''); setSearchOpen(false) }}
+                className="absolute right-1 text-ink-300 hover:text-muted-foreground"
+              >
                 <X size={12} />
               </button>
             )}
@@ -102,7 +108,6 @@ export function SummaryToolbar({
           </button>
         )}
       </div>
-
     </div>
   )
 }

@@ -1,6 +1,7 @@
 import { createClient } from '@supabase/supabase-js'
 import { WebClient } from '@slack/web-api'
 import type { Block, KnownBlock } from '@slack/web-api'
+import { formatDay } from '@/lib/date-utils'
 
 const PRIORITY_FLAG: Record<number, string> = { 3: '🔺 ', 2: '', 1: '', 0: '' }
 
@@ -54,11 +55,7 @@ function diffDays(due: string, today: string) {
   return Math.round((new Date(today).getTime() - new Date(due).getTime()) / 86400000)
 }
 
-function fmtKSTDate(d: string) {
-  const date = new Date(d + 'T00:00:00+09:00')
-  const dow = ['일', '월', '화', '수', '목', '금', '토'][date.getDay()]
-  return `${date.getMonth() + 1}월 ${date.getDate()}일 (${dow})`
-}
+const fmtKSTDate = (d: string) => formatDay(d, 'full')
 
 function line(t: Task, suffix?: string) {
   const flag = PRIORITY_FLAG[t.priority ?? 0] ?? ''
