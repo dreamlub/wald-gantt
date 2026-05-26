@@ -162,7 +162,7 @@ export function GanttCategoryLeft({
                   {cat.name}
                 </span>
               )}
-              <span className="text-3xs text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
+              <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
               {!readOnly && (
                 <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
                   <Popover>
@@ -245,11 +245,11 @@ export function GanttCategoryLeft({
                           {project.name}
                         </span>
                         {isProjectOverdue(project, todayStr) ? (
-                          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
+                          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
                             지연 {daysBetween(project.end_date!, todayStr)}일
                           </span>
                         ) : isStartDelayed(project, todayStr) ? (
-                          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
+                          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
                             시작 지연 {daysBetween(project.start_date!, todayStr)}일
                           </span>
                         ) : null}

@@ -2,13 +2,14 @@
 
 import { useCallback, useEffect, useState } from 'react'
 import { toast } from 'sonner'
+import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
-  getOrCreateWorkspace, getTasks, addTask, updateTask, softDeleteTask,
+  getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, duplicateTask,
   bulkSoftDeleteTasks, bulkUpdateTaskStatus,
   autoArchiveTasks, getArchivedTasksCount,
   createNextRecurringInstance,
-} from '@/lib/gantt-service'
+} from '@/lib/task-service'
 import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule, Workspace } from '@/types'
 
 const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
@@ -206,8 +207,8 @@ export function useTasksData() {
       const idSet = new Set(ids)
       setTasks(prev => prev.map(t => idSet.has(t.id) ? { ...t, status } : t))
       toast(`${ids.length}개 태스크 상태를 변경했어요`)
-    } catch (e) { toast.error(errMsg(e)) }
-  }, [])
+    } catch (e) { toast.error(errMsg(e)); await load() }
+  }, [load])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed(prev => {

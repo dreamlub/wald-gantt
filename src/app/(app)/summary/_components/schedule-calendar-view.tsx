@@ -4,7 +4,6 @@ import { useState, useEffect, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
-import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 import type { Priority } from '../_lib/types'
 import { brandColor } from '@/lib/history-service'
 
@@ -80,9 +79,9 @@ export function ScheduleCalendarView() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [activeBrands, setActiveBrands] = useState<Set<string>>(new Set())
+  const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
 
   useEffect(() => {
-    let mounted = true
     async function load() {
       const sb = createClient()
       const { data } = await sb
@@ -90,7 +89,6 @@ export function ScheduleCalendarView() {
         .select('report_date, content')
         .order('report_date', { ascending: false })
 
-      if (!mounted) return
       if (!data) { setLoading(false); return }
 
       // 중복 제거: title + brand + date 기준, 최신 리포트 우선
@@ -115,13 +113,10 @@ export function ScheduleCalendarView() {
         }
       }
 
-      if (mounted) {
-        setEvents([...seen.values()])
-        setLoading(false)
-      }
+      setEvents([...seen.values()])
+      setLoading(false)
     }
     load()
-    return () => { mounted = false }
   }, [])
 
   const allBrands = useMemo(() => {
@@ -329,11 +324,11 @@ export function ScheduleCalendarView() {
                         <TooltipTrigger
                           render={
                             <div
-                              className={`text-3xs px-1.5 py-[2px] rounded leading-tight truncate cursor-default ${
+                              className={`text-xs px-1.5 py-[2px] rounded leading-tight truncate cursor-default ${
                                 e.fuzzy ? 'border border-dashed opacity-70' : ''
                               }`}
                               style={{
-                                background: `color-mix(in srgb, ${color} 15%, transparent)`,
+                                background: `color-mix(in srgb, ${color} 15%, white)`,
                                 color,
                                 borderColor: e.fuzzy ? `color-mix(in srgb, ${color} 50%, transparent)` : undefined,
                               }}
@@ -350,40 +345,12 @@ export function ScheduleCalendarView() {
                     )
                   })}
                   {dayEvents.length > MAX && (
-                    <Popover>
-                      <PopoverTrigger className="text-3xs text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors">
-                        +{dayEvents.length - MAX}건 더
-                      </PopoverTrigger>
-                      <PopoverContent side="bottom" align="start" className="w-56 p-0 overflow-hidden">
-                        <div className="flex items-center justify-between px-3 py-1.5 border-b border-border">
-                          <span className="text-2xs font-semibold text-foreground">
-                            {day.getMonth() + 1}월 {day.getDate()}일
-                          </span>
-                          <span className="text-3xs text-muted-foreground">{dayEvents.length}건</span>
-                        </div>
-                        <div className="flex flex-col gap-0.5 p-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-                          {dayEvents.map((e, i) => {
-                            const color = brandColor(e.brand)
-                            return (
-                              <div
-                                key={i}
-                                className={`text-3xs px-1.5 py-[3px] rounded truncate ${
-                                  e.fuzzy ? 'border border-dashed opacity-70' : ''
-                                }`}
-                                style={{
-                                  background: `color-mix(in srgb, ${color} 15%, transparent)`,
-                                  color,
-                                  borderColor: e.fuzzy ? `color-mix(in srgb, ${color} 50%, transparent)` : undefined,
-                                }}
-                                title={`[${e.brand}] ${e.title}`}
-                              >
-                                {e.title}
-                              </div>
-                            )
-                          })}
-                        </div>
-                      </PopoverContent>
-                    </Popover>
+                    <button
+                      onClick={e => { e.stopPropagation(); setOverflow({ key: k, x: e.clientX, y: e.clientY }) }}
+                      className="text-xs text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
+                    >
+                      +{dayEvents.length - MAX}건 더
+                    </button>
                   )}
                 </div>
               </div>
@@ -395,8 +362,8 @@ export function ScheduleCalendarView() {
         {undatedEvents.length > 0 && (
           <div className="px-4 pt-4 pb-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
-              <span className="text-3xs text-ink-300">{undatedEvents.length}건</span>
+              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
+              <span className="text-xs text-ink-300">{undatedEvents.length}건</span>
             </div>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               {undatedEvents.map((e, i) => {
@@ -406,7 +373,7 @@ export function ScheduleCalendarView() {
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                     <span className="flex-1 text-xs text-foreground">{e.title}</span>
                     <span className="text-2xs text-ink-400 shrink-0">{e.brand}</span>
-                    <span className="text-3xs px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
                   </div>
                 )
               })}
@@ -415,6 +382,49 @@ export function ScheduleCalendarView() {
         )}
       </div>
 
+      {/* 날짜 오버플로우 팝오버 */}
+      {overflow && (() => {
+        const popEvents = eventsByDate.get(overflow.key) ?? []
+        const [, mo, d] = overflow.key.split('-').map(Number)
+        const label = `${mo + 1}월 ${d}일`
+        const left = Math.min(overflow.x, window.innerWidth - 224)
+        const top  = overflow.y + 8 + (window.innerHeight - overflow.y < 260 ? -260 : 0)
+        return (
+          <>
+            <div className="fixed inset-0 z-40" onClick={() => setOverflow(null)} />
+            <div
+              className="fixed z-50 w-56 bg-card border border-border rounded-xl shadow-lg py-2 overflow-hidden"
+              style={{ left, top }}
+            >
+              <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
+                <span className="text-2xs font-semibold text-foreground">{label}</span>
+                <span className="text-xs text-muted-foreground">{popEvents.length}건</span>
+              </div>
+              <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+                {popEvents.map((e, i) => {
+                  const color = brandColor(e.brand)
+                  return (
+                    <div
+                      key={i}
+                      className={`text-xs px-1.5 py-[3px] rounded truncate ${
+                        e.fuzzy ? 'border border-dashed opacity-70' : ''
+                      }`}
+                      style={{
+                        background: `color-mix(in srgb, ${color} 15%, white)`,
+                        color,
+                        borderColor: e.fuzzy ? `color-mix(in srgb, ${color} 50%, transparent)` : undefined,
+                      }}
+                      title={`[${e.brand}] ${e.title}`}
+                    >
+                      {e.title}
+                    </div>
+                  )
+                })}
+              </div>
+            </div>
+          </>
+        )
+      })()}
     </div>
   )
 }

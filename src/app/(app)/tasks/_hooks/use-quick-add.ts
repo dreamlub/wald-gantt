@@ -2,7 +2,7 @@
 
 import { useCallback, useState } from 'react'
 import { toast } from 'sonner'
-import { addTask } from '@/lib/gantt-service'
+import { addTask } from '@/lib/task-service'
 import type { GanttTask, TaskStatus, Workspace } from '@/types'
 
 const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
@@ -92,13 +92,13 @@ export function useQuickAdd(
       await addTask(workspace.id, {
         title,
         status: parent.status,
-        type: 'mine',
-        assignee: null,
-        start_date: null,
-        due_date: null,
+        type: parent.type ?? 'mine',
+        assignee: parent.assignee ?? null,
+        start_date: parent.start_date ?? null,
+        due_date: parent.due_date ?? null,
         memo: null,
-        priority: 2,
-        labels: [],
+        priority: parent.priority ?? 2,
+        labels: parent.labels ?? [],
         parent_id: parentId,
       }, parent.projects?.map(p => p.id) ?? [])
       await load()

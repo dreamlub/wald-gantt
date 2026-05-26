@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { format } from 'date-fns'
@@ -55,13 +55,13 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
         </div>
       ) : groups.map((group, gi) => (
         <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-muted transition-colors">
-          <div className="text-3xs text-muted-foreground font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
+          <div className="text-xs text-muted-foreground font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
           <div className="space-y-1">
             {group.map(entry => (
               <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-2xs text-muted-foreground font-semibold w-12 shrink-0">{FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
                 <span className="text-2xs text-muted-foreground line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
-                <span className="text-3xs text-ink-300">→</span>
+                <span className="text-xs text-ink-300">→</span>
                 <span className="text-2xs text-foreground font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
               </div>
             ))}
@@ -307,7 +307,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         {/* Scrollable content */}
         {tab === 'info' ? (
         <form
-          className="flex-1 overflow-y-auto px-5 py-4 flex flex-col gap-4"
+          className="flex-1 min-h-0 overflow-y-auto px-5 py-4 flex flex-col gap-4"
           autoComplete="off"
           onSubmit={e => e.preventDefault()}
         >
@@ -326,7 +326,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           {/* 카테고리 + 상태 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">카테고리</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">카테고리</label>
               <div className="relative mt-1.5">
                 <select
                   value={categoryId}
@@ -342,7 +342,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             </div>
 
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <select
                   value={status}
@@ -362,7 +362,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
               <div className="flex-1 min-w-0">
-                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -373,7 +373,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                 </div>
               </div>
               <div className="flex-1 min-w-0">
-                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={endDate}
@@ -392,7 +392,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           {/* 담당팀 / PM */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
               <AutocompleteInput
                 name="project-team"
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
@@ -403,7 +403,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               />
             </div>
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
               <AutocompleteInput
                 name="project-pm"
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
@@ -417,7 +417,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
 
           {/* 우선순위 */}
           <div>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]

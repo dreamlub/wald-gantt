@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import React from 'react'
 import { Plus, ChevronDown, ChevronRight } from 'lucide-react'
@@ -88,7 +88,7 @@ function QuickAddRow({ autoFocus, value, onChange, onCommit, onCancel, placehold
         placeholder={placeholder}
         className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
       />
-      {indent === 'pl-10' && <span className="text-3xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
+      {indent === 'pl-10' && <span className="text-xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
     </div>
   )
 }
@@ -197,7 +197,7 @@ export function NormalView(props: NormalViewProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-3xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
         <div className="w-5 shrink-0 mr-3" />
         <div className="flex-1 mr-4">태스크</div>
         <div className="w-8 shrink-0">우선</div>
@@ -232,9 +232,9 @@ export function NormalView(props: NormalViewProps) {
                     !
                   </span>
                   <span className="text-xs font-semibold text-status-late">지연</span>
-                  <span className="text-3xs text-ink-400">{overdueGroup.length}</span>
+                  <span className="text-xs text-ink-400">{overdueGroup.length}</span>
                   {avgOverdueDays > 0 && (
-                    <span className="ml-auto text-3xs text-ink-400">평균 지연 {avgOverdueDays}일</span>
+                    <span className="ml-auto text-xs text-ink-400">평균 지연 {avgOverdueDays}일</span>
                   )}
                 </button>
                 {!collapsed.has('__overdue__') && (
@@ -269,9 +269,9 @@ export function NormalView(props: NormalViewProps) {
                       {abbr}
                     </span>
                     <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-                    <span className="text-3xs text-ink-400">{group.length}</span>
+                    <span className="text-xs text-ink-400">{group.length}</span>
                     {status === 'in-progress' && avgIPDays > 0 && (
-                      <span className="ml-auto text-3xs text-ink-400">평균 진행 {avgIPDays}일</span>
+                      <span className="ml-auto text-xs text-ink-400">평균 진행 {avgIPDays}일</span>
                     )}
                   </button>
                   {!isCollapsed && (

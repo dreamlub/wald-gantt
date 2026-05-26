@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback } from 'react'
 import { Sparkles, RefreshCw, X, TrendingUp, TrendingDown } from 'lucide-react'
@@ -91,7 +91,7 @@ function StatusChip({ status, dim }: { status: string | null; dim?: boolean }) {
   if (!status) return null
   const label = STATUS_LABEL[status] ?? status
   return (
-    <span className={`text-3xs font-medium px-1.5 py-0.5 rounded-xs ${
+    <span className={`text-xs font-medium px-1.5 py-0.5 rounded-xs ${
       dim
         ? 'bg-ink-100 text-ink-400 line-through'
         : status === 'completed' ? 'bg-mint-50 text-mint-600'
@@ -180,7 +180,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
           {statusChanged && (
             <div className="flex items-center gap-1.5">
               <StatusChip status={item.prev_status ?? null} dim />
-              <span className="text-3xs text-ink-300">→</span>
+              <span className="text-xs text-ink-300">→</span>
               <StatusChip status={item.status ?? null} />
             </div>
           )}
@@ -194,15 +194,15 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* 태그 */}
       <div className="flex gap-1.5 flex-wrap mt-auto pt-0.5">
-        <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs ${meta.badgeCls}`}>
+        <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${meta.badgeCls}`}>
           {meta.label}
         </span>
         {item.task_type ? (
-          <span className="text-3xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
+          <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
             {item.task_type}
           </span>
         ) : item.type ? (
-          <span className="text-3xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
+          <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
             {item.type === 'issue' ? '이슈' : item.type === 'decision' ? '결정' : '계획'}
           </span>
         ) : null}
@@ -335,10 +335,10 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
 // ── Delta ─────────────────────────────────────────────────────────
 
 function Delta({ delta }: { delta: number }) {
-  if (delta === 0) return <span className="text-3xs text-ink-400">—</span>
+  if (delta === 0) return <span className="text-xs text-ink-400">—</span>
   const up = delta > 0
   return (
-    <span className={`text-3xs font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
+    <span className={`text-xs font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {up ? '+' : ''}{delta}
     </span>
@@ -432,7 +432,7 @@ function AISummaryPanel({
                     { label: '계획',   ...content.stats.plans },
                   ] as { label: string; count: number; delta: number }[]).map(s => (
                     <div key={s.label} className="bg-muted rounded-lg px-3 py-2.5">
-                      <p className="text-3xs text-ink-500 mb-1.5">{s.label}</p>
+                      <p className="text-xs text-ink-500 mb-1.5">{s.label}</p>
                       <div className="flex items-end gap-1.5">
                         <span className="text-base font-bold text-foreground leading-none">{s.count}</span>
                         <Delta delta={s.delta} />
@@ -443,7 +443,7 @@ function AISummaryPanel({
               )}
 
               <div>
-                <p className="text-3xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
+                <p className="text-xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
                 <p className="text-xs leading-relaxed text-foreground">
                   {content.headline.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
                     p.startsWith('**') && p.endsWith('**')
@@ -455,14 +455,14 @@ function AISummaryPanel({
 
               {content.changes && (
                 <div>
-                  <p className="text-3xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
+                  <p className="text-xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
                   <p className="text-2xs text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
                     {content.changes}
                   </p>
                 </div>
               )}
 
-              <p className="text-3xs text-ink-400">
+              <p className="text-xs text-ink-400">
                 by Claude · {reports.length}개 보고서
                 {insight!.analyzed_at ? ` · ${fmtDatetime(insight!.analyzed_at)}` : ''}
               </p>

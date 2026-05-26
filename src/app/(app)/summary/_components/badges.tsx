@@ -1,7 +1,7 @@
 'use client'
 
 import type { Tag, Priority } from '../_lib/types'
-import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
+import { TAG_META, PRIORITY_META } from '../_lib/constants'
 import { brandColor } from '@/lib/history-service'
 
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
@@ -27,7 +27,7 @@ export function PriorityBars({ priority, showLabel, onDark }: { priority: Priori
         ))}
       </span>
       {showLabel && (
-        <span className="text-3xs font-medium" style={{ color: meta.color }}>
+        <span className="text-xs font-medium" style={{ color: meta.color }}>
           {meta.label}
         </span>
       )}
@@ -129,7 +129,7 @@ export function BrandBadge({ brandName }: { brandName: string }) {
 }
 
 export function ChannelBadge({ channel, href }: { channel: string; href?: string | null }) {
-  const className = 'inline-flex items-center gap-1 text-3xs px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
+  const className = 'inline-flex items-center gap-1 text-xs px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" className={className}>

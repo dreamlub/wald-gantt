@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, PanelLeftClose, PanelLeftOpen, FolderOpen, X, Settings2, RefreshCw } from 'lucide-react'
@@ -52,7 +52,7 @@ export default function NotesPage() {
         style={{ width: sidebarOpen ? 240 : 0 }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-          <h1 className="flex-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Notes</h1>
+          <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Notes</h1>
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
@@ -72,7 +72,7 @@ export default function NotesPage() {
               className="p-0 w-full [--cell-size:--spacing(6)] bg-transparent"
               classNames={{
                 caption_label: 'text-xs font-semibold tracking-tight',
-                weekday: 'flex-1 text-center text-3xs font-medium text-ink-400 select-none',
+                weekday: 'flex-1 text-center text-xs font-medium text-ink-400 select-none',
                 week: 'mt-1 flex w-full',
               }}
             />
@@ -92,7 +92,7 @@ export default function NotesPage() {
 
           {/* Vault 섹션 */}
           <div>
-            <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-2">Vault</div>
+            <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">Vault</div>
 
             {isLoading && (
               <p className="text-2xs text-ink-300 px-1">연결 확인 중...</p>
@@ -142,7 +142,7 @@ export default function NotesPage() {
             {/* 경로 패턴 편집 */}
             {patternEditing && (
               <div className="mt-2 space-y-1.5">
-                <p className="text-3xs text-ink-400 px-1">예: Daily Notes/YYYY-MM-DD</p>
+                <p className="text-xs text-ink-400 px-1">예: Daily Notes/YYYY-MM-DD</p>
                 <input
                   autoFocus
                   value={patternDraft}

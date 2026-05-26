@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
@@ -152,7 +152,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                         key={task.id}
                         onClick={() => onEdit(task)}
                         title={task.title}
-                        className={`flex items-center gap-1 text-left text-3xs px-1.5 py-[3px] rounded truncate w-full
+                        className={`flex items-center gap-1 text-left text-xs px-1.5 py-[3px] rounded truncate w-full
                           border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                         style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                       >
@@ -200,7 +200,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
                 <span className="text-2xs font-semibold text-foreground">{label}</span>
-                <span className="text-3xs text-muted-foreground">{popTasks.length}개</span>
+                <span className="text-xs text-muted-foreground">{popTasks.length}개</span>
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popTasks.map(task => {
@@ -212,7 +212,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                     <button
                       key={task.id}
                       onClick={() => { setOverflow(null); onEdit(task) }}
-                      className={`flex items-center gap-1 text-left text-3xs px-1.5 py-[3px] rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
+                      className={`flex items-center gap-1 text-left text-xs px-1.5 py-[3px] rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                       style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                     >
                       <span className={`truncate flex-1 leading-tight ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>

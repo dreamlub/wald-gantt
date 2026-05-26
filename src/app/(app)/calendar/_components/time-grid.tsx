@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useRef, useCallback, useState, useMemo } from 'react'
 import type { CalendarEvent, GanttTask } from '@/types'
@@ -152,7 +152,7 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
         >
           <div className="w-1.5 h-1.5 rounded-full bg-lilac-500 -ml-0.5 shrink-0" />
           <div className="flex-1 border-t-2 border-lilac-400 border-dashed" />
-          <span className="text-3xs text-lilac-500 font-medium pr-1 shrink-0 bg-white/80 rounded px-0.5">
+          <span className="text-xs text-lilac-500 font-medium pr-1 shrink-0 bg-white/80 rounded px-0.5">
             {String(Math.floor(snapMinutes / 60)).padStart(2, '0')}:{String(snapMinutes % 60).padStart(2, '0')}
           </span>
         </div>
@@ -227,7 +227,7 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
         {hours.map(h => (
           <div
             key={h}
-            className="absolute right-0 pr-2 text-3xs text-ink-400 leading-none select-none text-right"
+            className="absolute right-0 pr-2 text-xs text-ink-400 leading-none select-none text-right"
             style={{ top: minutesToPx((h - START_H) * 60) - 6 }}
           >
             {h === START_H ? '' : `${String(h).padStart(2, '0')}:00`}

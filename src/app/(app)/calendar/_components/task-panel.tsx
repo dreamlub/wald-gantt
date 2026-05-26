@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
 import { Search, PanelLeftClose, GripVertical, CalendarDays, ChevronDown } from 'lucide-react'
@@ -178,7 +178,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
         onDrop={handleDrop}
       >
         {dragOver && (
-          <div className="mx-2 mb-1.5 border-2 border-dashed border-lilac-400 rounded text-3xs text-lilac-500 text-center py-2">
+          <div className="mx-2 mb-1.5 border-2 border-dashed border-lilac-400 rounded text-xs text-lilac-500 text-center py-2">
             여기에 놓으면 배치 해제
           </div>
         )}
@@ -209,7 +209,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
                       <p className={`text-xs leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
                         {task.title}
                       </p>
-                      <p className="text-3xs text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
+                      <p className="text-xs text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
                     </div>
                   </div>
                 </div>
@@ -276,7 +276,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
       </div>
 
       <div className="shrink-0 px-3 py-2 border-t border-border">
-        <p className="text-3xs text-ink-400">미배치 {unscheduledPending}개</p>
+        <p className="text-xs text-ink-400">미배치 {unscheduledPending}개</p>
       </div>
     </div>
   )

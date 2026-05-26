@@ -1,12 +1,11 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import {
   User, Link2, Monitor, Database,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
-  Plus, BookOpen, Trash2, GripVertical, Hash,
+  Download, ChevronRight, Plus, BookOpen, Trash2, GripVertical, Hash,
 } from 'lucide-react'
-import { RawDataView } from '../../summary/_components/raw-data-view'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -41,7 +40,7 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'display',      label: '화면',        icon: Monitor },
   { key: 'channels',     label: 'Slack 채널',  icon: Hash },
   { key: 'weekly',       label: 'Weekly 연동', icon: BookOpen },
-  { key: 'data',         label: '데이터 수집현황', icon: Database },
+  { key: 'data',         label: '데이터',      icon: Database },
 ]
 
 const THEME_OPTIONS = [
@@ -73,7 +72,7 @@ const SORT_MODE_OPTIONS: { value: SortMode; label: string }[] = [
 function SettingCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-4">
-      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   )
@@ -212,7 +211,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
     display:      '화면 설정',
     channels:     'Slack 채널 관리',
     weekly:       'Weekly 문서 연동',
-    data:         '데이터 수집현황',
+    data:         '데이터',
   }
 
   return (
@@ -243,9 +242,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
           <span className="text-xs font-semibold text-foreground">{SECTION_TITLE[section]}</span>
         </div>
 
-        {section === 'data' ? (
-          <RawDataView />
-        ) : (
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-background">
 
           {/* ── 계정 ── */}
@@ -338,7 +334,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     />
                   </Row>
                 )}
-                <p className="text-3xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
+                <p className="text-xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
             </>
@@ -365,7 +361,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   ))}
                 </div>
                 {theme === 'dark' && (
-                  <p className="text-3xs text-ink-400">
+                  <p className="text-xs text-ink-400">
                     * 다크 모드는 일부 커스텀 색상이 아직 완전히 지원되지 않습니다.
                   </p>
                 )}
@@ -463,15 +459,44 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     <Plus size={12} /> 추가
                   </button>
                 </div>
-                <p className="text-3xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
+                <p className="text-xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
               </SettingCard>
             </>
           )}
 
+          {/* ── 데이터 ── */}
+          {section === 'data' && (
+            <SettingCard title="내보내기">
+              <p className="text-2xs text-muted-foreground">
+                태스크, 히스토리, 주간 데이터를 CSV 또는 JSON으로 내보낼 수 있습니다.
+              </p>
+              <div className="space-y-2">
+                {[
+                  { label: '태스크 목록', format: 'CSV' },
+                  { label: '클라이언트 히스토리', format: 'JSON' },
+                  { label: '주간 요약', format: 'JSON' },
+                ].map(({ label, format }) => (
+                  <button
+                    key={label}
+                    disabled
+                    className="w-full flex items-center justify-between px-3 py-2 rounded border border-border text-xs text-muted-foreground opacity-50 cursor-not-allowed"
+                  >
+                    <span className="flex items-center gap-2">
+                      <Download size={13} />
+                      {label}
+                    </span>
+                    <span className="flex items-center gap-1 text-xs">
+                      {format}
+                      <ChevronRight size={11} />
+                    </span>
+                  </button>
+                ))}
+              </div>
+              <p className="text-xs text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
+            </SettingCard>
+          )}
 
         </div>
-        )}
-
       </div>
 
     </div>

@@ -4,18 +4,16 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { PanelLeftClose } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag } from '../_lib/types'
-
-import type { Priority } from '../_lib/types'
-import type { GanttCategory } from '@/types'
-import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart, getMondayOfDate, dateStr } from './history-sidebar'
-import { HistoryToolbar } from './history-toolbar'
+import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import { TAG_META, PRIORITY_META } from '../_lib/constants'
+import { SummarySidebar, type PriorityKey, getCurrentWeekStart } from './summary-sidebar'
+import { SummaryToolbar } from './summary-toolbar'
 import { BrandDailyListView } from './brand-daily-list-view'
-import { SummaryView } from './summary-view'
-import { TimelineView } from './timeline-view'
+import { StatsView } from './stats-view'
+import { RawDataView } from './raw-data-view'
+import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
-import { ThreadTimelineView } from './thread-timeline-view'
+import { TimelineView } from './timeline-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
@@ -23,25 +21,20 @@ import {
   PAGE_INIT, pageReducer,
   parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
-} from './history-shell-state'
+} from './summary-shell-state'
 import { filterHistoryItems } from '@/lib/history-query-utils'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
-import {
-  getOrCreateWorkspace, getBoards, getCategories,
-  addTask, addProject, searchProjects,
-} from '@/lib/gantt-service'
-
+import { useCreateDialogs } from './use-create-dialogs'
 import type { HistoryPage } from '@/lib/history-service'
 import { brandColor } from '@/lib/history-service'
-import { createClient } from '@/lib/supabase/client'
 
 interface Props {
   initialClients: Client[]
   initialHistory: HistoryItem[]
 }
 
-export function HistoryShell({ initialClients, initialHistory }: Props) {
+export function SummaryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
@@ -60,10 +53,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
-  const [reportDates,  setReportDates]  = useState<Set<string>>(new Set())
-  const reportInitRef = useRef(false)
-  // brandId가 'all'일 때 전체 브랜드 목록을 유지 (브랜드 필터 적용 시에도 사이드바에 전체 목록 표시)
-  const [allBrandCounts, setAllBrandCounts] = useState<Record<string, number>>({})
   const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
@@ -107,13 +96,10 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (authorKey !== 'all') sp.set('author', authorKey)
     if (searchQuery.trim()) sp.set('q', searchQuery)
     if (cursor) sp.set('cursor', cursor)
-    sp.set('limit', '200')
+    sp.set('limit', '50')
     const res = await fetch(`/api/history?${sp}`)
     if (!res.ok || id !== fetchIdRef.current) return
     const page = await res.json() as HistoryPage
-    if (brandId === 'all' && page.brandCounts && Object.keys(page.brandCounts).length > 0) {
-      setAllBrandCounts(page.brandCounts)
-    }
     pgDispatch({ type: 'loaded', page, append: !!cursor })
   }, [dateFrom, dateTo, brandId, priorityKey, selectedTags, authorKey, searchQuery])
 
@@ -123,67 +109,20 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (view === 'dailylist' && !tableInitRef.current && !dateFrom && !dateTo) {
       tableInitRef.current = true
       const now = new Date()
-      const thisMonday = getMondayOfDate(now)
-      const lastMonday = new Date(thisMonday)
-      lastMonday.setDate(thisMonday.getDate() - 7)
-      const thisSunday = new Date(thisMonday)
-      thisSunday.setDate(thisMonday.getDate() + 6)
-      setDateFrom(dateStr(lastMonday))
-      setDateTo(dateStr(thisSunday))
+      const d = new Date(now.getTime() - 6 * 86400000)
+      const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
+      setDateFrom(fmt(d))
+      setDateTo(fmt(now))
       return
     }
-    if (view === 'dailylist') void Promise.resolve().then(() => fetchPage())
+    if (view === 'dailylist') fetchPage()
   }, [view, dateFrom, dateTo, fetchPage])
 
   const handleLoadMore = useCallback(() => {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
 
-  // ── Daily Report: 리포트 날짜 목록 조회 + 초기 날짜 자동 설정 ─
-  useEffect(() => {
-    if (view !== 'dailyreport') return
-    if (reportInitRef.current) return
-    reportInitRef.current = true
-    ;(async () => {
-      const sb = createClient()
-      const { data } = await sb
-        .from('daily_reports')
-        .select('report_date')
-        .order('report_date', { ascending: false })
-      if (!data?.length) return
-      setReportDates(new Set(data.map(r => r.report_date as string)))
-      // dateFrom이 없거나 오늘 날짜면 → 최신 리포트 날짜로 자동 이동
-      setDateFrom(prev => (!prev || prev === todayStr()) ? (data[0].report_date as string) : prev)
-      setDateTo(prev => (!prev || prev === todayStr()) ? (data[0].report_date as string) : prev)
-    })()
-  }, [view])
-
-  // ── 생성 다이얼로그 ────────────────────────────────────────────
-  const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
-  const [createProjectOpen, setCreateProjectOpen] = useState(false)
-  const [createSource,      setCreateSource]      = useState<HistoryItem | null>(null)
-  const [createTaskPreset,  setCreateTaskPreset]  = useState<{ title: string; memo: string } | null>(null)
-  const [workspaceId,       setWorkspaceId]       = useState<string | null>(null)
-  const [allCategories,     setAllCategories]     = useState<GanttCategory[]>([])
-
-  async function loadWorkspace() {
-    if (workspaceId) return workspaceId
-    const ws = await getOrCreateWorkspace()
-    setWorkspaceId(ws.id)
-    return ws.id
-  }
-
-  async function handleOpenCreateTask(item: HistoryItem) {
-    setCreateSource(item)
-    await loadWorkspace()
-    setCreateTaskOpen(true)
-  }
-
-  async function handleCreateTaskFromAction(title: string, memo: string) {
-    setCreateTaskPreset({ title, memo })
-    await loadWorkspace()
-    setCreateTaskOpen(true)
-  }
+  const dialogs = useCreateDialogs()
 
   async function handleSaveItem(id: string, updates: { client_id?: string; author?: string | null; priority?: string | null; tags?: string[] }) {
     const res = await fetch(`/api/history/${id}`, {
@@ -199,15 +138,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
     setActiveItem(prev => prev?.id === id ? { ...prev, ...updates } as HistoryItem : prev)
     startTransition(() => router.refresh())
-  }
-
-  async function handleOpenCreateProject(item: HistoryItem) {
-    setCreateSource(item)
-    const wsId = await loadWorkspace()
-    const boards = await getBoards(wsId)
-    const cats = (await Promise.all(boards.map(b => getCategories(b.id)))).flat()
-    setAllCategories(cats)
-    setCreateProjectOpen(true)
   }
 
   // state → URL 동기화
@@ -255,13 +185,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery,
   }), [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
 
-  // Daily Report 이전/다음 리포트 날짜 (리포트가 있는 날끼리만 이동)
-  const sortedReportDates = useMemo(() => [...reportDates].sort(), [reportDates])
-  const reportDateIdx     = sortedReportDates.indexOf(dateFrom)
-  const prevReportDate    = reportDateIdx > 0 ? sortedReportDates[reportDateIdx - 1] : null
-  const nextReportDate    = reportDateIdx < sortedReportDates.length - 1 ? sortedReportDates[reportDateIdx + 1] : null
-  const handleReportDateChange = useCallback((d: string) => { setDateFrom(d); setDateTo(d) }, [])
-
   return (
     <div className="flex flex-1 overflow-hidden">
 
@@ -281,7 +204,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           </button>
         </div>
 
-        <HistorySidebar
+        <SummarySidebar
           view={view}
           history={initialHistory}
           dateFrom={dateFrom}
@@ -300,15 +223,13 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           onToggleDailyBrand={toggleDailyBrand}
           onToggleDailyTag={toggleDailyTag}
           onToggleDailyPriority={toggleDailyPriority}
-          reportDates={reportDates}
-          brandCounts={allBrandCounts}
         />
       </div>
 
       {/* ── 메인 ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <HistoryToolbar
+        <SummaryToolbar
           sidebarOpen={sidebarOpen}
           onOpenSidebar={() => setSidebarOpen(true)}
           view={view}
@@ -326,32 +247,33 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           {view === 'calendar' ? (
             <ScheduleCalendarView />
           ) : view === 'timeline' ? (
-            <ThreadTimelineView
+            <TimelineView
               dateFrom={dateFrom || undefined}
               dateTo={dateTo || undefined}
               brandFilter={brandId === 'all' ? undefined : brandId}
             />
+          ) : view === 'rawdata' ? (
+            <RawDataView />
           ) : view === 'dailyreport' ? (
             <DailyReportView
               selectedDate={dateFrom || todayStr()}
               filterBrands={dailyBrands}
               filterTags={dailyTags}
               filterPriorities={dailyPriorities}
-              onCreateTask={handleCreateTaskFromAction}
-              prevDate={prevReportDate}
-              nextDate={nextReportDate}
-              onDateChange={handleReportDateChange}
+              onCreateTask={dialogs.handleCreateTaskFromAction}
             />
           ) : (
             <>
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
-              {view !== 'summary' && view !== 'dailylist' && (
+              {view !== 'summary' && (
                 <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
-                      {view === 'weeklylist'
-                        ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
-                        : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
+                      {view === 'dailylist'
+                        ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
+                        : view === 'weeklylist'
+                          ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
+                          : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
                       }
                     </span>
                     {brandId !== 'all' && (
@@ -387,13 +309,16 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   total={pg.total}
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
+                  brandCounts={pg.brandCounts}
+                  activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
-                  onCreateTask={handleOpenCreateTask}
+                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  onCreateTask={dialogs.handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />
               )}
               {view === 'weeklylist' && (
-                <TimelineView
+                <WeeklyBrandView
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -403,7 +328,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'summary' && (
                 <div data-scrolltop className="flex-1 overflow-y-auto">
                   <div className="px-6 pb-5">
-                    <SummaryView items={filtered} />
+                    <StatsView items={filtered} />
                   </div>
                 </div>
               )}
@@ -418,50 +343,29 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         item={activeItem}
         clients={initialClients}
         onClose={() => setActiveItem(null)}
-        onCreateTask={handleOpenCreateTask}
-        onCreateProject={handleOpenCreateProject}
+        onCreateTask={dialogs.handleOpenCreateTask}
+        onCreateProject={dialogs.handleOpenCreateProject}
         onSaveItem={handleSaveItem}
       />
 
       {/* 태스크 생성 다이얼로그 */}
       <TaskFormDialog
-        open={createTaskOpen}
-        onClose={() => { setCreateTaskOpen(false); setCreateSource(null); setCreateTaskPreset(null) }}
-        initialTitle={createSource?.title ?? createTaskPreset?.title ?? ''}
-        initialMemo={createSource?.body ?? createTaskPreset?.memo ?? ''}
-        onSearchProjects={q => workspaceId ? searchProjects(workspaceId, q) : Promise.resolve([])}
-        onSave={async (fields, projectIds) => {
-          if (!workspaceId) return
-          await addTask(workspaceId, { ...fields, type: 'mine' }, projectIds)
-          setCreateTaskOpen(false)
-          setCreateSource(null)
-          setCreateTaskPreset(null)
-        }}
+        open={dialogs.createTaskOpen}
+        onClose={dialogs.closeTask}
+        initialTitle={dialogs.createSource?.title ?? dialogs.createTaskPreset?.title ?? ''}
+        initialMemo={dialogs.createSource?.body ?? dialogs.createTaskPreset?.memo ?? ''}
+        onSearchProjects={dialogs.onSearchProjects}
+        onSave={dialogs.saveTask}
       />
 
       {/* 프로젝트 생성 다이얼로그 */}
       <ProjectFormDialog
-        open={createProjectOpen}
-        onClose={() => { setCreateProjectOpen(false); setCreateSource(null) }}
-        categories={allCategories}
-        initialName={createSource?.title ?? ''}
-        initialMemo={createSource?.body ?? ''}
-        onSave={async (fields) => {
-          if (!workspaceId) return
-          const cat = allCategories.find(c => c.id === fields.categoryId)
-          if (!cat) return
-          await addProject(cat.board_id, workspaceId, fields.categoryId, fields.parentId, {
-            name: fields.name,
-            status: fields.status,
-            start_date: fields.start_date,
-            end_date: fields.end_date,
-            team: fields.team,
-            pm: fields.pm,
-            priority: fields.priority,
-          })
-          setCreateProjectOpen(false)
-          setCreateSource(null)
-        }}
+        open={dialogs.createProjectOpen}
+        onClose={dialogs.closeProject}
+        categories={dialogs.allCategories}
+        initialName={dialogs.createSource?.title ?? ''}
+        initialMemo={dialogs.createSource?.body ?? ''}
+        onSave={dialogs.saveProject}
       />
     </div>
   )

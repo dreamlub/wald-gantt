@@ -4,7 +4,7 @@ import { useCallback, useEffect, useMemo, useRef, useState } from 'react'
 import { ExternalLink, ListTodo } from 'lucide-react'
 
 import type { HistoryItem, Tag } from '../_lib/types'
-import { TAG_KEYS, TAG_META } from '../_lib/mock-data'
+import { TAG_KEYS, TAG_META } from '../_lib/constants'
 import { PriorityBars, TagBadge } from './badges'
 
 interface Props {
@@ -16,10 +16,6 @@ interface Props {
   onLoadMore?: () => void
   onClearFilters: () => void
   onCreateTask?: (item: HistoryItem) => void
-}
-
-function toKstDate(iso: string): string {
-  return new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
 }
 
 function shortDateLabel(ymd: string): string {
@@ -49,7 +45,7 @@ function tagCounts(items: HistoryItem[]): Partial<Record<Tag, number>> {
 function groupByDate(items: HistoryItem[]) {
   const map = new Map<string, HistoryItem[]>()
   for (const item of items) {
-    const date = toKstDate(item.occurred_at)
+    const date = toKSTDate(item.occurred_at)
     const group = map.get(date)
     if (group) group.push(item)
     else map.set(date, [item])
@@ -128,8 +124,8 @@ function HistoryRow({
 
       {expanded && (
         <div className="border-t border-border px-5 py-3 space-y-2">
-          {item.body && <p className="text-2xs text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
-          <div className="flex items-center gap-2 text-3xs text-ink-400">
+          {item.body && <p className="text-sm text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
+          <div className="flex items-center gap-2 text-xs text-ink-400">
             <span className="truncate"># {item.channel}</span>
             <div className="ml-auto flex items-center gap-1">
               {item.source_ref && (

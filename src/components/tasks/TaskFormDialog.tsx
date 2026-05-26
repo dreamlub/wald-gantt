@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { X, Search, ChevronDown, Tag, RotateCw } from 'lucide-react'
@@ -248,7 +248,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -268,7 +268,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
             </div>
 
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
+              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
               <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="이름 (없으면 내 할일)"
@@ -283,7 +283,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -294,7 +294,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
+                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -312,7 +312,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 우선순위 */}
           <div>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -338,7 +338,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 라벨 */}
           <div ref={labelRef}>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -396,7 +396,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 연결 프로젝트 */}
           <div>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
             {linkedProjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
                 {linkedProjects.map(p => (
@@ -516,7 +516,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 상위 태스크 */}
           {parentTask && (
-            <div className="text-3xs pt-2 border-t border-border">
+            <div className="text-xs pt-2 border-t border-border">
               <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
               <p className="mt-0.5 text-2xs text-ink-500 truncate">{parentTask.title}</p>
             </div>

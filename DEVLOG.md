@@ -1,5 +1,75 @@
 # Wald Gantt — 개발 로그
 
+## 최근 변경 (2026-05-26) — 코드 품질 정리 2차 (unsafe assertion 제거 / 파일 명칭 정리 / 훅 분리)
+
+### 1. `detail-drawer.tsx` unsafe `d!` non-null assertion 제거
+- `setDraft(d => ({ ...d!, ... }))` 패턴 4곳 → `setDraft(d => d ? { ...d, ... } : d)` 로 교체
+- `d`가 null인 상태에서 호출될 경우 런타임 에러 방지
+
+### 2. `_lib/mock-data.ts` → `_lib/constants.ts` 이름 변경
+- 파일명이 의미를 잘못 전달(mock 데이터가 아닌 상수/메타 정의)
+- 10개 파일 import 일괄 업데이트: `badges`, `brand-daily-list-view`, `daily-report-view`, `detail-drawer`, `history-shell`, `history-sidebar`, `stacked-card-view`, `summary-view`, `table-view`, `action-detail-drawer`
+- `page.tsx` import 누락분도 함께 수정
+
+### 3. `_components` 내 파일명 언더스코어 접두어 제거
+- `_action-detail-drawer.tsx` → `action-detail-drawer.tsx`
+- `_sidebar-date-panels.tsx` → `sidebar-date-panels.tsx`
+- `_raw-data-sidebar.tsx` → `raw-data-sidebar.tsx`
+- 의존 파일(`daily-report-view`, `history-sidebar`) import 업데이트
+
+### 4. `history-shell.tsx` 다이얼로그/워크스페이스 로직 훅 분리
+- `use-create-dialogs.ts` 신규 훅 추출 (77줄)
+- `history-shell.tsx` 461줄 → 398줄 (500줄 상한에 여유 확보)
+- 태스크/프로젝트 생성 관련 상태 및 핸들러를 단일 훅으로 캡슐화
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
+## 최근 변경 (2026-05-26) — 코드 품질 정리 (500줄 분리 / 마이그레이션 추적 / 에러 처리)
+
+### 1. `daily-report-view.tsx` 500줄 분리
+- `ActionDetailDrawer`, `RelatedItemCard`, `BodyBullets` 등 드로어 관련 코드 → `_action-detail-drawer.tsx` 신규 파일 추출
+- `daily-report-view.tsx` 602줄 → 277줄 / `_action-detail-drawer.tsx` 273줄
+
+### 2. 마이그레이션 미추적 DB 오브젝트 추가
+- `supabase/migrations/20260526000001_add_missing_rpc_and_tables.sql` 신규
+  - `client_history_summaries` 테이블: 재분류 시 이전 분류 결과 아카이브용
+  - `get_raw_messages_by_date(p_workspace_id, p_date)` RPC: KST 날짜 기준 raw 메시지 조회
+  - `get_thread_reply_raw_ids(p_workspace_id)` RPC: 스레드 답글 raw ID 목록 조회
+
+### 3. `reclassify` 아카이브 에러 무시 수정
+- `client_history_summaries` insert 결과를 체크하지 않던 버그 수정
+- 실패 시 SSE로 경고 메시지 전송 후 계속 진행
+
+### 4. `history-sidebar.tsx` 워트리 충돌 해결
+- 다른 에이전트가 master에서 분리한 버전을 워트리에 반영
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
+## 최근 변경 (2026-05-26) — Summary 타임존 처리 통일
+
+### 1. KST 변환 `toKSTDate()` 유틸로 통일
+
+- **문제**: Summary 컴포넌트 5개 파일에서 KST 변환 방식이 제각각 사용됨
+  - `new Date(iso).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })` (3개 파일)
+  - `new Date(utc).getTime() + 9 * 60 * 60 * 1000` (1개 파일)
+  - 로컬 함수 중복 정의 (2개 파일)
+- **수정**: 모두 `@/lib/history-query-utils`의 `toKSTDate()` import로 교체
+  - `stacked-card-view.tsx` — 로컬 `kstDate()` 제거
+  - `brand-daily-list-view.tsx` — 로컬 `toKstDate()` 제거
+  - `history-sidebar.tsx` — `toLocaleDateString('sv-SE', ...)` 3곳 교체
+  - `daily-report-view.tsx` — `kstDateLabel()` 내부 구현을 `toKSTDate()` 기반으로 교체 (출력 포맷 `YYYY/M/D` 유지)
+
+### 검증
+- `npx tsc --noEmit` 통과
+
+---
+
 ## 최근 변경 (2026-05-25) — Summary 뷰 전면 리팩터 + 파이프라인 정렬
 
 ### 1. Raw Data UTC→KST 버그 수정 (`raw-data-view.tsx`)

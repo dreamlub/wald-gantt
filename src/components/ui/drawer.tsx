@@ -63,7 +63,7 @@ export function DrawerBody({
   scrollable?: boolean
 }) {
   return (
-    <div className={`flex-1 ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'} ${className}`}>
+    <div className={`flex-1 min-h-0 ${scrollable ? 'overflow-y-auto' : 'overflow-hidden'} ${className}`}>
       {children}
     </div>
   )

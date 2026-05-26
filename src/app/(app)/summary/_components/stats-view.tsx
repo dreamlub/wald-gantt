@@ -1,9 +1,9 @@
-'use client'
+﻿'use client'
 
 import { useMemo } from 'react'
 import { Sparkles, BarChart3, Tag as TagIcon, Users, Hash } from 'lucide-react'
 import type { HistoryItem, Priority, Tag } from '../_lib/types'
-import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/mock-data'
+import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/constants'
 import { Avatar } from './badges'
 import { brandColor } from '@/lib/history-service'
 
@@ -11,7 +11,7 @@ interface Props {
   items: HistoryItem[]
 }
 
-export function SummaryView({ items }: Props) {
+export function StatsView({ items }: Props) {
   const total = items.length
 
   // 태그별 카운트 (한 항목이 여러 태그 가지면 모두 +1)
@@ -212,7 +212,7 @@ function Section({ icon, label, badge, children }: { icon: React.ReactNode; labe
         {icon}
         <span>{label}</span>
         {badge && (
-          <span className="text-3xs px-[7px] py-[2px] rounded-full bg-muted text-ink-400 font-medium">{badge}</span>
+          <span className="text-xs px-[7px] py-[2px] rounded-full bg-muted text-ink-400 font-medium">{badge}</span>
         )}
       </div>
       {children}

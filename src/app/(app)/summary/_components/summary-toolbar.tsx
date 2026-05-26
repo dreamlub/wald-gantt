@@ -2,14 +2,15 @@
 
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import {
-  CalendarDays, GitMerge, LayoutList,
+  CalendarDays, Database, GitMerge, LayoutList,
   Newspaper, PanelLeftOpen, Search, Table, X,
   type LucideIcon,
 } from 'lucide-react'
 
-import type { ViewKey } from './history-shell-state'
+import type { ViewKey } from './summary-shell-state'
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: LucideIcon }[] = [
+  { key: 'rawdata',     label: 'Raw Data',     icon: Database },
   { key: 'dailylist',   label: 'Daily List',   icon: LayoutList },
   { key: 'dailyreport', label: 'Daily Report', icon: Newspaper },
   { key: 'weeklylist',  label: 'Weekly List',  icon: Table },
@@ -30,7 +31,7 @@ interface Props {
   setSearchQuery: Dispatch<SetStateAction<string>>
 }
 
-export function HistoryToolbar({
+export function SummaryToolbar({
   sidebarOpen,
   onOpenSidebar,
   view,
