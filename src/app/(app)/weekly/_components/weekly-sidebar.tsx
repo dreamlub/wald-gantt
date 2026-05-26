@@ -42,7 +42,7 @@ export function WeeklySidebar({
       {/* 팀 선택 탭 */}
       {teams.length > 1 && (
         <div className="shrink-0 px-2 pt-2 pb-1 border-b border-border">
-          <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider px-2 mb-1">팀</div>
+          <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">팀</div>
           <div className="flex flex-col gap-0.5">
             {teams.map(team => (
               <button
@@ -59,7 +59,7 @@ export function WeeklySidebar({
 
       {/* 주차 목록 */}
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
-        <div className="px-2 mb-1.5 text-xs font-semibold text-ink-400 uppercase tracking-wider">주차 선택</div>
+        <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">주차 선택</div>
 
         {/* 네비게이터 */}
         {selectedWeek && (
@@ -72,7 +72,7 @@ export function WeeklySidebar({
               <ChevronLeft size={13} />
             </button>
             <div className="flex-1 flex flex-col items-center justify-center py-2 px-1">
-              <div className="text-xs font-semibold text-foreground">
+              <div className="text-sm font-semibold text-foreground">
                 {selectedWeek.replace(/-/g, '.')}
               </div>
             </div>
@@ -102,7 +102,7 @@ export function WeeklySidebar({
         ))}
 
         {weeks.length === 0 && (
-          <p className="px-2 text-2xs text-muted-foreground">수집된 주간보고가 없어요</p>
+          <p className="px-2 text-sm text-muted-foreground">수집된 주간보고가 없어요</p>
         )}
       </div>
     </div>

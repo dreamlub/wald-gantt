@@ -95,7 +95,7 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
     <div className="flex flex-col h-full overflow-hidden">
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
+        <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
         <Button variant="ghost" size="icon-xs" onClick={onClose} title="사이드바 닫기" className="text-ink-300">
           <PanelLeftClose size={14} />
         </Button>

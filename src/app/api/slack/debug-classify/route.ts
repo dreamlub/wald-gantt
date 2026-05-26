@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/server'
-import { classifyMessage, matchBrand, fetchBrandMappings, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
+import { classifyMessage, matchBrand, fetchBrandMappings, fetchBrandAliasMap, resolveBrandAlias, buildSourceRef, tsToISO, type RawJson } from '@/lib/slack-service'
 
 export async function GET() {
   try {
@@ -28,13 +28,17 @@ export async function GET() {
     if (error) return Response.json({ error: error.message }, { status: 500 })
     if (!rows?.length) return Response.json({ error: 'No raw messages found' }, { status: 404 })
 
-    const brandMappings = await fetchBrandMappings(sb, workspaceId)
+    const [brandMappings, aliasMap] = await Promise.all([
+      fetchBrandMappings(sb, workspaceId),
+      fetchBrandAliasMap(sb, workspaceId),
+    ])
     const FALLBACK_BRAND = '미분류'
 
     const results = []
     for (const row of rows) {
       const rj = row.raw_json as RawJson
-      const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
+      const rawBrand = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
+      const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
 
       let classifyResult = null
       let classifyError = null

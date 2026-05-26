@@ -12,7 +12,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 
 // ── GroupTitle ───────────────────────────────────────────────
 export function GroupTitle({ children }: { children: React.ReactNode }) {
-  return <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
+  return <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
 }
 
 // ── SectionDivider — 날짜·섹션 구분선 (리스트 뷰 공용) ──────
@@ -114,7 +114,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
             <ChevronLeft size={12} />
           </button>
           <div className="flex-1 flex items-center justify-center gap-1.5">
-            <span className="text-2xs font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
+            <span className="text-xs font-semibold text-foreground">{calYear}년 {calMonth + 1}월</span>
             {atCurrentMonth && (
               <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
             )}
@@ -196,11 +196,11 @@ export function SidebarDatePicker({ value, onChange, placeholder }: {
 
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-7 font-normal transition-colors hover:bg-muted">
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-sm h-7 font-normal transition-colors hover:bg-muted">
         <CalendarIcon size={12} className="text-muted-foreground shrink-0" />
         {dateValue
-          ? <span className="text-foreground text-2xs">{format(dateValue, 'yy.MM.dd', { locale: ko })}</span>
-          : <span className="text-ink-300 text-2xs">{placeholder}</span>
+          ? <span className="text-foreground text-sm">{format(dateValue, 'yy.MM.dd', { locale: ko })}</span>
+          : <span className="text-ink-300 text-sm">{placeholder}</span>
         }
       </PopoverTrigger>
       <PopoverContent className="w-auto p-0" align="start" side="right">
@@ -271,7 +271,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
         <GroupTitle>기간</GroupTitle>
         <div className="flex items-center gap-1.5">
           <SidebarDatePicker value={dateFrom} onChange={onDateFromChange} placeholder="시작일" />
-          <span className="text-xs text-ink-400 shrink-0">~</span>
+          <span className="text-sm text-ink-400 shrink-0">~</span>
           <SidebarDatePicker value={dateTo} onChange={onDateToChange} placeholder="종료일" />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -279,7 +279,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
             <button
               key={key}
               onClick={() => applyPreset(key)}
-              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
+              className={`text-sm px-2 py-0.5 rounded border transition-colors ${
                 active === key
                   ? 'bg-foreground text-background border-foreground'
                   : 'border-border text-ink-500 hover:text-foreground hover:border-ink-400'

@@ -69,7 +69,7 @@ function SortableBoardItem(props: ItemProps) {
         {editId === board.id ? (
           <input
             autoFocus
-            className="flex-1 text-xs bg-transparent border-b border-lilac-400 outline-none min-w-0"
+            className="flex-1 text-sm bg-transparent border-b border-lilac-400 outline-none min-w-0"
             value={editVal}
             onChange={e => setEditVal(e.target.value)}
             onBlur={() => onCommitEdit(board.id)}
@@ -81,7 +81,7 @@ function SortableBoardItem(props: ItemProps) {
           />
         ) : (
           <span
-            className="flex-1 text-xs truncate"
+            className="flex-1 text-sm truncate"
             onDoubleClick={e => onStartEdit(board, e)}
             title={`더블클릭하여 이름 변경: ${board.name}`}
           >
@@ -153,7 +153,7 @@ export function BoardSidebar({
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <span className="flex-1 text-xs font-semibold text-muted-foreground uppercase tracking-wider whitespace-nowrap">Projects</span>
+        <span className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Projects</span>
         <button
           onClick={onToggle}
           className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
@@ -194,7 +194,7 @@ export function BoardSidebar({
               <div className="flex items-center gap-1.5 px-1.5 py-2 rounded-md shadow-xl bg-card ring-1 ring-ink-200 cursor-grabbing">
                 <GripVertical size={12} className="text-ink-400 shrink-0" />
                 <LayoutDashboard size={13} className="shrink-0 opacity-50" />
-                <span className="flex-1 text-xs truncate text-foreground">{activeBoard.name}</span>
+                <span className="flex-1 text-sm truncate text-foreground">{activeBoard.name}</span>
               </div>
             ) : null}
           </DragOverlay>
@@ -225,7 +225,7 @@ export function BoardSidebar({
         ) : (
           <button
             onClick={() => setAdding(true)}
-            className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md mt-0.5"
+            className="w-full flex items-center gap-2 px-2.5 py-2 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded-md mt-0.5"
           >
             <Plus size={13} />
             새 보드
@@ -237,12 +237,12 @@ export function BoardSidebar({
       <div className="shrink-0 border-t px-1.5 py-1.5">
         <button
           onClick={onOpenTrash}
-          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-2.5 py-2 text-sm text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
         >
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>
           {trashCount > 0 && (
-            <span className="ml-auto text-xs bg-status-late/10 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-3xs bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
               {trashCount}
             </span>
           )}

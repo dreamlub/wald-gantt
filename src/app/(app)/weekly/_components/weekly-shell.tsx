@@ -130,7 +130,7 @@ export function WeeklyShell() {
         style={{ width: sidebarOpen ? 'var(--sidebar-w)' : 0 }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-          <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
+          <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
           <button
             onClick={handleImportOutline}
             disabled={importing}

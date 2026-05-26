@@ -14,6 +14,7 @@ import type { Client } from '../../summary/_lib/types'
 import { useVaultHandle } from '@/hooks/use-vault-handle'
 import { getPathPattern, setPathPattern } from '@/lib/daily-note'
 import { ChannelMappingSection } from './channel-mapping-section'
+import { BrandAliasSection } from './brand-alias-section'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -219,7 +220,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
       {/* 사이드바 */}
       <aside className="w-48 shrink-0 border-r bg-muted flex flex-col overflow-hidden">
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-          <h2 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">Settings</h2>
+          <h2 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">Settings</h2>
         </div>
         <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
           {NAV.map(({ key, label, icon: Icon }) => (
@@ -412,9 +413,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
 
           {/* ── Slack 채널 ── */}
           {section === 'channels' && (
-            <SettingCard title="채널 → 브랜드 매핑">
-              <ChannelMappingSection clients={clients} />
-            </SettingCard>
+            <>
+              <SettingCard title="채널 → 브랜드 매핑">
+                <ChannelMappingSection clients={clients} />
+              </SettingCard>
+              <SettingCard title="브랜드 별칭 통합">
+                <BrandAliasSection clients={clients} />
+              </SettingCard>
+            </>
           )}
 
           {/* ── Weekly 연동 ── */}

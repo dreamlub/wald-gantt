@@ -5,6 +5,7 @@ import {
   buildSourceRef, tsToISO, delay,
   fetchUserDirectory, resolveUserName,
   getReplySourceIds, softDeleteReplyHistoryRows,
+  fetchBrandAliasMap, resolveBrandAlias,
   type RawJson,
 } from '@/lib/slack-service'
 
@@ -75,9 +76,10 @@ export async function POST() {
 
         send('status', { message: `${rawRows.length}건 스레드 업데이트 중...` })
 
-        const [brandMappings, userDir] = await Promise.all([
+        const [brandMappings, userDir, aliasMap] = await Promise.all([
           fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
+          fetchBrandAliasMap(sb, workspaceId),
         ])
         const excludedChannels = getExcludedChannelIds(brandMappings)
         const FALLBACK_BRAND = '미분류'
@@ -158,7 +160,8 @@ export async function POST() {
           )
 
           // 5. 재분류 → client_history 업데이트
-          const brandName = matchBrand(updatedRj.channel_id, brandMappings) ?? FALLBACK_BRAND
+          const rawBrand = matchBrand(updatedRj.channel_id, brandMappings) ?? FALLBACK_BRAND
+          const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
 
           try {
             const result = await classifyMessage(updatedRj, brandName)
@@ -167,7 +170,7 @@ export async function POST() {
             await sb.from('client_history').upsert(
               {
                 workspace_id: workspaceId,
-                brand_name: brandName,
+                brand_name: resolveBrandAlias(result.brand || brandName, aliasMap) ?? brandName,
                 raw_message_id: raw.id,
                 thread_count: replies.length,
                 type: 'slack',

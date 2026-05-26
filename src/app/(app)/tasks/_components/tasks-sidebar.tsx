@@ -83,7 +83,7 @@ export function TasksSidebar({
       style={{ width: open ? 'var(--sidebar-w)' : 0 }}
     >
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
+        <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
         <button
           onClick={onClose}
           className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
@@ -103,7 +103,7 @@ export function TasksSidebar({
           >
             {item.icon}
             <span className="flex-1 text-left truncate">{item.label}</span>
-            <span className={`text-xs ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
+            <span className={`text-sm ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
               {item.count}
             </span>
           </button>
@@ -112,7 +112,7 @@ export function TasksSidebar({
         {/* 프로젝트 */}
         {projects.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
+            <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
             {projects.map(p => (
               <button
                 key={p.id}
@@ -121,7 +121,7 @@ export function TasksSidebar({
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PROJECT_COLORS[p.colorIdx % PROJECT_COLORS.length] }} />
                 <span className="flex-1 truncate text-left">{p.name}</span>
-                <span className="text-xs text-ink-400">{p.count}</span>
+                <span className="text-sm text-ink-400">{p.count}</span>
               </button>
             ))}
           </div>
@@ -129,7 +129,7 @@ export function TasksSidebar({
 
         {/* 담당자 */}
         <div className="mt-3">
-          <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
+          <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
           <div className="relative mx-2 mb-1.5">
             <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
             <input
@@ -137,7 +137,7 @@ export function TasksSidebar({
               placeholder="이름 검색"
               value={assigneeSearch}
               onChange={e => onAssigneeSearchChange(e.target.value)}
-              className="w-full text-2xs pl-5 pr-2 py-1 border border-border rounded bg-card text-muted-foreground placeholder:text-ink-300 focus:outline-none focus:border-lilac-300"
+              className="w-full text-sm pl-6 pr-2 py-1 border border-border rounded bg-card text-muted-foreground placeholder:text-ink-300 focus:outline-none focus:border-lilac-300"
             />
           </div>
           {assignees.map(a => (
@@ -151,7 +151,7 @@ export function TasksSidebar({
                 style={{ backgroundColor: assigneeColorMap.get(a.key) ?? 'var(--color-ink-300)' }}
               />
               <span className="flex-1 truncate text-left">{a.label}</span>
-              <span className="text-xs text-ink-400">{a.count}</span>
+              <span className="text-sm text-ink-400">{a.count}</span>
             </button>
           ))}
           {!isSearching && (assigneesHidden > 0 || assigneesExpanded) && (
@@ -167,7 +167,7 @@ export function TasksSidebar({
         {/* 라벨 */}
         {labels.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1.5 text-2xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
+            <div className="px-2 mb-1.5 text-sm font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
               {labels.map(l => (
                 <LabelBadge
@@ -188,7 +188,7 @@ export function TasksSidebar({
       <div className="shrink-0 border-t px-1.5 py-1.5 flex flex-col gap-0.5">
         <button
           onClick={onArchiveOpen}
-          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-2.5 py-2 text-sm text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
         >
           <Archive size={13} className="shrink-0" />
           <span className="whitespace-nowrap">아카이브</span>
@@ -200,7 +200,7 @@ export function TasksSidebar({
         </button>
         <button
           onClick={onTrashOpen}
-          className="w-full flex items-center gap-2 px-2.5 py-2 text-xs text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
+          className="w-full flex items-center gap-2 px-2.5 py-2 text-sm text-ink-400 hover:text-muted-foreground hover:bg-muted rounded-md transition-colors"
         >
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>

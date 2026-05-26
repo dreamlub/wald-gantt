@@ -146,7 +146,12 @@ function HistoryRow({
 
       {expanded && (
         <div className="border-t border-border px-5 py-3 space-y-2">
-          {item.body && <p className="text-sm text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
+          {item.body && (
+            <p
+              className="text-sm text-ink-500 leading-relaxed whitespace-pre-line"
+              dangerouslySetInnerHTML={{ __html: item.body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
+            />
+          )}
           <div className="flex items-center gap-2 text-xs text-ink-400">
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
@@ -238,8 +243,8 @@ export function DailyListView({
   return (
     <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
       <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col min-h-0">
-        <div className="p-3 border-b border-border">
-          <div className="relative">
+        <div className="h-16 flex items-center px-3 border-b border-border">
+          <div className="relative w-full">
             <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
             <input
               value={brandQuery}
@@ -279,15 +284,7 @@ export function DailyListView({
             <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
           )}
           <div className="min-w-0">
-            <div className="flex items-baseline gap-2">
-              <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
-              <span className="text-xs text-ink-400">
-                {selectedItems.length} / {total ?? items.length}건
-              </span>
-            </div>
-            <p className="text-xs text-ink-400 mt-0.5">
-              {activeBrand ? '선택 브랜드 기준으로 서버 필터가 적용되었습니다' : '브랜드를 선택하면 전체 기간 기준으로 다시 불러옵니다'}
-            </p>
+            <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
           </div>
           <div className="ml-auto">
             <TagSummary counts={selectedTagCounts} />
@@ -316,7 +313,6 @@ export function DailyListView({
           ))}
 
           {onLoadMore && <div ref={sentinelRef} className="h-px" />}
-          {loadingMore && <p className="text-center py-4 text-xs text-ink-400">불러오는 중...</p>}
         </div>
       </main>
     </div>

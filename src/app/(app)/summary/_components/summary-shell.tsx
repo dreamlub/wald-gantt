@@ -202,7 +202,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
         style={{ width: sidebarOpen ? 'var(--sidebar-w)' : 0 }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-          <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">SUMMARY</h1>
+          <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">SUMMARY</h1>
           <button
             onClick={() => setSidebarOpen(false)}
             className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
@@ -278,7 +278,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       {view === 'dailylist'
-                        ? <>{pg.loading ? '로딩 중...' : <><b className="text-foreground font-semibold">{pg.total}건</b></>}</>
+                        ? <><b className="text-foreground font-semibold">{pg.total}건</b></>
                         : view === 'weeklylist'
                           ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
                           : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>

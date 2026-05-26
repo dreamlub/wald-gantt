@@ -14,6 +14,7 @@ interface Props {
 export function AutocompleteInput({ value, onChange, suggestions, placeholder, className, name }: Props) {
   const [open, setOpen] = useState(false)
   const [highlighted, setHighlighted] = useState(-1)
+  const [dropUp, setDropUp] = useState(false)
   const containerRef = useRef<HTMLDivElement>(null)
   const listRef = useRef<HTMLUListElement>(null)
   const filtered = suggestions.filter(s => s.toLowerCase().includes(value.toLowerCase()) && s !== value)
@@ -31,6 +32,13 @@ export function AutocompleteInput({ value, onChange, suggestions, placeholder, c
     // eslint-disable-next-line react-hooks/set-state-in-effect
     setHighlighted(-1)
   }, [value])
+
+  useEffect(() => {
+    if (!open || !containerRef.current) return
+    const rect = containerRef.current.getBoundingClientRect()
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    setDropUp(rect.bottom + 200 > window.innerHeight)
+  }, [open])
 
   useEffect(() => {
     if (highlighted < 0 || !listRef.current) return
@@ -77,7 +85,7 @@ export function AutocompleteInput({ value, onChange, suggestions, placeholder, c
         autoComplete="off"
       />
       {open && filtered.length > 0 && (
-        <ul ref={listRef} className="absolute z-50 left-0 right-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto">
+        <ul ref={listRef} className={`absolute z-50 left-0 right-0 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-48 overflow-y-auto ${dropUp ? 'bottom-full mb-0.5' : 'top-full mt-0.5'}`}>
           {filtered.map((s, i) => (
             <li
               key={s}

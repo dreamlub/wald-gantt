@@ -4,6 +4,7 @@ import {
   matchBrand, classifyMessage, fetchBrandMappings,
   buildSourceRef, tsToISO, delay, isObviousNoise,
   fetchUserDirectory, resolveUserName,
+  fetchBrandAliasMap, resolveBrandAlias,
   type RawJson,
 } from '@/lib/slack-service'
 import { WebClient } from '@slack/web-api'
@@ -52,9 +53,10 @@ export async function POST(req: NextRequest) {
         const workspaceId = await getWorkspaceId(sb)
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
-        const [brandMappings, userDir] = await Promise.all([
+        const [brandMappings, userDir, aliasMap] = await Promise.all([
           fetchBrandMappings(sb, workspaceId),
           fetchUserDirectory(slack),
+          fetchBrandAliasMap(sb, workspaceId),
         ])
         const FALLBACK_BRAND = '미분류'
 
@@ -112,13 +114,14 @@ export async function POST(req: NextRequest) {
             const rj = raw.raw_json
             if (isObviousNoise(rj)) { totalNoise++; return null }
 
-            const brandName = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
+            const rawBrand = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
+            const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
             try {
               const result = await classifyMessage(rj, brandName)
               if (!result) { totalAiSkip++; return null }
               return {
                 workspace_id: workspaceId,
-                brand_name: result.brand || brandName,
+                brand_name: resolveBrandAlias(result.brand || brandName, aliasMap) ?? brandName,
                 raw_message_id: raw.id,
                 thread_count: rj.reply_count,
                 type: 'slack',

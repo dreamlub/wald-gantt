@@ -103,7 +103,7 @@ export function SummarySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -118,7 +118,7 @@ export function SummarySidebar({
             ))}
           </span>
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
+          {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts.all}</span>}
         </button>
         {(view === 'dailylist' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
           const meta = PRIORITY_META[p]
@@ -126,7 +126,7 @@ export function SummarySidebar({
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts[p]}</span>}
+              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}
@@ -167,7 +167,7 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
           <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
           <span className="flex-1 truncate text-left">전체</span>
           {brandId === 'all' && <Check size={12} className="shrink-0" />}
-          <span className="text-xs text-ink-400">{timelineTotal}</span>
+          <span className="text-sm text-ink-400">{timelineTotal}</span>
         </button>
         {Object.entries(timelineBrandCounts)
           .sort((a, b) => b[1] - a[1])
@@ -182,7 +182,7 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(name) }} />
                 <span className="flex-1 truncate text-left">{name}</span>
                 {active && <Check size={12} className="shrink-0" />}
-                <span className="text-xs text-ink-400">{cnt}</span>
+                <span className="text-sm text-ink-400">{cnt}</span>
               </button>
             )
           })}
@@ -233,7 +233,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              <span className="text-xs text-ink-400">{dayPriCount}</span>
+              <span className="text-sm text-ink-400">{dayPriCount}</span>
             </button>
           )
         })}
@@ -251,7 +251,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              <span className="text-xs text-ink-400">{count}</span>
+              <span className="text-sm text-ink-400">{count}</span>
             </button>
           )
         })}
@@ -272,7 +272,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                 <span className="flex-1 truncate text-left">{name}</span>
                 {active && <Check size={12} className="shrink-0" />}
-                <span className="text-xs text-ink-400">{count}</span>
+                <span className="text-sm text-ink-400">{count}</span>
               </button>
             )
           })}

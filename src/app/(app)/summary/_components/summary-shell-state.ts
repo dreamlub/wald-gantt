@@ -40,7 +40,7 @@ export const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium'
 export const VALID_TAGS: readonly Tag[] = ['issue', 'decision', 'mention', 'schedule']
 
 export function parseView(v: string | null): ViewKey {
-  return VALID_VIEWS.includes(v as ViewKey) ? (v as ViewKey) : 'dailyreport'
+  return VALID_VIEWS.includes(v as ViewKey) ? (v as ViewKey) : 'dailylist'
 }
 
 export function parsePriority(v: string | null): PriorityKey {

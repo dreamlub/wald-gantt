@@ -183,6 +183,28 @@ export function getExcludedChannelIds(mappings: BrandMapping[]): Set<string> {
   return new Set(mappings.filter(m => m.excluded).map(m => m.channel_id))
 }
 
+/** 별칭 테이블을 조회하여 alias_name → canonical_name 맵 반환 */
+export async function fetchBrandAliasMap(
+  sb: SupabaseClient,
+  workspaceId: string,
+): Promise<Map<string, string>> {
+  const { data, error } = await sb
+    .from('brand_aliases')
+    .select('alias_name, canonical_name')
+    .eq('workspace_id', workspaceId)
+  if (error) return new Map()
+  return new Map((data ?? []).map(r => [r.alias_name, r.canonical_name]))
+}
+
+/** 브랜드명에 별칭이 있으면 정식 이름으로 치환 */
+export function resolveBrandAlias(
+  brandName: string | null,
+  aliasMap: Map<string, string>,
+): string | null {
+  if (!brandName) return brandName
+  return aliasMap.get(brandName) ?? brandName
+}
+
 // ── 사용자 디렉토리 (Slack users.list) ─────────────────────────
 
 export type UserDirectory = Map<string, string>

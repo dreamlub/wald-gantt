@@ -57,45 +57,45 @@ export function RawDataSidebarPanel() {
   }
 
   return (
-    <div className="flex flex-col gap-3 p-4">
-      <p className="text-2xs text-ink-400 leading-relaxed">
+    <div className="flex flex-col gap-3 p-2">
+      <p className="text-sm text-ink-400 leading-relaxed">
         날짜별 수집 현황을 확인하고 재수집을 실행합니다.
       </p>
 
       <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
+        <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">기간 Raw 수집</div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-ink-400 w-6 shrink-0">from</span>
+            <span className="text-sm text-ink-400 w-6 shrink-0">from</span>
             <input
               type="date"
               value={from}
               onChange={e => setFrom(e.target.value)}
               disabled={busy}
-              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+              className="flex-1 text-sm bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-xs text-ink-400 w-6 shrink-0">to</span>
+            <span className="text-sm text-ink-400 w-6 shrink-0">to</span>
             <input
               type="date"
               value={to}
               onChange={e => setTo(e.target.value)}
               disabled={busy}
-              className="flex-1 text-2xs bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
+              className="flex-1 text-sm bg-muted border border-border rounded px-1.5 py-1 text-foreground disabled:opacity-50"
             />
           </div>
         </div>
         <button
           onClick={handleCollectRaw}
           disabled={busy || !from || !to || from > to}
-          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-2xs font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+          className="mt-0.5 flex items-center justify-center gap-1.5 w-full text-sm font-medium px-3 py-1.5 rounded border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
         >
-          <DatabaseZap size={11} className={busy && !classifyStatus ? 'animate-pulse' : ''} />
-          {busy && !classifyStatus ? 'Raw 수집 중...' : 'Raw 수집'}
+          <DatabaseZap size={11} className={busy ? 'animate-pulse' : ''} />
+          {busy ? 'Raw 수집 중...' : 'Raw 수집'}
         </button>
         {status && (
-          <p className="text-xs text-ink-400 leading-relaxed break-all">{status}</p>
+          <p className="text-sm text-ink-400 leading-relaxed break-all">{status}</p>
         )}
       </div>
 
