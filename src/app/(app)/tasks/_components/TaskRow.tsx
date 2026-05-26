@@ -97,7 +97,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {/* 제목 — 클릭 시 드로어 */}
         <button
           onClick={() => onEdit(task)}
-          className={`text-xs min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
+          className={`text-sm min-w-0 truncate text-left hover:text-accent-foreground transition-colors ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
         >
           {task.title}
         </button>

@@ -70,7 +70,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
       onClick={() => onEdit(task)}
     >
       {/* 제목 */}
-      <div className={`text-xs leading-snug break-words ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}>
+      <div className={`text-sm leading-snug break-words ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}>
         {task.title}
       </div>
 

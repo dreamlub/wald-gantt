@@ -241,7 +241,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               )}
             </div>
             <div className={`flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden ${isSub ? 'pl-4' : ''}`}>
-              <span className={`text-xs truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
+              <span className={`text-sm truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
               {overdue && <TaskStatusBadge type="overdue" days={overdueDays(task.due_date)} />}
               {noUpdate && !overdue && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
               {/* 연결 프로젝트 */}
