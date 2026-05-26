@@ -84,6 +84,14 @@ export interface SummaryVersion {
   archived_at: string
 }
 
+// PATCH /api/history/[id] 가 허용하는 편집 필드
+export interface HistoryEditDraft {
+  brand_name: string | null
+  author: string | null
+  priority: Priority | null
+  tags: Tag[]
+}
+
 export interface HistoryItem {
   id: string
   brand_name: string | null

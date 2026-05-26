@@ -4,7 +4,7 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { PanelLeftClose } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority, HistoryEditDraft } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/constants'
 import { SummarySidebar, type PriorityKey, getCurrentWeekStart } from './summary-sidebar'
 import { SummaryToolbar } from './summary-toolbar'
@@ -124,7 +124,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
 
   const dialogs = useCreateDialogs()
 
-  async function handleSaveItem(id: string, updates: { client_id?: string; author?: string | null; priority?: string | null; tags?: string[] }) {
+  async function handleSaveItem(id: string, updates: Partial<HistoryEditDraft>) {
     const res = await fetch(`/api/history/${id}`, {
       method: 'PATCH',
       headers: { 'Content-Type': 'application/json' },

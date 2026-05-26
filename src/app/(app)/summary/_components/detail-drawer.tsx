@@ -6,7 +6,7 @@ import { X, ExternalLink, Copy, Check, Plus, Pencil, ChevronDown } from 'lucide-
 import { useEffect, useState } from 'react'
 import { useClickAway } from '@/hooks/use-click-away'
 
-import type { Client, HistoryItem, Tag, Priority, ThreadReply } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority, ThreadReply, HistoryEditDraft } from '../_lib/types'
 import { createClient } from '@/lib/supabase/client'
 import { fetchThreadRepliesForItem } from '../_lib/thread-replies'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/constants'
@@ -15,13 +15,6 @@ import { PriorityBars } from './badges'
 import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
 import { MarkdownBody } from '@/components/MarkdownBody'
 
-interface EditDraft {
-  brand_name: string | null
-  author: string | null
-  priority: Priority | null
-  tags: Tag[]
-}
-
 interface Props {
   open: boolean
   item: HistoryItem | null
@@ -29,7 +22,7 @@ interface Props {
   onClose: () => void
   onCreateTask?: (item: HistoryItem) => void
   onCreateProject?: (item: HistoryItem) => void
-  onSaveItem?: (id: string, updates: Partial<EditDraft>) => Promise<void>
+  onSaveItem?: (id: string, updates: Partial<HistoryEditDraft>) => Promise<void>
 }
 
 export function HistoryDetailDrawer({
@@ -38,7 +31,7 @@ export function HistoryDetailDrawer({
 }: Props) {
   const [copied,        setCopied]        = useState(false)
   const [isEditing,     setIsEditing]     = useState(false)
-  const [draft,         setDraft]         = useState<EditDraft | null>(null)
+  const [draft,         setDraft]         = useState<HistoryEditDraft | null>(null)
   const [isSaving,      setIsSaving]      = useState(false)
   const [saveError,     setSaveError]     = useState<string | null>(null)
   const [brandDropOpen, setBrandDropOpen] = useState(false)
@@ -159,7 +152,7 @@ export function HistoryDetailDrawer({
             {/* 제목 */}
             <div>
               <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
-              <h3 className="text-base font-semibold text-foreground leading-[1.4]">{item.title}</h3>
+              <h3 className="text-sm font-semibold text-foreground leading-[1.4]">{item.title}</h3>
             </div>
 
             {/* 메타 그리드 */}
@@ -314,7 +307,7 @@ export function HistoryDetailDrawer({
             {item.body && (
               <div>
                 <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
-                <MarkdownBody text={item.body} className="text-xs text-ink-700 leading-[1.7] break-words" />
+                <MarkdownBody text={item.body} className="text-sm text-ink-700 leading-[1.7] break-words" />
               </div>
             )}
 

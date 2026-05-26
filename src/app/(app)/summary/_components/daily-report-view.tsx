@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useMemo } from 'react'
 import {
   Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target,
@@ -123,8 +123,8 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
               <BrandBadge brandName={a.brand} />
               <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
-            <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
-            <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
+            <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
+            <BodyBullets text={a.summary} className="text-sm text-ink-700 leading-relaxed mb-2.5 flex-1" />
             <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
               style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
               <ArrowRight size={12} className="shrink-0" />
@@ -184,7 +184,7 @@ function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
         <div key={d.id} className="bg-card border border-l-[3px] border-l-status-warn border-border rounded-lg p-3 transition-colors">
           <div className="flex items-start gap-1.5 mb-1.5">
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
-            <p className="text-base font-semibold text-foreground leading-snug">{d.title}</p>
+            <p className="text-sm font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
           <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
           <BrandBadge brandName={d.brand} />
@@ -208,22 +208,22 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
 
-  const fetchReport = useCallback(async () => {
+  useEffect(() => {
+    let cancelled = false
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     setLoading(true)
     const sb = createClient()
-    const { data } = await sb
-      .from('daily_reports')
+    sb.from('daily_reports')
       .select('content, analyzed_at, item_count, brand_count')
       .eq('report_date', selectedDate)
       .maybeSingle()
-    setReport(data as DailyReport | null)
-    setLoading(false)
+      .then(({ data }) => {
+        if (cancelled) return
+        setReport(data as DailyReport | null)
+        setLoading(false)
+      })
+    return () => { cancelled = true }
   }, [selectedDate])
-
-  useEffect(() => {
-    // eslint-disable-next-line react-hooks/set-state-in-effect
-    fetchReport()
-  }, [fetchReport])
 
   const dateLabel = useMemo(() => {
     try { return format(new Date(selectedDate + 'T00:00:00'), 'yyyy년 M월 d일 (eee)', { locale: ko }) }
