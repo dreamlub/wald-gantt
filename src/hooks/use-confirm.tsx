@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useCallback } from 'react'
+import { createPortal } from 'react-dom'
 import { X, AlertTriangle } from 'lucide-react'
 
 interface ConfirmOptions {
@@ -30,8 +31,8 @@ export function useConfirm() {
     setState(null)
   }
 
-  const dialog = state ? (
-    <div className="fixed inset-0 z-dialog flex items-center justify-center">
+  const dialog = state ? createPortal(
+    <div className="fixed inset-0 flex items-center justify-center" style={{ zIndex: 'var(--z-dialog)' }}>
       {/* backdrop */}
       <div
         className="absolute inset-0 bg-black/30 backdrop-blur-[1px]"
@@ -79,7 +80,7 @@ export function useConfirm() {
         </div>
       </div>
     </div>
-  ) : null
+  , document.body) : null
 
   return { confirm, dialog }
 }
