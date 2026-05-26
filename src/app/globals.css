@@ -130,6 +130,11 @@
   /* 레이아웃 치수 토큰 */
   --sidebar-w: 240px;
   --nav-w:     56px;
+
+  /* Tag badge — vivid(선명한) 배경 위 텍스트 색상 */
+  --color-tag-vivid-text: oklch(1 0 0);
+  /* PriorityBars — 어두운 배경 위 비활성 바 색상 */
+  --color-priority-bar-inactive-ondark: oklch(1 0 0 / 0.35);
 }
 
 @theme inline {

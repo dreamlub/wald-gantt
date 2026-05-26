@@ -20,8 +20,8 @@ export function PriorityBars({ priority, showLabel, onDark }: { priority: Priori
             style={{
               height: `${3 + i * 2}px`,
               backgroundColor: i <= p
-                ? (onDark ? 'white' : meta.color)
-                : (onDark ? 'rgba(255,255,255,0.35)' : 'var(--color-ink-150)'),
+                ? (onDark ? 'var(--color-tag-vivid-text)' : meta.color)
+                : (onDark ? 'var(--color-priority-bar-inactive-ondark)' : 'var(--color-ink-150)'),
             }}
           />
         ))}
@@ -129,7 +129,7 @@ export function BrandBadge({ brandName }: { brandName: string }) {
 }
 
 export function ChannelBadge({ channel, href }: { channel: string; href?: string | null }) {
-  const className = 'inline-flex items-center gap-1 text-xs px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
+  const className = 'inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" className={className}>
@@ -153,7 +153,7 @@ export function Avatar({ name, color, size = 22 }: { name: string; color?: strin
       style={{
         width: size,
         height: size,
-        fontSize: size <= 18 ? 9 : 10,
+        fontSize: size <= 18 ? 'var(--text-5xs)' : 'var(--text-4xs)',
         background: color ?? 'var(--color-ink-400)',
       }}
     >

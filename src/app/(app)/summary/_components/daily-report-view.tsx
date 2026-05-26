@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target,
-  ArrowRight, Plus,
+  Plus,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -15,6 +15,7 @@ import { PriorityBars, BrandBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { createClient } from '@/lib/supabase/client'
 import { ActionDetailDrawer, BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
+import { PriorityCallout } from './priority-callout'
 
 interface Props {
   selectedDate: string
@@ -34,7 +35,7 @@ interface DailyReport {
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-2xs">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-0.5 rounded-2xs">{part.slice(2, -2)}</strong>
       : <span key={i}>{part.replace(/\*/g, '')}</span>
   )
 }
@@ -108,7 +109,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
           <div
             key={a.id}
             onClick={() => onOpenDetail(a)}
-            className="relative group bg-card border border-l-[3px] border-border rounded-lg p-3.5 flex flex-col cursor-pointer hover:bg-muted/30 transition-colors"
+            className="relative group bg-card border border-l-px3 border-border rounded-lg p-3.5 flex flex-col cursor-pointer hover:bg-muted/30 transition-colors"
             style={{ borderLeftColor: PRIORITY_META[pri]?.color }}
           >
             <button
@@ -125,11 +126,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
             </div>
             <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
-            <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
-              style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
-              <ArrowRight size={12} className="shrink-0" />
-              <span>{a.action}</span>
-            </div>
+            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-2xs py-2" />
           </div>
         )
       })}
@@ -143,7 +140,7 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-2xs text-ink-700 min-w-[80px] flex items-center gap-1">
+          <span className="text-2xs text-ink-700 min-w-20 flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
@@ -181,7 +178,7 @@ function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {items.map(d => (
-        <div key={d.id} className="bg-card border border-l-[3px] border-l-status-warn border-border rounded-lg p-3 transition-colors">
+        <div key={d.id} className="bg-card border border-l-px3 border-l-status-warn border-border rounded-lg p-3 transition-colors">
           <div className="flex items-start gap-1.5 mb-1.5">
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
             <p className="text-base font-semibold text-foreground leading-snug">{d.title}</p>

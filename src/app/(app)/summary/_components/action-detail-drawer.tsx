@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, Plus, X, Loader2 } from 'lucide-react'
+import { Plus, X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 import type { ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META, TAG_META } from '../_lib/constants'
 import { PriorityBars, BrandBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
+import { PriorityCallout } from './priority-callout'
 import { toKSTDate } from '@/lib/history-query-utils'
 
 export const SEV_TO_PRIORITY: Record<string, Priority> = { urgent: 'high', watch: 'medium', info: 'low' }
@@ -65,7 +66,7 @@ export function BodyBullets({ text, className }: { text: string; className?: str
     <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
       {sentences.map((s, i) => (
         <li key={i} className="flex items-start gap-1.5">
-          <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
+          <span className="mt-px5 w-1 h-1 rounded-full bg-ink-300 shrink-0" />
           <span>{renderBodyBold(s)}</span>
         </li>
       ))}
@@ -231,15 +232,13 @@ export function ActionDetailDrawer({
           {item?.summary && <BodyBullets text={item.summary} className="text-xs text-ink-700 leading-relaxed" />}
         </div>
         <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2 text-xs font-medium px-3 py-2.5 rounded border border-dashed"
-            style={{
-              borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 40%, transparent)`,
-              color: PRIORITY_META[pri]?.color,
-              background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)`,
-            }}>
-            <ArrowRight size={13} className="shrink-0" />
-            <span>{item?.action}</span>
-          </div>
+          <PriorityCallout
+            color={PRIORITY_META[pri]?.color ?? ''}
+            text={item?.action ?? ''}
+            className="text-xs py-2.5"
+            iconSize={13}
+            borderOpacity={40}
+          />
         </div>
 
         <div className="px-5 py-4">
@@ -269,9 +268,9 @@ export function ActionDetailDrawer({
                     <span className="text-2xs text-ink-400 shrink-0 tabular-nums">{kstDateLabel(s.occurred_at)}</span>
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
-                  {s.body && <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-[3.5rem]" />}
+                  {s.body && <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-14" />}
                   {s.tags?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5 ml-[3.5rem]">
+                    <div className="flex flex-wrap gap-1 mt-1.5 ml-14">
                       {s.tags.map(tag => {
                         const meta = TAG_META[tag]
                         if (!meta) return null
