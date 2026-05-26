@@ -81,7 +81,7 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
               }, {})
               return Object.entries(groups).map(([board, list]) => (
                 <div key={board}>
-                  <div className="px-3 pt-1.5 pb-0.5 text-4xs font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
+                  <div className="px-3 pt-1.5 pb-0.5 text-2xs font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
                     {board}
                   </div>
                   {list.map(p => (

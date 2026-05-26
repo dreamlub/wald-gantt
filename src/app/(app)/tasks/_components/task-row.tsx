@@ -1,4 +1,4 @@
-﻿'use client'
+'use client'
 
 import { useState, useRef } from 'react'
 import {
@@ -9,10 +9,10 @@ import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff, isLightColor } from '../_utils'
-import { toShortDate } from '@/lib/date-utils'
+import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { labelColor } from '../_utils'
+import { LabelBadge } from './label-badge'
+import { TaskStatusBadge } from './task-status-badge'
 import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
@@ -102,55 +102,34 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           {task.title}
         </button>
 
-        {overdue && (
-          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
-            지연 {odDays}일
-          </span>
-        )}
-        {startDelayed && (
-          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
-            시작 지연 {sdDays}일
-          </span>
-        )}
-        {noUpdate && !overdue && !startDelayed && (
-          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
-            {daysDiff(task.updated_at)}일 무응답
-          </span>
-        )}
+        {overdue && <TaskStatusBadge type="overdue" days={odDays} />}
+        {startDelayed && <TaskStatusBadge type="start-delayed" days={sdDays} />}
+        {noUpdate && !overdue && !startDelayed && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
 
         {/* 연결 프로젝트 */}
         {task.projects && task.projects.length > 0 && (
           <>
-            <span className="text-ink-200 text-xs shrink-0">·</span>
+            <span className="text-ink-200 text-3xs shrink-0">·</span>
             {task.projects.slice(0, 2).map(p => (
-              <span key={p.id} className="flex items-center gap-0.5 text-xs bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+              <span key={p.id} className="flex items-center gap-0.5 text-3xs bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                 <Paperclip size={8} className="shrink-0" />{p.name}
               </span>
             ))}
-            {task.projects.length > 2 && <span className="text-xs text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
+            {task.projects.length > 2 && <span className="text-3xs text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
           </>
         )}
 
         {/* 라벨 */}
-        {labels.slice(0, 4).map(l => {
-          const bg = labelColor(l)
-          return (
-            <span
-              key={l}
-              className="shrink-0 text-4xs leading-none px-1 py-0.5 rounded font-medium whitespace-nowrap"
-              style={{ backgroundColor: bg, color: isLightColor(bg) ? 'var(--color-ink-800)' : 'white' }}
-            >
-              {l}
-            </span>
-          )
-        })}
+        {labels.slice(0, 4).map(l => (
+          <LabelBadge key={l} variant="display" name={l} />
+        ))}
         {labels.length > 4 && <span className="text-4xs text-ink-400 shrink-0">+{labels.length - 4}</span>}
 
         {/* 캘린더 배치 뱃지 */}
         {task.scheduled_at && (() => {
           const d = new Date(task.scheduled_at)
           const isAllDay = d.getHours() === 0 && d.getMinutes() === 0
-          const dateLabel = toShortDate(task.scheduled_at)
+          const dateLabel = `${d.getMonth() + 1}/${d.getDate()}`
           const label = isAllDay
             ? `${dateLabel} 종일`
             : (() => {
@@ -165,7 +144,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
             <Link
               href={`/calendar?highlight=${task.id}&date=${dateStr}`}
               onClick={e => e.stopPropagation()}
-              className="shrink-0 flex items-center gap-0.5 text-xs text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
+              className="shrink-0 flex items-center gap-0.5 text-3xs text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
             >
               <CalendarDays size={9} className="shrink-0" />
               {label}
@@ -177,7 +156,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {subTaskStats && subTaskStats.total > 0 && (
           <button
             onClick={e => { e.stopPropagation(); onToggleExpand?.() }}
-            className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
+            className={`shrink-0 text-3xs px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
               ${subTaskStats.done === subTaskStats.total
                 ? 'bg-mint-100 text-mint-500 border-mint-100 hover:bg-mint-100'
                 : 'bg-muted text-muted-foreground border-border hover:bg-muted'}`}
@@ -190,7 +169,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {/* 반복 뱃지 */}
         {task.recurrence_rule && (
           <span
-            className="shrink-0 flex items-center gap-0.5 text-[10px] text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap"
+            className="shrink-0 flex items-center gap-0.5 text-4xs text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap"
             title={`반복: ${{ daily: '매일', weekly: '매주', monthly: '매월', yearly: '매년' }[task.recurrence_rule]}${task.recurrence_interval && task.recurrence_interval > 1 ? ` (${task.recurrence_interval}${task.recurrence_rule === 'daily' ? '일' : task.recurrence_rule === 'weekly' ? '주' : '개월'}마다)` : ''}`}
           >
             <RotateCw size={8} className="shrink-0" />
@@ -201,7 +180,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-2xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
             title="하위 태스크 추가"
           >
             sub +

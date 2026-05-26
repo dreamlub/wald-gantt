@@ -273,7 +273,7 @@ export default async function CommandCenterPage() {
           <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <Panel title="내 실행 큐" href={tasksQuickHref('overdue')} icon={<ListTodo size={13} />}>
               <div className="space-y-2">
-                {[...overdueTasks, ...dueToday, ...dueThisWeek].slice(0, 7).map(task => (
+                {Array.from(new Map([...overdueTasks, ...dueToday, ...dueThisWeek].map(t => [t.id, t])).values()).slice(0, 7).map(task => (
                   <TaskRow key={task.id} task={task} today={today} />
                 ))}
                 {openTasks.length === 0 && <EmptyLine label="열린 태스크가 없습니다." />}

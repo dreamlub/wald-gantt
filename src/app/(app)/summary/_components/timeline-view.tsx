@@ -54,12 +54,11 @@ interface ArrowDef { from: string; to: string }
 interface RenderedArrow { d: string; color: string; status: CardStatus; sameRow: boolean }
 
 // ── Status config ─────────────────────────────────────────────
-// CSS variables won't resolve in SVG presentation attributes, so use hex fallbacks
 const SC: Record<CardStatus, { label: string; color: string; badgeCls: string }> = {
-  ongoing:   { label: '미완',      color: '#e53e3e', badgeCls: 'bg-status-late/10 text-status-late border-status-late/30' },
-  partial:   { label: '진행 중',   color: '#dd6b20', badgeCls: 'bg-status-warn/10 text-status-warn border-status-warn/30' },
-  resolved:  { label: '완료',      color: '#38b2ac', badgeCls: 'bg-mint-100 text-mint-500 border-mint-300' },
-  abandoned: { label: '언급 없음', color: '#a0aec0', badgeCls: 'bg-ink-100 text-ink-400 border-ink-200' },
+  ongoing:   { label: '미완',      color: 'var(--color-status-late)', badgeCls: 'bg-status-late/10 text-status-late border-status-late/30' },
+  partial:   { label: '진행 중',   color: 'var(--color-status-warn)', badgeCls: 'bg-status-warn/10 text-status-warn border-status-warn/30' },
+  resolved:  { label: '완료',      color: 'var(--color-mint-500)',    badgeCls: 'bg-mint-100 text-mint-500 border-mint-300' },
+  abandoned: { label: '언급 없음', color: 'var(--color-ink-300)',     badgeCls: 'bg-ink-100 text-ink-400 border-ink-200' },
 }
 
 // ── Layout constants ──────────────────────────────────────────
@@ -237,7 +236,7 @@ function CardCell({ card }: { card: TimelineCard }) {
   return (
     <div
       className="flex flex-col rounded-lg bg-card border border-ink-200 overflow-hidden h-full"
-      style={{ borderLeftColor: SC[card.status].color, borderLeftWidth: '3px' }}
+      style={{ borderLeftColor: SC[card.status].color, borderLeftWidth: 'var(--spacing-px3)' }}
     >
       <div className="flex items-center justify-between px-3 pt-2.5 mb-1">
         <div className="flex items-center gap-1 text-2xs text-ink-500">
@@ -337,7 +336,7 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
 
       {/* SVG rendered first (behind grid cards) */}
       <svg
-        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 1, pointerEvents: 'none' }}
+        style={{ position: 'absolute', top: 0, left: 0, width: totalW, height: totalH, zIndex: 'var(--z-base, 1)', pointerEvents: 'none' }}
       >
         <defs>
           {(Object.keys(SC) as CardStatus[]).map(s => (
@@ -357,16 +356,16 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
         ))}
       </svg>
 
-      <div style={{ ...gridStyle, position: 'relative', zIndex: 2 }}>
+      <div style={{ ...gridStyle, position: 'relative', zIndex: 'var(--z-above, 2)' }}>
 
         {/* ── Header row ─────────────────────────────────── */}
         <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">
-          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
+          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
           <div className="flex items-center gap-2.5 flex-wrap">
             {(Object.entries(SC) as [CardStatus, typeof SC[CardStatus]][]).map(([s, cfg]) => (
               <div key={s} className="flex items-center gap-0.5">
                 <StatusDot status={s} />
-                <span className="text-3xs text-ink-400">{cfg.label}</span>
+                <span className="text-2xs text-ink-400">{cfg.label}</span>
               </div>
             ))}
           </div>
@@ -394,15 +393,14 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
         ))}
 
         <div className="sticky top-0 right-0 z-30 bg-card border-b border-l border-ink-200 flex items-end justify-center pb-2.5">
-          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
+          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
         </div>
 
         {/* ── Issue rows ─────────────────────────────────── */}
         {issues.map(issue => (
           <Fragment key={issue.id}>
             <div
-              className="sticky left-0 z-10 bg-card border-b border-r border-ink-200 flex items-center gap-2"
-              style={{ paddingLeft: issue.indent ? 28 : 12, paddingRight: 8 }}
+              className={`sticky left-0 z-10 bg-card border-b border-r border-ink-200 flex items-center gap-2 pr-2 ${issue.indent ? 'pl-7' : 'pl-3'}`}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: issue.brandColor }} />
               <span className="text-2xs text-foreground font-medium leading-tight line-clamp-3">

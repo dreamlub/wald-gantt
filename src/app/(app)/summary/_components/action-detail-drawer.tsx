@@ -1,13 +1,14 @@
 'use client'
 
 import { useState, useEffect } from 'react'
-import { ArrowRight, Plus, X, Loader2 } from 'lucide-react'
+import { Plus, X, Loader2 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
 import type { ActionItem, Priority, Tag } from '../_lib/types'
 import { PRIORITY_META, TAG_META } from '../_lib/constants'
 import { PriorityBars, BrandBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
+import { PriorityCallout } from './priority-callout'
 import { toKSTDate } from '@/lib/history-query-utils'
 
 export const SEV_TO_PRIORITY: Record<string, Priority> = { urgent: 'high', watch: 'medium', info: 'low' }
@@ -65,7 +66,7 @@ export function BodyBullets({ text, className }: { text: string; className?: str
     <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
       {sentences.map((s, i) => (
         <li key={i} className="flex items-start gap-1.5">
-          <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
+          <span className="mt-px5 w-1 h-1 rounded-full bg-ink-300 shrink-0" />
           <span>{renderBodyBold(s)}</span>
         </li>
       ))}
@@ -82,18 +83,18 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <p className="text-xs font-semibold text-foreground leading-snug flex-1">{r.title}</p>
           <div className="flex items-center gap-2 shrink-0">
-            {r.thread_count > 0 && <span className="text-3xs text-ink-400">{r.thread_count}개 답글</span>}
-            {r.author && <span className="text-3xs text-ink-400">{r.author}</span>}
+            {r.thread_count > 0 && <span className="text-xs text-ink-400">{r.thread_count}개 답글</span>}
+            {r.author && <span className="text-xs text-ink-400">{r.author}</span>}
           </div>
         </div>
-        {r.body && <BodyBullets text={r.body} className="text-2xs text-ink-500 leading-relaxed mb-2" />}
+        {r.body && <BodyBullets text={r.body} className="text-xs text-ink-500 leading-relaxed mb-2" />}
         {r.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {r.tags.map(tag => {
               const meta = TAG_META[tag]
               if (!meta) return null
               return (
-                <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
+                <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                   style={{ background: meta.bg, color: meta.color }}>
                   {meta.label}
                 </span>
@@ -106,13 +107,13 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="border-t border-border">
           <button
             onClick={() => setRawOpen(v => !v)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-3xs text-ink-400 hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-ink-400 hover:bg-muted/30 transition-colors"
           >
             <span className="font-semibold uppercase tracking-wider">원본 메시지</span>
             <span className={`transition-transform ${rawOpen ? 'rotate-180' : ''}`}>▾</span>
           </button>
           {rawOpen && (
-            <div className="px-3.5 pb-3.5 text-2xs text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
+            <div className="px-3.5 pb-3.5 text-xs text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
               {slackTextClean(r.raw_text)}
             </div>
           )}
@@ -231,21 +232,19 @@ export function ActionDetailDrawer({
           {item?.summary && <BodyBullets text={item.summary} className="text-sm text-ink-700 leading-relaxed" />}
         </div>
         <div className="px-5 py-4 border-b border-border">
-          <div className="flex items-center gap-2 text-xs font-medium px-3 py-2.5 rounded border border-dashed"
-            style={{
-              borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 40%, transparent)`,
-              color: PRIORITY_META[pri]?.color,
-              background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)`,
-            }}>
-            <ArrowRight size={13} className="shrink-0" />
-            <span>{item?.action}</span>
-          </div>
+          <PriorityCallout
+            color={PRIORITY_META[pri]?.color ?? ''}
+            text={item?.action ?? ''}
+            className="text-xs py-2.5"
+            iconSize={13}
+            borderOpacity={40}
+          />
         </div>
 
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
-            {!loading && <span className="text-3xs text-ink-300">{related.length}건</span>}
+            <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
+            {!loading && <span className="text-xs text-ink-300">{related.length}건</span>}
           </div>
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 size={14} className="animate-spin text-ink-400" /></div>
@@ -259,24 +258,24 @@ export function ActionDetailDrawer({
         {!loading && similar.length > 0 && (
           <div className="px-5 py-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
-              <span className="text-3xs text-ink-300">{similar.length}건</span>
+              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
+              <span className="text-xs text-ink-300">{similar.length}건</span>
             </div>
             <div className="space-y-1.5">
               {similar.map(s => (
                 <div key={s.id} className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="flex items-start gap-2 mb-1.5">
-                    <span className="text-3xs text-ink-400 shrink-0 mt-[2px] tabular-nums">{kstDateLabel(s.occurred_at)}</span>
+                    <span className="text-xs text-ink-400 shrink-0 tabular-nums">{kstDateLabel(s.occurred_at)}</span>
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
-                  {s.body && <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-[3.5rem]" />}
+                  {s.body && <BodyBullets text={s.body} className="text-xs text-ink-400 leading-relaxed ml-14" />}
                   {s.tags?.length > 0 && (
-                    <div className="flex flex-wrap gap-1 mt-1.5 ml-[3.5rem]">
+                    <div className="flex flex-wrap gap-1 mt-1.5 ml-14">
                       {s.tags.map(tag => {
                         const meta = TAG_META[tag]
                         if (!meta) return null
                         return (
-                          <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                             style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
                         )
                       })}

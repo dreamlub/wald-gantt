@@ -14,7 +14,7 @@ export function MemoTooltip({ memo, x, y }: Props) {
   return createPortal(
     <div
       className="fixed pointer-events-none max-w-xs"
-      style={{ left: pos.left, top: pos.top, bottom: pos.bottom, zIndex: 99999 }}
+      style={{ left: pos.left, top: pos.top, bottom: pos.bottom, zIndex: 'var(--z-tooltip)' }}
     >
       <div className="bg-foreground text-background text-2xs rounded-lg shadow-xl px-3 py-2 leading-relaxed whitespace-pre-wrap break-words max-h-48 overflow-hidden">
         {memo}

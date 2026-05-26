@@ -281,7 +281,7 @@ export function GanttChart({
         <div
           ref={leftPanelRef}
           className="shrink-0 flex flex-col shadow-panel-l"
-          style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 10 }}
+          style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 'var(--z-overlay)' }}
         >
           <div className="shrink-0 border-b bg-card flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
             <span className="text-2xs font-semibold text-muted-foreground px-3 pb-2">프로젝트</span>

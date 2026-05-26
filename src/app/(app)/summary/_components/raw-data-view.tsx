@@ -3,7 +3,7 @@
 import React, { useState, useEffect, useCallback } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { RefreshCw, Sparkles } from 'lucide-react'
+import { RefreshCw } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose,
@@ -26,8 +26,7 @@ interface ActionState {
 export function RawDataView() {
   const [rows, setRows]             = useState<DayRow[]>([])
   const [loading, setLoading]       = useState(true)
-  const [collecting,   setCollecting]   = useState<ActionState>({})
-  const [reclassifying, setReclassifying] = useState<ActionState>({})
+  const [collecting, setCollecting] = useState<ActionState>({})
   const [resultModal, setResultModal] = useState<{ date: string; message: string } | null>(null)
 
   const fetchStats = useCallback(async () => {
@@ -145,8 +144,7 @@ export function RawDataView() {
     }
   }
 
-  const handleRecollect   = (date: string) => runSSE('/api/slack/collect-raw',  date, setCollecting,   'recollect', { from: date, to: date })
-  const handleReclassify  = (date: string) => runSSE('/api/slack/reclassify',  date, setReclassifying, 'reclassify')
+  const handleRecollect = (date: string) => runSSE('/api/slack/collect-raw', date, setCollecting, 'recollect', { from: date, to: date })
 
   if (loading) {
     return (
@@ -186,12 +184,12 @@ export function RawDataView() {
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-muted z-10 border-b border-ink-150">
             <tr>
-              <th className="text-left px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider">날짜</th>
-              <th className="text-right px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider w-20 whitespace-nowrap">채널</th>
-              <th className="text-right px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider w-24 whitespace-nowrap">수집</th>
-              <th className="text-right px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider w-24 whitespace-nowrap">분류</th>
-              <th className="text-right px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider w-24 whitespace-nowrap">제외</th>
-              <th className="text-left px-5 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider">마지막 수집</th>
+              <th className="text-left px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider">날짜</th>
+              <th className="text-right px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-16">채널</th>
+              <th className="text-right px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-20">수집</th>
+              <th className="text-right px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-20">분류</th>
+              <th className="text-right px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-20">제외</th>
+              <th className="text-left px-5 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider">마지막 수집</th>
               <th className="px-5 py-2 w-20" />
             </tr>
           </thead>
@@ -205,10 +203,10 @@ export function RawDataView() {
               return (
                 <React.Fragment key={month}>
                   {/* 월 부분합 행 */}
-                  <tr key={`month-${month}`} className="bg-amber-50 border-t-2 border-amber-200">
+                  <tr key={`month-${month}`} className="bg-status-warn/10 border-t-2 border-status-warn/30">
                     <td className="px-5 py-2 text-sm font-semibold text-ink-600 whitespace-nowrap">
                       {monthLabel}
-                      <span className="ml-2 text-sm font-normal text-ink-400">{mRows.length}일</span>
+                      <span className="ml-2 text-xs font-normal text-ink-400">{mRows.length}일</span>
                     </td>
                     <td className="px-5 py-2 text-right text-sm text-ink-400">—</td>
                     <td className="px-5 py-2 text-right text-sm font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
@@ -223,9 +221,8 @@ export function RawDataView() {
                   {/* 일별 행 */}
                   {mRows.map(row => {
                     const cState = collecting[row.date]
-                    const rState = reclassifying[row.date]
-                    const isBusy = !!cState || !!rState
-                    const activeStatus = cState?.status ?? rState?.status
+                    const isBusy = !!cState
+                    const activeStatus = cState?.status
                     const excluded = row.rawCount - row.classified
                     return (
                       <tr key={row.date} className="border-t border-border hover:bg-muted/40 transition-colors">
@@ -244,7 +241,7 @@ export function RawDataView() {
                         <td className="px-5 py-2 text-right text-sm tabular-nums text-ink-400">
                           {excluded > 0 ? excluded.toLocaleString() : <span className="text-ink-200">—</span>}
                         </td>
-                        <td className="px-5 py-2 text-xs text-ink-400 tabular-nums">
+                        <td className="px-5 py-2 text-2xs text-ink-400 tabular-nums">
                           {isBusy
                             ? <span className="text-lilac-500">{activeStatus}</span>
                             : row.lastCollectedAt
@@ -253,26 +250,15 @@ export function RawDataView() {
                           }
                         </td>
                         <td className="px-5 py-2 text-right">
-                          <div className="inline-flex items-center gap-1">
-                            <button
-                              onClick={() => handleRecollect(row.date)}
-                              disabled={isBusy}
-                              title="Slack에서 다시 수집"
-                              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                              <RefreshCw size={10} className={cState ? 'animate-spin' : ''} />
-                              재수집
-                            </button>
-                            <button
-                              onClick={() => handleReclassify(row.date)}
-                              disabled={isBusy || row.rawCount === 0}
-                              title="기존 raw 데이터로 AI 재분류"
-                              className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
-                            >
-                              <Sparkles size={10} className={rState ? 'animate-pulse' : ''} />
-                              재분류
-                            </button>
-                          </div>
+                          <button
+                            onClick={() => handleRecollect(row.date)}
+                            disabled={isBusy}
+                            title="Slack에서 다시 수집"
+                            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                          >
+                            <RefreshCw size={10} className={cState ? 'animate-spin' : ''} />
+                            재수집
+                          </button>
                         </td>
                       </tr>
                     )

@@ -1,5 +1,5 @@
 import type { HistoryItem, Tag } from '../_lib/types'
-import type { PriorityKey } from './summary-sidebar'
+import type { PriorityKey } from './_sidebar-utils'
 import type { HistoryPage } from '@/lib/history-service'
 
 export interface PageState {
@@ -33,9 +33,9 @@ export function pageReducer(state: PageState, action: PageAction): PageState {
 
 export const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
 
-export type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
+export type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'timeline' | 'calendar' | 'rawdata'
 
-export const VALID_VIEWS: readonly ViewKey[] = ['dailylist', 'weeklylist', 'dailyreport', 'summary', 'rawdata', 'timeline', 'calendar']
+export const VALID_VIEWS: readonly ViewKey[] = ['dailylist', 'weeklylist', 'dailyreport', 'summary', 'timeline', 'calendar', 'rawdata']
 export const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 export const VALID_TAGS: readonly Tag[] = ['issue', 'decision', 'mention', 'schedule']
 

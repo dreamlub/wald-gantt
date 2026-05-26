@@ -59,10 +59,10 @@ function ProjectHistorySection({ projectId }: { projectId: string }) {
           <div className="space-y-1">
             {group.map(entry => (
               <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
-                <span className="text-2xs text-muted-foreground font-semibold w-12 shrink-0">{FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
-                <span className="text-2xs text-muted-foreground line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
+                <span className="text-xs text-muted-foreground font-semibold w-12 shrink-0">{FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
+                <span className="text-xs text-muted-foreground line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
                 <span className="text-xs text-ink-300">→</span>
-                <span className="text-2xs text-foreground font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
+                <span className="text-xs text-foreground font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
               </div>
             ))}
           </div>
@@ -155,7 +155,7 @@ function DatePickerButton({ value, onChange, placeholder, disabledDates }: {
   return (
     <div className="flex items-center h-8 w-full rounded-lg border border-border bg-card focus-within:border-lilac-300 transition-colors overflow-hidden">
       <input
-        className="flex-1 min-w-0 text-xs px-2.5 bg-transparent outline-none text-foreground placeholder:text-ink-300 tabular-nums"
+        className="flex-1 min-w-0 text-sm px-2.5 bg-transparent outline-none text-foreground placeholder:text-ink-300 tabular-nums"
         placeholder={placeholder}
         value={text}
         onChange={e => setText(e.target.value)}
@@ -264,7 +264,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         {/* Header */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
-            <h2 className="text-xs font-semibold text-foreground flex-1">
+            <h2 className="text-sm font-semibold text-foreground flex-1">
               {editProject ? '프로젝트 수정' : '프로젝트 추가'}
             </h2>
             <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
@@ -274,7 +274,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
           <div className="flex px-5 gap-4">
             <button
               onClick={() => setTab('info')}
-              className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
                 tab === 'info' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -294,7 +294,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             {editProject && (
               <button
                 onClick={() => setTab('history')}
-                className={`pb-2 text-xs font-medium border-b-2 transition-colors ${
+                className={`pb-2 text-sm font-medium border-b-2 transition-colors ${
                   tab === 'history' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
                 }`}
               >
@@ -316,7 +316,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             ref={nameRef}
             name="project-name"
             autoComplete="off"
-            className="w-full text-xs font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
+            className="w-full text-sm font-medium text-foreground border-b border-border focus:border-lilac-400 outline-none pb-1 placeholder:text-ink-300"
             placeholder="프로젝트 이름"
             value={name}
             onChange={e => setName(e.target.value)}
@@ -331,7 +331,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                 <select
                   value={categoryId}
                   onChange={e => setCategoryId(e.target.value)}
-                  className="w-full text-xs border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
+                  className="w-full text-sm border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
                 >
                   {categories.map(c => (
                     <option key={c.id} value={c.id}>{c.name}</option>
@@ -347,7 +347,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                 <select
                   value={status}
                   onChange={e => setStatus(e.target.value as GanttStatus)}
-                  className="w-full text-xs border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
+                  className="w-full text-sm border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
                 >
                   {STATUSES.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -385,7 +385,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               </div>
             </div>
             {dateError && (
-              <p className="text-2xs text-status-late">{dateError}</p>
+              <p className="text-xs text-status-late">{dateError}</p>
             )}
           </div>
 
@@ -395,7 +395,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
               <AutocompleteInput
                 name="project-team"
-                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
+                className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="예: 개발팀"
                 value={team}
                 onChange={setTeam}
@@ -406,7 +406,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
               <AutocompleteInput
                 name="project-pm"
-                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
+                className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="예: 홍길동"
                 value={pm}
                 onChange={setPm}
@@ -427,7 +427,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-2xs px-2 py-1 rounded border transition-colors
+                    className={`flex items-center gap-0.5 text-xs px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
                         : 'border-border text-muted-foreground hover:border-ink-300'}`}
@@ -448,7 +448,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             ref={memoRef}
             name="project-memo"
             autoComplete="off"
-            className="w-full h-full text-xs border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground resize-none leading-relaxed"
+            className="w-full h-full text-sm border border-border rounded p-3 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground resize-none leading-relaxed"
             placeholder="메모를 입력하세요"
             value={memo}
             onChange={e => setMemo(e.target.value)}
@@ -464,14 +464,14 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         <DrawerFooter>
           <button
             onClick={onClose}
-            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
           >
             취소
           </button>
           <button
             onClick={handleSave}
             disabled={!isValid || loading}
-            className="px-4 py-1.5 text-xs bg-foreground text-background rounded font-medium hover:bg-ink-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
+            className="px-4 py-1.5 text-sm bg-foreground text-background rounded font-medium hover:bg-ink-800 disabled:opacity-60 disabled:cursor-not-allowed transition-colors"
           >
             {loading ? '저장 중...' : editProject ? '수정' : '저장'}
           </button>

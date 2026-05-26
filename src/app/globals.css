@@ -116,6 +116,8 @@
   --text-5xs: 0.5625rem;  /* 9px  — gantt 차트 일뷰 요일 전용 */
 
   /* Z-index 레이어 */
+  --z-base:    1;
+  --z-above:   2;
   --z-overlay: 100;
   --z-dialog:  200;
   --z-tooltip: 9999;
@@ -124,6 +126,15 @@
   /* 픽셀 단위 소형 스페이싱 (progress bar 등 장식 요소) */
   --spacing-px3: 3px;
   --spacing-px5: 5px;
+
+  /* 레이아웃 치수 토큰 */
+  --sidebar-w: 240px;
+  --nav-w:     56px;
+
+  /* Tag badge — vivid(선명한) 배경 위 텍스트 색상 */
+  --color-tag-vivid-text: oklch(1 0 0);
+  /* PriorityBars — 어두운 배경 위 비활성 바 색상 */
+  --color-priority-bar-inactive-ondark: oklch(1 0 0 / 0.35);
 }
 
 @theme inline {

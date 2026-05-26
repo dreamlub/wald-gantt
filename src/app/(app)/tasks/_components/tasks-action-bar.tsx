@@ -161,10 +161,10 @@ export function TasksActionBar({
                 key={key}
                 onClick={() => onFilterAssigneeChange(active ? null : key)}
                 className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-                  ${active ? 'text-white border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
+                  ${active ? 'text-background border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
                 style={active ? { backgroundColor: color, borderColor: color } : {}}
               >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'white' : color }} />
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'var(--color-background)' : color }} />
                 {label}
               </button>
             )

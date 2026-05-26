@@ -1,10 +1,10 @@
 'use client'
 
-import { useState, useEffect, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target,
-  ArrowRight, Plus,
+  Plus,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -15,6 +15,7 @@ import { PriorityBars, BrandBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { createClient } from '@/lib/supabase/client'
 import { ActionDetailDrawer, BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
+import { PriorityCallout } from './priority-callout'
 
 interface Props {
   selectedDate: string
@@ -34,7 +35,7 @@ interface DailyReport {
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-[3px] rounded-2xs">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-0.5 rounded-2xs">{part.slice(2, -2)}</strong>
       : <span key={i}>{part.replace(/\*/g, '')}</span>
   )
 }
@@ -54,8 +55,8 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
       <Icon size={13} className="text-ink-400" />
-      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
-      <span className="text-3xs text-ink-400">{count}건</span>
+      <h3 className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <span className="text-2xs text-ink-400">{count}건</span>
     </div>
   )
 }
@@ -84,8 +85,8 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
     <section className="border-t border-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
         <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
-        <span className="text-3xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
+        <h3 className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <span className="text-2xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
         <HeadlineSentences text={content.headline} />
@@ -108,12 +109,12 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
           <div
             key={a.id}
             onClick={() => onOpenDetail(a)}
-            className="relative group bg-card border border-l-[3px] border-border rounded-lg p-3.5 flex flex-col cursor-pointer hover:bg-muted/30 transition-colors"
+            className="relative group bg-card border border-l-px3 border-border rounded-lg p-3.5 flex flex-col cursor-pointer hover:bg-muted/30 transition-colors"
             style={{ borderLeftColor: PRIORITY_META[pri]?.color }}
           >
             <button
               onClick={e => { e.stopPropagation(); onCreateTask(a.title, `${a.summary}\n\n→ ${a.action}`) }}
-              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-3xs px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
+              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-2xs px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
             >
               <Plus size={10} />
               태스크
@@ -123,13 +124,9 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
               <BrandBadge brandName={a.brand} />
               <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
-            <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
+            <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <BodyBullets text={a.summary} className="text-sm text-ink-700 leading-relaxed mb-2.5 flex-1" />
-            <div className="flex items-center gap-2 text-2xs font-medium px-3 py-2 rounded border border-dashed"
-              style={{ borderColor: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 30%, transparent)`, color: PRIORITY_META[pri]?.color, background: `color-mix(in srgb, ${PRIORITY_META[pri]?.color} 6%, transparent)` }}>
-              <ArrowRight size={12} className="shrink-0" />
-              <span>{a.action}</span>
-            </div>
+            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-xs py-2" />
           </div>
         )
       })}
@@ -143,11 +140,11 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-2xs text-ink-700 min-w-[80px] flex items-center gap-1">
+          <span className="text-xs text-ink-700 min-w-20 flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
-          <span className="flex-1 text-xs text-foreground">{s.title}</span>
+          <span className="flex-1 text-sm text-foreground">{s.title}</span>
           <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
@@ -164,11 +161,11 @@ function PendingList({ items }: { items: InsightContent['pending'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((p, i) => (
         <div key={i} className="flex items-start gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="min-w-[90px] text-xs font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
+          <span className="min-w-[90px] text-sm font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(p.brand) }} />
             {p.brand}
           </span>
-          <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
+          <span className="flex-1 text-sm text-ink-500 leading-relaxed">{p.items}</span>
           <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
         </div>
       ))}
@@ -181,12 +178,12 @@ function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
   return (
     <div className="grid grid-cols-2 gap-2">
       {items.map(d => (
-        <div key={d.id} className="bg-card border border-l-[3px] border-l-status-warn border-border rounded-lg p-3 transition-colors">
+        <div key={d.id} className="bg-card border border-l-px3 border-l-status-warn border-border rounded-lg p-3 transition-colors">
           <div className="flex items-start gap-1.5 mb-1.5">
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
-            <p className="text-sm font-semibold text-foreground leading-snug">{d.title}</p>
+            <p className="text-base font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
+          <BodyBullets text={d.desc} className="text-sm text-ink-500 leading-relaxed mb-2" />
           <BrandBadge brandName={d.brand} />
         </div>
       ))}
@@ -208,22 +205,22 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
 
-  useEffect(() => {
-    let cancelled = false
-    // eslint-disable-next-line react-hooks/set-state-in-effect
+  const fetchReport = useCallback(async () => {
     setLoading(true)
     const sb = createClient()
-    sb.from('daily_reports')
+    const { data } = await sb
+      .from('daily_reports')
       .select('content, analyzed_at, item_count, brand_count')
       .eq('report_date', selectedDate)
       .maybeSingle()
-      .then(({ data }) => {
-        if (cancelled) return
-        setReport(data as DailyReport | null)
-        setLoading(false)
-      })
-    return () => { cancelled = true }
+    setReport(data as DailyReport | null)
+    setLoading(false)
   }, [selectedDate])
+
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchReport()
+  }, [fetchReport])
 
   const dateLabel = useMemo(() => {
     try { return format(new Date(selectedDate + 'T00:00:00'), 'yyyy년 M월 d일 (eee)', { locale: ko }) }

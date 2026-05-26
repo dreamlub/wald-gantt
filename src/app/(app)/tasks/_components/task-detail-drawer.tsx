@@ -9,11 +9,11 @@ import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '../
 import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
-import { TaskHistorySection } from './TaskHistorySection'
-import { DrawerProjectSection, type ProjectOption } from './DrawerProjectSection'
-import { DrawerLabelSection } from './DrawerLabelSection'
-import { DrawerRecurrenceSection } from './DrawerRecurrenceSection'
-import { DrawerSubTaskSection } from './DrawerSubTaskSection'
+import { TaskHistorySection } from './task-history-section'
+import { DrawerProjectSection, type ProjectOption } from './drawer-project-section'
+import { DrawerLabelSection } from './drawer-label-section'
+import { DrawerRecurrenceSection } from './drawer-recurrence-section'
+import { DrawerSubTaskSection } from './drawer-sub-task-section'
 
 type DrawerTab = 'info' | 'memo' | 'history'
 

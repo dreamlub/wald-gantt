@@ -6,7 +6,7 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 import type { HistoryItem } from '../_lib/types'
-import { dateStr } from './summary-sidebar'
+import { dateStr } from './_sidebar-utils'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
@@ -129,8 +129,8 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
           {DAY_HEADERS.map((d, i) => (
             <div
               key={d}
-              className={`text-4xs text-center py-0.5 ${
-                i === 0 ? 'text-rose-400' : i === 6 ? 'text-blue-400' : 'text-ink-400'
+              className={`text-2xs text-center py-0.5 ${
+                i === 0 ? 'text-day-sun-muted' : i === 6 ? 'text-day-sat-muted' : 'text-ink-400'
               }`}
             >
               {d}
@@ -150,8 +150,8 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
 
           let colorClass = ''
           if (isFuture) colorClass = 'text-ink-200'
-          else if (!inMonth) colorClass = dow === 0 ? 'text-rose-200' : dow === 6 ? 'text-blue-200' : 'text-ink-200'
-          else colorClass = dow === 0 ? 'text-rose-500' : dow === 6 ? 'text-blue-500' : 'text-foreground'
+          else if (!inMonth) colorClass = dow === 0 ? 'text-day-sun-muted/60' : dow === 6 ? 'text-day-sat-muted/60' : 'text-ink-200'
+          else colorClass = dow === 0 ? 'text-day-sun' : dow === 6 ? 'text-day-sat' : 'text-foreground'
 
           return (
             <button
@@ -161,7 +161,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
               className={[
                 'relative h-6 flex items-center justify-center rounded text-2xs transition-colors',
                 isSelected
-                  ? 'bg-lilac-500 text-white font-semibold hover:bg-lilac-500'
+                  ? 'bg-lilac-500 text-background font-semibold hover:bg-lilac-500'
                   : isFuture
                     ? 'cursor-not-allowed'
                     : 'hover:bg-muted',
@@ -176,7 +176,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
               {hasItems && (
                 <span className={[
                   'absolute bottom-0.5 w-1 h-1 rounded-full',
-                  isSelected ? 'bg-white/70' : 'bg-current opacity-40',
+                  isSelected ? 'bg-background/70' : 'bg-current opacity-40',
                 ].join(' ')} />
               )}
             </button>

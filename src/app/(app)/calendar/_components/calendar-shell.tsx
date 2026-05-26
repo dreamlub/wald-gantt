@@ -9,7 +9,7 @@ import {
 import { addDays, parseISO, getISOWeek } from 'date-fns'
 import { Button } from '@/components/ui/button'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
-import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/TaskDetailDrawer'
+import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/task-detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { DAY_LABELS, WORK_HOURS_PER_DAY, DRAG_OVER_BG, HOUR_H } from '../_constants'
 import {
@@ -119,7 +119,7 @@ export function CalendarShell() {
       {/* 사이드바 */}
       <div
         className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: panelOpen ? 240 : 0 }}
+        style={{ width: panelOpen ? 'var(--sidebar-w)' : 0 }}
       >
         <TaskPanel
           tasks={tasks}

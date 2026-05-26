@@ -1,11 +1,10 @@
-﻿'use client'
+'use client'
 
 import {
   LayoutList, Search, PanelLeftClose, Trash2, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
-import { labelColor } from '../_utils'
-import { isLightColor } from '../_utils'
+import { LabelBadge } from './label-badge'
 import type { QuickFilterKey } from '../_hooks/use-task-filters'
 
 interface SidebarProject { id: string; name: string; count: number; colorIdx: number }
@@ -72,16 +71,16 @@ export function TasksSidebar({
     { key: 'all' as const,           label: '전체',         count: totalCount,        icon: <LayoutList size={12} className="shrink-0" />,                          countColor: 'text-ink-400' },
     { key: 'overdue' as const,       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-status-late shrink-0" />,     countColor: 'text-status-late font-medium' },
     { key: 'start-delayed' as const, label: '시작 지연',     count: startDelayedCount,  icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" />,     countColor: 'text-status-late font-medium' },
-    { key: 'due-today' as const,     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-status-soon shrink-0" />,     countColor: 'text-status-late font-medium' },
+    { key: 'due-today' as const,     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-coral-400 shrink-0" />,      countColor: 'text-status-late font-medium' },
     { key: 'due-this-week' as const, label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" />,     countColor: 'text-status-late font-medium' },
-    { key: 'due-next-week' as const, label: '다음 주 마감',  count: dueNextWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-future shrink-0" />,   countColor: 'text-status-late font-medium' },
+    { key: 'due-next-week' as const, label: '다음 주 마감',  count: dueNextWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-future shrink-0" />,         countColor: 'text-status-late font-medium' },
     { key: 'done' as const,          label: '완료',         count: doneCount,          icon: <span className="w-2 h-2 rounded-full bg-status-ok shrink-0" />,        countColor: 'text-status-ok font-medium' },
   ]
 
   return (
     <div
       className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-      style={{ width: open ? 240 : 0 }}
+      style={{ width: open ? 'var(--sidebar-w)' : 0 }}
     >
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
         <h1 className="flex-1 text-xs font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
@@ -113,7 +112,7 @@ export function TasksSidebar({
         {/* 프로젝트 */}
         {projects.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
+            <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
             {projects.map(p => (
               <button
                 key={p.id}
@@ -130,7 +129,7 @@ export function TasksSidebar({
 
         {/* 담당자 */}
         <div className="mt-3">
-          <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
+          <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
           <div className="relative mx-2 mb-1.5">
             <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
             <input
@@ -168,29 +167,18 @@ export function TasksSidebar({
         {/* 라벨 */}
         {labels.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1.5 text-xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
+            <div className="px-2 mb-1.5 text-2xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
-              {labels.map(l => {
-                const active = filterLabel === l.name
-                const bg = labelColor(l.name)
-                const fg = isLightColor(bg) ? 'var(--color-ink-800)' : 'white'
-                return (
-                  <button
-                    key={l.name}
-                    onClick={() => { onFilterLabelChange(active ? null : l.name); onFilterProjectChange(null); onFilterAssigneeChange(null) }}
-                    className={`inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full transition-all border ${
-                      active ? '' : 'hover:opacity-80'
-                    }`}
-                    style={active
-                      ? { backgroundColor: bg, color: fg, borderColor: bg }
-                      : { backgroundColor: 'transparent', color: bg, borderColor: bg }
-                    }
-                  >
-                    # {l.name}
-                    <span className="text-4xs opacity-70">{l.count}</span>
-                  </button>
-                )
-              })}
+              {labels.map(l => (
+                <LabelBadge
+                  key={l.name}
+                  variant="filter"
+                  name={l.name}
+                  count={l.count}
+                  active={filterLabel === l.name}
+                  onClick={() => { onFilterLabelChange(filterLabel === l.name ? null : l.name); onFilterProjectChange(null); onFilterAssigneeChange(null) }}
+                />
+              ))}
             </div>
           </div>
         )}
@@ -205,7 +193,7 @@ export function TasksSidebar({
           <Archive size={13} className="shrink-0" />
           <span className="whitespace-nowrap">아카이브</span>
           {archiveCount > 0 && (
-            <span className="ml-auto text-xs bg-ink-300/15 text-ink-400 font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-3xs bg-ink-300/15 text-ink-400 font-semibold px-1.5 py-0.5 rounded-full">
               {archiveCount}
             </span>
           )}
@@ -217,7 +205,7 @@ export function TasksSidebar({
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>
           {trashCount > 0 && (
-            <span className="ml-auto text-xs bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-3xs bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
               {trashCount}
             </span>
           )}
