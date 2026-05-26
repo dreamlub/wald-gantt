@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef } from 'react'
 import {
@@ -102,17 +102,17 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         </button>
 
         {overdue && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
+          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
             지연 {odDays}일
           </span>
         )}
         {startDelayed && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
+          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
             시작 지연 {sdDays}일
           </span>
         )}
         {noUpdate && !overdue && !startDelayed && (
-          <span className="shrink-0 text-3xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
+          <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-coral-100 text-coral-500 font-medium border border-coral-100 whitespace-nowrap">
             {daysDiff(task.updated_at)}일 무응답
           </span>
         )}
@@ -120,13 +120,13 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {/* 연결 프로젝트 */}
         {task.projects && task.projects.length > 0 && (
           <>
-            <span className="text-ink-200 text-3xs shrink-0">·</span>
+            <span className="text-ink-200 text-xs shrink-0">·</span>
             {task.projects.slice(0, 2).map(p => (
-              <span key={p.id} className="flex items-center gap-0.5 text-3xs bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
+              <span key={p.id} className="flex items-center gap-0.5 text-xs bg-muted text-ink-400 px-1.5 py-0.5 rounded shrink-0 whitespace-nowrap">
                 <Paperclip size={8} className="shrink-0" />{p.name}
               </span>
             ))}
-            {task.projects.length > 2 && <span className="text-3xs text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
+            {task.projects.length > 2 && <span className="text-xs text-ink-400 shrink-0">+{task.projects.length - 2}</span>}
           </>
         )}
 
@@ -164,7 +164,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
             <Link
               href={`/calendar?highlight=${task.id}&date=${dateStr}`}
               onClick={e => e.stopPropagation()}
-              className="shrink-0 flex items-center gap-0.5 text-3xs text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
+              className="shrink-0 flex items-center gap-0.5 text-xs text-lilac-500 bg-lilac-100/60 border border-lilac-200 px-1.5 py-0.5 rounded whitespace-nowrap hover:bg-lilac-100 transition-colors"
             >
               <CalendarDays size={9} className="shrink-0" />
               {label}
@@ -176,7 +176,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {subTaskStats && subTaskStats.total > 0 && (
           <button
             onClick={e => { e.stopPropagation(); onToggleExpand?.() }}
-            className={`shrink-0 text-3xs px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
+            className={`shrink-0 text-xs px-1.5 py-0.5 rounded-full font-medium border whitespace-nowrap transition-colors
               ${subTaskStats.done === subTaskStats.total
                 ? 'bg-mint-100 text-mint-500 border-mint-100 hover:bg-mint-100'
                 : 'bg-muted text-muted-foreground border-border hover:bg-muted'}`}
@@ -200,7 +200,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-3xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
             title="하위 태스크 추가"
           >
             sub +

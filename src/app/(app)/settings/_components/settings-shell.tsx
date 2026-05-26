@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import {
@@ -72,7 +72,7 @@ const SORT_MODE_OPTIONS: { value: SortMode; label: string }[] = [
 function SettingCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-4">
-      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   )
@@ -334,7 +334,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     />
                   </Row>
                 )}
-                <p className="text-3xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
+                <p className="text-xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
             </>
@@ -361,7 +361,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   ))}
                 </div>
                 {theme === 'dark' && (
-                  <p className="text-3xs text-ink-400">
+                  <p className="text-xs text-ink-400">
                     * 다크 모드는 일부 커스텀 색상이 아직 완전히 지원되지 않습니다.
                   </p>
                 )}
@@ -459,7 +459,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     <Plus size={12} /> 추가
                   </button>
                 </div>
-                <p className="text-3xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
+                <p className="text-xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
               </SettingCard>
             </>
           )}
@@ -485,14 +485,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                       <Download size={13} />
                       {label}
                     </span>
-                    <span className="flex items-center gap-1 text-3xs">
+                    <span className="flex items-center gap-1 text-xs">
                       {format}
                       <ChevronRight size={11} />
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="text-3xs text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
+              <p className="text-xs text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
             </SettingCard>
           )}
 

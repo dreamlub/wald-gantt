@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { DatabaseZap, Sparkles } from 'lucide-react'
@@ -123,10 +123,10 @@ export function RawDataSidebarPanel() {
       </p>
 
       <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
+        <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 Raw 수집</div>
         <div className="flex flex-col gap-1.5">
           <div className="flex items-center gap-1.5">
-            <span className="text-3xs text-ink-400 w-6 shrink-0">from</span>
+            <span className="text-xs text-ink-400 w-6 shrink-0">from</span>
             <input
               type="date"
               value={from}
@@ -136,7 +136,7 @@ export function RawDataSidebarPanel() {
             />
           </div>
           <div className="flex items-center gap-1.5">
-            <span className="text-3xs text-ink-400 w-6 shrink-0">to</span>
+            <span className="text-xs text-ink-400 w-6 shrink-0">to</span>
             <input
               type="date"
               value={to}
@@ -155,13 +155,13 @@ export function RawDataSidebarPanel() {
           {busy && !classifyStatus ? 'Raw 수집 중...' : 'Raw 수집'}
         </button>
         {status && (
-          <p className="text-3xs text-ink-400 leading-relaxed break-all">{status}</p>
+          <p className="text-xs text-ink-400 leading-relaxed break-all">{status}</p>
         )}
       </div>
 
       <div className="border border-border rounded-lg p-3 flex flex-col gap-2">
-        <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 일괄 재분류</div>
-        <p className="text-3xs text-ink-400 leading-relaxed">위 기간의 raw 메시지를 AI로 순차 재분류합니다.</p>
+        <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">기간 일괄 재분류</div>
+        <p className="text-xs text-ink-400 leading-relaxed">위 기간의 raw 메시지를 AI로 순차 재분류합니다.</p>
         <button
           onClick={handleBatchReclassify}
           disabled={busy || !from || !to || from > to}
@@ -171,7 +171,7 @@ export function RawDataSidebarPanel() {
           {busy && !!classifyStatus ? '분류 중...' : 'AI 재분류'}
         </button>
         {classifyStatus && (
-          <p className="text-3xs text-ink-400 leading-relaxed break-all">{classifyStatus}</p>
+          <p className="text-xs text-ink-400 leading-relaxed break-all">{classifyStatus}</p>
         )}
       </div>
     </div>

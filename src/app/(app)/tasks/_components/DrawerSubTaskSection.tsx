@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef } from 'react'
 import { Plus, CheckCircle2, Circle } from 'lucide-react'
@@ -22,7 +22,7 @@ export function DrawerSubTaskSection({ task, subTasks, onStatusChange, onAddSubT
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
-        <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider flex-1">
+        <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider flex-1">
           하위 태스크{subTasks.length > 0 && ` (${doneCount}/${subTasks.length})`}
         </label>
       </div>
@@ -43,7 +43,7 @@ export function DrawerSubTaskSection({ task, subTasks, onStatusChange, onAddSubT
                 {sub.title}
               </span>
               {sub.due_date && (
-                <span className="text-3xs text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
+                <span className="text-xs text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
               )}
             </div>
           ))}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
@@ -265,7 +265,7 @@ export function CalendarShell() {
           {/* ALL-DAY 행 (sticky) */}
           <div className="sticky top-[60px] z-30 flex border-b bg-card">
             <div className="w-12 shrink-0 flex items-start justify-end pt-1.5 pr-2">
-              <span className="text-3xs text-ink-400 whitespace-nowrap">ALL-DAY</span>
+              <span className="text-xs text-ink-400 whitespace-nowrap">ALL-DAY</span>
             </div>
             {weekDates.map(date => {
               const dayAllEvt  = allDayEvents.filter(e => e.start.slice(0, 10) === date)
@@ -294,7 +294,7 @@ export function CalendarShell() {
                   {dayAllEvt.map(ev => (
                     <div
                       key={ev.id}
-                      className="w-full flex-1 text-3xs px-1.5 py-0.5 rounded flex items-center gap-1 min-w-0"
+                      className="w-full flex-1 text-xs px-1.5 py-0.5 rounded flex items-center gap-1 min-w-0"
                       style={{
                         backgroundColor: 'var(--color-ink-100)',
                         borderLeft: '2px solid var(--color-ink-300)',
@@ -319,7 +319,7 @@ export function CalendarShell() {
                           e.dataTransfer.setData('from-all-day', '')
                           e.dataTransfer.effectAllowed = 'move'
                         }}
-                        className="relative w-full text-3xs px-1.5 py-1.5 rounded flex flex-col gap-0.5 group cursor-grab active:cursor-grabbing min-w-0"
+                        className="relative w-full text-xs px-1.5 py-1.5 rounded flex flex-col gap-0.5 group cursor-grab active:cursor-grabbing min-w-0"
                         style={{
                           backgroundColor: STATUS_BG_COLOR[task.status] ?? 'var(--color-ink-100)',
                           borderLeft: `2px solid ${color}`,
@@ -335,7 +335,7 @@ export function CalendarShell() {
                           >
                             {isDone && <Check size={7} className="text-white stroke-[3]" />}
                           </button>
-                          <span className="text-3xs text-muted-foreground leading-tight">
+                          <span className="text-xs text-muted-foreground leading-tight">
                             종일{task.duration_minutes ? ` · ${task.duration_minutes}분` : ''}
                           </span>
                         </div>

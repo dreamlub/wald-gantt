@@ -7,7 +7,7 @@ import { brandColor } from '@/lib/history-service'
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
 
 export function PriorityBars({ priority, showLabel }: { priority: Priority | null; showLabel?: boolean }) {
-  if (!priority) return showLabel ? <span className="text-3xs text-ink-300">—</span> : null
+  if (!priority) return showLabel ? <span className="text-xs text-ink-300">—</span> : null
   const p = PRIORITY_LEVEL[priority]
   const meta = PRIORITY_META[priority]
   return (
@@ -25,7 +25,7 @@ export function PriorityBars({ priority, showLabel }: { priority: Priority | nul
         ))}
       </span>
       {showLabel && (
-        <span className="text-3xs font-medium" style={{ color: meta.color }}>
+        <span className="text-xs font-medium" style={{ color: meta.color }}>
           {meta.label}
         </span>
       )}
@@ -38,7 +38,7 @@ export function TagBadge({ tag }: { tag: Tag }) {
   if (!meta) return null
   return (
     <span
-      className="text-3xs px-1.5 py-[1px] rounded font-medium inline-flex items-center whitespace-nowrap"
+      className="text-xs px-1.5 py-[1px] rounded font-medium inline-flex items-center whitespace-nowrap"
       style={{ background: meta.bg, color: meta.color }}
     >
       {meta.label}
@@ -70,7 +70,7 @@ export function BrandBadge({ brandName }: { brandName: string }) {
 }
 
 export function ChannelBadge({ channel, href }: { channel: string; href?: string | null }) {
-  const className = 'inline-flex items-center gap-1 text-3xs px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
+  const className = 'inline-flex items-center gap-1 text-xs px-[7px] py-[3px] rounded bg-muted border border-border text-muted-foreground hover:border-ink-300 transition-colors'
   if (href) {
     return (
       <a href={href} target="_blank" rel="noreferrer" className={className}>

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight, CalendarIcon } from 'lucide-react'
@@ -12,7 +12,7 @@ import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover
 
 // ── GroupTitle ───────────────────────────────────────────────
 export function GroupTitle({ children }: { children: React.ReactNode }) {
-  return <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
+  return <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">{children}</div>
 }
 
 // ── 일별 캘린더 (테이블/요약 전용) ──────────────────────────
@@ -239,7 +239,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
         <GroupTitle>기간</GroupTitle>
         <div className="flex items-center gap-1.5">
           <SidebarDatePicker value={dateFrom} onChange={onDateFromChange} placeholder="시작일" />
-          <span className="text-3xs text-ink-400 shrink-0">~</span>
+          <span className="text-xs text-ink-400 shrink-0">~</span>
           <SidebarDatePicker value={dateTo} onChange={onDateToChange} placeholder="종료일" />
         </div>
         <div className="flex flex-wrap gap-1">
@@ -247,7 +247,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
             <button
               key={key}
               onClick={() => applyPreset(key)}
-              className={`text-3xs px-2 py-0.5 rounded border transition-colors ${
+              className={`text-xs px-2 py-0.5 rounded border transition-colors ${
                 active === key
                   ? 'bg-foreground text-background border-foreground'
                   : 'border-border text-ink-500 hover:text-foreground hover:border-ink-400'

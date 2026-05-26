@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
 import { useClickAway } from '@/hooks/use-click-away'
@@ -211,7 +211,7 @@ export function GanttToolbar({
                         {excludedTeams.size > 0 && (
                           <button
                             onClick={() => allTeams.filter(t => excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-3xs text-lilac-500 hover:text-lilac-600"
+                            className="text-xs text-lilac-500 hover:text-lilac-600"
                           >
                             전체 선택
                           </button>
@@ -219,7 +219,7 @@ export function GanttToolbar({
                         {excludedTeams.size < allTeams.length && (
                           <button
                             onClick={() => allTeams.filter(t => !excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-3xs text-muted-foreground hover:text-foreground"
+                            className="text-xs text-muted-foreground hover:text-foreground"
                           >
                             전체 해제
                           </button>
@@ -248,7 +248,7 @@ export function GanttToolbar({
                         {excludedPMs.size > 0 && (
                           <button
                             onClick={() => allPMs.filter(p => excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-3xs text-lilac-500 hover:text-lilac-600"
+                            className="text-xs text-lilac-500 hover:text-lilac-600"
                           >
                             전체 선택
                           </button>
@@ -256,7 +256,7 @@ export function GanttToolbar({
                         {excludedPMs.size < allPMs.length && (
                           <button
                             onClick={() => allPMs.filter(p => !excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-3xs text-muted-foreground hover:text-foreground"
+                            className="text-xs text-muted-foreground hover:text-foreground"
                           >
                             전체 해제
                           </button>

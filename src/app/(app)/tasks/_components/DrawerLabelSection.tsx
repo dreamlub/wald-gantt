@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState } from 'react'
 import { Tag, X } from 'lucide-react'
@@ -25,7 +25,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
 
   return (
     <div ref={labelRef}>
-      <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+      <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
         <Tag size={10} /> 라벨
       </label>
       <div className="flex flex-wrap gap-1.5">

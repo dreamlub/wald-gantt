@@ -68,7 +68,7 @@ function TagBadges({ items }: { items: HistoryItem[] }) {
         const meta = TAG_META[t]
         return (
           <span key={t}
-            className="text-3xs px-1.5 py-px rounded-full font-semibold leading-none"
+            className="text-xs px-1.5 py-px rounded-full font-semibold leading-none"
             style={{ background: meta.bg, color: meta.color }}
           >
             {counts[t]}
@@ -97,7 +97,7 @@ function ItemRow({ item, onOpen }: { item: HistoryItem; onOpen: () => void }) {
             {(item.tags ?? []).map(t => {
               const meta = TAG_META[t]
               return meta ? (
-                <span key={t} className="text-3xs px-1.5 py-px rounded-full font-medium"
+                <span key={t} className="text-xs px-1.5 py-px rounded-full font-medium"
                   style={{ background: meta.bg, color: meta.color }}>{meta.label}</span>
               ) : null
             })}
@@ -143,7 +143,7 @@ function BrandDeck({ brand, items, onOpenItem }: {
       <div className="flex items-center gap-1.5 mb-2 px-0.5">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
         <span className="text-xs font-bold text-foreground">{brand}</span>
-        <span className="text-3xs text-ink-400">{items.length}</span>
+        <span className="text-xs text-ink-400">{items.length}</span>
         <div className="ml-auto"><TagBadges items={items} /></div>
       </div>
 
@@ -153,7 +153,7 @@ function BrandDeck({ brand, items, onOpenItem }: {
         {/* hidden 날짜 indicator */}
         {hiddenCount > 0 && (
           <div
-            className="absolute left-0 right-0 flex items-center px-3 text-3xs text-ink-400"
+            className="absolute left-0 right-0 flex items-center px-3 text-xs text-ink-400"
             style={{ top: 0, height: PEEK_H, zIndex: 1 }}
           >
             +{hiddenCount}일 더
@@ -178,7 +178,7 @@ function BrandDeck({ brand, items, onOpenItem }: {
                 style={{ borderLeftWidth: 3, borderLeftColor: color }}
               >
                 <span className="text-2xs font-semibold text-foreground">{fmtShort(g.date)}</span>
-                <span className="text-3xs text-ink-300">{g.items.length}건</span>
+                <span className="text-xs text-ink-300">{g.items.length}건</span>
                 <div className="ml-auto"><TagBadges items={g.items} /></div>
               </div>
             </motion.div>
@@ -202,7 +202,7 @@ function BrandDeck({ brand, items, onOpenItem }: {
                 <span className="text-2xs font-bold text-foreground">
                   {fmtShort(dateGroups[activeIdx]?.date ?? '')}
                 </span>
-                <span className="text-3xs text-ink-400">
+                <span className="text-xs text-ink-400">
                   {dateGroups[activeIdx]?.items.length}건
                 </span>
                 <div className="ml-auto">

@@ -158,7 +158,7 @@ export function HistoryDetailDrawer({
           <DrawerBody className="px-5 py-4 space-y-4">
             {/* 제목 */}
             <div>
-              <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
+              <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
               <h3 className="text-xs font-semibold text-foreground leading-[1.4]">{item.title}</h3>
             </div>
 
@@ -264,7 +264,7 @@ export function HistoryDetailDrawer({
 
             {/* 태그 */}
             <div>
-              <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-2">태그</div>
+              <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">태그</div>
               {isEditing && draft ? (
                 <div className="flex flex-wrap gap-1.5">
                   {TAG_KEYS.map(t => {
@@ -314,7 +314,7 @@ export function HistoryDetailDrawer({
             {/* 본문 */}
             {item.body && (
               <div>
-                <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
+                <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
                 <MarkdownBody text={item.body} className="text-xs text-ink-700 leading-[1.7] break-words" />
               </div>
             )}
@@ -322,7 +322,7 @@ export function HistoryDetailDrawer({
             {/* 스레드 답글 */}
             {threadReplies.length > 0 && (
               <div>
-                <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-2">
+                <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">
                   스레드 답글 <span className="text-ink-300 font-normal">({threadReplies.length})</span>
                 </div>
                 <div className="space-y-2">
@@ -330,7 +330,7 @@ export function HistoryDetailDrawer({
                     <div key={i} className="bg-muted rounded-md px-3 py-2 space-y-1">
                       <div className="flex items-center justify-between gap-2">
                         <span className="text-2xs font-medium text-foreground">{r.author}</span>
-                        <span className="text-3xs text-ink-400 tabular-nums shrink-0">
+                        <span className="text-xs text-ink-400 tabular-nums shrink-0">
                           {format(new Date(r.occurred_at), 'MM/dd HH:mm', { locale: ko })}
                         </span>
                       </div>
@@ -407,7 +407,7 @@ export function HistoryDetailDrawer({
 function Meta({ label, full = false, children }: { label: string; full?: boolean; children: React.ReactNode }) {
   return (
     <div className={full ? 'col-span-2' : ''}>
-      <div className="text-3xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">{label}</div>
       <div>{children}</div>
     </div>
   )

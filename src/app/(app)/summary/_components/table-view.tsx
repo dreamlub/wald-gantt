@@ -163,7 +163,7 @@ export function TableView({
             >
               <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
               {b.name}
-              <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
+              <span className={`text-xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
             </button>
           )
         })}
@@ -173,14 +173,14 @@ export function TableView({
         <table className="w-full border-collapse text-xs table-fixed">
           <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
             <tr>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">날짜</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[90px]">브랜드</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[200px]">제목</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider min-w-[200px]">내용</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">태그</th>
-              <th className="text-center px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[60px]">중요도</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[75px]">작성자</th>
-              <th className="text-left px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[140px]">채널</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">날짜</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[90px]">브랜드</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[200px]">제목</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider min-w-[200px]">내용</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[110px]">태그</th>
+              <th className="text-center px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[60px]">중요도</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[75px]">작성자</th>
+              <th className="text-left px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider w-[140px]">채널</th>
             </tr>
           </thead>
           <tbody>
@@ -221,7 +221,7 @@ export function TableView({
                     </div>
                     <div className="flex items-center gap-1.5 mt-1">
                       {item.thread_count > 0 && (
-                        <span className="text-3xs text-lilac-500">스레드 {item.thread_count}</span>
+                        <span className="text-xs text-lilac-500">스레드 {item.thread_count}</span>
                       )}
                       {item.reclassified_at && (
                         <span className="text-4xs px-1 py-px rounded font-medium bg-amber-100 text-amber-700">업데이트</span>
@@ -235,7 +235,7 @@ export function TableView({
                             target="_blank"
                             rel="noreferrer"
                             onClick={(e) => e.stopPropagation()}
-                            className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
                           >
                             <ExternalLink size={10} />
                             Slack
@@ -244,7 +244,7 @@ export function TableView({
                         {onCreateTask && (
                           <button
                             onClick={(e) => { e.stopPropagation(); onCreateTask(item); }}
-                            className="inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
+                            className="inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded bg-card border border-border text-ink-500 hover:text-foreground hover:border-ink-400 transition-colors"
                           >
                             <ListTodo size={10} />
                             태스크
@@ -271,7 +271,7 @@ export function TableView({
                           <button
                             key={t}
                             onClick={(e) => { e.stopPropagation(); onToggleTag(t); }}
-                            className="inline-flex items-center text-3xs px-1.5 py-[1px] rounded font-medium"
+                            className="inline-flex items-center text-xs px-1.5 py-[1px] rounded font-medium"
                             style={{ background: meta.bg, color: meta.color }}
                           >
                             {meta.label}
@@ -316,7 +316,7 @@ export function TableView({
           </tbody>
           <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
             <tr>
-              <td colSpan={8} className="px-5 py-2 text-right text-3xs text-ink-400 tabular-nums">
+              <td colSpan={8} className="px-5 py-2 text-right text-xs text-ink-400 tabular-nums">
                 {loadingMore
                   ? <span className="text-ink-300">불러오는 중...</span>
                   : <>

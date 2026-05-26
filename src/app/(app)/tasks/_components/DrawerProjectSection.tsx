@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { Search, X, ChevronDown } from 'lucide-react'
@@ -38,7 +38,7 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
 
   return (
     <div>
-      <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
+      <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
       {linkedProjects.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
           {linkedProjects.map(p => (

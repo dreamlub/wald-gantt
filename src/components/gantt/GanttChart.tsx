@@ -102,21 +102,20 @@ export function GanttChart({
   allPMs.filter(Boolean).forEach((pm, i) => pmColorMap.set(pm, ASSIGNEE_COLORS[i % ASSIGNEE_COLORS.length]))
   const catIdSet   = new Set(categories.map(c => c.id))
 
+  const defaultSortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
+
   const {
     liveItems, liveCats, isCatDrag,
     activeCatForOverlay, activeProjForOverlay,
     handleDragStart, handleDragOver, handleDragEnd, handleDragCancel,
   } = useGanttDnd({
-    categories, projects, sortedCats: getSortedCats(), catIdSet,
+    categories, projects, sortedCats: defaultSortedCats, catIdSet,
     onMoveProject, onMoveCategory,
   })
 
-  function getSortedCats() {
-    return liveCats
-      ? liveCats.map(id => categories.find(c => c.id === id)!).filter(Boolean)
-      : [...categories].sort((a, b) => a.sort_order - b.sort_order)
-  }
-  const sortedCats = getSortedCats()
+  const sortedCats = liveCats
+    ? liveCats.map(id => categories.find(c => c.id === id)!).filter(Boolean)
+    : defaultSortedCats
 
   const projectsOf = (catId: string): GanttProject[] => {
     let base: GanttProject[]
@@ -319,7 +318,7 @@ export function GanttChart({
                     onDoubleClick={() => setAddingCat(true)}
                   >
                     <span>카테고리를 추가해 보세요</span>
-                    <span className="text-3xs text-ink-300">우측 상단 버튼 또는 더블클릭</span>
+                    <span className="text-xs text-ink-300">우측 상단 버튼 또는 더블클릭</span>
                   </div>
                 )}
                 <SortableContext items={sortedCats.map(c => c.id)} strategy={verticalListSortingStrategy}>

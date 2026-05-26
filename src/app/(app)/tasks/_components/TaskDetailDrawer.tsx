@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
 import { X, CheckCircle2, Circle, Trash2, ChevronDown, Copy } from 'lucide-react'
@@ -196,7 +196,7 @@ export function TaskDetailDrawer({
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상태</label>
+              <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -215,7 +215,7 @@ export function TaskDetailDrawer({
               </div>
             </div>
             <div className="flex-1">
-              <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
+              <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
               <AutocompleteInput
                 className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700"
                 placeholder="이름 (없으면 내 할일)"
@@ -230,7 +230,7 @@ export function TaskDetailDrawer({
           <div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
+                <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -241,7 +241,7 @@ export function TaskDetailDrawer({
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
+                <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -257,7 +257,7 @@ export function TaskDetailDrawer({
 
           {/* 우선순위 */}
           <div>
-            <label className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
+            <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -319,7 +319,7 @@ export function TaskDetailDrawer({
           {/* 상위 태스크 */}
           {task?.parent_id && parentTask && (
             <div className="pt-2 border-t border-border">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
+              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
               <p className="mt-1 text-sm font-medium text-foreground">{parentTask.title}</p>
             </div>
           )}
@@ -338,7 +338,7 @@ export function TaskDetailDrawer({
           {task && (
             <>
               <TaskHistorySection taskId={task.id} />
-              <div className="text-3xs text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
+              <div className="text-xs text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
                 <span>생성일: {fmtDate(task.created_at)}</span>
                 <span>수정일: {fmtDate(task.updated_at)}</span>
               </div>

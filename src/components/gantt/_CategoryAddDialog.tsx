@@ -1,4 +1,4 @@
-import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
+﻿import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@/components/ui/dialog'
 import { Button } from '@/components/ui/button'
 import { CAT_COLORS } from './_GanttRows'
 
@@ -26,7 +26,7 @@ export function CategoryAddDialog({
         </DialogHeader>
         <div className="flex flex-col gap-4 py-2">
           <div>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">이름</label>
             <input
               autoFocus
               className="mt-1.5 w-full text-xs border border-border rounded px-3 py-2 outline-none focus:border-lilac-300 placeholder:text-ink-300"
@@ -37,7 +37,7 @@ export function CategoryAddDialog({
             />
           </div>
           <div>
-            <label className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider">색상</label>
+            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">색상</label>
             <div className="mt-1.5 flex flex-wrap gap-1.5">
               {CAT_COLORS.map(c => (
                 <button

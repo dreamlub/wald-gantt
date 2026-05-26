@@ -1,4 +1,4 @@
-import Link from 'next/link'
+﻿import Link from 'next/link'
 import {
   AlertTriangle,
   ArrowRight,
@@ -215,7 +215,7 @@ export default async function CommandCenterPage() {
           </span>
           <div className="min-w-0">
             <h1 className="text-xs font-semibold text-foreground uppercase tracking-wider">Command Center</h1>
-            <p className="text-3xs text-ink-400">{fmtDay(today)} 운영 브리핑</p>
+            <p className="text-xs text-ink-400">{fmtDay(today)} 운영 브리핑</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
@@ -240,7 +240,7 @@ export default async function CommandCenterPage() {
                 <div className="divide-y divide-border">
                   {focusList.map((item, i) => (
                     <Link key={`${item.kind}-${i}`} href={item.href} className="flex items-center gap-3 py-3 group">
-                      <span className={`w-10 shrink-0 text-center rounded px-1.5 py-1 text-3xs font-semibold ${
+                      <span className={`w-10 shrink-0 text-center rounded px-1.5 py-1 text-xs font-semibold ${
                         item.tone === 'late' ? 'bg-red-50 text-status-late' :
                         item.tone === 'high' ? 'bg-coral-100 text-coral-500' :
                         'bg-lilac-100 text-lilac-600'
@@ -404,7 +404,7 @@ function MetricCard({ label, value, detail, icon, tone, href }: {
   const content = (
     <>
       <div className="flex items-center justify-between">
-        <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
+        <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
         <span className={`inline-flex size-7 items-center justify-center rounded-md ${toneClass}`}>{icon}</span>
       </div>
       <div className="mt-3 flex items-end gap-2">
@@ -447,7 +447,7 @@ function Panel({ title, href, icon, children }: {
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-background px-2.5 py-2">
-      <div className="text-3xs text-ink-400">{label}</div>
+      <div className="text-xs text-ink-400">{label}</div>
       <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
     </div>
   )
@@ -485,7 +485,7 @@ function HistoryRow({ item }: { item: HistoryItem }) {
       <div className="flex items-center gap-2 min-w-0">
         {color && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
         <span className="text-xs font-semibold text-foreground truncate">{item.title}</span>
-        {p && <span className="ml-auto shrink-0 text-3xs font-medium" style={{ color: p.color }}>{p.label}</span>}
+        {p && <span className="ml-auto shrink-0 text-xs font-medium" style={{ color: p.color }}>{p.label}</span>}
       </div>
       <div className="mt-1.5 flex items-center gap-1.5 text-2xs text-ink-400">
         <span className="truncate">{item.brand_name ?? item.channel}</span>
@@ -510,7 +510,7 @@ function DecisionRow({ item }: { item: HistoryItem }) {
         )}
         <span className="ml-auto flex gap-1 shrink-0">
           {tags.map(tag => (
-            <span key={tag} className="text-3xs px-1.5 py-0.5 rounded" style={{ background: TAG_META[tag].bg, color: TAG_META[tag].color }}>
+            <span key={tag} className="text-xs px-1.5 py-0.5 rounded" style={{ background: TAG_META[tag].bg, color: TAG_META[tag].color }}>
               {TAG_META[tag].label}
             </span>
           ))}

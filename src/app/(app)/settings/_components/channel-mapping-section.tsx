@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { RefreshCw, Hash, MessageSquare, EyeOff, ChevronDown } from 'lucide-react'
@@ -144,10 +144,10 @@ export function ChannelMappingSection({ clients }: Props) {
       {loaded && missingScopes.length > 0 && (
         <div className="rounded border border-status-warn/30 bg-status-warn/5 px-3 py-2 space-y-1">
           <p className="text-2xs font-medium text-status-warn">일부 채널 타입을 불러오지 못했습니다.</p>
-          <p className="text-3xs text-ink-400">
+          <p className="text-xs text-ink-400">
             Slack 앱에 아래 스코프를 추가하면 해당 채널도 표시됩니다:
           </p>
-          <ul className="text-3xs text-ink-400 list-disc list-inside space-y-0.5">
+          <ul className="text-xs text-ink-400 list-disc list-inside space-y-0.5">
             {missingScopes.map(s => <li key={s}>{s}</li>)}
           </ul>
         </div>
@@ -245,7 +245,7 @@ function ChannelRow({ ch, dirty, brandSuggestions, onBrandChange, onExcludeToggl
       </span>
       <span className="text-xs text-foreground truncate min-w-0 flex-1">
         {ch.channel_name || ch.channel_id}
-        {dirty && <span className="ml-1 text-3xs text-lilac-500">●</span>}
+        {dirty && <span className="ml-1 text-xs text-lilac-500">●</span>}
       </span>
       <AutocompleteInput
         value={ch.brand_name ?? ''}
@@ -257,7 +257,7 @@ function ChannelRow({ ch, dirty, brandSuggestions, onBrandChange, onExcludeToggl
       <button
         onClick={() => onExcludeToggle(ch.channel_id)}
         title={ch.excluded ? '수집 제외됨 — 클릭하여 해제' : '클릭하여 수집 제외'}
-        className={`shrink-0 inline-flex items-center gap-1 text-3xs px-1.5 py-0.5 rounded-full border transition-colors ${
+        className={`shrink-0 inline-flex items-center gap-1 text-xs px-1.5 py-0.5 rounded-full border transition-colors ${
           ch.excluded
             ? 'bg-status-late/15 border-status-late/40 text-status-late'
             : 'border-border text-ink-400 hover:border-ink-300 hover:text-ink-500'

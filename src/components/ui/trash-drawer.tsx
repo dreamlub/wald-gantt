@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState, type ReactNode } from 'react'
 import { X, Trash2, RotateCcw } from 'lucide-react'
@@ -92,7 +92,7 @@ export function TrashDrawer<T extends { id: string }>({
             <X size={15} />
           </button>
         </div>
-        <div className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
+        <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
           삭제된 {label} — {deleted.length}개
         </div>
 

@@ -324,7 +324,7 @@ export function ScheduleCalendarView() {
                         <TooltipTrigger
                           render={
                             <div
-                              className={`text-3xs px-1.5 py-[2px] rounded leading-tight truncate cursor-default ${
+                              className={`text-xs px-1.5 py-[2px] rounded leading-tight truncate cursor-default ${
                                 e.fuzzy ? 'border border-dashed opacity-70' : ''
                               }`}
                               style={{
@@ -347,7 +347,7 @@ export function ScheduleCalendarView() {
                   {dayEvents.length > MAX && (
                     <button
                       onClick={e => { e.stopPropagation(); setOverflow({ key: k, x: e.clientX, y: e.clientY }) }}
-                      className="text-3xs text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
+                      className="text-xs text-ink-400 hover:text-foreground px-1.5 py-0.5 text-left hover:bg-muted rounded transition-colors"
                     >
                       +{dayEvents.length - MAX}건 더
                     </button>
@@ -362,8 +362,8 @@ export function ScheduleCalendarView() {
         {undatedEvents.length > 0 && (
           <div className="px-4 pt-4 pb-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
-              <span className="text-3xs text-ink-300">{undatedEvents.length}건</span>
+              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
+              <span className="text-xs text-ink-300">{undatedEvents.length}건</span>
             </div>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               {undatedEvents.map((e, i) => {
@@ -373,7 +373,7 @@ export function ScheduleCalendarView() {
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
                     <span className="flex-1 text-xs text-foreground">{e.title}</span>
                     <span className="text-2xs text-ink-400 shrink-0">{e.brand}</span>
-                    <span className="text-3xs px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
+                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
                   </div>
                 )
               })}
@@ -398,7 +398,7 @@ export function ScheduleCalendarView() {
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
                 <span className="text-2xs font-semibold text-foreground">{label}</span>
-                <span className="text-3xs text-muted-foreground">{popEvents.length}건</span>
+                <span className="text-xs text-muted-foreground">{popEvents.length}건</span>
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popEvents.map((e, i) => {
@@ -406,7 +406,7 @@ export function ScheduleCalendarView() {
                   return (
                     <div
                       key={i}
-                      className={`text-3xs px-1.5 py-[3px] rounded truncate ${
+                      className={`text-xs px-1.5 py-[3px] rounded truncate ${
                         e.fuzzy ? 'border border-dashed opacity-70' : ''
                       }`}
                       style={{

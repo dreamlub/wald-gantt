@@ -81,7 +81,7 @@ function TagSummary({ counts }: { counts: Partial<Record<Tag, number>> }) {
         return (
           <span
             key={tag}
-            className="inline-flex items-center gap-1 text-3xs font-semibold px-1.5 py-0.5 rounded"
+            className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded"
             style={{ background: meta.bg, color: meta.color }}
           >
             {meta.label} {counts[tag]}
@@ -138,20 +138,20 @@ function HistoryRow({
           return (
             <span
               key={tag}
-              className="shrink-0 text-3xs font-semibold px-1.5 py-0.5 rounded"
+              className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
               style={{ background: meta.bg, color: meta.color }}
             >
               {meta.label}
             </span>
           )
         })}
-        {item.author && <span className="shrink-0 text-3xs text-ink-400">{item.author}</span>}
+        {item.author && <span className="shrink-0 text-xs text-ink-400">{item.author}</span>}
       </div>
 
       {expanded && (
         <div className="border-t border-border px-5 py-3 space-y-2">
           {item.body && <p className="text-2xs text-ink-500 leading-relaxed whitespace-pre-line">{item.body}</p>}
-          <div className="flex items-center gap-2 text-3xs text-ink-400">
+          <div className="flex items-center gap-2 text-xs text-ink-400">
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
             <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -253,7 +253,7 @@ export function BrandDailyListView({
             />
           </div>
         </div>
-        <div className="px-3 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 {brandList.length}</div>
+        <div className="px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 {brandList.length}</div>
         <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {visibleBrands.map(brand => {
             const active = selectedBrand === brand.name
@@ -289,7 +289,7 @@ export function BrandDailyListView({
                 {selectedItems.length} / {total ?? items.length}건
               </span>
             </div>
-            <p className="text-3xs text-ink-400 mt-0.5">
+            <p className="text-xs text-ink-400 mt-0.5">
               {activeBrand ? '선택 브랜드 기준으로 서버 필터가 적용되었습니다' : '브랜드를 선택하면 전체 기간 기준으로 다시 불러옵니다'}
             </p>
           </div>

@@ -85,8 +85,8 @@ function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; tit
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
       <Icon size={13} className="text-ink-400" />
-      <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
-      <span className="text-3xs text-ink-400">{count}건</span>
+      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <span className="text-xs text-ink-400">{count}건</span>
     </div>
   )
 }
@@ -102,7 +102,7 @@ function HeadlineSentences({ text }: { text: string }) {
     <ol className="flex flex-col gap-2">
       {sentences.map((s, i) => (
         <li key={i} className="flex items-start gap-2.5">
-          <span className="shrink-0 w-5 h-5 rounded-full bg-ink-100 text-ink-500 text-3xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
+          <span className="shrink-0 w-5 h-5 rounded-full bg-ink-100 text-ink-500 text-xs font-bold flex items-center justify-center mt-0.5">{i + 1}</span>
           <span className="text-sm leading-[1.8] text-foreground flex-1">{renderBold(s)}</span>
         </li>
       ))}
@@ -115,8 +115,8 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
     <section className="border-t border-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
         <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
-        <span className="text-3xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
+        <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <span className="text-xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
         <HeadlineSentences text={content.headline} />
@@ -170,9 +170,9 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
           <p className="text-xs font-semibold text-foreground leading-snug flex-1">{r.title}</p>
           <div className="flex items-center gap-2 shrink-0">
             {r.thread_count > 0 && (
-              <span className="text-3xs text-ink-400">{r.thread_count}개 답글</span>
+              <span className="text-xs text-ink-400">{r.thread_count}개 답글</span>
             )}
-            {r.author && <span className="text-3xs text-ink-400">{r.author}</span>}
+            {r.author && <span className="text-xs text-ink-400">{r.author}</span>}
           </div>
         </div>
         {r.body && (
@@ -184,7 +184,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
               const meta = TAG_META[tag]
               if (!meta) return null
               return (
-                <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
+                <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                   style={{ background: meta.bg, color: meta.color }}>
                   {meta.label}
                 </span>
@@ -199,7 +199,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="border-t border-border">
           <button
             onClick={() => setRawOpen(v => !v)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-3xs text-ink-400 hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-ink-400 hover:bg-muted/30 transition-colors"
           >
             <span className="font-semibold uppercase tracking-wider">원본 메시지</span>
             <span className={`transition-transform ${rawOpen ? 'rotate-180' : ''}`}>▾</span>
@@ -356,8 +356,8 @@ function ActionDetailDrawer({
         {/* 관련 내역 */}
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
-            {!loading && <span className="text-3xs text-ink-300">{related.length}건</span>}
+            <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
+            {!loading && <span className="text-xs text-ink-300">{related.length}건</span>}
           </div>
 
           {loading ? (
@@ -379,14 +379,14 @@ function ActionDetailDrawer({
         {!loading && similar.length > 0 && (
           <div className="px-5 py-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
-              <span className="text-3xs text-ink-300">{similar.length}건</span>
+              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
+              <span className="text-xs text-ink-300">{similar.length}건</span>
             </div>
             <div className="space-y-1.5">
               {similar.map(s => (
                 <div key={s.id} className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="flex items-start gap-2 mb-1.5">
-                    <span className="text-3xs text-ink-400 shrink-0 mt-[2px] tabular-nums">
+                    <span className="text-xs text-ink-400 shrink-0 mt-[2px] tabular-nums">
                       {kstDateLabel(s.occurred_at)}
                     </span>
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
@@ -400,7 +400,7 @@ function ActionDetailDrawer({
                         const meta = TAG_META[tag]
                         if (!meta) return null
                         return (
-                          <span key={tag} className="text-3xs px-1.5 py-0.5 rounded-full font-medium"
+                          <span key={tag} className="text-xs px-1.5 py-0.5 rounded-full font-medium"
                             style={{ background: meta.bg, color: meta.color }}>
                             {meta.label}
                           </span>
@@ -453,7 +453,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
             {/* 호버 버튼 */}
             <button
               onClick={e => { e.stopPropagation(); onCreateTask(a.title, `${a.summary}\n\n→ ${a.action}`) }}
-              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-3xs px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
+              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-xs px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
             >
               <Plus size={10} />
               태스크
@@ -462,7 +462,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
             <div className="flex items-center gap-1.5 flex-wrap mb-2">
               <PriorityBars priority={pri} />
               <BrandBadge brandName={a.brand} />
-              <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
+              <span className="text-xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
@@ -489,7 +489,7 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
             {s.date}
           </span>
           <span className="flex-1 text-xs text-foreground">{s.title}</span>
-          <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
+          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
           <BrandBadge brandName={s.brand} />
@@ -511,7 +511,7 @@ function PendingList({ items }: { items: InsightContent['pending'] }) {
               {p.brand}
             </span>
             <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
-            <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
+            <span className="text-xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
           </div>
         )
       })}

@@ -92,7 +92,7 @@ export function GanttTimelineHeader({
                 }`}
                 style={{ width: colW }}
               >
-                <span className="text-6xs leading-none">{DOW_LABELS[d.date.getDay()]}</span>
+                <span className="text-5xs leading-none">{DOW_LABELS[d.date.getDay()]}</span>
                 <span className={`text-5xs leading-none mt-0.5 ${isToday ? 'font-bold' : 'font-medium'}`}>{d.day}</span>
               </div>
             )

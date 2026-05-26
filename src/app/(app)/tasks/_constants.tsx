@@ -1,4 +1,4 @@
-import React from 'react'
+﻿import React from 'react'
 import { LayoutGrid, List, GanttChartSquare, CalendarDays, Columns3 } from 'lucide-react'
 import type { TaskStatus, Priority } from '@/types'
 
@@ -76,7 +76,7 @@ export function PriorityBars({ priority, showLabel }: {
 }) {
   const p = (priority ?? 0) as Priority
   if (p === 0) {
-    return showLabel ? <span className="text-3xs text-ink-300">—</span> : null
+    return showLabel ? <span className="text-xs text-ink-300">—</span> : null
   }
   const meta = PRIORITY_META[p]
   return (
@@ -94,7 +94,7 @@ export function PriorityBars({ priority, showLabel }: {
         ))}
       </span>
       {showLabel && (
-        <span className="text-3xs font-medium" style={{ color: meta.color }}>
+        <span className="text-xs font-medium" style={{ color: meta.color }}>
           {meta.label}
         </span>
       )}

@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { getDeletedTasks, restoreTask, permanentDeleteTask, emptyTaskTrash } from '@/lib/task-service'
 import type { GanttTask } from '@/types'
@@ -31,16 +31,16 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
           <div className="text-xs font-medium text-foreground truncate">{task.title}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span
-              className="text-3xs font-medium px-1.5 py-0.5 rounded-full"
+              className="text-xs font-medium px-1.5 py-0.5 rounded-full"
               style={{ backgroundColor: STATUS_BG_COLOR[task.status] ?? 'var(--task-status-backlog-bg)', color: STATUS_COLOR[task.status] ?? 'var(--task-status-backlog)' }}
             >
               {STATUS_LABEL[task.status] ?? task.status}
             </span>
             {task.assignee && (
-              <span className="text-3xs text-muted-foreground truncate">{task.assignee}</span>
+              <span className="text-xs text-muted-foreground truncate">{task.assignee}</span>
             )}
             {task.deleted_at && (
-              <span className="text-3xs text-ink-300">{formatDateYMD(task.deleted_at)}</span>
+              <span className="text-xs text-ink-300">{formatDateYMD(task.deleted_at)}</span>
             )}
           </div>
         </>

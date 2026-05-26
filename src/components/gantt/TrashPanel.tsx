@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { getDeletedProjects, restoreProject, permanentDeleteProject, emptyTrash } from '@/lib/gantt-service'
 import type { GanttProject, GanttCategory } from '@/types'
@@ -33,13 +33,13 @@ export function TrashPanel({ open, onClose, boardId, categories, onRestore }: Pr
             <div className="text-xs font-medium text-foreground truncate">{project.name}</div>
             <div className="flex items-center gap-1.5 mt-0.5">
               {cat && (
-                <span className="text-3xs text-muted-foreground flex items-center gap-1">
+                <span className="text-xs text-muted-foreground flex items-center gap-1">
                   <span className="w-1.5 h-1.5 rounded-full inline-block shrink-0" style={{ backgroundColor: cat.color }} />
                   {cat.name}
                 </span>
               )}
               {project.deleted_at && (
-                <span className="text-3xs text-ink-300">{formatDateYMD(project.deleted_at)}</span>
+                <span className="text-xs text-ink-300">{formatDateYMD(project.deleted_at)}</span>
               )}
             </div>
           </>

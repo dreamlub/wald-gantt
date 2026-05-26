@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import {
   LayoutList, Search, PanelLeftClose, Trash2, Archive,
@@ -113,7 +113,7 @@ export function TasksSidebar({
         {/* 프로젝트 */}
         {projects.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
+            <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
             {projects.map(p => (
               <button
                 key={p.id}
@@ -130,7 +130,7 @@ export function TasksSidebar({
 
         {/* 담당자 */}
         <div className="mt-3">
-          <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
+          <div className="px-2 mb-1 text-xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
           <div className="relative mx-2 mb-1.5">
             <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
             <input
@@ -168,7 +168,7 @@ export function TasksSidebar({
         {/* 라벨 */}
         {labels.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1.5 text-3xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
+            <div className="px-2 mb-1.5 text-xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
               {labels.map(l => {
                 const active = filterLabel === l.name
@@ -178,7 +178,7 @@ export function TasksSidebar({
                   <button
                     key={l.name}
                     onClick={() => { onFilterLabelChange(active ? null : l.name); onFilterProjectChange(null); onFilterAssigneeChange(null) }}
-                    className={`inline-flex items-center gap-0.5 text-3xs font-medium px-2 py-0.5 rounded-full transition-all border ${
+                    className={`inline-flex items-center gap-0.5 text-xs font-medium px-2 py-0.5 rounded-full transition-all border ${
                       active ? '' : 'hover:opacity-80'
                     }`}
                     style={active
@@ -205,7 +205,7 @@ export function TasksSidebar({
           <Archive size={13} className="shrink-0" />
           <span className="whitespace-nowrap">아카이브</span>
           {archiveCount > 0 && (
-            <span className="ml-auto text-3xs bg-ink-300/15 text-ink-400 font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-xs bg-ink-300/15 text-ink-400 font-semibold px-1.5 py-0.5 rounded-full">
               {archiveCount}
             </span>
           )}
@@ -217,7 +217,7 @@ export function TasksSidebar({
           <Trash2 size={13} className="shrink-0" />
           <span className="whitespace-nowrap">휴지통</span>
           {trashCount > 0 && (
-            <span className="ml-auto text-3xs bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
+            <span className="ml-auto text-xs bg-status-late/15 text-status-late font-semibold px-1.5 py-0.5 rounded-full">
               {trashCount}
             </span>
           )}

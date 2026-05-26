@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useEffect, useState } from 'react'
 import { X, Archive, RotateCcw } from 'lucide-react'
@@ -46,7 +46,7 @@ export function TaskArchivePanel({ open, onClose, workspaceId, onUnarchive }: Pr
           <X size={15} />
         </button>
       </div>
-      <div className="text-3xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
+      <div className="text-xs font-semibold text-muted-foreground uppercase tracking-wider px-4 py-2 border-b bg-muted shrink-0">
         아카이브된 태스크 — {archived.length}개
       </div>
 
@@ -63,16 +63,16 @@ export function TaskArchivePanel({ open, onClose, workspaceId, onUnarchive }: Pr
                 <div className="text-xs font-medium text-foreground truncate">{task.title}</div>
                 <div className="flex items-center gap-1.5 mt-0.5">
                   <span
-                    className="text-3xs font-medium px-1.5 py-0.5 rounded-full"
+                    className="text-xs font-medium px-1.5 py-0.5 rounded-full"
                     style={{ backgroundColor: STATUS_BG_COLOR[task.status] ?? 'var(--task-status-backlog-bg)', color: STATUS_COLOR[task.status] ?? 'var(--task-status-backlog)' }}
                   >
                     {STATUS_LABEL[task.status] ?? task.status}
                   </span>
                   {task.assignee && (
-                    <span className="text-3xs text-muted-foreground truncate">{task.assignee}</span>
+                    <span className="text-xs text-muted-foreground truncate">{task.assignee}</span>
                   )}
                   {task.archived_at && (
-                    <span className="text-3xs text-ink-300">{formatDateYMD(task.archived_at)}</span>
+                    <span className="text-xs text-ink-300">{formatDateYMD(task.archived_at)}</span>
                   )}
                 </div>
               </div>

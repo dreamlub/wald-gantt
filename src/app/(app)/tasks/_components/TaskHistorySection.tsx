@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useEffect } from 'react'
 import { Clock } from 'lucide-react'
@@ -49,13 +49,13 @@ export function TaskHistorySection({ taskId }: { taskId: string }) {
         </div>
       ) : groups.map((group, gi) => (
         <div key={gi} className="px-5 py-3 border-b last:border-0 hover:bg-muted transition-colors">
-          <div className="text-3xs text-ink-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
+          <div className="text-xs text-ink-400 font-medium mb-1.5 tabular-nums">{fmtHistDate(group[0].changed_at)}</div>
           <div className="space-y-1">
             {group.map(entry => (
               <div key={entry.id} className="flex items-center gap-1.5 flex-wrap">
                 <span className="text-2xs text-muted-foreground font-semibold w-12 shrink-0">{HIST_FIELD_LABELS[entry.field_name] ?? entry.field_name}</span>
                 <span className="text-2xs text-ink-400 line-through">{fmtHistVal(entry.field_name, entry.old_value)}</span>
-                <span className="text-3xs text-ink-300">→</span>
+                <span className="text-xs text-ink-300">→</span>
                 <span className="text-2xs text-ink-700 font-medium">{fmtHistVal(entry.field_name, entry.new_value)}</span>
               </div>
             ))}

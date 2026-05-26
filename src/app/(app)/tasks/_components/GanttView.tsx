@@ -1,4 +1,4 @@
-'use client'
+﻿'use client'
 
 import { useState, useRef } from 'react'
 import { CornerDownRight, StickyNote } from 'lucide-react'
@@ -281,7 +281,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                 return (
                   <div
                     key={w.key}
-                    className={`shrink-0 flex items-center justify-center text-3xs border-r
+                    className={`shrink-0 flex items-center justify-center text-xs border-r
                       ${isToday ? 'bg-accent text-accent-foreground font-semibold' : 'text-ink-400'}`}
                     style={{ width: WEEK_W }}
                   >
@@ -423,7 +423,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                         >
                           {displayLabel && (
                             <span
-                              className="text-3xs font-medium truncate leading-none whitespace-nowrap"
+                              className="text-xs font-medium truncate leading-none whitespace-nowrap"
                               style={{ color: 'white', textShadow: '0 0 3px rgba(0,0,0,0.3)' }}
                             >
                               {displayLabel}
@@ -436,7 +436,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                           className="absolute top-2 flex items-center pointer-events-none"
                           style={{ left: eBarLeft + eBarWidth + 4, height: ROW_H - 16 }}
                         >
-                          <span className={`text-3xs font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
+                          <span className={`text-xs font-medium tabular-nums px-1.5 py-0.5 rounded whitespace-nowrap ${overdue ? 'text-status-late' : 'text-muted-foreground'}`}>
                             {label}
                           </span>
                         </div>
@@ -452,7 +452,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
         {/* ── 날짜 없는 태스크 ── */}
         {undatedTasks.length > 0 && (
           <>
-            <div className="sticky left-0 z-10 px-3 py-1.5 text-3xs font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
+            <div className="sticky left-0 z-10 px-3 py-1.5 text-xs font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
               날짜 미설정 — {undatedTasks.length}개
             </div>
             {undatedTasks.map(task => {
@@ -487,7 +487,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                     )}
                   </div>
                   <div className="flex-1 flex items-center px-4">
-                    <span className="text-3xs text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
+                    <span className="text-xs text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
                   </div>
                 </div>
               )
