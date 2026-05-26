@@ -125,8 +125,8 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
               <span className="text-3xs text-ink-400 bg-ink-100 px-2 py-0.5 rounded-full">{a.related_count}건 관련</span>
             </div>
             <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
-            <BodyBullets text={a.summary} className="text-xs text-ink-700 leading-relaxed mb-2.5 flex-1" />
-            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-2xs py-2" />
+            <BodyBullets text={a.summary} className="text-sm text-ink-700 leading-relaxed mb-2.5 flex-1" />
+            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-xs py-2" />
           </div>
         )
       })}
@@ -140,11 +140,11 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-2xs text-ink-700 min-w-20 flex items-center gap-1">
+          <span className="text-xs text-ink-700 min-w-20 flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
-          <span className="flex-1 text-xs text-foreground">{s.title}</span>
+          <span className="flex-1 text-sm text-foreground">{s.title}</span>
           <span className={`text-3xs font-semibold px-1.5 py-0.5 rounded-xs uppercase tracking-[0.04em] ${PRI_CLS[s.priority]}`}>
             {PRI_LABEL[s.priority]}
           </span>
@@ -161,11 +161,11 @@ function PendingList({ items }: { items: InsightContent['pending'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((p, i) => (
         <div key={i} className="flex items-start gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="min-w-[90px] text-xs font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
+          <span className="min-w-[90px] text-sm font-semibold flex items-center gap-1.5 text-foreground pt-0.5">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(p.brand) }} />
             {p.brand}
           </span>
-          <span className="flex-1 text-2xs text-ink-500 leading-relaxed">{p.items}</span>
+          <span className="flex-1 text-sm text-ink-500 leading-relaxed">{p.items}</span>
           <span className="text-3xs text-status-warn bg-status-warn/10 px-1.5 py-0.5 rounded-full font-semibold shrink-0">{p.count}건</span>
         </div>
       ))}
@@ -183,7 +183,7 @@ function DecisionGrid({ items }: { items: InsightContent['decisions'] }) {
             <CheckSquare size={13} className="text-mint-500 shrink-0 mt-0.5" />
             <p className="text-base font-semibold text-foreground leading-snug">{d.title}</p>
           </div>
-          <BodyBullets text={d.desc} className="text-2xs text-ink-500 leading-relaxed mb-2" />
+          <BodyBullets text={d.desc} className="text-sm text-ink-500 leading-relaxed mb-2" />
           <BrandBadge brandName={d.brand} />
         </div>
       ))}
