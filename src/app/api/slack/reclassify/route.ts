@@ -152,7 +152,8 @@ export async function POST(req: NextRequest) {
                 return { workspace_id: workspaceId, client_history_id: old.id, thread_count: old.thread_count, title: old.title, body: old.body ?? '' }
               })
             if (oldSummaries.length > 0) {
-              await sb.from('client_history_summaries').insert(oldSummaries)
+              const { error: archiveErr } = await sb.from('client_history_summaries').insert(oldSummaries)
+              if (archiveErr) send('status', { message: `아카이브 실패(무시): ${archiveErr.message}` })
             }
 
             const { error: upsertErr } = await sb

@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import type { ViewKey } from './history-shell-state'
+import type { ViewKey } from './summary-shell-state'
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: LucideIcon }[] = [
   { key: 'rawdata',     label: 'Raw Data',     icon: Database },
@@ -31,7 +31,7 @@ interface Props {
   setSearchQuery: Dispatch<SetStateAction<string>>
 }
 
-export function HistoryToolbar({
+export function SummaryToolbar({
   sidebarOpen,
   onOpenSidebar,
   view,

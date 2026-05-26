@@ -1,7 +1,7 @@
 'use client'
 
 import type { Tag, Priority } from '../_lib/types'
-import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
+import { TAG_META, PRIORITY_META } from '../_lib/constants'
 import { brandColor } from '@/lib/history-service'
 
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }

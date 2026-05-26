@@ -3,11 +3,11 @@
 import { Check, LayoutList } from 'lucide-react'
 
 import type { Tag, HistoryItem, Priority } from '../_lib/types'
-import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/mock-data'
+import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
-import { GroupTitle, MonthGridSection, DateRangePanel } from './_sidebar-date-panels'
-import { RawDataSidebarPanel } from './_raw-data-sidebar'
+import { GroupTitle, MonthGridSection, DateRangePanel } from './sidebar-date-panels'
+import { RawDataSidebarPanel } from './raw-data-sidebar'
 
 export type PriorityKey = 'all' | Priority
 
@@ -69,7 +69,7 @@ interface Props {
   onToggleDailyPriority: (p: Priority) => void
 }
 
-export function HistorySidebar({
+export function SummarySidebar({
   view,
   history,
   dateFrom, dateTo, onDateFromChange, onDateToChange,

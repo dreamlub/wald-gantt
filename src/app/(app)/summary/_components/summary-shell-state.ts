@@ -1,5 +1,5 @@
 import type { HistoryItem, Tag } from '../_lib/types'
-import type { PriorityKey } from './history-sidebar'
+import type { PriorityKey } from './summary-sidebar'
 import type { HistoryPage } from '@/lib/history-service'
 
 export interface PageState {

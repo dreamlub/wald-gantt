@@ -4,19 +4,16 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 import { PanelLeftClose } from 'lucide-react'
 
-import type { Client, HistoryItem, Tag } from '../_lib/types'
-
-import type { Priority } from '../_lib/types'
-import type { GanttCategory } from '@/types'
-import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
-import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
-import { HistoryToolbar } from './history-toolbar'
+import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import { TAG_META, PRIORITY_META } from '../_lib/constants'
+import { SummarySidebar, type PriorityKey, getCurrentWeekStart } from './summary-sidebar'
+import { SummaryToolbar } from './summary-toolbar'
 import { BrandDailyListView } from './brand-daily-list-view'
-import { SummaryView } from './summary-view'
+import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
-import { TimelineView } from './timeline-view'
+import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
-import { ThreadTimelineView } from './thread-timeline-view'
+import { TimelineView } from './timeline-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
@@ -24,16 +21,11 @@ import {
   PAGE_INIT, pageReducer,
   parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
-} from './history-shell-state'
+} from './summary-shell-state'
 import { filterHistoryItems } from '@/lib/history-query-utils'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
-import {
-  getOrCreateWorkspace, getBoards, getCategories,
-  addProject,
-} from '@/lib/gantt-service'
-import { addTask, searchProjects } from '@/lib/task-service'
-
+import { useCreateDialogs } from './use-create-dialogs'
 import type { HistoryPage } from '@/lib/history-service'
 import { brandColor } from '@/lib/history-service'
 
@@ -42,7 +34,7 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
-export function HistoryShell({ initialClients, initialHistory }: Props) {
+export function SummaryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
@@ -130,32 +122,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     if (pg.hasMore && !pg.loading && pg.cursor) fetchPage(pg.cursor)
   }, [pg.hasMore, pg.loading, pg.cursor, fetchPage])
 
-  // ── 생성 다이얼로그 ────────────────────────────────────────────
-  const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
-  const [createProjectOpen, setCreateProjectOpen] = useState(false)
-  const [createSource,      setCreateSource]      = useState<HistoryItem | null>(null)
-  const [createTaskPreset,  setCreateTaskPreset]  = useState<{ title: string; memo: string } | null>(null)
-  const [workspaceId,       setWorkspaceId]       = useState<string | null>(null)
-  const [allCategories,     setAllCategories]     = useState<GanttCategory[]>([])
-
-  async function loadWorkspace() {
-    if (workspaceId) return workspaceId
-    const ws = await getOrCreateWorkspace()
-    setWorkspaceId(ws.id)
-    return ws.id
-  }
-
-  async function handleOpenCreateTask(item: HistoryItem) {
-    setCreateSource(item)
-    await loadWorkspace()
-    setCreateTaskOpen(true)
-  }
-
-  async function handleCreateTaskFromAction(title: string, memo: string) {
-    setCreateTaskPreset({ title, memo })
-    await loadWorkspace()
-    setCreateTaskOpen(true)
-  }
+  const dialogs = useCreateDialogs()
 
   async function handleSaveItem(id: string, updates: { client_id?: string; author?: string | null; priority?: string | null; tags?: string[] }) {
     const res = await fetch(`/api/history/${id}`, {
@@ -171,15 +138,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
     }
     setActiveItem(prev => prev?.id === id ? { ...prev, ...updates } as HistoryItem : prev)
     startTransition(() => router.refresh())
-  }
-
-  async function handleOpenCreateProject(item: HistoryItem) {
-    setCreateSource(item)
-    const wsId = await loadWorkspace()
-    const boards = await getBoards(wsId)
-    const cats = (await Promise.all(boards.map(b => getCategories(b.id)))).flat()
-    setAllCategories(cats)
-    setCreateProjectOpen(true)
   }
 
   // state → URL 동기화
@@ -246,7 +204,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           </button>
         </div>
 
-        <HistorySidebar
+        <SummarySidebar
           view={view}
           history={initialHistory}
           dateFrom={dateFrom}
@@ -271,7 +229,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
       {/* ── 메인 ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <HistoryToolbar
+        <SummaryToolbar
           sidebarOpen={sidebarOpen}
           onOpenSidebar={() => setSidebarOpen(true)}
           view={view}
@@ -289,7 +247,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           {view === 'calendar' ? (
             <ScheduleCalendarView />
           ) : view === 'timeline' ? (
-            <ThreadTimelineView
+            <TimelineView
               dateFrom={dateFrom || undefined}
               dateTo={dateTo || undefined}
               brandFilter={brandId === 'all' ? undefined : brandId}
@@ -302,7 +260,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               filterBrands={dailyBrands}
               filterTags={dailyTags}
               filterPriorities={dailyPriorities}
-              onCreateTask={handleCreateTaskFromAction}
+              onCreateTask={dialogs.handleCreateTaskFromAction}
             />
           ) : (
             <>
@@ -355,12 +313,12 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                   activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                  onCreateTask={handleOpenCreateTask}
+                  onCreateTask={dialogs.handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />
               )}
               {view === 'weeklylist' && (
-                <TimelineView
+                <WeeklyBrandView
                   dateFrom={dateFrom}
                   dateTo={dateTo}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
@@ -370,7 +328,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
               {view === 'summary' && (
                 <div data-scrolltop className="flex-1 overflow-y-auto">
                   <div className="px-6 pb-5">
-                    <SummaryView items={filtered} />
+                    <StatsView items={filtered} />
                   </div>
                 </div>
               )}
@@ -385,50 +343,29 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
         item={activeItem}
         clients={initialClients}
         onClose={() => setActiveItem(null)}
-        onCreateTask={handleOpenCreateTask}
-        onCreateProject={handleOpenCreateProject}
+        onCreateTask={dialogs.handleOpenCreateTask}
+        onCreateProject={dialogs.handleOpenCreateProject}
         onSaveItem={handleSaveItem}
       />
 
       {/* 태스크 생성 다이얼로그 */}
       <TaskFormDialog
-        open={createTaskOpen}
-        onClose={() => { setCreateTaskOpen(false); setCreateSource(null); setCreateTaskPreset(null) }}
-        initialTitle={createSource?.title ?? createTaskPreset?.title ?? ''}
-        initialMemo={createSource?.body ?? createTaskPreset?.memo ?? ''}
-        onSearchProjects={q => workspaceId ? searchProjects(workspaceId, q) : Promise.resolve([])}
-        onSave={async (fields, projectIds) => {
-          if (!workspaceId) return
-          await addTask(workspaceId, { ...fields, type: 'mine' }, projectIds)
-          setCreateTaskOpen(false)
-          setCreateSource(null)
-          setCreateTaskPreset(null)
-        }}
+        open={dialogs.createTaskOpen}
+        onClose={dialogs.closeTask}
+        initialTitle={dialogs.createSource?.title ?? dialogs.createTaskPreset?.title ?? ''}
+        initialMemo={dialogs.createSource?.body ?? dialogs.createTaskPreset?.memo ?? ''}
+        onSearchProjects={dialogs.onSearchProjects}
+        onSave={dialogs.saveTask}
       />
 
       {/* 프로젝트 생성 다이얼로그 */}
       <ProjectFormDialog
-        open={createProjectOpen}
-        onClose={() => { setCreateProjectOpen(false); setCreateSource(null) }}
-        categories={allCategories}
-        initialName={createSource?.title ?? ''}
-        initialMemo={createSource?.body ?? ''}
-        onSave={async (fields) => {
-          if (!workspaceId) return
-          const cat = allCategories.find(c => c.id === fields.categoryId)
-          if (!cat) return
-          await addProject(cat.board_id, workspaceId, fields.categoryId, fields.parentId, {
-            name: fields.name,
-            status: fields.status,
-            start_date: fields.start_date,
-            end_date: fields.end_date,
-            team: fields.team,
-            pm: fields.pm,
-            priority: fields.priority,
-          })
-          setCreateProjectOpen(false)
-          setCreateSource(null)
-        }}
+        open={dialogs.createProjectOpen}
+        onClose={dialogs.closeProject}
+        categories={dialogs.allCategories}
+        initialName={dialogs.createSource?.title ?? ''}
+        initialMemo={dialogs.createSource?.body ?? ''}
+        onSave={dialogs.saveProject}
       />
     </div>
   )

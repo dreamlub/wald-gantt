@@ -19,7 +19,7 @@ import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '
 import type { HistoryItem, Priority, Tag } from './summary/_lib/types'
 import { brandColor } from '@/lib/history-service'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
-import { TAG_META, PRIORITY_META } from './summary/_lib/mock-data'
+import { TAG_META, PRIORITY_META } from './summary/_lib/constants'
 
 type WeeklyInsightRow = {
   week_start: string
