@@ -9,7 +9,7 @@ import {
 import type { SensorDescriptor, SensorOptions } from '@dnd-kit/core'
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
 import { STATUS_GROUPS } from '../_constants'
-import { TaskRow, DraggableTaskRow, DroppableGroup } from './TaskRow'
+import { TaskRow, DraggableTaskRow, DroppableGroup } from './task-row'
 import type { GanttTask, TaskStatus } from '@/types'
 
 interface NormalViewProps {

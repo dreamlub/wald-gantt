@@ -15,8 +15,8 @@ import type { GanttTask, TaskStatus } from '@/types'
 import { STATUS_GROUPS, PriorityBars } from '../_constants'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { LabelBadge } from './LabelBadge'
-import { TaskStatusBadge } from './TaskStatusBadge'
+import { LabelBadge } from './label-badge'
+import { TaskStatusBadge } from './task-status-badge'
 
 interface Props {
   tasks: GanttTask[]

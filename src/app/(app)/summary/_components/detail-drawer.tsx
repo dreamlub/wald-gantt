@@ -131,7 +131,7 @@ export function HistoryDetailDrawer({
         {/* 헤더 */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
-          <h2 className="text-xs font-semibold text-foreground flex-1">상세 정보</h2>
+          <h2 className="text-sm font-semibold text-foreground flex-1">상세 정보</h2>
           {!isEditing && item?.body && (
             <button onClick={copyBody} className="p-1 text-ink-300 hover:text-foreground rounded transition-colors" title="제목+본문 복사">
               {copied ? <Check size={14} className="text-mint-500" /> : <Copy size={14} />}

@@ -6,9 +6,10 @@ import { PanelLeftClose } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/constants'
-import { SummarySidebar, type PriorityKey, getCurrentWeekStart } from './summary-sidebar'
+import { SummarySidebar } from './summary-sidebar'
+import { type PriorityKey, getCurrentWeekStart } from './_sidebar-utils'
 import { SummaryToolbar } from './summary-toolbar'
-import { BrandDailyListView } from './brand-daily-list-view'
+import { DailyListView } from './daily-list-view'
 import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
@@ -303,7 +304,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
               )}
 
               {view === 'dailylist' && (
-                <BrandDailyListView
+                <DailyListView
                   items={pg.items}
                   hasFilters={hasFilters}
                   total={pg.total}

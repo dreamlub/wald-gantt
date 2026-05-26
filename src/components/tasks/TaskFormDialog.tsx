@@ -9,7 +9,7 @@ import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { labelColor } from '@/app/(app)/tasks/_utils'
 import { DatePickerButton } from '@/components/ui/date-picker-button'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
-import { TaskHistorySection } from '@/app/(app)/tasks/_components/TaskHistorySection'
+import { TaskHistorySection } from '@/app/(app)/tasks/_components/task-history-section'
 
 type FormTab = 'info' | 'memo' | 'history'
 

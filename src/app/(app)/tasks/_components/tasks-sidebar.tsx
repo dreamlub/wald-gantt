@@ -4,7 +4,7 @@ import {
   LayoutList, Search, PanelLeftClose, Trash2, Archive,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
-import { LabelBadge } from './LabelBadge'
+import { LabelBadge } from './label-badge'
 import type { QuickFilterKey } from '../_hooks/use-task-filters'
 
 interface SidebarProject { id: string; name: string; count: number; colorIdx: number }

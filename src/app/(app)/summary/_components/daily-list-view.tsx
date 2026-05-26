@@ -180,7 +180,7 @@ function HistoryRow({
   )
 }
 
-export function BrandDailyListView({
+export function DailyListView({
   items,
   hasFilters,
   total,

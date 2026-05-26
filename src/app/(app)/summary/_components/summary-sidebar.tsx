@@ -10,10 +10,7 @@ import { GroupTitle, MonthGridSection, DateRangePanel } from './sidebar-date-pan
 import { RawDataSidebarPanel } from './raw-data-sidebar'
 
 import type { PriorityKey } from './_sidebar-utils'
-import { dateStr, getMondayOfDate, getWeekLabel, getWeekDateRange, getCurrentWeekStart, isCurrentWeek } from './_sidebar-utils'
-
-export type { PriorityKey }
-export { getMondayOfDate, dateStr, getWeekLabel, getWeekDateRange, getCurrentWeekStart, isCurrentWeek }
+import { dateStr } from './_sidebar-utils'
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {

@@ -11,8 +11,8 @@ import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
-import { LabelBadge } from './LabelBadge'
-import { TaskStatusBadge } from './TaskStatusBadge'
+import { LabelBadge } from './label-badge'
+import { TaskStatusBadge } from './task-status-badge'
 import { PriorityBars } from '../_constants'
 
 function fmtHHMM(iso: string): string {
