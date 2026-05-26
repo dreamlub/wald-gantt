@@ -1,6 +1,6 @@
 'use client'
 
-import { Check, LayoutList } from 'lucide-react'
+import { Check } from 'lucide-react'
 
 import type { Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
@@ -147,7 +147,11 @@ export function SummarySidebar({
       <div className="mt-3">
         <GroupTitle>중요도</GroupTitle>
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
-          <LayoutList size={12} className="shrink-0" />
+          <span className="inline-flex items-end gap-[1px] shrink-0">
+            {[5, 7, 9].map((h, i) => (
+              <span key={i} className="w-0.5 rounded-sm bg-ink-300" style={{ height: `${h}px` }} />
+            ))}
+          </span>
           <span className="flex-1 truncate text-left">전체</span>
           {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-xs text-ink-400">{priCounts.all}</span>}
         </button>
@@ -195,7 +199,7 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
           onClick={() => onBrandChange('all')}
           className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
         >
-          <LayoutList size={12} className="shrink-0" />
+          <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
           <span className="flex-1 truncate text-left">전체</span>
           {brandId === 'all' && <Check size={12} className="shrink-0" />}
           <span className="text-xs text-ink-400">{timelineTotal}</span>
