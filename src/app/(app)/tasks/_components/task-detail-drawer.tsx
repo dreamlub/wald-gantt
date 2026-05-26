@@ -127,7 +127,7 @@ export function TaskDetailDrawer({
       {/* 헤더 + 탭 */}
       <DrawerHeader>
         <div className="flex items-center px-5 h-12 gap-1">
-          <h2 className="text-xs font-semibold text-foreground flex-1">태스크 수정</h2>
+          <h2 className="text-sm font-semibold text-foreground flex-1">태스크 수정</h2>
           <div className="flex items-center gap-1">
             {onDuplicate && task && (
               <button
@@ -155,7 +155,7 @@ export function TaskDetailDrawer({
             <button
               key={t}
               onClick={() => setTab(t)}
-              className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
                 tab === t ? 'border-lilac-500 text-accent-foreground' : 'border-transparent text-ink-400 hover:text-muted-foreground'
               }`}
             >
@@ -196,7 +196,7 @@ export function TaskDetailDrawer({
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">상태</label>
+              <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -205,7 +205,7 @@ export function TaskDetailDrawer({
                 <select
                   value={status}
                   onChange={e => setStatus(e.target.value as TaskStatus)}
-                  className="w-full text-xs border border-border rounded pl-6 pr-6 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-ink-700"
+                  className="w-full text-sm border border-border rounded pl-6 pr-6 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-ink-700"
                 >
                   {STATUS_OPTIONS.map(s => (
                     <option key={s.value} value={s.value}>{s.label}</option>
@@ -215,9 +215,9 @@ export function TaskDetailDrawer({
               </div>
             </div>
             <div className="flex-1">
-              <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
+              <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">담당자</label>
               <AutocompleteInput
-                className="mt-1.5 w-full text-xs border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700"
+                className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-ink-700"
                 placeholder="이름 (없으면 내 할일)"
                 value={assignee}
                 onChange={setAssignee}
@@ -230,7 +230,7 @@ export function TaskDetailDrawer({
           <div>
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
+                <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -241,7 +241,7 @@ export function TaskDetailDrawer({
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
+                <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -252,12 +252,12 @@ export function TaskDetailDrawer({
                 </div>
               </div>
             </div>
-            {dateError && <p className="text-2xs text-status-late mt-1">{dateError}</p>}
+            {dateError && <p className="text-sm text-status-late mt-1">{dateError}</p>}
           </div>
 
           {/* 우선순위 */}
           <div>
-            <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
+            <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -267,7 +267,7 @@ export function TaskDetailDrawer({
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-2xs px-2 py-1 rounded border transition-colors
+                    className={`flex items-center gap-0.5 text-sm px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
                         : 'border-border text-ink-400 hover:border-ink-300'}`}
@@ -319,8 +319,8 @@ export function TaskDetailDrawer({
           {/* 상위 태스크 */}
           {task?.parent_id && parentTask && (
             <div className="pt-2 border-t border-border">
-              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
-              <p className="mt-1 text-xs font-medium text-foreground">{parentTask.title}</p>
+              <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">상위 태스크</span>
+              <p className="mt-1 text-sm font-medium text-foreground">{parentTask.title}</p>
             </div>
           )}
         </DrawerBody>
@@ -338,7 +338,7 @@ export function TaskDetailDrawer({
           {task && (
             <>
               <TaskHistorySection taskId={task.id} />
-              <div className="text-xs text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
+              <div className="text-sm text-ink-300 flex flex-col gap-0.5 px-5 py-3 border-t border-border">
                 <span>생성일: {fmtDate(task.created_at)}</span>
                 <span>수정일: {fmtDate(task.updated_at)}</span>
               </div>
@@ -351,14 +351,14 @@ export function TaskDetailDrawer({
       <DrawerFooter>
         <button
           onClick={onClose}
-          className="px-3 py-1.5 text-xs text-muted-foreground hover:text-ink-700 hover:bg-muted rounded transition-colors"
+          className="px-3 py-1.5 text-sm text-muted-foreground hover:text-ink-700 hover:bg-muted rounded transition-colors"
         >
           취소
         </button>
         <button
           onClick={handleSave}
           disabled={!isValid || saving}
-          className="px-4 py-1.5 text-xs bg-accent-foreground text-white rounded font-medium hover:bg-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
+          className="px-4 py-1.5 text-sm bg-accent-foreground text-white rounded font-medium hover:bg-accent-foreground disabled:opacity-40 disabled:cursor-not-allowed transition-colors"
         >
           {saving ? '저장 중...' : '저장'}
         </button>

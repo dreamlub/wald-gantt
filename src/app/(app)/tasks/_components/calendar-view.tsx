@@ -68,7 +68,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
           <button onClick={goPrev} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
             <ChevronLeft size={15} />
           </button>
-          <span className="text-xs font-semibold text-foreground w-24 text-center tabular-nums">
+          <span className="text-sm font-semibold text-foreground w-24 text-center tabular-nums">
             {cur.year}년 {cur.month + 1}월
           </span>
           <button onClick={goNext} className="p-1.5 rounded-md text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
@@ -79,7 +79,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
         {!isThisMonth && (
           <button
             onClick={goToday}
-            className="text-2xs px-2.5 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
+            className="text-sm px-2.5 py-1 rounded-md bg-muted text-muted-foreground hover:text-foreground hover:bg-muted/80 transition-colors font-medium"
           >
             오늘
           </button>
@@ -199,8 +199,8 @@ export function CalendarView({ tasks, onEdit }: Props) {
               style={{ left, top }}
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
-                <span className="text-2xs font-semibold text-foreground">{label}</span>
-                <span className="text-xs text-muted-foreground">{popTasks.length}개</span>
+                <span className="text-sm font-semibold text-foreground">{label}</span>
+                <span className="text-sm text-muted-foreground">{popTasks.length}개</span>
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popTasks.map(task => {

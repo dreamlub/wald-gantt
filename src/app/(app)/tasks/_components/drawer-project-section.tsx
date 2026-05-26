@@ -38,13 +38,13 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
 
   return (
     <div>
-      <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
+      <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">연결 프로젝트</label>
       {linkedProjects.length > 0 && (
         <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
           {linkedProjects.map(p => (
             <span
               key={p.id}
-              className="flex items-center gap-1 text-2xs bg-accent text-accent-foreground border border-lilac-200 px-2 py-0.5 rounded-full"
+              className="flex items-center gap-1 text-sm bg-accent text-accent-foreground border border-lilac-200 px-2 py-0.5 rounded-full"
             >
               <span className="text-lilac-400 text-4xs">{p.board_name}</span>
               <span>/</span>
@@ -63,7 +63,7 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
         <div className="flex items-center border border-border rounded px-2.5 gap-1.5 focus-within:border-lilac-300">
           <Search size={11} className="text-ink-300 shrink-0" />
           <input
-            className="flex-1 text-xs py-1.5 outline-none placeholder:text-ink-300"
+            className="flex-1 text-sm py-1.5 outline-none placeholder:text-ink-300"
             placeholder="클릭해서 전체 보기 / 검색"
             value={projSearch}
             onChange={e => { setProjSearch(e.target.value); setShowProjDrop(true) }}
@@ -81,14 +81,14 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
               }, {})
               return Object.entries(groups).map(([board, list]) => (
                 <div key={board}>
-                  <div className="px-3 pt-1.5 pb-0.5 text-2xs font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
+                  <div className="px-3 pt-1.5 pb-0.5 text-sm font-semibold text-ink-400 uppercase tracking-wider bg-muted/50">
                     {board}
                   </div>
                   {list.map(p => (
                     <button
                       key={p.id}
                       onClick={() => linkProject(p)}
-                      className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left"
+                      className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent text-left"
                     >
                       <span className="text-ink-700">{p.name}</span>
                     </button>
@@ -99,7 +99,7 @@ export function DrawerProjectSection({ linkedProjects, setLinkedProjects, onSear
           </div>
         )}
         {showProjDrop && projResults.length === 0 && (
-          <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-2xs text-ink-400">
+          <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-sm text-ink-400">
             {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
           </div>
         )}

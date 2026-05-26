@@ -62,7 +62,7 @@ export function DailyNoteView({ handle, date }: Props) {
   }
 
   if (loading) {
-    return <div className="flex-1 flex items-center justify-center text-xs text-ink-300">로딩 중...</div>
+    return <div className="flex-1 flex items-center justify-center text-sm text-ink-300">로딩 중...</div>
   }
 
   // 편집 모드
@@ -70,13 +70,13 @@ export function DailyNoteView({ handle, date }: Props) {
     return (
       <div className="flex-1 flex flex-col overflow-hidden">
         <div className="flex items-center justify-between px-4 py-2 border-b bg-muted shrink-0">
-          <span className="text-2xs text-muted-foreground">Ctrl+S 저장 · Esc 닫기</span>
+          <span className="text-sm text-muted-foreground">Ctrl+S 저장 · Esc 닫기</span>
           <div className="flex items-center gap-2">
-            {saveState === 'saving' && <span className="text-2xs text-ink-400">저장 중...</span>}
-            {saveState === 'saved'  && <span className="text-2xs text-mint-500 flex items-center gap-1"><Check size={11} />저장됨</span>}
+            {saveState === 'saving' && <span className="text-sm text-ink-400">저장 중...</span>}
+            {saveState === 'saved'  && <span className="text-sm text-mint-500 flex items-center gap-1"><Check size={11} />저장됨</span>}
             <button
               onClick={exitEdit}
-              className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium bg-foreground text-background hover:bg-ink-800 transition-colors"
+              className="flex items-center gap-1 px-2.5 py-1 rounded text-sm font-medium bg-foreground text-background hover:bg-ink-800 transition-colors"
             >
               <Eye size={12} /> 미리보기
             </button>
@@ -102,11 +102,11 @@ export function DailyNoteView({ handle, date }: Props) {
         <FilePlus size={36} strokeWidth={1.5} className="text-ink-200" />
         <div className="text-center">
           <p className="text-sm font-medium text-muted-foreground">이 날 노트가 없어요</p>
-          <p className="text-xs mt-1 text-ink-300">새 노트를 만들어 볼까요?</p>
+          <p className="text-sm mt-1 text-ink-300">새 노트를 만들어 볼까요?</p>
         </div>
         <button
           onClick={() => enterEdit('')}
-          className="px-4 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:bg-ink-800 transition-colors"
+          className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:bg-ink-800 transition-colors"
         >
           노트 만들기
         </button>
@@ -118,10 +118,10 @@ export function DailyNoteView({ handle, date }: Props) {
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       <div className="flex items-center justify-between px-4 py-2 border-b bg-muted shrink-0">
-        <span className="text-2xs text-muted-foreground">{dateToFilename(date)}</span>
+        <span className="text-sm text-muted-foreground">{dateToFilename(date)}</span>
         <button
           onClick={() => enterEdit()}
-          className="flex items-center gap-1 px-2.5 py-1 rounded text-xs font-medium text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+          className="flex items-center gap-1 px-2.5 py-1 rounded text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
         >
           <Pencil size={12} /> 편집
         </button>
@@ -134,22 +134,22 @@ export function DailyNoteView({ handle, date }: Props) {
             components={{
               h1: ({ children }) => <h1 className="text-xl font-bold mb-3 mt-5 first:mt-0 text-foreground">{children}</h1>,
               h2: ({ children }) => <h2 className="text-sm font-semibold mb-2 mt-4 first:mt-0 text-foreground">{children}</h2>,
-              h3: ({ children }) => <h3 className="text-xs font-semibold mb-1.5 mt-3 first:mt-0 text-foreground">{children}</h3>,
-              p:  ({ children }) => <p className="text-xs leading-relaxed mb-3 text-foreground">{children}</p>,
-              ul: ({ children }) => <ul className="mb-3 pl-5 text-xs space-y-1 list-disc text-foreground">{children}</ul>,
-              ol: ({ children }) => <ol className="mb-3 pl-5 text-xs space-y-1 list-decimal text-foreground">{children}</ol>,
+              h3: ({ children }) => <h3 className="text-sm font-semibold mb-1.5 mt-3 first:mt-0 text-foreground">{children}</h3>,
+              p:  ({ children }) => <p className="text-sm leading-relaxed mb-3 text-foreground">{children}</p>,
+              ul: ({ children }) => <ul className="mb-3 pl-5 text-sm space-y-1 list-disc text-foreground">{children}</ul>,
+              ol: ({ children }) => <ol className="mb-3 pl-5 text-sm space-y-1 list-decimal text-foreground">{children}</ol>,
               li: ({ children }) => <li className="leading-relaxed text-foreground">{children}</li>,
               blockquote: ({ children }) => (
-                <blockquote className="border-l-2 border-lilac-300 pl-3 my-2 text-xs text-muted-foreground italic">
+                <blockquote className="border-l-2 border-lilac-300 pl-3 my-2 text-sm text-muted-foreground italic">
                   {children}
                 </blockquote>
               ),
               code: ({ children, className }) => {
                 const isBlock = className?.includes('language-')
                 if (isBlock) return (
-                  <code className="block bg-muted rounded p-3 text-xs font-mono leading-relaxed my-2 overflow-x-auto text-foreground">{children}</code>
+                  <code className="block bg-muted rounded p-3 text-sm font-mono leading-relaxed my-2 overflow-x-auto text-foreground">{children}</code>
                 )
-                return <code className="bg-muted rounded px-1.5 py-0.5 text-xs font-mono text-foreground">{children}</code>
+                return <code className="bg-muted rounded px-1.5 py-0.5 text-sm font-mono text-foreground">{children}</code>
               },
               pre: ({ children }) => <pre className="my-2">{children}</pre>,
               hr:  () => <hr className="my-4 border-border" />,
@@ -158,7 +158,7 @@ export function DailyNoteView({ handle, date }: Props) {
               ),
               table: ({ children }) => (
                 <div className="overflow-x-auto my-3">
-                  <table className="text-xs border-collapse w-full">{children}</table>
+                  <table className="text-sm border-collapse w-full">{children}</table>
                 </div>
               ),
               th: ({ children }) => <th className="border border-border px-2 py-1 text-left font-semibold bg-muted text-foreground">{children}</th>,

@@ -163,7 +163,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
   if (loading) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-ink-400">주간 요약을 불러오는 중...</p>
+        <p className="text-sm text-ink-400">주간 요약을 불러오는 중...</p>
       </div>
     )
   }
@@ -171,7 +171,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
   if (rows.length === 0) {
     return (
       <div className="flex-1 flex items-center justify-center">
-        <p className="text-xs text-ink-400">주간 브랜드 요약이 없습니다. MCP classify 스킬로 생성해주세요.</p>
+        <p className="text-sm text-ink-400">주간 브랜드 요약이 없습니다. MCP classify 스킬로 생성해주세요.</p>
       </div>
     )
   }
@@ -182,7 +182,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
       <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
         <button
           onClick={() => setActiveBrand(null)}
-          className={`text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+          className={`text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
             !activeBrand
               ? 'bg-foreground text-white border-foreground'
               : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -197,7 +197,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
             <button
               key={b.name}
               onClick={() => setActiveBrand(prev => prev === b.name ? null : b.name)}
-              className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
                 active
                   ? 'text-white border-transparent'
                   : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -253,15 +253,15 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
                 <tr key={row.id} className="border-t border-border hover:bg-muted/40 transition-colors align-top">
                   {/* 주차 */}
                   <td className="px-5 py-2 whitespace-nowrap tabular-nums">
-                    <div className="text-xs font-medium text-foreground">{getWeekLabel(row.week_start)}</div>
-                    <div className="text-2xs text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
+                    <div className="text-sm font-medium text-foreground">{getWeekLabel(row.week_start)}</div>
+                    <div className="text-sm text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
                   </td>
 
                   {/* 브랜드 */}
                   <td className="px-5 py-2 whitespace-nowrap">
                     <button
                       onClick={() => onSelectBrand(row.brand_name)}
-                      className="inline-flex items-center gap-1.5 text-xs text-ink-700 hover:text-foreground transition-colors"
+                      className="inline-flex items-center gap-1.5 text-sm text-ink-700 hover:text-foreground transition-colors"
                     >
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
                       <span className="truncate max-w-[100px]">{row.brand_name}</span>
@@ -270,7 +270,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
 
                   {/* 주제 */}
                   <td className="px-5 py-2">
-                    <p className="text-xs font-medium text-foreground leading-snug">{row.topic}</p>
+                    <p className="text-sm font-medium text-foreground leading-snug">{row.topic}</p>
                   </td>
 
                   {/* 요약 */}
@@ -292,7 +292,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
                   </td>
 
                   {/* 건수 */}
-                  <td className="px-5 py-2 text-right text-xs font-medium text-ink-500 whitespace-nowrap tabular-nums">
+                  <td className="px-5 py-2 text-right text-sm font-medium text-ink-500 whitespace-nowrap tabular-nums">
                     {row.item_count}건
                   </td>
                 </tr>
@@ -301,7 +301,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
           </tbody>
           <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
             <tr>
-              <td colSpan={7} className="px-5 py-2 text-right text-2xs text-ink-400 tabular-nums">
+              <td colSpan={7} className="px-5 py-2 text-right text-sm text-ink-400 tabular-nums">
                 {filtered.length === 0
                   ? <span className="text-ink-300">해당 조건의 위클리 요약이 없습니다.</span>
                   : <>

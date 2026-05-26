@@ -23,14 +23,14 @@ export function DrawerRecurrenceSection({
 }: Props) {
   return (
     <div className="pt-2 border-t border-border">
-      <label className="text-[10px] font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+      <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
         <RotateCw size={10} /> 반복
       </label>
       <div className="flex items-center gap-2 flex-wrap">
         <button
           type="button"
           onClick={() => setRecurrenceRule(null)}
-          className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
+          className={`text-sm px-2.5 py-1 rounded border transition-colors ${
             recurrenceRule === null
               ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
               : 'border-border text-ink-400 hover:border-ink-300'
@@ -43,7 +43,7 @@ export function DrawerRecurrenceSection({
             key={opt.value}
             type="button"
             onClick={() => setRecurrenceRule(opt.value)}
-            className={`text-[11px] px-2.5 py-1 rounded border transition-colors ${
+            className={`text-sm px-2.5 py-1 rounded border transition-colors ${
               recurrenceRule === opt.value
                 ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
                 : 'border-border text-ink-400 hover:border-ink-300'
@@ -61,9 +61,9 @@ export function DrawerRecurrenceSection({
             max={99}
             value={recurrenceInterval}
             onChange={e => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
-            className="w-14 text-xs text-center border border-border rounded px-2 py-1 outline-none focus:border-lilac-300"
+            className="w-14 text-sm text-center border border-border rounded px-2 py-1 outline-none focus:border-lilac-300"
           />
-          <span className="text-[11px] text-ink-400">
+          <span className="text-sm text-ink-400">
             {recurrenceRule === 'daily' ? '일마다' : recurrenceRule === 'weekly' ? '주마다' : '개월마다'}
           </span>
         </div>

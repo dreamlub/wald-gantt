@@ -6,8 +6,9 @@ import { SortableContext, useSortable, verticalListSortingStrategy } from '@dnd-
 import { CSS } from '@dnd-kit/utilities'
 import { GripVertical, Palette, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
-import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
+import type { GanttCategory, GanttProject, GanttStatus, Priority } from '@/types'
 import { MS_PER_DAY, isLightColor } from '@/lib/gantt-utils'
+import { PriorityBars } from '@/app/(app)/tasks/_constants'
 
 // ── Layout constants ──────────────────────────────────────────
 export const CAT_ROW_H  = 32
@@ -62,6 +63,16 @@ function daysBetween(fromDate: string, toDateStr: string): number {
   const from = new Date(fromDate + 'T00:00:00')
   const to   = new Date(toDateStr + 'T00:00:00')
   return Math.max(0, Math.floor((to.getTime() - from.getTime()) / MS_PER_DAY))
+}
+
+// ── Priority → bar opacity ───────────────────────────────────
+function barOpacity(priority: Priority | null): string {
+  switch (priority) {
+    case 3:  return 'dd'   // 높음 — 진하게
+    case 2:  return 'bb'   // 보통
+    case 1:  return '88'   // 낮음 — 연하게
+    default: return 'bb'   // 없음 — 기본
+  }
 }
 
 // ── Sortable row shells ───────────────────────────────────────
@@ -148,7 +159,7 @@ export function GanttCategoryLeft({
               {editCatId === cat.id ? (
                 <input
                   autoFocus
-                  className="text-xs font-bold text-foreground border-b border-lilac-400 outline-none bg-transparent flex-1 min-w-0"
+                  className="text-sm font-bold text-foreground border-b border-lilac-400 outline-none bg-transparent flex-1 min-w-0"
                   value={editCatVal}
                   onChange={e => onEditCatValChange(e.target.value)}
                   onBlur={() => onCommitEditCat(cat.id)}
@@ -156,13 +167,13 @@ export function GanttCategoryLeft({
                 />
               ) : (
                 <span
-                  className="text-xs font-bold text-foreground cursor-text hover:text-lilac-600 truncate"
+                  className="text-sm font-bold text-foreground cursor-text hover:text-lilac-600 truncate"
                   onClick={readOnly ? undefined : e => onStartEditCat(cat, e)}
                 >
                   {cat.name}
                 </span>
               )}
-              <span className="text-xs text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
+              <span className="text-sm text-muted-foreground shrink-0 tabular-nums">{catProjs.length}</span>
               {!readOnly && (
                 <div className="flex items-center shrink-0 opacity-0 group-hover:opacity-100">
                   <Popover>
@@ -232,13 +243,11 @@ export function GanttCategoryLeft({
                         >
                           {sm.abbr}
                         </button>
+                        {(project.priority ?? 0) > 0 && (
+                          <span className="shrink-0"><PriorityBars priority={project.priority} /></span>
+                        )}
                         <span
-                          className={`text-sm truncate min-w-0 cursor-pointer ${
-                            project.priority === 3 ? 'font-semibold text-coral-500' :
-                            project.priority === 2 ? 'font-medium text-foreground' :
-                            project.priority === 1 ? 'font-normal text-muted-foreground' :
-                            'font-normal text-muted-foreground'
-                          }`}
+                          className="text-sm truncate min-w-0 cursor-pointer text-muted-foreground"
                           onClick={readOnly ? undefined : () => onEditProject(project)}
                           title={project.name}
                         >
@@ -296,7 +305,7 @@ export function GanttCategoryLeft({
             <div className="border-b border-border" style={{ height: PROJ_ROW_H }}>
               <button
                 onClick={() => onAddProject(cat.id)}
-                className="h-full flex items-center gap-0.5 pl-3 text-xs text-ink-300 hover:text-muted-foreground"
+                className="h-full flex items-center gap-0.5 pl-3 text-sm text-ink-300 hover:text-muted-foreground"
               >
                 <Plus size={10} /> 프로젝트
               </button>
@@ -408,7 +417,7 @@ export function GanttCategoryRight({
                     left: cols.start * colW + 4,
                     width: barWidth,
                     height: BAR_H,
-                    backgroundColor: barColor + 'bb',
+                    backgroundColor: barColor + barOpacity(project.priority),
                     border: `1.5px solid ${barColor}`,
                     paddingLeft: 5,
                     paddingRight: 4,

@@ -1,13 +1,14 @@
 'use client'
 
-import { type ReactNode } from 'react'
+import { type ReactNode, useState, useEffect } from 'react'
+import { createPortal } from 'react-dom'
 
 // ─── Drawer ────────────────────────────────────────────────
 interface DrawerProps {
   open: boolean
   onClose: () => void
   width?: number | string   // px 숫자 또는 CSS 값 (기본 480)
-  backdrop?: boolean        // true (기본): bg-black/20 배경
+  backdrop?: boolean        // true (기본): bg-black/40 배경
   closeOnBackdrop?: boolean // true (기본): backdrop 클릭 시 닫기
   panelClass?: string       // 없으면 shadow-2xl 적용
   children: ReactNode
@@ -22,11 +23,16 @@ export function Drawer({
   panelClass,
   children,
 }: DrawerProps) {
-  return (
-    <div className={`fixed inset-0 z-50 ${open ? '' : 'pointer-events-none'}`}>
+  const [mounted, setMounted] = useState(false)
+  useEffect(() => { setMounted(true) }, [])
+
+  if (!mounted) return null
+
+  return createPortal(
+    <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'}`}>
       <div
         className={`absolute inset-0 transition-opacity duration-200 ${
-          backdrop ? 'bg-black/20' : ''
+          backdrop ? 'bg-black/40' : ''
         } ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={closeOnBackdrop ? onClose : undefined}
       />
@@ -42,7 +48,8 @@ export function Drawer({
       >
         {children}
       </div>
-    </div>
+    </div>,
+    document.body,
   )
 }
 

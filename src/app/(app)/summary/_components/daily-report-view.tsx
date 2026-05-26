@@ -48,15 +48,15 @@ const PRI_CLS: Record<Priority, string> = {
 const PRI_LABEL: Record<Priority, string> = { high: '높음', medium: '보통', low: '낮음' }
 
 function EmptyState() {
-  return <p className="text-xs text-ink-300 py-3">—</p>
+  return <p className="text-sm text-ink-300 py-3">—</p>
 }
 
 function SectionHead({ icon: Icon, title, count }: { icon: typeof Newspaper; title: string; count: number }) {
   return (
     <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
       <Icon size={13} className="text-ink-400" />
-      <h3 className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
-      <span className="text-2xs text-ink-400">{count}건</span>
+      <h3 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <span className="text-sm text-ink-400">{count}건</span>
     </div>
   )
 }
@@ -85,8 +85,8 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
     <section className="border-t border-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
         <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
-        <span className="text-2xs text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
+        <h3 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <span className="text-sm text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
         <HeadlineSentences text={content.headline} />
@@ -114,7 +114,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
           >
             <button
               onClick={e => { e.stopPropagation(); onCreateTask(a.title, `${a.summary}\n\n→ ${a.action}`) }}
-              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-2xs px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
+              className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
             >
               <Plus size={10} />
               태스크
@@ -126,7 +126,7 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
             </div>
             <p className="text-base font-semibold text-foreground mb-1.5 leading-snug">{a.title}</p>
             <BodyBullets text={a.summary} className="text-sm text-ink-700 leading-relaxed mb-2.5 flex-1" />
-            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-xs py-2" />
+            <PriorityCallout color={PRIORITY_META[pri]?.color ?? ''} text={a.action} className="text-sm py-2" />
           </div>
         )
       })}
@@ -140,7 +140,7 @@ function UpcomingList({ items }: { items: InsightContent['upcoming'] }) {
     <div className="bg-card border border-border rounded-lg overflow-hidden">
       {items.map((s, i) => (
         <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-          <span className="text-xs text-ink-700 min-w-20 flex items-center gap-1">
+          <span className="text-sm text-ink-700 min-w-20 flex items-center gap-1">
             <CalendarDays size={11} className="text-ink-400" />
             {s.date}
           </span>
@@ -242,7 +242,7 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
           <Newspaper size={18} className="text-ink-400" />
         </div>
         <p className="text-sm font-semibold text-foreground mb-1">{dateLabel}</p>
-        <p className="text-xs text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>
+        <p className="text-sm text-ink-400">해당 날짜의 리포트가 아직 생성되지 않았습니다</p>
       </div>
     )
   }

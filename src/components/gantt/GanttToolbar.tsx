@@ -1,8 +1,8 @@
 ﻿'use client'
 
-import { useEffect, useRef, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { useClickAway } from '@/hooks/use-click-away'
-import { Plus, ChevronDown, Undo2, Redo2, Search, X, ArrowUpDown, Filter } from 'lucide-react'
+import { Plus, ChevronDown, Search, X, ArrowUpDown, Filter, Link2, PanelLeftOpen } from 'lucide-react'
 import type { GanttCategory } from '@/types'
 
 type ViewMode = 'month' | 'week' | 'day'
@@ -18,6 +18,8 @@ const SORT_LABELS: Record<SortMode, string> = {
 interface Props {
   boardName?: string
   readOnly?: boolean
+  sidebarClosed?: boolean
+  onOpenSidebar?: () => void
   // undo / redo
   undoCount?: number
   onUndo?: () => void
@@ -53,10 +55,17 @@ interface Props {
   onAddProject: (categoryId: string) => void
   // add category
   onAddCategory?: () => void
+  // share
+  onShare?: () => void
+  // inline mode (no wrapper div)
+  inline?: boolean
 }
 
 export function GanttToolbar({
+  boardName,
   readOnly,
+  sidebarClosed = false,
+  onOpenSidebar,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
   overdueCount = 0, overdueFilter = false, onToggleOverdueFilter,
   startDelayedCount = 0, startDelayedFilter = false, onToggleStartDelayedFilter,
@@ -67,16 +76,30 @@ export function GanttToolbar({
   sortMode, onSortModeChange,
   sortedCats, onAddProject,
   onAddCategory,
+  onShare,
+  inline = false,
 }: Props) {
   const [searchOpen, setSearchOpen] = useState(false)
   const [showFilter, setShowFilter] = useState(false)
+  const [filterPos,  setFilterPos]  = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const [showSort,   setShowSort]   = useState(false)
 
   const searchInputRef = useRef<HTMLInputElement>(null)
+  const filterBtnRef   = useRef<HTMLButtonElement>(null)
 
   const searchRef = useClickAway<HTMLDivElement>(searchOpen, () => { if (!searchQuery) setSearchOpen(false) })
   const filterRef = useClickAway<HTMLDivElement>(showFilter, () => setShowFilter(false))
   const sortRef   = useClickAway<HTMLDivElement>(showSort,   () => setShowSort(false))
+
+  const toggleFilter = useCallback(() => {
+    setShowFilter(v => {
+      if (!v && filterBtnRef.current) {
+        const rect = filterBtnRef.current.getBoundingClientRect()
+        setFilterPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+      }
+      return !v
+    })
+  }, [])
 
   const totalExcluded = excludedTeams.size + excludedPMs.size
 
@@ -88,63 +111,7 @@ export function GanttToolbar({
   const hasAnyFilter = allTeams.length > 0 || allPMs.length > 0
   const sortActive = sortMode !== 'default'
 
-  return (
-    <div className="flex items-center justify-between px-5 py-2 border-b shrink-0">
-      {/* 왼쪽: 타이틀 + 보드명 + undo */}
-      <div className="flex items-center gap-2">
-        {!readOnly && onUndo && (
-          <button
-            onClick={onUndo}
-            disabled={undoCount === 0}
-            title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-2xs px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <Undo2 size={13} />
-            {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
-          </button>
-        )}
-        {!readOnly && onRedo && (
-          <button
-            onClick={onRedo}
-            disabled={redoCount === 0}
-            title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
-            className="flex items-center gap-1 text-2xs px-2 py-1 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-          >
-            <Redo2 size={13} />
-            {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
-          </button>
-        )}
-        {overdueCount > 0 && onToggleOverdueFilter && (
-          <button
-            onClick={onToggleOverdueFilter}
-            title={overdueFilter ? '전체 보기' : '마감 지연 프로젝트만 보기'}
-            className={`flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
-              overdueFilter
-                ? 'bg-status-late text-white border-status-late'
-                : 'bg-status-late/10 text-status-late border-status-late/15 hover:bg-status-late/20'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-current" />
-            지연 {overdueCount}건
-          </button>
-        )}
-        {startDelayedCount > 0 && onToggleStartDelayedFilter && (
-          <button
-            onClick={onToggleStartDelayedFilter}
-            title={startDelayedFilter ? '전체 보기' : '시작 지연 프로젝트만 보기'}
-            className={`flex items-center gap-1 text-2xs font-medium px-2 py-0.5 rounded-full border transition-colors ${
-              startDelayedFilter
-                ? 'bg-status-warn text-white border-status-warn'
-                : 'bg-status-warn/10 text-status-warn border-status-warn/15 hover:bg-status-warn/20'
-            }`}
-          >
-            <span className="w-1.5 h-1.5 rounded-full bg-current" />
-            시작 지연 {startDelayedCount}건
-          </button>
-        )}
-      </div>
-
-      {/* 오른쪽: 각종 컨트롤 */}
+  const controls = (
       <div className="flex items-center gap-2">
         {/* 검색 — 토글 펼침 */}
         <div ref={searchRef} className="relative flex items-center">
@@ -158,7 +125,7 @@ export function GanttToolbar({
                 onChange={e => onSearchChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Escape') { onSearchChange(''); setSearchOpen(false) } }}
                 placeholder="프로젝트 검색"
-                className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
+                className="text-sm pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
               />
               {searchQuery && (
                 <button
@@ -183,10 +150,11 @@ export function GanttToolbar({
 
         {/* 통합 필터 (팀 + PM) */}
         {hasAnyFilter && (
-          <div className="relative" ref={filterRef}>
+          <div ref={filterRef}>
             <button
-              onClick={() => setShowFilter(v => !v)}
-              className={`flex items-center gap-1 text-2xs px-2 py-1 border rounded transition-colors ${
+              ref={filterBtnRef}
+              onClick={toggleFilter}
+              className={`flex items-center gap-1 text-sm px-2 py-1 border rounded transition-colors ${
                 totalExcluded > 0
                   ? 'border-lilac-300 bg-lilac-100 text-lilac-600 font-medium'
                   : 'text-muted-foreground hover:text-foreground'
@@ -202,16 +170,16 @@ export function GanttToolbar({
               <ChevronDown size={11} />
             </button>
             {showFilter && (
-              <div className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg z-50 min-w-[200px] py-1">
+              <div className="fixed bg-card border rounded-lg shadow-lg py-1 w-[260px]" style={{ top: filterPos.top, right: filterPos.right, zIndex: 9999 }}>
                 {allTeams.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 border-b flex items-center justify-between gap-2">
-                      <span className="text-2xs font-semibold text-muted-foreground">팀별 보기</span>
+                      <span className="text-sm font-semibold text-muted-foreground">팀별 보기</span>
                       <div className="flex items-center gap-2">
                         {excludedTeams.size > 0 && (
                           <button
                             onClick={() => allTeams.filter(t => excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-xs text-lilac-500 hover:text-lilac-600"
+                            className="text-xs text-lilac-500 hover:text-lilac-600 whitespace-nowrap"
                           >
                             전체 선택
                           </button>
@@ -219,7 +187,7 @@ export function GanttToolbar({
                         {excludedTeams.size < allTeams.length && (
                           <button
                             onClick={() => allTeams.filter(t => !excludedTeams.has(t)).forEach(onToggleTeam)}
-                            className="text-xs text-muted-foreground hover:text-foreground"
+                            className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
                           >
                             전체 해제
                           </button>
@@ -234,7 +202,7 @@ export function GanttToolbar({
                           onChange={() => onToggleTeam(team)}
                           className="w-3 h-3 rounded accent-lilac-500"
                         />
-                        <span className="text-xs text-foreground">{team || '팀 없음'}</span>
+                        <span className="text-sm text-foreground">{team || '팀 없음'}</span>
                       </label>
                     ))}
                   </>
@@ -243,12 +211,12 @@ export function GanttToolbar({
                 {allPMs.length > 0 && (
                   <>
                     <div className={`px-3 py-1.5 ${allTeams.length > 0 ? 'border-t border-b mt-1' : 'border-b'} flex items-center justify-between gap-2`}>
-                      <span className="text-2xs font-semibold text-muted-foreground">PM별 보기</span>
+                      <span className="text-sm font-semibold text-muted-foreground">PM별 보기</span>
                       <div className="flex items-center gap-2">
                         {excludedPMs.size > 0 && (
                           <button
                             onClick={() => allPMs.filter(p => excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-xs text-lilac-500 hover:text-lilac-600"
+                            className="text-xs text-lilac-500 hover:text-lilac-600 whitespace-nowrap"
                           >
                             전체 선택
                           </button>
@@ -256,7 +224,7 @@ export function GanttToolbar({
                         {excludedPMs.size < allPMs.length && (
                           <button
                             onClick={() => allPMs.filter(p => !excludedPMs.has(p)).forEach(onTogglePM)}
-                            className="text-xs text-muted-foreground hover:text-foreground"
+                            className="text-xs text-muted-foreground hover:text-foreground whitespace-nowrap"
                           >
                             전체 해제
                           </button>
@@ -271,7 +239,7 @@ export function GanttToolbar({
                           onChange={() => onTogglePM(pm)}
                           className="w-3 h-3 rounded accent-lilac-500"
                         />
-                        <span className="text-xs text-foreground">{pm || 'PM 없음'}</span>
+                        <span className="text-sm text-foreground">{pm || 'PM 없음'}</span>
                       </label>
                     ))}
                   </>
@@ -282,7 +250,7 @@ export function GanttToolbar({
         )}
 
         {/* 뷰 모드 */}
-        <div className="flex items-center gap-0.5 border rounded overflow-hidden text-2xs">
+        <div className="flex items-center gap-0.5 border rounded overflow-hidden text-sm">
           {(['month', 'week', 'day'] as const).map(mode => (
             <button
               key={mode}
@@ -298,7 +266,7 @@ export function GanttToolbar({
         <div className="relative" ref={sortRef}>
           <button
             onClick={() => setShowSort(v => !v)}
-            className={`flex items-center gap-1 text-2xs px-2 py-1 border rounded transition-colors ${
+            className={`flex items-center gap-1 text-sm px-2 py-1 border rounded transition-colors ${
               sortActive
                 ? 'border-lilac-300 bg-lilac-100 text-lilac-600 font-medium'
                 : 'text-muted-foreground hover:text-foreground'
@@ -314,7 +282,7 @@ export function GanttToolbar({
                 <button
                   key={mode}
                   onClick={() => { onSortModeChange(mode); setShowSort(false) }}
-                  className={`w-full text-left px-3 py-1.5 text-xs transition-colors ${
+                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
                     sortMode === mode
                       ? 'bg-lilac-100 text-lilac-600 font-medium'
                       : 'text-foreground hover:bg-muted'
@@ -327,11 +295,21 @@ export function GanttToolbar({
           )}
         </div>
 
+        {/* 공유 */}
+        {!readOnly && onShare && (
+          <button
+            onClick={onShare}
+            className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-lilac-600 border border-border hover:border-lilac-300 px-3 py-1.5 rounded transition-colors"
+          >
+            <Link2 size={13} /> 공유
+          </button>
+        )}
+
         {/* 카테고리 추가 */}
         {!readOnly && onAddCategory && (
           <button
             onClick={onAddCategory}
-            className="flex items-center gap-1 text-xs font-medium text-muted-foreground hover:text-lilac-600 border border-border hover:border-lilac-300 px-3 py-1.5 rounded transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-muted-foreground hover:text-lilac-600 border border-border hover:border-lilac-300 px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={13} /> 카테고리
           </button>
@@ -341,12 +319,32 @@ export function GanttToolbar({
         {!readOnly && sortedCats.length > 0 && (
           <button
             onClick={() => onAddProject(sortedCats[0].id)}
-            className="flex items-center gap-1 text-xs font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={13} /> 프로젝트 추가
           </button>
         )}
       </div>
+  )
+
+  if (inline) return controls
+
+  return (
+    <div className="flex items-center px-3 h-12 border-b shrink-0 gap-2">
+      {sidebarClosed && onOpenSidebar && (
+        <button
+          onClick={onOpenSidebar}
+          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
+          title="사이드바 열기"
+        >
+          <PanelLeftOpen size={15} />
+        </button>
+      )}
+      {boardName && (
+        <h1 className="text-sm font-semibold text-foreground whitespace-nowrap">{boardName}</h1>
+      )}
+      <div className="flex-1" />
+      {controls}
     </div>
   )
 }

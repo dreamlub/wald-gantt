@@ -151,7 +151,7 @@ export function HistoryDetailDrawer({
           <DrawerBody className="px-5 py-4 space-y-4">
             {/* 제목 */}
             <div>
-              <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
+              <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-1">제목</div>
               <h3 className="text-sm font-semibold text-foreground leading-[1.4]">{item.title}</h3>
             </div>
 
@@ -162,7 +162,7 @@ export function HistoryDetailDrawer({
                   <div ref={brandDropRef} className="relative">
                     <button
                       onClick={() => setBrandDropOpen(o => !o)}
-                      className="w-full inline-flex items-center gap-2 px-2 py-1 rounded text-xs bg-card border border-border hover:border-ink-300 transition-colors text-foreground"
+                      className="w-full inline-flex items-center gap-2 px-2 py-1 rounded text-sm bg-card border border-border hover:border-ink-300 transition-colors text-foreground"
                     >
                       {draft.brand_name ? (
                         <>
@@ -178,7 +178,7 @@ export function HistoryDetailDrawer({
                           <button
                             key={c.name}
                             onClick={() => { setDraft(d => d ? { ...d, brand_name: c.name } : d); setBrandDropOpen(false) }}
-                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-xs text-left transition-colors ${
+                            className={`w-full flex items-center gap-2 px-2 py-1.5 rounded text-sm text-left transition-colors ${
                               draft.brand_name === c.name ? 'bg-muted font-medium text-foreground' : 'text-muted-foreground hover:bg-muted'
                             }`}
                           >
@@ -191,11 +191,11 @@ export function HistoryDetailDrawer({
                   </div>
                 ) : (
                   item.brand_name ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs">
+                    <span className="inline-flex items-center gap-1.5 text-sm">
                       <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(item.brand_name) }} />
                       {item.brand_name}
                     </span>
-                  ) : <span className="text-xs text-ink-300">—</span>
+                  ) : <span className="text-sm text-ink-300">—</span>
                 )}
               </Meta>
 
@@ -209,7 +209,7 @@ export function HistoryDetailDrawer({
                         <button
                           key={p}
                           onClick={() => setDraft(d => d ? { ...d, priority: d.priority === p ? null : p } : d)}
-                          className={`inline-flex items-center gap-1.5 text-xs px-2 py-1 rounded border transition-colors ${
+                          className={`inline-flex items-center gap-1.5 text-sm px-2 py-1 rounded border transition-colors ${
                             active ? 'border-transparent font-medium' : 'border-border text-muted-foreground hover:border-ink-300'
                           }`}
                           style={active ? { background: meta.bg, color: meta.color } : undefined}
@@ -222,11 +222,11 @@ export function HistoryDetailDrawer({
                   </div>
                 ) : (
                   displayPriority ? (
-                    <span className="inline-flex items-center gap-1.5 text-xs" style={{ color: PRIORITY_META[displayPriority].color }}>
+                    <span className="inline-flex items-center gap-1.5 text-sm" style={{ color: PRIORITY_META[displayPriority].color }}>
                       <PriorityBars priority={displayPriority} />
                       <span className="font-medium">{PRIORITY_META[displayPriority].label}</span>
                     </span>
-                  ) : <span className="text-xs text-ink-300">—</span>
+                  ) : <span className="text-sm text-ink-300">—</span>
                 )}
               </Meta>
 
@@ -236,20 +236,20 @@ export function HistoryDetailDrawer({
                     type="text"
                     value={draft.author ?? ''}
                     onChange={e => setDraft(d => d ? { ...d, author: e.target.value || null } : d)}
-                    className="text-xs border border-border rounded px-2 py-1 bg-card text-foreground outline-none focus:border-lilac-300 w-full"
+                    className="text-sm border border-border rounded px-2 py-1 bg-card text-foreground outline-none focus:border-lilac-300 w-full"
                     placeholder="작성자 없음"
                   />
                 ) : (
-                  <span className="text-xs text-foreground">{displayAuthor ?? <span className="text-ink-300">—</span>}</span>
+                  <span className="text-sm text-foreground">{displayAuthor ?? <span className="text-ink-300">—</span>}</span>
                 )}
               </Meta>
 
               <Meta label="채널">
-                <span className="text-xs text-foreground">#{item.channel}</span>
+                <span className="text-sm text-foreground">#{item.channel}</span>
               </Meta>
 
               <Meta label="등록일" full>
-                <span className="text-xs text-foreground tabular-nums">
+                <span className="text-sm text-foreground tabular-nums">
                   {format(new Date(item.occurred_at), 'yyyy.MM.dd (eee) HH:mm', { locale: ko })}
                 </span>
               </Meta>
@@ -257,7 +257,7 @@ export function HistoryDetailDrawer({
 
             {/* 태그 */}
             <div>
-              <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">태그</div>
+              <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-2">태그</div>
               {isEditing && draft ? (
                 <div className="flex flex-wrap gap-1.5">
                   {TAG_KEYS.map(t => {
@@ -271,7 +271,7 @@ export function HistoryDetailDrawer({
                           const tags = d.tags.includes(t) ? d.tags.filter(x => x !== t) : [...d.tags, t]
                           return { ...d, tags }
                         })}
-                        className={`inline-flex items-center gap-1 text-xs px-2 py-0.5 rounded font-medium transition-colors ${
+                        className={`inline-flex items-center gap-1 text-sm px-2 py-0.5 rounded font-medium transition-colors ${
                           active ? '' : 'bg-muted text-ink-500 hover:text-foreground'
                         }`}
                         style={active ? { background: meta.bg, color: meta.color } : undefined}
@@ -289,14 +289,14 @@ export function HistoryDetailDrawer({
                       <TagBadge key={t} tag={t} variant="solid" showDot />
                     ))}
                   </div>
-                ) : <span className="text-xs text-ink-300">—</span>
+                ) : <span className="text-sm text-ink-300">—</span>
               )}
             </div>
 
             {/* 본문 */}
             {item.body && (
               <div>
-                <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
+                <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-2">본문</div>
                 <MarkdownBody text={item.body} className="text-sm text-ink-700 leading-[1.7] break-words" />
               </div>
             )}
@@ -304,15 +304,15 @@ export function HistoryDetailDrawer({
             {/* 스레드 답글 */}
             {threadReplies.length > 0 && (
               <div>
-                <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">
+                <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-2">
                   스레드 답글 <span className="text-ink-300 font-normal">({threadReplies.length})</span>
                 </div>
                 <div className="space-y-2">
                   {threadReplies.map((r, i) => (
                     <div key={i} className="bg-muted rounded-md px-3 py-2 space-y-1">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="text-xs font-medium text-foreground">{r.author}</span>
-                        <span className="text-xs text-ink-400 tabular-nums shrink-0">
+                        <span className="text-sm font-medium text-foreground">{r.author}</span>
+                        <span className="text-sm text-ink-400 tabular-nums shrink-0">
                           {format(new Date(r.occurred_at), 'MM/dd HH:mm', { locale: ko })}
                         </span>
                       </div>
@@ -328,7 +328,7 @@ export function HistoryDetailDrawer({
               <div className="pt-2 flex flex-col gap-5">
                 {item.source_ref && (
                   <a href={item.source_ref} target="_blank" rel="noreferrer"
-                    className="inline-flex items-center gap-1.5 text-xs text-accent-foreground hover:underline">
+                    className="inline-flex items-center gap-1.5 text-sm text-accent-foreground hover:underline">
                     <ExternalLink size={12} />
                     슬랙 원본 메시지 열기
                   </a>
@@ -338,7 +338,7 @@ export function HistoryDetailDrawer({
                     {onCreateTask && (
                       <button
                         onClick={() => onCreateTask(item)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-xs font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-sm font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
                       >
                         <Plus size={12} />
                         태스크 추가
@@ -347,7 +347,7 @@ export function HistoryDetailDrawer({
                     {onCreateProject && (
                       <button
                         onClick={() => onCreateProject(item)}
-                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-xs font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
+                        className="flex-1 flex items-center justify-center gap-1.5 px-3 py-2 rounded-md bg-muted text-sm font-medium text-ink-500 hover:bg-card hover:text-foreground border border-border hover:border-ink-300 transition-colors"
                       >
                         <Plus size={12} />
                         프로젝트 추가
@@ -363,7 +363,7 @@ export function HistoryDetailDrawer({
         {/* 편집 푸터 */}
         {isEditing && item && (
           <div className="shrink-0 px-5 py-3 border-t flex flex-col gap-2">
-            {saveError && <p className="text-xs text-destructive">{saveError}</p>}
+            {saveError && <p className="text-sm text-destructive">{saveError}</p>}
             <div className="flex justify-end gap-2">
               <button
                 onClick={cancelEdit}
@@ -389,7 +389,7 @@ export function HistoryDetailDrawer({
 function Meta({ label, full = false, children }: { label: string; full?: boolean; children: React.ReactNode }) {
   return (
     <div className={full ? 'col-span-2' : ''}>
-      <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-0.5">{label}</div>
+      <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-0.5">{label}</div>
       <div>{children}</div>
     </div>
   )

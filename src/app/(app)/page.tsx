@@ -12,7 +12,6 @@ import {
   Sparkles,
   Target,
   Timer,
-  Users,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '@/types'
@@ -21,6 +20,7 @@ import { brandColor } from '@/lib/history-service'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
 import { TAG_META, PRIORITY_META } from './summary/_lib/constants'
 import { toYMD, toShortDate } from '@/lib/date-utils'
+import { ProjectsSection } from './_ProjectsSection'
 
 type WeeklyInsightRow = {
   week_start: string
@@ -122,7 +122,7 @@ export default async function CommandCenterPage() {
   if (!workspaceId) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
-        <div className="text-xs text-muted-foreground">워크스페이스를 불러오지 못했습니다.</div>
+        <div className="text-sm text-muted-foreground">워크스페이스를 불러오지 못했습니다.</div>
       </div>
     )
   }
@@ -142,7 +142,7 @@ export default async function CommandCenterPage() {
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
       .order('end_date', { ascending: true, nullsFirst: false })
-      .limit(80),
+      .limit(200),
     sb
       .from('client_history')
       .select('*')
@@ -177,20 +177,6 @@ export default async function CommandCenterPage() {
   const decisionItems = history.filter(h => (h.tags ?? []).includes('decision')).slice(0, 4)
   const mentionItems = history.filter(h => (h.tags ?? []).includes('mention')).slice(0, 4)
 
-  const projectRisks = projects
-    .filter(p => p.status !== 'done')
-    .map(p => ({ project: p, days: daysUntil(p.end_date, today) }))
-    .filter(x => x.days !== null && x.days <= 14)
-    .slice(0, 6)
-
-  const workload = [...new Set(openTasks.map(t => t.assignee).filter(Boolean) as string[])]
-    .map(name => ({
-      name,
-      count: openTasks.filter(t => t.assignee === name).length,
-      urgent: openTasks.filter(t => t.assignee === name && t.due_date && t.due_date <= weekEnd).length,
-    }))
-    .sort((a, b) => b.urgent - a.urgent || b.count - a.count)
-    .slice(0, 5)
 
   const focusList = [
     ...overdueTasks.slice(0, 2).map(task => ({ kind: '지연', title: task.title, href: taskHref(task, today), tone: 'late' as const })),
@@ -210,8 +196,8 @@ export default async function CommandCenterPage() {
             <Sparkles size={13} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-xs font-semibold text-foreground uppercase tracking-wider">Command Center</h1>
-            <p className="text-xs text-ink-400">{fmtDay(today)} 운영 브리핑</p>
+            <h1 className="text-sm font-semibold text-foreground uppercase tracking-wider">Command Center</h1>
+            <p className="text-sm text-ink-400">{fmtDay(today)} 운영 브리핑</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
@@ -299,54 +285,14 @@ export default async function CommandCenterPage() {
             </Panel>
           </section>
 
-          <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1fr)_360px] gap-4">
-            <Panel title="프로젝트 리스크" href="/projects" icon={<AlertTriangle size={13} />}>
-              <div className="grid md:grid-cols-2 gap-2">
-                {projectRisks.map(({ project, days }) => (
-                  <Link key={project.id} href="/projects" className="border border-border rounded-lg px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
-                    <div className="flex items-center gap-2 min-w-0">
-                      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: project.priority === 3 ? 'var(--color-status-late)' : 'var(--color-status-warn)' }} />
-                      <span className="text-xs font-semibold text-foreground truncate">{project.name}</span>
-                    </div>
-                    <div className="mt-1.5 flex items-center justify-between text-2xs text-ink-400">
-                      <span className="truncate">{project.team ?? project.pm ?? '담당 미지정'}</span>
-                      <span className={days !== null && days < 0 ? 'text-status-late font-medium' : 'text-muted-foreground'}>
-                        {days !== null && days < 0 ? `${Math.abs(days)}일 지연` : `${days}일 남음`}
-                      </span>
-                    </div>
-                  </Link>
-                ))}
-                {projectRisks.length === 0 && <EmptyLine label="2주 내 종료 리스크가 없습니다." />}
-              </div>
-            </Panel>
-
-            <Panel title="팀 워크로드" href="/tasks" icon={<Users size={13} />}>
-              <div className="space-y-3">
-                {workload.map(person => {
-                  const width = Math.min(100, person.count * 14)
-                  return (
-                    <Link key={person.name} href={`/tasks?assignee=${queryValue(person.name)}`} className="block rounded-md -mx-2 px-2 py-1.5 hover:bg-muted/60 transition-colors">
-                      <div className="flex items-center justify-between text-xs">
-                        <span className="font-medium text-foreground truncate">{person.name}</span>
-                        <span className="text-2xs text-ink-400">{person.urgent}/{person.count}</span>
-                      </div>
-                      <div className="mt-1 h-1.5 rounded-full bg-muted overflow-hidden">
-                        <div className="h-full rounded-full bg-lilac-500" style={{ width: `${width}%` }} />
-                      </div>
-                    </Link>
-                  )
-                })}
-                {workload.length === 0 && <EmptyLine label="담당자 지정 태스크가 없습니다." />}
-              </div>
-            </Panel>
-          </section>
+          <ProjectsSection projects={projects} today={today} />
 
           <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
             <Panel title="Weekly 인사이트" href="/weekly" icon={<FileText size={13} />}>
               {latestWeekly?.content ? (
                 <div className="space-y-3">
-                  <p className="text-xs font-semibold text-foreground leading-relaxed">{plainInsightText(latestWeekly.content.headline)}</p>
-                  <p className="text-xs text-muted-foreground leading-relaxed">{plainInsightText(latestWeekly.content.changes)}</p>
+                  <p className="text-sm font-semibold text-foreground leading-relaxed">{plainInsightText(latestWeekly.content.headline)}</p>
+                  <p className="text-sm text-muted-foreground leading-relaxed">{plainInsightText(latestWeekly.content.changes)}</p>
                   <div className="grid grid-cols-4 gap-2">
                     <MiniStat label="작성" value={latestWeekly.content.stats.authors.count} />
                     <MiniStat label="이슈" value={latestWeekly.content.stats.issues.count} />
@@ -376,7 +322,7 @@ export default async function CommandCenterPage() {
 
 function QuickLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
   return (
-    <Link href={href} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-background text-2xs font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
+    <Link href={href} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-background text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
       {icon}
       {label}
     </Link>
@@ -400,12 +346,12 @@ function MetricCard({ label, value, detail, icon, tone, href }: {
   const content = (
     <>
       <div className="flex items-center justify-between">
-        <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
+        <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
         <span className={`inline-flex size-7 items-center justify-center rounded-md ${toneClass}`}>{icon}</span>
       </div>
       <div className="mt-3 flex items-end gap-2">
         <span className="text-2xl font-semibold tracking-normal text-foreground">{value}</span>
-        <span className="pb-1 text-2xs text-muted-foreground">{detail}</span>
+        <span className="pb-1 text-sm text-muted-foreground">{detail}</span>
       </div>
     </>
   )
@@ -429,8 +375,8 @@ function Panel({ title, href, icon, children }: {
     <section className="rounded-lg border border-border bg-card overflow-hidden">
       <div className="h-10 flex items-center gap-2 px-4 border-b bg-muted">
         <span className="text-ink-400">{icon}</span>
-        <h2 className="text-xs font-semibold text-foreground">{title}</h2>
-        <Link href={href} className="ml-auto inline-flex items-center gap-1 text-2xs text-ink-400 hover:text-foreground">
+        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
+        <Link href={href} className="ml-auto inline-flex items-center gap-1 text-sm text-ink-400 hover:text-foreground">
           열기
           <ArrowRight size={11} />
         </Link>
@@ -443,7 +389,7 @@ function Panel({ title, href, icon, children }: {
 function MiniStat({ label, value }: { label: string; value: string | number }) {
   return (
     <div className="rounded-md border border-border bg-background px-2.5 py-2">
-      <div className="text-xs text-ink-400">{label}</div>
+      <div className="text-sm text-ink-400">{label}</div>
       <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
     </div>
   )
@@ -459,13 +405,13 @@ function TaskRow({ task, today, compact = false }: { task: GanttTask; today?: st
         <div className="flex items-center gap-1.5">
           <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-foreground truncate`}>{task.title}</span>
         </div>
-        <div className="mt-1 flex items-center gap-1.5 text-2xs text-ink-400">
+        <div className="mt-1 flex items-center gap-1.5 text-sm text-ink-400">
           <span className="rounded px-1.5 py-0.5" style={statusTone(task.status)}>{STATUS_LABEL[task.status]}</span>
           {task.assignee && <span className="truncate">{task.assignee}</span>}
         </div>
       </div>
       {task.due_date && (
-        <span className={`text-2xs shrink-0 ${due !== null && due < 0 ? 'text-status-late font-semibold' : 'text-muted-foreground'}`}>
+        <span className={`text-sm shrink-0 ${due !== null && due < 0 ? 'text-status-late font-semibold' : 'text-muted-foreground'}`}>
           {fmtDay(task.due_date)}
         </span>
       )}
@@ -480,10 +426,10 @@ function HistoryRow({ item }: { item: HistoryItem }) {
     <Link href={summaryHref({ priority: item.priority ?? undefined, query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-2 min-w-0">
         {color && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
-        <span className="text-xs font-semibold text-foreground truncate">{item.title}</span>
-        {p && <span className="ml-auto shrink-0 text-xs font-medium" style={{ color: p.color }}>{p.label}</span>}
+        <span className="text-sm font-semibold text-foreground truncate">{item.title}</span>
+        {p && <span className="ml-auto shrink-0 text-sm font-medium" style={{ color: p.color }}>{p.label}</span>}
       </div>
-      <div className="mt-1.5 flex items-center gap-1.5 text-2xs text-ink-400">
+      <div className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-400">
         <span className="truncate">{item.brand_name ?? item.channel}</span>
         <span>{fmtDay(item.occurred_at)}</span>
       </div>
@@ -496,10 +442,10 @@ function DecisionRow({ item }: { item: HistoryItem }) {
   const color = item.brand_name ? brandColor(item.brand_name) : null
   return (
     <Link href={summaryHref({ tag: 'decision', query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
-      <div className="text-xs font-semibold text-foreground truncate">{item.title}</div>
+      <div className="text-sm font-semibold text-foreground truncate">{item.title}</div>
       <div className="mt-2 flex items-center gap-1.5 min-w-0">
         {item.brand_name && (
-          <span className="inline-flex items-center gap-1.5 text-2xs text-muted-foreground min-w-0">
+          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
             {color && <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
             <span className="truncate">{item.brand_name}</span>
           </span>
@@ -518,7 +464,7 @@ function DecisionRow({ item }: { item: HistoryItem }) {
 
 function EmptyLine({ label }: { label: string }) {
   return (
-    <div className="rounded-md border border-dashed border-border bg-background px-3 py-4 text-center text-xs text-ink-400">
+    <div className="rounded-md border border-dashed border-border bg-background px-3 py-4 text-center text-sm text-ink-400">
       {label}
     </div>
   )

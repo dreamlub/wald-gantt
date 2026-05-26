@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useState, useCallback } from 'react'
-import { Link2, PanelLeftOpen } from 'lucide-react'
+import { PanelLeftOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
@@ -305,30 +305,6 @@ export default function GanttPage() {
       />
 
       <div className="flex flex-1 flex-col overflow-hidden">
-        <div className="h-12 border-b bg-card flex items-center px-3 gap-2 shrink-0">
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-              title="사이드바 열기"
-            >
-              <PanelLeftOpen size={15} />
-            </button>
-          )}
-          {selectedBoard?.name && (
-            <h1 className="text-sm font-semibold text-foreground">{selectedBoard.name}</h1>
-          )}
-          <div className="flex-1" />
-          <button
-            onClick={() => setDialog({ type: 'share' })}
-            disabled={!selectedBoardId}
-            className="flex items-center gap-1 text-xs text-muted-foreground hover:text-foreground px-2 py-1 rounded hover:bg-muted disabled:opacity-40 disabled:cursor-not-allowed"
-          >
-            <Link2 size={13} />
-            공유
-          </button>
-        </div>
-
         <main className="flex-1 overflow-hidden bg-background">
           {loading ? (
             <div className="h-full flex items-center justify-center">
@@ -358,6 +334,9 @@ export default function GanttPage() {
               onUpdateProjectStatus={handleUpdateProjectStatus}
               onMoveProject={handleMoveProject}
               onMoveCategory={handleMoveCategory}
+              onShare={() => setDialog({ type: 'share' })}
+              sidebarClosed={!sidebarOpen}
+              onOpenSidebar={() => setSidebarOpen(true)}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground text-xs">

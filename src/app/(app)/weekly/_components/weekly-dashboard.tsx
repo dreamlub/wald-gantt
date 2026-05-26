@@ -127,7 +127,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
           {item.brand ?? item.title}
         </span>
         {displayName && (
-          <span className="text-2xs text-ink-400 shrink-0 flex items-center gap-1 mt-0.5">
+          <span className="text-sm text-ink-400 shrink-0 flex items-center gap-1 mt-0.5">
             <span
               className="w-1.5 h-1.5 rounded-full shrink-0"
               style={{ background: colorFor(displayName) }}
@@ -139,24 +139,24 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* 제목 (brand와 다를 때) */}
       {item.brand && item.title !== item.brand && (
-        <p className="text-xs font-medium text-ink-600 -mt-1">{item.title}</p>
+        <p className="text-sm font-medium text-ink-600 -mt-1">{item.title}</p>
       )}
 
       {/* 상세 */}
       {item.detail && (
-        <p className="text-xs text-ink-500 leading-relaxed">{item.detail}</p>
+        <p className="text-sm text-ink-500 leading-relaxed">{item.detail}</p>
       )}
 
       {/* 블로킹 사유 */}
       {item.change === 'blocked' && item.block_reason && (
-        <div className="text-2xs text-status-late bg-status-late/10 border border-status-late/20 rounded px-2 py-1 leading-snug">
+        <div className="text-sm text-status-late bg-status-late/10 border border-status-late/20 rounded px-2 py-1 leading-snug">
           블로킹 사유 {item.block_reason}
         </div>
       )}
 
       {/* 전주 비교 모드: 상태 전환 표시 */}
       {compareMode && item.change === 'new' && (
-        <div className="flex items-center gap-1.5 text-2xs text-ink-400">
+        <div className="flex items-center gap-1.5 text-sm text-ink-400">
           <span className="italic">없음</span>
           <span>→</span>
           <span className="font-medium text-lilac-600">신규 등록</span>
@@ -164,7 +164,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
       )}
 
       {compareMode && item.change === 'dropped' && (
-        <div className="flex items-center gap-1.5 text-2xs text-status-warn">
+        <div className="flex items-center gap-1.5 text-sm text-status-warn">
           <StatusChip status={item.prev_status ?? null} dim />
           <span>→</span>
           <span className="font-medium">이번 주 미언급</span>
@@ -174,7 +174,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
       {hasCompareDiff && (statusChanged || titleChanged) && (
         <div className="flex flex-col gap-1 bg-muted rounded px-2 py-1.5 -mx-0.5">
           {titleChanged && (
-            <p className="text-2xs text-ink-400 leading-snug">
+            <p className="text-sm text-ink-400 leading-snug">
               <span className="text-ink-300">이전 제목</span> {item.prev_title}
             </p>
           )}
@@ -190,7 +190,7 @@ function ItemCard({ item, compareMode }: { item: EnrichedItem; compareMode: bool
 
       {/* compareMode + continued이지만 변경사항 없음 */}
       {hasCompareDiff && !statusChanged && !titleChanged && item.change === 'continued' && (
-        <p className="text-2xs text-ink-300 italic">전주와 동일</p>
+        <p className="text-sm text-ink-300 italic">전주와 동일</p>
       )}
 
       {/* 태그 */}
@@ -276,7 +276,7 @@ function FilterBar({
           }`}
         />
       </button>
-      <span className={`text-xs shrink-0 ${compareMode ? 'text-lilac-600 font-medium' : 'text-ink-500'}`}>전주 비교 모드</span>
+      <span className={`text-sm shrink-0 ${compareMode ? 'text-lilac-600 font-medium' : 'text-ink-500'}`}>전주 비교 모드</span>
 
       <div className="w-px h-4 bg-border shrink-0" />
 
@@ -288,7 +288,7 @@ function FilterBar({
           <button
             key={p.key}
             onClick={() => onFilterChange(p.key)}
-            className={`flex items-center gap-1.5 text-xs px-2.5 py-1 rounded-full border transition-colors ${
+            className={`flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full border transition-colors ${
               active
                 ? 'bg-foreground text-background border-foreground'
                 : 'bg-card text-ink-500 border-border hover:border-ink-400 hover:text-foreground'
@@ -326,7 +326,7 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
           }}
         />
       </div>
-      {statusMessage && <p className="text-2xs text-ink-400 mt-1.5">{statusMessage}</p>}
+      {statusMessage && <p className="text-sm text-ink-400 mt-1.5">{statusMessage}</p>}
     </div>
   )
 }
@@ -334,10 +334,10 @@ function ProgressBar({ progress, slowPhase, statusMessage }: {
 // ── Delta ─────────────────────────────────────────────────────────
 
 function Delta({ delta }: { delta: number }) {
-  if (delta === 0) return <span className="text-xs text-ink-400">—</span>
+  if (delta === 0) return <span className="text-sm text-ink-400">—</span>
   const up = delta > 0
   return (
-    <span className={`text-xs font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
+    <span className={`text-sm font-medium flex items-center gap-0.5 ${up ? 'text-mint-500' : 'text-status-late'}`}>
       {up ? <TrendingUp size={10} /> : <TrendingDown size={10} />}
       {up ? '+' : ''}{delta}
     </span>
@@ -417,7 +417,7 @@ function AISummaryPanel({
           )}
 
           {error && (
-            <p className="text-xs text-status-late">{error}</p>
+            <p className="text-sm text-status-late">{error}</p>
           )}
 
           {content ? (
@@ -431,7 +431,7 @@ function AISummaryPanel({
                     { label: '계획',   ...content.stats.plans },
                   ] as { label: string; count: number; delta: number }[]).map(s => (
                     <div key={s.label} className="bg-muted rounded-lg px-3 py-2.5">
-                      <p className="text-xs text-ink-500 mb-1.5">{s.label}</p>
+                      <p className="text-sm text-ink-500 mb-1.5">{s.label}</p>
                       <div className="flex items-end gap-1.5">
                         <span className="text-base font-bold text-foreground leading-none">{s.count}</span>
                         <Delta delta={s.delta} />
@@ -442,8 +442,8 @@ function AISummaryPanel({
               )}
 
               <div>
-                <p className="text-xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
-                <p className="text-xs leading-relaxed text-foreground">
+                <p className="text-sm text-ink-400 mb-1.5 uppercase tracking-wide font-medium">이번 주 요약</p>
+                <p className="text-sm leading-relaxed text-foreground">
                   {content.headline.split(/(\*\*[^*]+\*\*)/).map((p, i) =>
                     p.startsWith('**') && p.endsWith('**')
                       ? <strong key={i} className="font-semibold">{p.slice(2, -2)}</strong>
@@ -454,20 +454,20 @@ function AISummaryPanel({
 
               {content.changes && (
                 <div>
-                  <p className="text-xs text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
-                  <p className="text-2xs text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
+                  <p className="text-sm text-ink-400 mb-1.5 uppercase tracking-wide font-medium">전주 대비</p>
+                  <p className="text-sm text-ink-500 leading-relaxed pl-2 border-l-2 border-ink-200">
                     {content.changes}
                   </p>
                 </div>
               )}
 
-              <p className="text-xs text-ink-400">
+              <p className="text-sm text-ink-400">
                 by Claude · {reports.length}개 보고서
                 {insight!.analyzed_at ? ` · ${fmtDatetime(insight!.analyzed_at)}` : ''}
               </p>
             </>
           ) : !analyzing && (
-            <p className="text-xs text-ink-400 py-2">
+            <p className="text-sm text-ink-400 py-2">
               {reports.length === 0
                 ? '수집된 보고서가 없어 분석할 수 없습니다.'
                 : '분석하기 버튼을 눌러 AI 요약을 생성하세요.'}
@@ -480,7 +480,7 @@ function AISummaryPanel({
           <button
             onClick={handleAnalyze}
             disabled={analyzing || reports.length === 0}
-            className="w-full flex items-center justify-center gap-1.5 text-xs font-medium px-3 py-2 rounded-md bg-foreground text-background hover:bg-ink-800 disabled:opacity-60 transition-colors"
+            className="w-full flex items-center justify-center gap-1.5 text-sm font-medium px-3 py-2 rounded-md bg-foreground text-background hover:bg-ink-800 disabled:opacity-60 transition-colors"
           >
             {analyzing ? <RefreshCw size={11} className="animate-spin" /> : <Sparkles size={11} />}
             {analyzing ? '분석 중...' : content ? '다시 분석' : '분석하기'}
@@ -548,8 +548,8 @@ export function WeeklyDashboard({
 
       {reports.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">
-          <p className="text-xs text-muted-foreground">수집된 보고서가 없습니다</p>
-          <p className="text-2xs text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
+          <p className="text-sm text-muted-foreground">수집된 보고서가 없습니다</p>
+          <p className="text-sm text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
         </div>
       ) : (
         <>
@@ -562,7 +562,7 @@ export function WeeklyDashboard({
           />
 
           {filtered.length === 0 ? (
-            <div className="text-center py-12 text-xs text-ink-400">
+            <div className="text-center py-12 text-sm text-ink-400">
               해당 카테고리 항목이 없습니다
             </div>
           ) : (

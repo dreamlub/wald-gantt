@@ -212,7 +212,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
             </button>
             <button
               onClick={() => setTab('memo')}
-              className={`pb-2 text-xs font-medium border-b-2 transition-colors flex items-center gap-1 ${
+              className={`pb-2 text-sm font-medium border-b-2 transition-colors flex items-center gap-1 ${
                 tab === 'memo' ? 'border-lilac-500 text-lilac-600' : 'border-transparent text-muted-foreground hover:text-foreground'
               }`}
             >
@@ -248,7 +248,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           {/* 상태 + 담당자 */}
           <div className="flex gap-3">
             <div className="flex-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
+              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
               <div className="relative mt-1.5">
                 <span
                   className="absolute left-2.5 top-1/2 -translate-y-1/2 w-2 h-2 rounded-full pointer-events-none z-10"
@@ -268,7 +268,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
             </div>
 
             <div className="flex-1">
-              <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
+              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">담당자</label>
               <AutocompleteInput
                 className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
                 placeholder="이름 (없으면 내 할일)"
@@ -283,7 +283,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
               <div className="flex-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
@@ -294,7 +294,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               </div>
               <div className="flex-1">
-                <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
@@ -312,7 +312,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 우선순위 */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
+            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">우선순위</label>
             <div className="flex items-center gap-1 mt-1.5">
               {PRIORITY_OPTIONS.map(opt => {
                 const meta = PRIORITY_META[opt.value]
@@ -322,7 +322,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                     key={opt.value}
                     type="button"
                     onClick={() => setPriority(opt.value)}
-                    className={`flex items-center gap-0.5 text-xs px-2 py-1 rounded border transition-colors
+                    className={`flex items-center gap-0.5 text-sm px-2 py-1 rounded border transition-colors
                       ${active
                         ? 'font-medium border-current'
                         : 'border-border text-muted-foreground hover:border-ink-300'}`}
@@ -338,7 +338,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 라벨 */}
           <div ref={labelRef}>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <Tag size={10} /> 라벨
             </label>
             <div className="flex flex-wrap gap-1.5">
@@ -355,7 +355,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
               ))}
               <div className="relative">
                 <input
-                  className="text-xs px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+                  className="text-sm px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
                   placeholder="입력 후 Enter"
                   value={labelInput}
                   onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
@@ -381,7 +381,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                             setLabelInput('')
                             setLabelOpen(false)
                           }}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-xs hover:bg-accent cursor-pointer"
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm hover:bg-accent cursor-pointer"
                         >
                           <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
                           {s}
@@ -396,15 +396,15 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 연결 프로젝트 */}
           <div>
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
+            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">연결 프로젝트</label>
             {linkedProjects.length > 0 && (
               <div className="flex flex-wrap gap-1.5 mt-1.5 mb-1.5">
                 {linkedProjects.map(p => (
                   <span
                     key={p.id}
-                    className="flex items-center gap-1 text-xs bg-lilac-100 text-lilac-600 border border-lilac-300 px-2 py-0.5 rounded-full"
+                    className="flex items-center gap-1 text-sm bg-lilac-100 text-lilac-600 border border-lilac-300 px-2 py-0.5 rounded-full"
                   >
-                    <span className="text-lilac-400 text-xs">{p.board_name}</span>
+                    <span className="text-lilac-400 text-sm">{p.board_name}</span>
                     <span>/</span>
                     {p.name}
                     <button onClick={() => unlinkProject(p.id)} className="ml-0.5 text-lilac-300 hover:text-lilac-600">
@@ -436,14 +436,14 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                     }, {})
                     return Object.entries(groups).map(([board, list]) => (
                       <div key={board}>
-                        <div className="px-3 pt-1.5 pb-0.5 text-xs font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
+                        <div className="px-3 pt-1.5 pb-0.5 text-sm font-semibold text-muted-foreground uppercase tracking-wider bg-muted/50">
                           {board}
                         </div>
                         {list.map(p => (
                           <button
                             key={p.id}
                             onClick={() => linkProject(p)}
-                            className="w-full flex items-center gap-2 px-3 py-1.5 text-xs hover:bg-accent text-left"
+                            className="w-full flex items-center gap-2 px-3 py-1.5 text-sm hover:bg-accent text-left"
                           >
                             <span className="text-foreground">{p.name}</span>
                           </button>
@@ -454,7 +454,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 </div>
               )}
               {showProjDrop && projResults.length === 0 && (
-                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-xs text-muted-foreground">
+                <div className="absolute top-full left-0 right-0 mt-1 bg-card border rounded-lg shadow-lg z-10 py-3 px-3 text-center text-sm text-muted-foreground">
                   {projSearch.trim() ? '검색 결과 없음' : '연결 가능한 프로젝트가 없어요'}
                 </div>
               )}
@@ -463,7 +463,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 반복 */}
           <div className="pt-2 border-t border-border">
-            <label className="text-xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <RotateCw size={10} /> 반복
             </label>
             <div className="flex items-center gap-2">
@@ -471,7 +471,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
               <button
                 type="button"
                 onClick={() => setRecurrenceRule(null)}
-                className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+                className={`text-sm px-2.5 py-1 rounded border transition-colors ${
                   recurrenceRule === null
                     ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
                     : 'border-border text-muted-foreground hover:border-ink-300'
@@ -484,7 +484,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                   key={opt.value}
                   type="button"
                   onClick={() => setRecurrenceRule(opt.value)}
-                  className={`text-xs px-2.5 py-1 rounded border transition-colors ${
+                  className={`text-sm px-2.5 py-1 rounded border transition-colors ${
                     recurrenceRule === opt.value
                       ? 'border-lilac-400 bg-lilac-50 text-lilac-600 font-medium'
                       : 'border-border text-muted-foreground hover:border-ink-300'
@@ -496,7 +496,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
             </div>
             {recurrenceRule && recurrenceRule !== 'yearly' && (
               <div className="flex items-center gap-2 mt-2">
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {recurrenceRule === 'daily' ? '매' : recurrenceRule === 'weekly' ? '매' : '매'}
                 </span>
                 <input
@@ -505,9 +505,9 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                   max={99}
                   value={recurrenceInterval}
                   onChange={e => setRecurrenceInterval(Math.max(1, parseInt(e.target.value) || 1))}
-                  className="w-14 text-xs text-center border border-border rounded px-2 py-1 outline-none focus:border-lilac-300"
+                  className="w-14 text-sm text-center border border-border rounded px-2 py-1 outline-none focus:border-lilac-300"
                 />
-                <span className="text-xs text-muted-foreground">
+                <span className="text-sm text-muted-foreground">
                   {recurrenceRule === 'daily' ? '일마다' : recurrenceRule === 'weekly' ? '주마다' : '개월마다'}
                 </span>
               </div>
@@ -516,9 +516,9 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 상위 태스크 */}
           {parentTask && (
-            <div className="text-xs pt-2 border-t border-border">
+            <div className="text-sm pt-2 border-t border-border">
               <span className="font-semibold text-muted-foreground uppercase tracking-wider">상위 태스크</span>
-              <p className="mt-0.5 text-xs text-ink-500 truncate">{parentTask.title}</p>
+              <p className="mt-0.5 text-sm text-ink-500 truncate">{parentTask.title}</p>
             </div>
           )}
         </DrawerBody>

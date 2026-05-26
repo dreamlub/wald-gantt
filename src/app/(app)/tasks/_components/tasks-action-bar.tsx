@@ -42,11 +42,11 @@ export function TasksActionBar({
 }: TasksActionBarProps) {
   return (
     <>
-      <div className="h-12 flex items-center border-b bg-card shrink-0 px-4 gap-2">
+      <div className="h-12 flex items-stretch border-b bg-card shrink-0">
         {!sidebarOpen && (
           <button
             onClick={onSidebarOpen}
-            className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
+            className="self-center ml-3 mr-1 p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors shrink-0"
             title="사이드바 열기"
           >
             <PanelLeftOpen size={14} />
@@ -54,24 +54,25 @@ export function TasksActionBar({
         )}
 
         {/* 뷰 탭 */}
-        <div className="flex items-center gap-0.5 bg-muted rounded-lg p-0.5">
+        <nav className="flex items-stretch pl-3">
           {VIEW_TABS.map(tab => (
             <button
               key={tab.key}
               onClick={() => onViewChange(tab.key)}
-              className={`flex items-center gap-1 px-2.5 py-1 rounded-md text-xs font-medium transition-colors
-                ${view === tab.key
-                  ? 'bg-card text-ink-700 shadow-sm'
-                  : 'text-muted-foreground hover:text-ink-700'}`}
+              className={`flex items-center gap-1.5 px-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+                view === tab.key
+                  ? 'border-lilac-500 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
+              }`}
             >
               {tab.icon}
               {tab.label}
             </button>
           ))}
-        </div>
+        </nav>
 
         {/* 검색 */}
-        <div ref={searchRef} className="relative flex items-center ml-2">
+        <div ref={searchRef} className="relative flex items-center ml-auto mr-1">
           {searchOpen || searchQuery ? (
             <div className="relative flex items-center">
               <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
@@ -82,7 +83,7 @@ export function TasksActionBar({
                 onChange={e => onSearchQueryChange(e.target.value)}
                 onKeyDown={e => { if (e.key === 'Escape') { onSearchQueryChange(''); onSearchOpenChange(false) } }}
                 placeholder="태스크 검색"
-                className="text-2xs pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
+                className="text-sm pl-6 pr-6 py-1 border rounded w-40 outline-none focus:ring-1 focus:ring-lilac-300 text-muted-foreground placeholder:text-ink-300"
               />
               {searchQuery && (
                 <button
@@ -105,13 +106,13 @@ export function TasksActionBar({
           )}
         </div>
 
-        <div className="ml-auto flex items-center gap-2">
+        <div className="flex items-center gap-2 mr-3">
           <div
             className="flex items-center gap-1.5 cursor-pointer select-none"
             onClick={() => onHideDoneChange(!hideDone)}
             title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
           >
-            <span className="text-xs text-muted-foreground">완료 포함</span>
+            <span className="text-sm text-muted-foreground">완료 포함</span>
             <div
               role="switch"
               aria-checked={!hideDone}
@@ -123,7 +124,7 @@ export function TasksActionBar({
           {(view === 'basic' || view === 'listview') && (
             <button
               onClick={onToggleSelection}
-              className={`flex items-center gap-1 text-xs px-2.5 py-1.5 rounded transition-colors ${
+              className={`flex items-center gap-1 text-sm px-2.5 py-1.5 rounded transition-colors ${
                 selectionMode
                   ? 'bg-lilac-100 text-lilac-700 font-medium'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -136,7 +137,7 @@ export function TasksActionBar({
           )}
           <button
             onClick={onAdd}
-            className="flex items-center gap-1 text-xs font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
           >
             <Plus size={13} /> 태스크 추가
           </button>
@@ -148,7 +149,7 @@ export function TasksActionBar({
         <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-card shrink-0 overflow-x-auto">
           <button
             onClick={() => onFilterAssigneeChange(null)}
-            className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
+            className={`flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
               ${!filterAssignee ? 'bg-foreground border-foreground text-background' : 'border-border text-muted-foreground hover:border-ink-400'}`}
           >
             전체
@@ -160,7 +161,7 @@ export function TasksActionBar({
               <button
                 key={key}
                 onClick={() => onFilterAssigneeChange(active ? null : key)}
-                className={`flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
+                className={`flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
                   ${active ? 'text-background border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
                 style={active ? { backgroundColor: color, borderColor: color } : {}}
               >

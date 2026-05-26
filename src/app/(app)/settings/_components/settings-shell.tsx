@@ -73,7 +73,7 @@ const SORT_MODE_OPTIONS: { value: SortMode; label: string }[] = [
 function SettingCard({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <div className="rounded-lg border border-border bg-card p-5 space-y-4">
-      <h3 className="text-xs font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
+      <h3 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">{title}</h3>
       {children}
     </div>
   )
@@ -82,7 +82,7 @@ function SettingCard({ title, children }: { title: string; children: React.React
 function Row({ label, children }: { label: string; children: React.ReactNode }) {
   return (
     <div className="flex items-center justify-between gap-4">
-      <span className="text-xs text-foreground">{label}</span>
+      <span className="text-sm text-foreground">{label}</span>
       <div className="shrink-0">{children}</div>
     </div>
   )
@@ -240,7 +240,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 헤더 */}
         <div className="h-12 flex items-center px-6 border-b bg-card shrink-0">
-          <span className="text-xs font-semibold text-foreground">{SECTION_TITLE[section]}</span>
+          <span className="text-sm font-semibold text-foreground">{SECTION_TITLE[section]}</span>
         </div>
 
         <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-background">
@@ -250,13 +250,13 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
             <>
               <SettingCard title="프로필">
                 <Row label="이메일">
-                  <span className="text-xs text-muted-foreground">{userEmail}</span>
+                  <span className="text-sm text-muted-foreground">{userEmail}</span>
                 </Row>
               </SettingCard>
               <SettingCard title="세션">
                 <button
                   onClick={handleLogout}
-                  className="flex items-center gap-2 px-3 py-1.5 rounded border border-border text-xs text-foreground hover:bg-muted transition-colors"
+                  className="flex items-center gap-2 px-3 py-1.5 rounded border border-border text-sm text-foreground hover:bg-muted transition-colors"
                 >
                   <LogOut size={13} />
                   로그아웃
@@ -276,21 +276,21 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     ) : (
                       <AlertCircle size={13} className="text-ink-400" />
                     )}
-                    <span className="text-xs text-foreground">
+                    <span className="text-sm text-foreground">
                       {calendarConnected ? '연동됨' : '연동 안됨'}
                     </span>
                   </div>
                   {calendarConnected ? (
                     <button
                       onClick={handleCalendarDisconnect}
-                      className="text-2xs text-ink-400 hover:text-status-late transition-colors"
+                      className="text-sm text-ink-400 hover:text-status-late transition-colors"
                     >
                       연동 해제
                     </button>
                   ) : (
                     <button
                       onClick={handleCalendarConnect}
-                      className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity"
+                      className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity"
                     >
                       Google 연동
                     </button>
@@ -306,7 +306,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     ) : (
                       <AlertCircle size={13} className={vaultStatus === 'needs-permission' ? 'text-status-warn' : 'text-ink-400'} />
                     )}
-                    <span className="text-xs text-foreground">
+                    <span className="text-sm text-foreground">
                       {vaultStatus === 'loading'          ? '확인 중…' :
                        vaultStatus === 'connected'        ? `연결됨 — ${vaultHandle?.name}` :
                        vaultStatus === 'needs-permission' ? `권한 만료 — ${vaultHandle?.name}` :
@@ -314,13 +314,13 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     </span>
                   </div>
                   {vaultStatus === 'connected' && (
-                    <button onClick={vaultDisconnect} className="text-2xs text-ink-400 hover:text-status-late transition-colors">연결 해제</button>
+                    <button onClick={vaultDisconnect} className="text-sm text-ink-400 hover:text-status-late transition-colors">연결 해제</button>
                   )}
                   {vaultStatus === 'needs-permission' && (
-                    <button onClick={vaultRequestPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity">권한 허용</button>
+                    <button onClick={vaultRequestPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity">권한 허용</button>
                   )}
                   {vaultStatus === 'disconnected' && (
-                    <button onClick={vaultConnect} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-2xs font-medium hover:opacity-80 transition-opacity">Vault 연결</button>
+                    <button onClick={vaultConnect} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity">Vault 연결</button>
                   )}
                 </div>
                 {vaultStatus === 'connected' && (
@@ -331,11 +331,11 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                       onBlur={e => saveVaultPattern(e.target.value)}
                       onKeyDown={e => { if (e.key === 'Enter') saveVaultPattern(vaultPattern) }}
                       placeholder="Daily Notes/YYYY-MM-DD"
-                      className="w-48 bg-background border border-border rounded-sm px-2 py-1 text-2xs outline-none focus:border-lilac-400 transition-colors"
+                      className="w-48 bg-background border border-border rounded-sm px-2 py-1 text-sm outline-none focus:border-lilac-400 transition-colors"
                     />
                   </Row>
                 )}
-                <p className="text-xs text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
+                <p className="text-sm text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
             </>
@@ -350,7 +350,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     <button
                       key={value}
                       onClick={() => setTheme(value)}
-                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-2xs font-medium transition-colors ${
+                      className={`flex items-center gap-1.5 px-3 py-1.5 rounded border text-sm font-medium transition-colors ${
                         theme === value
                           ? 'border-lilac-400 bg-lilac-50 text-lilac-600'
                           : 'border-border text-muted-foreground hover:bg-muted'
@@ -362,7 +362,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   ))}
                 </div>
                 {theme === 'dark' && (
-                  <p className="text-xs text-ink-400">
+                  <p className="text-sm text-ink-400">
                     * 다크 모드는 일부 커스텀 색상이 아직 완전히 지원되지 않습니다.
                   </p>
                 )}
@@ -377,7 +377,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                           <button
                             key={opt}
                             onClick={() => setDefaultView(key, opt)}
-                            className={`px-2.5 py-1 rounded text-2xs font-medium transition-colors ${
+                            className={`px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                               defaultViews[key] === opt
                                 ? 'bg-foreground text-background'
                                 : 'border border-border text-muted-foreground hover:bg-muted'
@@ -395,7 +395,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                         <button
                           key={value}
                           onClick={() => setDefaultSort(value)}
-                          className={`px-2.5 py-1 rounded text-2xs font-medium transition-colors ${
+                          className={`px-2.5 py-1 rounded text-sm font-medium transition-colors ${
                             defaultSortMode === value
                               ? 'bg-foreground text-background'
                               : 'border border-border text-muted-foreground hover:bg-muted'
@@ -428,7 +428,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
             <>
               <SettingCard title="팀 목록">
                 {weeklySources.length === 0 && (
-                  <p className="text-xs text-ink-400">등록된 팀이 없습니다.</p>
+                  <p className="text-sm text-ink-400">등록된 팀이 없습니다.</p>
                 )}
                 <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleWeeklyDragEnd}>
                   <SortableContext items={weeklySources.map(s => s.id)} strategy={verticalListSortingStrategy}>
@@ -448,24 +448,24 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     onChange={e => setWeeklyForm(p => ({ ...p, label: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') addWeeklySource() }}
                     placeholder="팀명 (예: Biz Lead)"
-                    className="w-32 bg-background border border-border rounded-sm px-2.5 py-1.5 text-2xs outline-none focus:border-lilac-400 transition-colors"
+                    className="w-32 bg-background border border-border rounded-sm px-2.5 py-1.5 text-sm outline-none focus:border-lilac-400 transition-colors"
                   />
                   <input
                     value={weeklyForm.collection_id}
                     onChange={e => setWeeklyForm(p => ({ ...p, collection_id: e.target.value }))}
                     onKeyDown={e => { if (e.key === 'Enter') addWeeklySource() }}
                     placeholder="Outline Collection ID"
-                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-2xs outline-none focus:border-lilac-400 transition-colors"
+                    className="flex-1 bg-background border border-border rounded-sm px-2.5 py-1.5 text-sm outline-none focus:border-lilac-400 transition-colors"
                   />
                   <button
                     onClick={addWeeklySource}
                     disabled={weeklyPending || !weeklyForm.label.trim() || !weeklyForm.collection_id.trim()}
-                    className="inline-flex items-center gap-1.5 h-7 px-3 rounded-sm bg-foreground text-background text-2xs font-medium hover:opacity-80 disabled:opacity-40 transition-opacity shrink-0"
+                    className="inline-flex items-center gap-1.5 h-7 px-3 rounded-sm bg-foreground text-background text-sm font-medium hover:opacity-80 disabled:opacity-40 transition-opacity shrink-0"
                   >
                     <Plus size={12} /> 추가
                   </button>
                 </div>
-                <p className="text-xs text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
+                <p className="text-sm text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
               </SettingCard>
             </>
           )}
@@ -473,7 +473,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
           {/* ── 데이터 ── */}
           {section === 'data' && (
             <SettingCard title="내보내기">
-              <p className="text-2xs text-muted-foreground">
+              <p className="text-sm text-muted-foreground">
                 태스크, 히스토리, 주간 데이터를 CSV 또는 JSON으로 내보낼 수 있습니다.
               </p>
               <div className="space-y-2">
@@ -485,20 +485,20 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                   <button
                     key={label}
                     disabled
-                    className="w-full flex items-center justify-between px-3 py-2 rounded border border-border text-xs text-muted-foreground opacity-50 cursor-not-allowed"
+                    className="w-full flex items-center justify-between px-3 py-2 rounded border border-border text-sm text-muted-foreground opacity-50 cursor-not-allowed"
                   >
                     <span className="flex items-center gap-2">
                       <Download size={13} />
                       {label}
                     </span>
-                    <span className="flex items-center gap-1 text-xs">
+                    <span className="flex items-center gap-1 text-sm">
                       {format}
                       <ChevronRight size={11} />
                     </span>
                   </button>
                 ))}
               </div>
-              <p className="text-xs text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
+              <p className="text-sm text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
             </SettingCard>
           )}
 
@@ -526,8 +526,8 @@ function SortableWeeklyRow({ src, onDelete }: { src: WeeklySource; onDelete: (id
       >
         <GripVertical size={14} />
       </button>
-      <span className="text-xs font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
-      <span className="text-2xs text-muted-foreground flex-1 truncate">{src.collection_id}</span>
+      <span className="text-sm font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
+      <span className="text-sm text-muted-foreground flex-1 truncate">{src.collection_id}</span>
       <button
         onClick={() => onDelete(src.id)}
         className="text-ink-400 hover:text-status-late transition-colors shrink-0"

@@ -86,9 +86,9 @@ function QuickAddRow({ autoFocus, value, onChange, onCommit, onCancel, placehold
         }}
         onBlur={() => { if (!value.trim()) onCancel() }}
         placeholder={placeholder}
-        className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+        className="flex-1 text-sm outline-none placeholder:text-ink-300 bg-transparent text-foreground"
       />
-      {indent === 'pl-10' && <span className="text-xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
+      {indent === 'pl-10' && <span className="text-sm text-ink-300 shrink-0">상세 설정은 행 클릭</span>}
     </div>
   )
 }
@@ -150,7 +150,7 @@ function TaskGroup({ task, subs, isExp, onEdit, onEditMemo, onDelete, onStatusCh
       ) : isExp && subs.length > 0 && (
         <button
           onClick={() => openAddSubTask(task.id)}
-          className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-2xs text-ink-300 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
+          className="flex items-center gap-1.5 pl-12 pr-4 py-1.5 w-full text-left text-sm text-ink-300 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
         >
           <Plus size={10} /> 하위 태스크 추가
         </button>
@@ -197,7 +197,7 @@ export function NormalView(props: NormalViewProps) {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
-      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-xs font-semibold text-muted-foreground uppercase tracking-wider">
+      <div className="flex items-center px-4 py-2 border-b bg-muted shrink-0 text-sm font-semibold text-muted-foreground uppercase tracking-wider">
         <div className="w-5 shrink-0 mr-3" />
         <div className="flex-1 mr-4">태스크</div>
         <div className="w-8 shrink-0">우선</div>
@@ -208,9 +208,9 @@ export function NormalView(props: NormalViewProps) {
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
         {filtered.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
-            <p className="text-xs">{emptyMsg}</p>
+            <p className="text-sm">{emptyMsg}</p>
             {!hasFilter && (
-              <button onClick={() => onAdd('to-do')} className="text-xs text-foreground hover:text-black">+ 첫 번째 태스크 추가</button>
+              <button onClick={() => onAdd('to-do')} className="text-sm text-foreground hover:text-black">+ 첫 번째 태스크 추가</button>
             )}
           </div>
         ) : (
@@ -231,10 +231,10 @@ export function NormalView(props: NormalViewProps) {
                   >
                     !
                   </span>
-                  <span className="text-xs font-semibold text-status-late">지연</span>
-                  <span className="text-xs text-ink-400">{overdueGroup.length}</span>
+                  <span className="text-sm font-semibold text-status-late">지연</span>
+                  <span className="text-sm text-ink-400">{overdueGroup.length}</span>
                   {avgOverdueDays > 0 && (
-                    <span className="ml-auto text-xs text-ink-400">평균 지연 {avgOverdueDays}일</span>
+                    <span className="ml-auto text-sm text-ink-400">평균 지연 {avgOverdueDays}일</span>
                   )}
                 </button>
                 {!collapsed.has('__overdue__') && (
@@ -268,10 +268,10 @@ export function NormalView(props: NormalViewProps) {
                     >
                       {abbr}
                     </span>
-                    <span className="text-xs font-semibold text-muted-foreground">{label}</span>
-                    <span className="text-xs text-ink-400">{group.length}</span>
+                    <span className="text-sm font-semibold text-muted-foreground">{label}</span>
+                    <span className="text-sm text-ink-400">{group.length}</span>
                     {status === 'in-progress' && avgIPDays > 0 && (
-                      <span className="ml-auto text-xs text-ink-400">평균 진행 {avgIPDays}일</span>
+                      <span className="ml-auto text-sm text-ink-400">평균 진행 {avgIPDays}일</span>
                     )}
                   </button>
                   {!isCollapsed && (
@@ -296,7 +296,7 @@ export function NormalView(props: NormalViewProps) {
                       ) : (
                         <button
                           onClick={() => { setQuickAddStatus(status); setQuickAddParentId(null); setQuickAddTitle('') }}
-                          className="flex items-center gap-1.5 pl-10 pr-4 py-2 w-full text-left text-xs text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
+                          className="flex items-center gap-1.5 pl-10 pr-4 py-2 w-full text-left text-sm text-ink-400 hover:text-foreground hover:bg-muted transition-colors border-b border-ink-150"
                         >
                           <Plus size={11} /> 태스크 추가
                         </button>
@@ -309,7 +309,7 @@ export function NormalView(props: NormalViewProps) {
 
             <DragOverlay>
               {draggingTask && (
-                <div className="bg-card border border-lilac-200 rounded shadow-lg px-4 py-2 text-xs text-ink-700 font-medium opacity-95">
+                <div className="bg-card border border-lilac-200 rounded shadow-lg px-4 py-2 text-sm text-ink-700 font-medium opacity-95">
                   {draggingTask.title}
                 </div>
               )}

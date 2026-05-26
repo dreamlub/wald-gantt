@@ -79,7 +79,7 @@ export default function NotesPage() {
             <div className="mt-1 pt-1.5 border-t border-border/60">
               <button
                 onClick={() => setSelectedDate(todayLocal())}
-                className="flex items-center gap-1 text-2xs text-ink-400 hover:text-foreground transition-colors px-1"
+                className="flex items-center gap-1 text-sm text-ink-400 hover:text-foreground transition-colors px-1"
               >
                 <span className="w-1.5 h-1.5 rounded-full border border-ink-400 inline-block" />
                 오늘로
@@ -92,16 +92,16 @@ export default function NotesPage() {
 
           {/* Vault 섹션 */}
           <div>
-            <div className="text-xs font-semibold text-ink-400 uppercase tracking-wider mb-2">Vault</div>
+            <div className="text-sm font-semibold text-ink-400 uppercase tracking-wider mb-2">Vault</div>
 
             {isLoading && (
-              <p className="text-2xs text-ink-300 px-1">연결 확인 중...</p>
+              <p className="text-sm text-ink-300 px-1">연결 확인 중...</p>
             )}
 
             {status === 'disconnected' && (
               <button
                 onClick={connect}
-                className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+                className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
               >
                 <FolderOpen size={12} /> 폴더 연결
               </button>
@@ -109,10 +109,10 @@ export default function NotesPage() {
 
             {status === 'needs-permission' && (
               <div className="space-y-1">
-                <p className="text-2xs text-ink-400 px-1 truncate">{handle?.name}</p>
+                <p className="text-sm text-ink-400 px-1 truncate">{handle?.name}</p>
                 <button
                   onClick={requestPermission}
-                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-2xs text-status-warn hover:bg-card transition-colors"
+                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-sm text-status-warn hover:bg-card transition-colors"
                 >
                   <FolderOpen size={12} /> 권한 재허용
                 </button>
@@ -121,18 +121,18 @@ export default function NotesPage() {
 
             {isConnected && (
               <div className="space-y-1">
-                <p className="text-2xs text-foreground font-medium px-1 truncate" title={handle?.name}>
+                <p className="text-sm text-foreground font-medium px-1 truncate" title={handle?.name}>
                   📁 {handle?.name}
                 </p>
                 <button
                   onClick={openPatternEdit}
-                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-2xs text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
+                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-sm text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
                 >
                   <Settings2 size={11} /> 경로 패턴
                 </button>
                 <button
                   onClick={disconnect}
-                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-2xs text-ink-400 hover:text-status-late hover:bg-card transition-colors"
+                  className="flex items-center gap-1.5 w-full px-2 py-1.5 rounded text-sm text-ink-400 hover:text-status-late hover:bg-card transition-colors"
                 >
                   <X size={11} /> 연결 해제
                 </button>
@@ -142,17 +142,17 @@ export default function NotesPage() {
             {/* 경로 패턴 편집 */}
             {patternEditing && (
               <div className="mt-2 space-y-1.5">
-                <p className="text-xs text-ink-400 px-1">예: Daily Notes/YYYY-MM-DD</p>
+                <p className="text-sm text-ink-400 px-1">예: Daily Notes/YYYY-MM-DD</p>
                 <input
                   autoFocus
                   value={patternDraft}
                   onChange={e => setPatternDraft(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Enter') savePattern(); if (e.key === 'Escape') setPatternEditing(false) }}
-                  className="w-full text-2xs border border-border rounded px-2 py-1.5 bg-card outline-none focus:border-lilac-300"
+                  className="w-full text-sm border border-border rounded px-2 py-1.5 bg-card outline-none focus:border-lilac-300"
                 />
                 <div className="flex gap-1">
-                  <button onClick={savePattern} className="flex-1 text-2xs py-1 rounded bg-foreground text-background font-medium hover:bg-ink-800 transition-colors">저장</button>
-                  <button onClick={() => setPatternEditing(false)} className="flex-1 text-2xs py-1 rounded bg-muted text-muted-foreground hover:bg-card transition-colors">취소</button>
+                  <button onClick={savePattern} className="flex-1 text-sm py-1 rounded bg-foreground text-background font-medium hover:bg-ink-800 transition-colors">저장</button>
+                  <button onClick={() => setPatternEditing(false)} className="flex-1 text-sm py-1 rounded bg-muted text-muted-foreground hover:bg-card transition-colors">취소</button>
                 </div>
               </div>
             )}
@@ -196,7 +196,7 @@ export default function NotesPage() {
           {selectedDate.toDateString() !== todayLocal().toDateString() && (
             <button
               onClick={() => setSelectedDate(todayLocal())}
-              className="text-2xs px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
+              className="text-sm px-2 py-1 rounded bg-muted text-muted-foreground hover:text-foreground transition-colors"
             >
               오늘
             </button>
@@ -205,7 +205,7 @@ export default function NotesPage() {
 
         {/* 콘텐츠 */}
         {isLoading && (
-          <div className="flex-1 flex items-center justify-center text-xs text-ink-300">
+          <div className="flex-1 flex items-center justify-center text-sm text-ink-300">
             연결 확인 중...
           </div>
         )}
@@ -216,7 +216,7 @@ export default function NotesPage() {
             <p className="text-sm font-medium text-foreground">Vault가 연결되지 않았습니다</p>
             <Link
               href="/settings?section=integrations"
-              className="text-2xs text-lilac-500 hover:underline"
+              className="text-sm text-lilac-500 hover:underline"
             >
               Settings › 연동에서 연결하기
             </Link>
@@ -227,10 +227,10 @@ export default function NotesPage() {
           <div className="flex-1 flex flex-col items-center justify-center gap-3">
             <RefreshCw size={22} className="text-ink-300" />
             <p className="text-sm font-medium text-foreground">폴더 접근 권한이 필요해요</p>
-            <p className="text-xs text-muted-foreground">브라우저를 새로 열면 권한 재확인이 필요합니다</p>
+            <p className="text-sm text-muted-foreground">브라우저를 새로 열면 권한 재확인이 필요합니다</p>
             <button
               onClick={requestPermission}
-              className="px-4 py-2 rounded-lg bg-foreground text-background text-xs font-medium hover:opacity-80 transition-opacity"
+              className="px-4 py-2 rounded-lg bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity"
             >
               권한 허용
             </button>

@@ -201,9 +201,9 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
   if (datedTasks.length === 0) {
     return (
       <div className="flex-1 flex flex-col items-center justify-center text-ink-400 gap-2">
-        <span className="text-xs">시작일 또는 마감일이 설정된 태스크가 없어요</span>
+        <span className="text-sm">시작일 또는 마감일이 설정된 태스크가 없어요</span>
         {undatedTasks.length > 0 && (
-          <span className="text-2xs text-ink-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
+          <span className="text-sm text-ink-300">{undatedTasks.length}개 태스크에 날짜를 설정해 보세요</span>
         )}
       </div>
     )
@@ -452,7 +452,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
         {/* ── 날짜 없는 태스크 ── */}
         {undatedTasks.length > 0 && (
           <>
-            <div className="sticky left-0 z-10 px-3 py-1.5 text-xs font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
+            <div className="sticky left-0 z-10 px-3 py-1.5 text-sm font-semibold text-ink-400 uppercase bg-muted border-b tracking-wider" style={{ width: LEFT_W }}>
               날짜 미설정 — {undatedTasks.length}개
             </div>
             {undatedTasks.map(task => {
@@ -487,7 +487,7 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                     )}
                   </div>
                   <div className="flex-1 flex items-center px-4">
-                    <span className="text-xs text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
+                    <span className="text-sm text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
                   </div>
                 </div>
               )

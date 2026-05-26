@@ -81,13 +81,13 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
     <div className="rounded-lg border border-border overflow-hidden">
       <div className="bg-muted/40 p-3.5">
         <div className="flex items-start justify-between gap-2 mb-1.5">
-          <p className="text-xs font-semibold text-foreground leading-snug flex-1">{r.title}</p>
+          <p className="text-sm font-semibold text-foreground leading-snug flex-1">{r.title}</p>
           <div className="flex items-center gap-2 shrink-0">
-            {r.thread_count > 0 && <span className="text-xs text-ink-400">{r.thread_count}개 답글</span>}
-            {r.author && <span className="text-xs text-ink-400">{r.author}</span>}
+            {r.thread_count > 0 && <span className="text-sm text-ink-400">{r.thread_count}개 답글</span>}
+            {r.author && <span className="text-sm text-ink-400">{r.author}</span>}
           </div>
         </div>
-        {r.body && <BodyBullets text={r.body} className="text-xs text-ink-500 leading-relaxed mb-2" />}
+        {r.body && <BodyBullets text={r.body} className="text-sm text-ink-500 leading-relaxed mb-2" />}
         {r.tags?.length > 0 && (
           <div className="flex flex-wrap gap-1">
             {r.tags.map(tag => {
@@ -107,13 +107,13 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="border-t border-border">
           <button
             onClick={() => setRawOpen(v => !v)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-xs text-ink-400 hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-3.5 py-2 text-sm text-ink-400 hover:bg-muted/30 transition-colors"
           >
             <span className="font-semibold uppercase tracking-wider">원본 메시지</span>
             <span className={`transition-transform ${rawOpen ? 'rotate-180' : ''}`}>▾</span>
           </button>
           {rawOpen && (
-            <div className="px-3.5 pb-3.5 text-xs text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
+            <div className="px-3.5 pb-3.5 text-sm text-ink-500 leading-relaxed whitespace-pre-wrap break-words bg-background border-t border-border/50">
               {slackTextClean(r.raw_text)}
             </div>
           )}
@@ -235,7 +235,7 @@ export function ActionDetailDrawer({
           <PriorityCallout
             color={PRIORITY_META[pri]?.color ?? ''}
             text={item?.action ?? ''}
-            className="text-xs py-2.5"
+            className="text-sm py-2.5"
             iconSize={13}
             borderOpacity={40}
           />
@@ -243,13 +243,13 @@ export function ActionDetailDrawer({
 
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
-            {!loading && <span className="text-xs text-ink-300">{related.length}건</span>}
+            <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
+            {!loading && <span className="text-sm text-ink-300">{related.length}건</span>}
           </div>
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 size={14} className="animate-spin text-ink-400" /></div>
           ) : related.length === 0 ? (
-            <p className="text-xs text-ink-300 py-3">—</p>
+            <p className="text-sm text-ink-300 py-3">—</p>
           ) : (
             <div className="space-y-2">{related.map(r => <RelatedItemCard key={r.id} item={r} />)}</div>
           )}
@@ -258,17 +258,17 @@ export function ActionDetailDrawer({
         {!loading && similar.length > 0 && (
           <div className="px-5 py-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
-              <span className="text-xs text-ink-300">{similar.length}건</span>
+              <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
+              <span className="text-sm text-ink-300">{similar.length}건</span>
             </div>
             <div className="space-y-1.5">
               {similar.map(s => (
                 <div key={s.id} className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="flex items-start gap-2 mb-1.5">
                     <span className="text-xs text-ink-400 shrink-0 tabular-nums">{kstDateLabel(s.occurred_at)}</span>
-                    <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
+                    <p className="text-sm text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
-                  {s.body && <BodyBullets text={s.body} className="text-xs text-ink-400 leading-relaxed ml-14" />}
+                  {s.body && <BodyBullets text={s.body} className="text-sm text-ink-400 leading-relaxed ml-14" />}
                   {s.tags?.length > 0 && (
                     <div className="flex flex-wrap gap-1 mt-1.5 ml-14">
                       {s.tags.map(tag => {
@@ -292,7 +292,7 @@ export function ActionDetailDrawer({
         <DrawerFooter>
           <button
             onClick={() => { onCreateTask(item?.title ?? '', `${item?.summary ?? ''}\n\n→ ${item?.action ?? ''}`); onClose() }}
-            className="flex items-center gap-1.5 text-xs font-medium px-4 py-2 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
+            className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
           >
             <Plus size={13} />
             태스크 생성

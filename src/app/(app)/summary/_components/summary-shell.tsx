@@ -275,7 +275,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
               {/* 필터 칩 바 — 스크롤 밖 고정 */}
               {view !== 'summary' && (
                 <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
-                  <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-xs text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+                  <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-sm text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       {view === 'dailylist'
                         ? <><b className="text-foreground font-semibold">{pg.total}건</b></>

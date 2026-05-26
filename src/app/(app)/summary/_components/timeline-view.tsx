@@ -225,7 +225,7 @@ function StatusDot({ status, size = 'sm' }: { status: CardStatus; size?: 'sm' | 
 
 function StatusBadge({ status }: { status: CardStatus }) {
   return (
-    <span className={`inline-flex items-center gap-1 text-2xs font-medium px-2 py-px rounded-full border ${SC[status].badgeCls}`}>
+    <span className={`inline-flex items-center gap-1 text-sm font-medium px-2 py-px rounded-full border ${SC[status].badgeCls}`}>
       <StatusDot status={status} />
       {SC[status].label}
     </span>
@@ -360,12 +360,12 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
 
         {/* ── Header row ─────────────────────────────────── */}
         <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">
-          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
+          <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
           <div className="flex items-center gap-2.5 flex-wrap">
             {(Object.entries(SC) as [CardStatus, typeof SC[CardStatus]][]).map(([s, cfg]) => (
               <div key={s} className="flex items-center gap-0.5">
                 <StatusDot status={s} />
-                <span className="text-2xs text-ink-400">{cfg.label}</span>
+                <span className="text-sm text-ink-400">{cfg.label}</span>
               </div>
             ))}
           </div>
@@ -386,14 +386,14 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
                 </span>
               )}
             </div>
-            <span className={`text-2xs ${week.isNow ? 'text-lilac-400' : 'text-ink-400'}`}>
+            <span className={`text-sm ${week.isNow ? 'text-lilac-400' : 'text-ink-400'}`}>
               {week.weekName}&nbsp;·&nbsp;~{week.endLabel}
             </span>
           </div>
         ))}
 
         <div className="sticky top-0 right-0 z-30 bg-card border-b border-l border-ink-200 flex items-end justify-center pb-2.5">
-          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
+          <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">상태</span>
         </div>
 
         {/* ── Issue rows ─────────────────────────────────── */}
@@ -403,7 +403,7 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
               className={`sticky left-0 z-10 bg-card border-b border-r border-ink-200 flex items-center gap-2 pr-2 ${issue.indent ? 'pl-7' : 'pl-3'}`}
             >
               <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: issue.brandColor }} />
-              <span className="text-2xs text-foreground font-medium leading-tight line-clamp-3">
+              <span className="text-sm text-foreground font-medium leading-tight line-clamp-3">
                 {issue.label}
               </span>
             </div>

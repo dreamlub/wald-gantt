@@ -148,7 +148,7 @@ export function RawDataView() {
 
   if (loading) {
     return (
-      <div className="flex-1 flex items-center justify-center text-xs text-ink-400">
+      <div className="flex-1 flex items-center justify-center text-sm text-ink-400">
         로딩 중...
       </div>
     )
@@ -206,7 +206,7 @@ export function RawDataView() {
                   <tr key={`month-${month}`} className="bg-status-warn/10 border-t-2 border-status-warn/30">
                     <td className="px-5 py-2 text-sm font-semibold text-ink-600 whitespace-nowrap">
                       {monthLabel}
-                      <span className="ml-2 text-xs font-normal text-ink-400">{mRows.length}일</span>
+                      <span className="ml-2 text-sm font-normal text-ink-400">{mRows.length}일</span>
                     </td>
                     <td className="px-5 py-2 text-right text-sm text-ink-400">—</td>
                     <td className="px-5 py-2 text-right text-sm font-semibold text-ink-600 tabular-nums">{mRaw.toLocaleString()}</td>
@@ -241,7 +241,7 @@ export function RawDataView() {
                         <td className="px-5 py-2 text-right text-sm tabular-nums text-ink-400">
                           {excluded > 0 ? excluded.toLocaleString() : <span className="text-ink-200">—</span>}
                         </td>
-                        <td className="px-5 py-2 text-2xs text-ink-400 tabular-nums">
+                        <td className="px-5 py-2 text-sm text-ink-400 tabular-nums">
                           {isBusy
                             ? <span className="text-lilac-500">{activeStatus}</span>
                             : row.lastCollectedAt
@@ -254,7 +254,7 @@ export function RawDataView() {
                             onClick={() => handleRecollect(row.date)}
                             disabled={isBusy}
                             title="Slack에서 다시 수집"
-                            className="inline-flex items-center gap-1 text-xs font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
+                            className="inline-flex items-center gap-1 text-sm font-medium px-2 py-0.5 rounded border border-border text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors disabled:opacity-40 disabled:cursor-not-allowed whitespace-nowrap"
                           >
                             <RefreshCw size={10} className={cState ? 'animate-spin' : ''} />
                             재수집

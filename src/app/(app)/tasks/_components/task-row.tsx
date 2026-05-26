@@ -180,7 +180,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-2xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-sm px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
             title="하위 태스크 추가"
           >
             sub +
@@ -228,11 +228,11 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {assigneeName && (
           <>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-2xs text-muted-foreground truncate">{assigneeName}</span>
+            <span className="text-sm text-muted-foreground truncate">{assigneeName}</span>
           </>
         )}
       </button>
-      <button onClick={() => onEdit(task)} className={`w-24 shrink-0 text-2xs tabular-nums text-left hover:text-lilac-500 transition-colors ${overdue ? 'text-status-late' : 'text-ink-400'}`}>
+      <button onClick={() => onEdit(task)} className={`w-24 shrink-0 text-sm tabular-nums text-left hover:text-lilac-500 transition-colors ${overdue ? 'text-status-late' : 'text-ink-400'}`}>
         {fmtRange(task.start_date ?? null, task.due_date)}
       </button>
     </div>

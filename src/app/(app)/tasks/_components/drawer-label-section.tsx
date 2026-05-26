@@ -25,7 +25,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
 
   return (
     <div ref={labelRef}>
-      <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
+      <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider flex items-center gap-1 mb-1.5">
         <Tag size={10} /> 라벨
       </label>
       <div className="flex flex-wrap gap-1.5">
@@ -33,7 +33,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
           <button
             key={l}
             onClick={() => setLabels(prev => prev.filter(x => x !== l))}
-            className="flex items-center gap-1 text-2xs px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
+            className="flex items-center gap-1 text-xs px-2 py-0.5 rounded-full text-white font-medium hover:opacity-80 transition-opacity"
             style={{ backgroundColor: labelColor(l) }}
             title="클릭해서 삭제"
           >
@@ -42,7 +42,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
         ))}
         <div className="relative">
           <input
-            className="text-2xs px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+            className="text-sm px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
             placeholder="입력 후 Enter"
             value={labelInput}
             onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
@@ -68,7 +68,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
                       setLabelInput('')
                       setLabelOpen(false)
                     }}
-                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-2xs hover:bg-accent cursor-pointer"
+                    className="flex items-center gap-1.5 px-2.5 py-1.5 text-sm hover:bg-accent cursor-pointer"
                   >
                     <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: labelColor(s) }} />
                     {s}

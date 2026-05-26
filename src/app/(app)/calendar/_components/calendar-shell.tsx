@@ -144,7 +144,7 @@ export function CalendarShell() {
             <Button variant="ghost" size="icon-xs" onClick={() => goWeek(-1)} className="text-ink-400">
               <ChevronLeft size={15} />
             </Button>
-            <span className="text-xs font-medium text-foreground min-w-[148px] text-center select-none">{weekLabel}</span>
+            <span className="text-sm font-medium text-foreground min-w-[148px] text-center select-none">{weekLabel}</span>
             <Button variant="ghost" size="icon-xs" onClick={() => goWeek(1)} className="text-ink-400">
               <ChevronRight size={15} />
             </Button>
@@ -193,7 +193,7 @@ export function CalendarShell() {
         {calendarError && (
           <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-status-warn/10 border-b border-status-warn/20">
             <AlertCircle size={13} className="text-status-warn shrink-0" />
-            <p className="text-2xs text-foreground">
+            <p className="text-sm text-foreground">
               {calendarError === 'NO_TOKEN'           ? 'Google 캘린더 연동이 필요합니다.' :
                calendarError === 'TOKEN_EXPIRED'      ? 'Google 캘린더 토큰이 만료되었습니다.' :
                calendarError === 'GOOGLE_API_DISABLED'? 'Google Cloud에서 Calendar API를 활성화해 주세요.' :

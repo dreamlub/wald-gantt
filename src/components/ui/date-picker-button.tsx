@@ -18,7 +18,7 @@ export function DatePickerButton({ value, onChange, placeholder, disabledDates }
   const [open, setOpen] = useState(false)
   return (
     <Popover open={open} onOpenChange={setOpen}>
-      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-xs h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
+      <PopoverTrigger className="inline-flex w-full items-center justify-start gap-1.5 rounded-lg border border-border bg-card px-2 text-sm h-8 font-normal transition-colors hover:bg-muted focus:outline-none focus:border-lilac-300">
         <CalendarIcon size={13} className="text-muted-foreground shrink-0" />
         {value
           ? <span className="text-foreground">{format(value, 'yyyy.MM.dd', { locale: ko })}</span>

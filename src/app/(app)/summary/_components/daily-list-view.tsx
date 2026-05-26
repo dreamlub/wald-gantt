@@ -91,13 +91,13 @@ function TagSummary({ counts }: { counts: Partial<Record<Tag, number>> }) {
 function EmptyState({ hasFilters, onClearFilters }: { hasFilters: boolean; onClearFilters: () => void }) {
   return (
     <div className="flex-1 flex flex-col items-center justify-center py-16 text-center">
-      <p className="text-xs text-muted-foreground mb-3">
+      <p className="text-sm text-muted-foreground mb-3">
         {hasFilters ? '조건에 맞는 항목이 없어요' : '해당 기간에 데이터가 없습니다'}
       </p>
       {hasFilters && (
         <button
           onClick={onClearFilters}
-          className="text-xs px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
+          className="text-sm px-3 py-1.5 rounded border border-border text-foreground hover:bg-muted transition-colors"
         >
           필터 초기화
         </button>
@@ -141,7 +141,7 @@ function HistoryRow({
             </span>
           )
         })}
-        {item.author && <span className="shrink-0 text-xs text-ink-400">{item.author}</span>}
+        {item.author && <span className="shrink-0 text-sm text-ink-400">{item.author}</span>}
       </div>
 
       {expanded && (
@@ -152,7 +152,7 @@ function HistoryRow({
               dangerouslySetInnerHTML={{ __html: item.body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
             />
           )}
-          <div className="flex items-center gap-2 text-xs text-ink-400">
+          <div className="flex items-center gap-2 text-sm text-ink-400">
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
             <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
@@ -250,11 +250,11 @@ export function DailyListView({
               value={brandQuery}
               onChange={event => setBrandQuery(event.target.value)}
               placeholder="브랜드 검색"
-              className="w-full h-8 rounded-md border border-border bg-background pl-7 pr-2 text-xs outline-none focus:border-lilac-300"
+              className="w-full h-8 rounded-md border border-border bg-background pl-7 pr-2 text-sm outline-none focus:border-lilac-300"
             />
           </div>
         </div>
-        <div className="px-3 py-2 text-xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 {brandList.length}</div>
+        <div className="px-3 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider">브랜드 {brandList.length}</div>
         <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
           {visibleBrands.map(brand => {
             const active = selectedBrand === brand.name
@@ -269,8 +269,8 @@ export function DailyListView({
               >
                 <div className="flex items-center gap-2">
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="flex-1 truncate text-xs font-semibold">{brand.name}</span>
-                  <span className="text-2xs tabular-nums">{brand.count}</span>
+                  <span className="flex-1 truncate text-sm font-semibold">{brand.name}</span>
+                  <span className="text-sm tabular-nums">{brand.count}</span>
                 </div>
               </button>
             )
@@ -296,7 +296,7 @@ export function DailyListView({
             <section key={group.date} className="space-y-2">
               <div className="flex items-center gap-2 pb-1 border-b border-border">
                 <h3 className="text-sm font-bold text-foreground">{shortDateLabel(group.date)}</h3>
-                <span className="text-xs text-ink-400">{group.items.length}건</span>
+                <span className="text-sm text-ink-400">{group.items.length}건</span>
               </div>
               <div className="space-y-1.5">
                 {group.items.map(item => (

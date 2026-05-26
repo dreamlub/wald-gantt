@@ -68,7 +68,7 @@ export function StatsView({ items }: Props) {
   }, [items])
 
   if (total === 0) {
-    return <div className="text-center py-12 text-ink-400 text-xs">필터에 해당하는 항목이 없어요</div>
+    return <div className="text-center py-12 text-ink-400 text-sm">필터에 해당하는 항목이 없어요</div>
   }
 
   return (
@@ -82,7 +82,7 @@ export function StatsView({ items }: Props) {
           {tagCounts.mention > 0 && <>, <b className="text-lilac-600 font-semibold">멘션 {tagCounts.mention}건</b></>}
           {brandStats.length > 0 && <>이 눈에 띄고, 활성 브랜드는 <b className="text-lilac-600 font-semibold">{brandStats.length}개</b>입니다.</>}
         </div>
-        <div className="flex flex-wrap items-center gap-3 mt-3.5 pt-3.5 border-t border-lilac-200/60 text-xs text-ink-700">
+        <div className="flex flex-wrap items-center gap-3 mt-3.5 pt-3.5 border-t border-lilac-200/60 text-sm text-ink-700">
           <span className="inline-flex items-center gap-1.5"><Sparkles size={12} className="text-lilac-500" /> 총 {total}건</span>
           {TAG_KEYS.filter(t => tagCounts[t] > 0).map(t => (
             <span key={t} className="inline-flex items-center gap-1.5">
@@ -103,12 +103,12 @@ export function StatsView({ items }: Props) {
             const pct = total > 0 ? Math.round(c / total * 100) : 0
             return (
               <div key={t} className="bg-card border border-border rounded-lg px-4 py-3.5">
-                <div className="text-2xs font-medium mb-1 inline-flex items-center gap-1.5" style={{ color: meta.color }}>
+                <div className="text-sm font-medium mb-1 inline-flex items-center gap-1.5" style={{ color: meta.color }}>
                   <span className="w-1.5 h-1.5 rounded-full" style={{ background: meta.dot }} />
                   {meta.label}
                 </div>
                 <div className="text-2xl font-bold text-foreground leading-none">{c}건</div>
-                <div className="text-2xs text-ink-400 mt-1">전체의 {pct}%</div>
+                <div className="text-sm text-ink-400 mt-1">전체의 {pct}%</div>
               </div>
             )
           })}
@@ -125,11 +125,11 @@ export function StatsView({ items }: Props) {
               const pct = total > 0 ? Math.round(c / total * 100) : 0
               return (
                 <div key={p} className="bg-card border border-border rounded-lg px-4 py-3.5">
-                  <div className="text-2xs font-medium mb-1" style={{ color: meta.color }}>
+                  <div className="text-sm font-medium mb-1" style={{ color: meta.color }}>
                     ● {meta.label}
                   </div>
                   <div className="text-2xl font-bold text-foreground leading-none">{c}건</div>
-                  <div className="text-2xs text-ink-400 mt-1">전체의 {pct}%</div>
+                  <div className="text-sm text-ink-400 mt-1">전체의 {pct}%</div>
                 </div>
               )
             })}
@@ -144,11 +144,11 @@ export function StatsView({ items }: Props) {
             {brandStats.map(b => (
               <div key={b.name} className="bg-card border border-border rounded-lg px-4 py-3.5">
                 <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2 text-xs font-semibold">
+                  <div className="flex items-center gap-2 text-sm font-semibold">
                     <span className="inline-block w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(b.name) }} />
                     {b.name}
                   </div>
-                  <div className="flex gap-3.5 text-2xs text-ink-700">
+                  <div className="flex gap-3.5 text-sm text-ink-700">
                     {b.issue > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-late)' }}>● 이슈 {b.issue}</span>}
                     {b.decision > 0 && <span className="inline-flex items-center gap-1" style={{ color: 'var(--color-status-warn)' }}>● 의사결정 {b.decision}</span>}
                     <span className="text-ink-400">총 {b.total}건</span>
@@ -165,10 +165,10 @@ export function StatsView({ items }: Props) {
         <Section icon={<Users size={13} className="text-ink-400" />} label="작성자 Top" badge={`${topAuthors.length}명`}>
           <div className="bg-card border border-border rounded-lg overflow-hidden">
             {topAuthors.length === 0 ? (
-              <div className="px-4 py-6 text-center text-ink-400 text-xs">작성자 정보 없음</div>
+              <div className="px-4 py-6 text-center text-ink-400 text-sm">작성자 정보 없음</div>
             ) : (
               topAuthors.map((a, i) => (
-                <div key={a.name} className={`flex items-center px-3.5 py-2 text-xs ${i < topAuthors.length - 1 ? 'border-b border-border' : ''}`}>
+                <div key={a.name} className={`flex items-center px-3.5 py-2 text-sm ${i < topAuthors.length - 1 ? 'border-b border-border' : ''}`}>
                   <div className="flex items-center gap-2 w-[110px] text-ink-700">
                     <Avatar name={a.name} size={18} />
                     {a.name}
@@ -186,11 +186,11 @@ export function StatsView({ items }: Props) {
         <Section icon={<Hash size={13} className="text-ink-400" />} label="활발한 채널" badge={`${topChannels.length}개`}>
           <div className="bg-card border border-border rounded-lg overflow-hidden">
             {topChannels.length === 0 ? (
-              <div className="px-4 py-6 text-center text-ink-400 text-xs">채널 정보 없음</div>
+              <div className="px-4 py-6 text-center text-ink-400 text-sm">채널 정보 없음</div>
             ) : (
               topChannels.map((c, i) => (
-                <div key={c.name} className={`flex items-center px-3.5 py-2 text-xs ${i < topChannels.length - 1 ? 'border-b border-border' : ''}`}>
-                  <span className="text-2xs text-ink-700 truncate min-w-[110px]">{c.name}</span>
+                <div key={c.name} className={`flex items-center px-3.5 py-2 text-sm ${i < topChannels.length - 1 ? 'border-b border-border' : ''}`}>
+                  <span className="text-sm text-ink-700 truncate min-w-[110px]">{c.name}</span>
                   <div className="flex-1 h-px5 bg-muted rounded-xs mx-3 overflow-hidden">
                     <div className="h-full bg-lilac-500 rounded-xs" style={{ width: `${(c.count / channelMax) * 100}%` }} />
                   </div>
@@ -208,11 +208,11 @@ export function StatsView({ items }: Props) {
 function Section({ icon, label, badge, children }: { icon: React.ReactNode; label: string; badge?: string; children: React.ReactNode }) {
   return (
     <div className="mb-6">
-      <div className="flex items-center gap-2 mb-2.5 text-xs font-semibold text-ink-700">
+      <div className="flex items-center gap-2 mb-2.5 text-sm font-semibold text-ink-700">
         {icon}
         <span>{label}</span>
         {badge && (
-          <span className="text-xs px-[7px] py-[2px] rounded-full bg-muted text-ink-400 font-medium">{badge}</span>
+          <span className="text-sm px-[7px] py-[2px] rounded-full bg-muted text-ink-400 font-medium">{badge}</span>
         )}
       </div>
       {children}

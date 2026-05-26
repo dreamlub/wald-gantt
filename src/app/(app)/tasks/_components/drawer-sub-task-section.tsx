@@ -22,7 +22,7 @@ export function DrawerSubTaskSection({ task, subTasks, onStatusChange, onAddSubT
   return (
     <div>
       <div className="flex items-center gap-2 mb-2">
-        <label className="text-xs font-semibold text-ink-400 uppercase tracking-wider flex-1">
+        <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider flex-1">
           하위 태스크{subTasks.length > 0 && ` (${doneCount}/${subTasks.length})`}
         </label>
       </div>
@@ -39,11 +39,11 @@ export function DrawerSubTaskSection({ task, subTasks, onStatusChange, onAddSubT
                   : <Circle size={13} className="text-ink-300 hover:text-lilac-400 transition-colors" />
                 }
               </button>
-              <span className={`flex-1 text-xs ${sub.status === 'done' ? 'line-through text-ink-400' : 'text-ink-700'}`}>
+              <span className={`flex-1 text-sm ${sub.status === 'done' ? 'line-through text-ink-400' : 'text-ink-700'}`}>
                 {sub.title}
               </span>
               {sub.due_date && (
-                <span className="text-xs text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
+                <span className="text-sm text-ink-400 tabular-nums shrink-0">{fmtDate(sub.due_date)}</span>
               )}
             </div>
           ))}
@@ -70,13 +70,13 @@ export function DrawerSubTaskSection({ task, subTasks, onStatusChange, onAddSubT
             }}
             onBlur={() => { if (!subInput.trim()) { setAddingSub(false); setSubInput('') } }}
             placeholder="하위 태스크 제목 후 Enter, Esc 취소"
-            className="flex-1 text-2xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+            className="flex-1 text-sm outline-none placeholder:text-ink-300 bg-transparent text-foreground"
           />
         </div>
       ) : (
         <button
           onClick={() => setAddingSub(true)}
-          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-2xs text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
+          className="w-full flex items-center justify-center gap-1.5 px-3 py-2 rounded-md border border-dashed border-border text-sm text-ink-400 hover:text-foreground hover:border-ink-400 transition-colors"
         >
           <Plus size={11} /> 하위 태스크 추가
         </button>

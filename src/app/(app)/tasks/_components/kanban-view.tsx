@@ -82,7 +82,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
           {startDelayed && <TaskStatusBadge type="start-delayed" days={startDelayedDays(task.start_date)} />}
           {noUpdate && !overdue && !startDelayed && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
           {task.projects?.slice(0, 2).map(p => (
-            <span key={p.id} className="flex items-center gap-0.5 text-2xs text-ink-400">
+            <span key={p.id} className="flex items-center gap-0.5 text-sm text-ink-400">
               <Paperclip size={8} className="shrink-0" />{p.name}
             </span>
           ))}
@@ -101,7 +101,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         {assigneeName ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-2xs text-muted-foreground truncate">{assigneeName}</span>
+            <span className="text-sm text-muted-foreground truncate">{assigneeName}</span>
           </div>
         ) : <div className="flex-1" />}
 
@@ -127,7 +127,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         )}
 
         {task.due_date && !overdue && (
-          <span className="text-2xs tabular-nums text-ink-400 shrink-0">
+          <span className="text-sm tabular-nums text-ink-400 shrink-0">
             {fmtDate(task.due_date)}
           </span>
         )}
@@ -188,8 +188,8 @@ function KanbanColumn({
           className="shrink-0 w-2 h-2 rounded-full"
           style={{ backgroundColor: color }}
         />
-        <span className="text-xs font-semibold text-foreground">{label}</span>
-        <span className="text-2xs text-muted-foreground">{tasks.length}</span>
+        <span className="text-sm font-semibold text-foreground">{label}</span>
+        <span className="text-sm text-muted-foreground">{tasks.length}</span>
       </div>
 
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>
@@ -228,13 +228,13 @@ function KanbanColumn({
                 }}
                 onBlur={() => { if (!quickAddTitle.trim()) onQuickAddCancel() }}
                 placeholder="제목 후 Enter, Esc 취소"
-                className="w-full text-xs outline-none placeholder:text-ink-300 text-foreground"
+                className="w-full text-sm outline-none placeholder:text-ink-300 text-foreground"
               />
             </div>
           ) : (
             <button
               onClick={() => onQuickAddStart(status)}
-              className="flex items-center gap-1 px-2 py-1.5 text-2xs text-muted-foreground hover:text-foreground transition-colors"
+              className="flex items-center gap-1 px-2 py-1.5 text-sm text-muted-foreground hover:text-foreground transition-colors"
             >
               <Plus size={11} /> 태스크 추가
             </button>
@@ -385,7 +385,7 @@ export function KanbanView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, on
 
       <DragOverlay>
         {draggingTask && (
-          <div className="bg-card border border-lilac-200 rounded-lg shadow-xl px-3 py-2.5 text-xs text-ink-700 font-medium w-60 opacity-95">
+          <div className="bg-card border border-lilac-200 rounded-lg shadow-xl px-3 py-2.5 text-sm text-ink-700 font-medium w-60 opacity-95">
             {draggingTask.title}
           </div>
         )}

@@ -8,7 +8,7 @@ import {
   SortableContext, verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useDndSensors } from '@/lib/dnd-utils'
-import { Plus, GripVertical } from 'lucide-react'
+import { Plus, GripVertical, Undo2, Redo2 } from 'lucide-react'
 import { GanttToolbar } from './GanttToolbar'
 import { dayOffset, dayOffsetInWeeks } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
@@ -54,7 +54,13 @@ interface Props {
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
   onMoveCategory?: (updates: { id: string; sort_order: number }[]) => Promise<void>
+  onShare?: () => void
+  overdueFilter?: boolean
+  startDelayedFilter?: boolean
   readOnly?: boolean
+  hideToolbar?: boolean
+  sidebarClosed?: boolean
+  onOpenSidebar?: () => void
 }
 
 // ── GanttChart ────────────────────────────────────────────────
@@ -64,7 +70,12 @@ export function GanttChart({
   onAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
-  onMoveProject, onMoveCategory, readOnly = false,
+  onMoveProject, onMoveCategory, onShare,
+  overdueFilter: externalOverdueFilter, startDelayedFilter: externalStartDelayedFilter,
+  readOnly = false,
+  hideToolbar = false,
+  sidebarClosed = false,
+  onOpenSidebar,
 }: Props) {
   const [leftWidth, setLeftWidth]           = useState(LEFT_WIDTH_DEFAULT)
   const [viewMode, setViewMode]             = useState<ViewMode>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.viewMode') as ViewMode : null) ?? 'week')
@@ -78,8 +89,10 @@ export function GanttChart({
   const changeSortMode = (v: 'default' | 'start-asc' | 'end-desc' | 'priority-desc') => { localStorage.setItem('wald.gantt.sortMode', v); setSortMode(v) }
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
-  const [overdueFilter, setOverdueFilter] = useState(false)
-  const [startDelayedFilter, setStartDelayedFilter] = useState(false)
+  const [internalOverdueFilter, setInternalOverdueFilter] = useState(false)
+  const [internalStartDelayedFilter, setInternalStartDelayedFilter] = useState(false)
+  const overdueFilter = externalOverdueFilter ?? internalOverdueFilter
+  const startDelayedFilter = externalStartDelayedFilter ?? internalStartDelayedFilter
   const [searchQuery, setSearchQuery]       = useState('')
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
 
@@ -244,35 +257,40 @@ export function GanttChart({
   return (
     <div className="flex flex-col h-full bg-background">
       {/* 툴바 */}
-      <GanttToolbar
-        boardName={boardName}
-        readOnly={readOnly}
-        undoCount={undoCount}
-        onUndo={onUndo}
-        redoCount={redoCount}
-        onRedo={onRedo}
-        overdueCount={overdueCount}
-        overdueFilter={overdueFilter}
-        onToggleOverdueFilter={() => setOverdueFilter(v => !v)}
-        startDelayedCount={startDelayedCount}
-        startDelayedFilter={startDelayedFilter}
-        onToggleStartDelayedFilter={() => setStartDelayedFilter(v => !v)}
-        searchQuery={searchQuery}
-        onSearchChange={setSearchQuery}
-        allTeams={allTeams}
-        excludedTeams={excludedTeams}
-        onToggleTeam={toggleTeam}
-        allPMs={allPMs}
-        excludedPMs={excludedPMs}
-        onTogglePM={togglePM}
-        viewMode={viewMode}
-        onViewModeChange={changeViewMode}
-        sortMode={sortMode}
-        onSortModeChange={changeSortMode}
-        sortedCats={sortedCats}
-        onAddProject={onAddProject}
-        onAddCategory={() => setAddingCat(true)}
-      />
+      {!hideToolbar && (
+        <GanttToolbar
+          boardName={boardName}
+          readOnly={readOnly}
+          sidebarClosed={sidebarClosed}
+          onOpenSidebar={onOpenSidebar}
+          undoCount={undoCount}
+          onUndo={onUndo}
+          redoCount={redoCount}
+          onRedo={onRedo}
+          overdueCount={overdueCount}
+          overdueFilter={overdueFilter}
+          onToggleOverdueFilter={() => setInternalOverdueFilter(v => !v)}
+          startDelayedCount={startDelayedCount}
+          startDelayedFilter={startDelayedFilter}
+          onToggleStartDelayedFilter={() => setInternalStartDelayedFilter(v => !v)}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          allTeams={allTeams}
+          excludedTeams={excludedTeams}
+          onToggleTeam={toggleTeam}
+          allPMs={allPMs}
+          excludedPMs={excludedPMs}
+          onTogglePM={togglePM}
+          viewMode={viewMode}
+          onViewModeChange={changeViewMode}
+          sortMode={sortMode}
+          onSortModeChange={changeSortMode}
+          sortedCats={sortedCats}
+          onAddProject={onAddProject}
+          onAddCategory={() => setAddingCat(true)}
+          onShare={onShare}
+        />
+      )}
 
       {/* 메인 영역 */}
       <div className="flex flex-1 overflow-hidden">
@@ -283,17 +301,71 @@ export function GanttChart({
           className="shrink-0 flex flex-col shadow-panel-l"
           style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 'var(--z-overlay)' }}
         >
-          <div className="shrink-0 border-b bg-card flex items-end justify-between pr-3" style={{ height: HEADER_H }}>
-            <span className="text-2xs font-semibold text-muted-foreground px-3 pb-2">프로젝트</span>
+          <div className="shrink-0 border-b bg-card flex flex-col justify-between px-3" style={{ height: HEADER_H }}>
             {!readOnly && (
-              <button
-                onClick={() => setAddingCat(true)}
-                className="flex items-center gap-0.5 text-2xs text-muted-foreground hover:text-foreground pb-2 transition-colors"
-                title="카테고리 추가"
-              >
-                <Plus size={11} /> 카테고리
-              </button>
+              <div className="flex items-center gap-1.5 pt-1.5">
+                {onUndo && (
+                  <button
+                    onClick={onUndo}
+                    disabled={undoCount === 0}
+                    title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
+                    className="flex items-center gap-0.5 text-2xs px-1 py-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+                  >
+                    <Undo2 size={11} />
+                    {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
+                  </button>
+                )}
+                {onRedo && (
+                  <button
+                    onClick={onRedo}
+                    disabled={redoCount === 0}
+                    title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
+                    className="flex items-center gap-0.5 text-2xs px-1 py-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
+                  >
+                    <Redo2 size={11} />
+                    {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
+                  </button>
+                )}
+                {overdueCount > 0 && (
+                  <button
+                    onClick={() => setInternalOverdueFilter(v => !v)}
+                    className={`flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded-full border transition-colors ${
+                      overdueFilter
+                        ? 'bg-status-late text-white border-status-late'
+                        : 'bg-status-late/10 text-status-late border-status-late/15 hover:bg-status-late/20'
+                    }`}
+                  >
+                    <span className="w-1 h-1 rounded-full bg-current" />
+                    지연 {overdueCount}
+                  </button>
+                )}
+                {startDelayedCount > 0 && (
+                  <button
+                    onClick={() => setInternalStartDelayedFilter(v => !v)}
+                    className={`flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded-full border transition-colors ${
+                      startDelayedFilter
+                        ? 'bg-status-warn text-white border-status-warn'
+                        : 'bg-status-warn/10 text-status-warn border-status-warn/15 hover:bg-status-warn/20'
+                    }`}
+                  >
+                    <span className="w-1 h-1 rounded-full bg-current" />
+                    시작지연 {startDelayedCount}
+                  </button>
+                )}
+              </div>
             )}
+            <div className="flex items-center justify-between pb-1.5">
+              <span className="text-2xs font-semibold text-muted-foreground">프로젝트</span>
+              {!readOnly && (
+                <button
+                  onClick={() => setAddingCat(true)}
+                  className="flex items-center gap-0.5 text-2xs text-muted-foreground hover:text-foreground transition-colors"
+                  title="카테고리 추가"
+                >
+                  <Plus size={11} /> 카테고리
+                </button>
+              )}
+            </div>
           </div>
           <div
             ref={leftRef}

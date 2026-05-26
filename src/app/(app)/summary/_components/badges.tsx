@@ -7,7 +7,7 @@ import { brandColor } from '@/lib/history-service'
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
 
 export function PriorityBars({ priority, showLabel, onDark }: { priority: Priority | null; showLabel?: boolean; onDark?: boolean }) {
-  if (!priority) return showLabel ? <span className="text-3xs text-ink-300">—</span> : null
+  if (!priority || !(priority in PRIORITY_META)) return showLabel ? <span className="text-3xs text-ink-300">—</span> : null
   const p = PRIORITY_LEVEL[priority]
   const meta = PRIORITY_META[priority]
   return (

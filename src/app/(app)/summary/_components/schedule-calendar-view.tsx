@@ -207,7 +207,7 @@ export function ScheduleCalendarView() {
       <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
         <button
           onClick={() => setActiveBrands(new Set())}
-          className={`text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+          className={`text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
             activeBrands.size === 0
               ? 'bg-foreground text-white border-foreground'
               : 'bg-card text-muted-foreground border-border hover:border-ink-400'
@@ -222,7 +222,7 @@ export function ScheduleCalendarView() {
             <button
               key={brand}
               onClick={() => toggleBrand(brand)}
-              className={`inline-flex items-center gap-1.5 text-2xs px-2.5 py-[3px] rounded-full border transition-colors ${
+              className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
                 active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400'
               }`}
               style={active ? { backgroundColor: color, borderColor: color } : undefined}
@@ -247,11 +247,11 @@ export function ScheduleCalendarView() {
         </button>
         <button
           onClick={goToday}
-          className="ml-1 text-2xs px-2 py-1 rounded border border-border text-ink-500 hover:bg-muted transition-colors"
+          className="ml-1 text-sm px-2 py-1 rounded border border-border text-ink-500 hover:bg-muted transition-colors"
         >
           이번 달
         </button>
-        <span className="ml-auto text-2xs text-ink-400">
+        <span className="ml-auto text-sm text-ink-400">
           {filteredEvents.filter(e => e.parsedDate).length}건 표시
           {undatedEvents.length > 0 && ` · 날짜 미정 ${undatedEvents.length}건`}
         </span>
@@ -362,8 +362,8 @@ export function ScheduleCalendarView() {
         {undatedEvents.length > 0 && (
           <div className="px-4 pt-4 pb-6">
             <div className="flex items-center gap-2 mb-2">
-              <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
-              <span className="text-xs text-ink-300">{undatedEvents.length}건</span>
+              <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">날짜 미정</span>
+              <span className="text-sm text-ink-300">{undatedEvents.length}건</span>
             </div>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               {undatedEvents.map((e, i) => {
@@ -371,9 +371,9 @@ export function ScheduleCalendarView() {
                 return (
                   <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
                     <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
-                    <span className="flex-1 text-xs text-foreground">{e.title}</span>
-                    <span className="text-2xs text-ink-400 shrink-0">{e.brand}</span>
-                    <span className="text-xs px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
+                    <span className="flex-1 text-sm text-foreground">{e.title}</span>
+                    <span className="text-sm text-ink-400 shrink-0">{e.brand}</span>
+                    <span className="text-sm px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>
                   </div>
                 )
               })}
@@ -397,8 +397,8 @@ export function ScheduleCalendarView() {
               style={{ left, top }}
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">
-                <span className="text-2xs font-semibold text-foreground">{label}</span>
-                <span className="text-xs text-muted-foreground">{popEvents.length}건</span>
+                <span className="text-sm font-semibold text-foreground">{label}</span>
+                <span className="text-sm text-muted-foreground">{popEvents.length}건</span>
               </div>
               <div className="flex flex-col gap-0.5 px-2 max-h-52 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
                 {popEvents.map((e, i) => {
