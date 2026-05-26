@@ -26,7 +26,7 @@ function SortBtn({
   return (
     <button
       onClick={() => onToggle(col)}
-      className={`flex items-center gap-0.5 text-3xs font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
+      className={`flex items-center gap-0.5 text-2xs font-semibold uppercase tracking-wider hover:text-muted-foreground transition-colors
         ${active ? 'text-accent-foreground' : 'text-ink-400'}`}
     >
       {label}
@@ -188,7 +188,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           )}
         </div>
         <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-8 shrink-0 text-3xs font-semibold text-ink-400 uppercase tracking-wider">메모</div>
+        <div className="w-8 shrink-0 text-2xs font-semibold text-ink-400 uppercase tracking-wider">메모</div>
         <div className="w-8 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
@@ -277,7 +277,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               {!isSub && onSubQuickCreate && (
                 <button
                   onClick={e => { e.stopPropagation(); setSubQuickParentId(task.id); setSubQuickTitle('') }}
-                  className="shrink-0 opacity-0 group-hover:opacity-100 text-3xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+                  className="shrink-0 opacity-0 group-hover:opacity-100 text-2xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
                   title="하위 태스크 추가"
                 >
                   sub +
@@ -364,7 +364,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
             placeholder="제목 입력 후 Enter, Esc로 취소 (기본 To-Do)"
             className="flex-1 text-xs outline-none placeholder:text-ink-300 bg-transparent text-foreground"
           />
-          <span className="text-3xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>
+          <span className="text-2xs text-ink-300 shrink-0">상세 설정은 행 클릭</span>
         </div>
       ) : (
         <button

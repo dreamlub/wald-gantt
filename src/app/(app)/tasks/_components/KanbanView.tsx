@@ -82,7 +82,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
           {startDelayed && <TaskStatusBadge type="start-delayed" days={startDelayedDays(task.start_date)} />}
           {noUpdate && !overdue && !startDelayed && <TaskStatusBadge type="no-update" days={daysDiff(task.updated_at)} />}
           {task.projects?.slice(0, 2).map(p => (
-            <span key={p.id} className="flex items-center gap-0.5 text-3xs text-ink-400">
+            <span key={p.id} className="flex items-center gap-0.5 text-2xs text-ink-400">
               <Paperclip size={8} className="shrink-0" />{p.name}
             </span>
           ))}
@@ -101,7 +101,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         {assigneeName ? (
           <div className="flex items-center gap-1 flex-1 min-w-0">
             <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />
-            <span className="text-3xs text-muted-foreground truncate">{assigneeName}</span>
+            <span className="text-2xs text-muted-foreground truncate">{assigneeName}</span>
           </div>
         ) : <div className="flex-1" />}
 
@@ -127,7 +127,7 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
         )}
 
         {task.due_date && !overdue && (
-          <span className="text-3xs tabular-nums text-ink-400 shrink-0">
+          <span className="text-2xs tabular-nums text-ink-400 shrink-0">
             {fmtDate(task.due_date)}
           </span>
         )}

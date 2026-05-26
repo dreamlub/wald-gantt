@@ -112,7 +112,7 @@ export function TasksSidebar({
         {/* 프로젝트 */}
         {projects.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
+            <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
             {projects.map(p => (
               <button
                 key={p.id}
@@ -129,7 +129,7 @@ export function TasksSidebar({
 
         {/* 담당자 */}
         <div className="mt-3">
-          <div className="px-2 mb-1 text-3xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
+          <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
           <div className="relative mx-2 mb-1.5">
             <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
             <input
@@ -167,7 +167,7 @@ export function TasksSidebar({
         {/* 라벨 */}
         {labels.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1.5 text-3xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
+            <div className="px-2 mb-1.5 text-2xs font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
               {labels.map(l => (
                 <LabelBadge

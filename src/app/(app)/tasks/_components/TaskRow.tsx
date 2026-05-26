@@ -180,7 +180,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         {!isSubTask && onAddSubTask && (
           <button
             onClick={e => { e.stopPropagation(); onAddSubTask() }}
-            className="shrink-0 opacity-0 group-hover:opacity-100 text-3xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            className="shrink-0 opacity-0 group-hover:opacity-100 text-2xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
             title="하위 태스크 추가"
           >
             sub +

@@ -463,7 +463,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
 
           {/* 반복 */}
           <div className="pt-2 border-t border-border">
-            <label className="text-4xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
+            <label className="text-2xs font-semibold text-muted-foreground uppercase tracking-wider flex items-center gap-1 mb-1.5">
               <RotateCw size={10} /> 반복
             </label>
             <div className="flex items-center gap-2">

@@ -122,8 +122,8 @@ function HistoryRow({
             </span>
           )}
         </div>
-        {item.author && <span className="shrink-0 text-3xs text-ink-400">{item.author}</span>}
-        <span className="shrink-0 text-3xs text-ink-400 tabular-nums">{shortTime(item.occurred_at)}</span>
+        {item.author && <span className="shrink-0 text-2xs text-ink-400">{item.author}</span>}
+        <span className="shrink-0 text-2xs text-ink-400 tabular-nums">{shortTime(item.occurred_at)}</span>
       </div>
 
       {expanded && (

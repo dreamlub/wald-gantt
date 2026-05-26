@@ -361,12 +361,12 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
 
         {/* ── Header row ─────────────────────────────────── */}
         <div className="sticky top-0 left-0 z-30 bg-card border-b border-r border-ink-200 flex flex-col justify-end px-3 pb-2.5 gap-1.5">
-          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
+          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">브랜드 / 이슈</span>
           <div className="flex items-center gap-2.5 flex-wrap">
             {(Object.entries(SC) as [CardStatus, typeof SC[CardStatus]][]).map(([s, cfg]) => (
               <div key={s} className="flex items-center gap-0.5">
                 <StatusDot status={s} />
-                <span className="text-3xs text-ink-400">{cfg.label}</span>
+                <span className="text-2xs text-ink-400">{cfg.label}</span>
               </div>
             ))}
           </div>
@@ -394,7 +394,7 @@ export function TimelineView({ dateFrom, dateTo, brandFilter }: Props) {
         ))}
 
         <div className="sticky top-0 right-0 z-30 bg-card border-b border-l border-ink-200 flex items-end justify-center pb-2.5">
-          <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
+          <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">상태</span>
         </div>
 
         {/* ── Issue rows ─────────────────────────────────── */}

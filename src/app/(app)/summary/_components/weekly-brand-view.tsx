@@ -218,28 +218,28 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
           <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
             <tr>
               <th
-                className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
                 onClick={() => toggleSort('week')}
               >
                 <span className="flex items-center gap-1">주차 <SortIcon active={sortKey === 'week'} dir={sortDir} /></span>
               </th>
               <th
-                className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
                 onClick={() => toggleSort('brand')}
               >
                 <span className="flex items-center gap-1">브랜드 <SortIcon active={sortKey === 'brand'} dir={sortDir} /></span>
               </th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider w-[180px]">주제</th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider min-w-[240px]">요약</th>
-              <th className="text-left px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider">태그</th>
+              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider w-[180px]">주제</th>
+              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider min-w-[240px]">요약</th>
+              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider">태그</th>
               <th
-                className="text-center px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                className="text-center px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
                 onClick={() => toggleSort('priority')}
               >
                 <span className="flex items-center justify-center gap-1">중요도 <SortIcon active={sortKey === 'priority'} dir={sortDir} /></span>
               </th>
               <th
-                className="text-right px-5 py-2 text-3xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
+                className="text-right px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
                 onClick={() => toggleSort('count')}
               >
                 <span className="flex items-center justify-end gap-1">건수 <SortIcon active={sortKey === 'count'} dir={sortDir} /></span>
@@ -254,7 +254,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
                   {/* 주차 */}
                   <td className="px-5 py-2 whitespace-nowrap tabular-nums">
                     <div className="text-xs font-medium text-foreground">{getWeekLabel(row.week_start)}</div>
-                    <div className="text-3xs text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
+                    <div className="text-2xs text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
                   </td>
 
                   {/* 브랜드 */}
@@ -301,7 +301,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
           </tbody>
           <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
             <tr>
-              <td colSpan={7} className="px-5 py-2 text-right text-3xs text-ink-400 tabular-nums">
+              <td colSpan={7} className="px-5 py-2 text-right text-2xs text-ink-400 tabular-nums">
                 {filtered.length === 0
                   ? <span className="text-ink-300">해당 조건의 위클리 요약이 없습니다.</span>
                   : <>

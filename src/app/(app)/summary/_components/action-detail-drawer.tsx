@@ -82,8 +82,8 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="flex items-start justify-between gap-2 mb-1.5">
           <p className="text-sm font-semibold text-foreground leading-snug flex-1">{r.title}</p>
           <div className="flex items-center gap-2 shrink-0">
-            {r.thread_count > 0 && <span className="text-3xs text-ink-400">{r.thread_count}개 답글</span>}
-            {r.author && <span className="text-3xs text-ink-400">{r.author}</span>}
+            {r.thread_count > 0 && <span className="text-2xs text-ink-400">{r.thread_count}개 답글</span>}
+            {r.author && <span className="text-2xs text-ink-400">{r.author}</span>}
           </div>
         </div>
         {r.body && <BodyBullets text={r.body} className="text-2xs text-ink-500 leading-relaxed mb-2" />}
@@ -106,7 +106,7 @@ function RelatedItemCard({ item: r }: { item: RelatedItem }) {
         <div className="border-t border-border">
           <button
             onClick={() => setRawOpen(v => !v)}
-            className="w-full flex items-center justify-between px-3.5 py-2 text-3xs text-ink-400 hover:bg-muted/30 transition-colors"
+            className="w-full flex items-center justify-between px-3.5 py-2 text-2xs text-ink-400 hover:bg-muted/30 transition-colors"
           >
             <span className="font-semibold uppercase tracking-wider">원본 메시지</span>
             <span className={`transition-transform ${rawOpen ? 'rotate-180' : ''}`}>▾</span>
@@ -244,8 +244,8 @@ export function ActionDetailDrawer({
 
         <div className="px-5 py-4">
           <div className="flex items-center gap-2 mb-3">
-            <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
-            {!loading && <span className="text-3xs text-ink-300">{related.length}건</span>}
+            <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">관련 내역</span>
+            {!loading && <span className="text-2xs text-ink-300">{related.length}건</span>}
           </div>
           {loading ? (
             <div className="flex justify-center py-8"><Loader2 size={14} className="animate-spin text-ink-400" /></div>
@@ -259,14 +259,14 @@ export function ActionDetailDrawer({
         {!loading && similar.length > 0 && (
           <div className="px-5 py-4 border-t border-border">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-3xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
-              <span className="text-3xs text-ink-300">{similar.length}건</span>
+              <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">과거 유사 내역</span>
+              <span className="text-2xs text-ink-300">{similar.length}건</span>
             </div>
             <div className="space-y-1.5">
               {similar.map(s => (
                 <div key={s.id} className="rounded-lg border border-border bg-muted/20 p-3">
                   <div className="flex items-start gap-2 mb-1.5">
-                    <span className="text-3xs text-ink-400 shrink-0 mt-[2px] tabular-nums">{kstDateLabel(s.occurred_at)}</span>
+                    <span className="text-2xs text-ink-400 shrink-0 tabular-nums">{kstDateLabel(s.occurred_at)}</span>
                     <p className="text-xs text-foreground leading-snug flex-1">{s.title}</p>
                   </div>
                   {s.body && <BodyBullets text={s.body} className="text-2xs text-ink-400 leading-relaxed ml-[3.5rem]" />}
