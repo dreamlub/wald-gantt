@@ -207,8 +207,8 @@ export function useTasksData() {
       const idSet = new Set(ids)
       setTasks(prev => prev.map(t => idSet.has(t.id) ? { ...t, status } : t))
       toast(`${ids.length}개 태스크 상태를 변경했어요`)
-    } catch (e) { toast.error(errMsg(e)) }
-  }, [])
+    } catch (e) { toast.error(errMsg(e)); await load() }
+  }, [load])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed(prev => {
