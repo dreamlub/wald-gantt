@@ -11,7 +11,6 @@ import type { GanttCategory } from '@/types'
 import { TAG_META, PRIORITY_META } from '../_lib/mock-data'
 import { HistorySidebar, type PriorityKey, getCurrentWeekStart } from './history-sidebar'
 import { HistoryToolbar } from './history-toolbar'
-import { TableView } from './table-view'
 import { BrandDailyListView } from './brand-daily-list-view'
 import { SummaryView } from './summary-view'
 import { RawDataView } from './raw-data-view'
@@ -62,7 +61,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
-  const [cardMode,     setCardMode]     = useState(false)
   const [weeklyCount,     setWeeklyCount]     = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
@@ -284,8 +282,6 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
           setSearchOpen={setSearchOpen}
           searchQuery={searchQuery}
           setSearchQuery={setSearchQuery}
-          cardMode={cardMode}
-          setCardMode={setCardMode}
         />
 
         {/* 본문 */}
@@ -348,28 +344,7 @@ export function HistoryShell({ initialClients, initialHistory }: Props) {
                 </div>
               )}
 
-              {view === 'dailylist' && !cardMode && (
-                <TableView
-                  items={pg.items}
-                  selectedTags={selectedTags}
-                  searchQuery={searchQuery}
-                  hasFilters={hasFilters}
-                  total={pg.total}
-                  hasMore={pg.hasMore}
-                  loadingMore={pg.loading}
-                  brandCounts={pg.brandCounts}
-                  activeBrand={brandId === 'all' ? null : brandId}
-                  onLoadMore={handleLoadMore}
-                  onToggleTag={toggleTag}
-                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
-                  onSelectAuthor={a => setAuthorKey(authorKey === a ? 'all' : a)}
-                  onOpenItem={setActiveItem}
-                  onClearFilters={resetFilters}
-                  onCreateTask={handleOpenCreateTask}
-                  onCreateProject={handleOpenCreateProject}
-                />
-              )}
-              {view === 'dailylist' && cardMode && (
+              {view === 'dailylist' && (
                 <BrandDailyListView
                   items={pg.items}
                   hasFilters={hasFilters}
