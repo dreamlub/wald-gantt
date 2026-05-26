@@ -210,7 +210,7 @@ export function BrandDailyListView({
     ? firstItemId
     : expandedId && selectedItems.some(item => item.id === expandedId)
       ? expandedId
-      : expandedId
+      : null
 
   const handleLoadMore = useCallback(() => {
     if (hasMore && !loadingMore && onLoadMore) onLoadMore()

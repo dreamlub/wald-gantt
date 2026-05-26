@@ -77,6 +77,13 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
     return next
   })
 
+  // 날짜가 바뀌면 DailyReport 필터 초기화 (이전 날짜 선택 기준 필터가 잔류하는 버그 방지)
+  useEffect(() => {
+    setDailyBrands(new Set())
+    setDailyTags(new Set())
+    setDailyPriorities(new Set())
+  }, [dateFrom])
+
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
 

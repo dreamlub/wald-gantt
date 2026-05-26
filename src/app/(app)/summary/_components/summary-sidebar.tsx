@@ -1,8 +1,10 @@
 'use client'
 
+import { useMemo } from 'react'
 import { Check, LayoutList } from 'lucide-react'
 
 import type { Tag, HistoryItem, Priority } from '../_lib/types'
+import type { ViewKey } from './summary-shell-state'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
@@ -49,7 +51,7 @@ export function isCurrentWeek(weekStart: string): boolean {
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
+  view: ViewKey
   history: HistoryItem[]
   dateFrom: string
   dateTo: string
@@ -79,13 +81,20 @@ export function SummarySidebar({
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
 }: Props) {
-  const tagCounts: Record<string, number> = {}
-  for (const t of TAG_KEYS) tagCounts[t] = 0
-  for (const h of history) for (const t of h.tags ?? []) tagCounts[t] = (tagCounts[t] ?? 0) + 1
+  // hooks는 조건부 return 전에 선언해야 함
+  const tagCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const t of TAG_KEYS) counts[t] = 0
+    for (const h of history) for (const t of h.tags ?? []) counts[t] = (counts[t] ?? 0) + 1
+    return counts
+  }, [history])
 
-  const priCounts: Record<string, number> = { all: history.length }
-  for (const p of PRIORITY_KEYS) priCounts[p] = 0
-  for (const h of history) if (h.priority) priCounts[h.priority] = (priCounts[h.priority] ?? 0) + 1
+  const priCounts = useMemo(() => {
+    const counts: Record<string, number> = { all: history.length }
+    for (const p of PRIORITY_KEYS) counts[p] = 0
+    for (const h of history) if (h.priority) counts[h.priority] = (counts[h.priority] ?? 0) + 1
+    return counts
+  }, [history])
 
   if (view === 'rawdata') {
     return <RawDataSidebarPanel />
@@ -173,15 +182,20 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
   brandId: string | 'all'; onBrandChange: (b: string | 'all') => void
 }) {
-  const timelineBrandCounts: Record<string, number> = {}
-  for (const h of history) {
-    const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
-    if (dateFrom && ymd < dateFrom) continue
-    if (dateTo && ymd > dateTo) continue
-    const b = h.brand_name ?? '미분류'
-    timelineBrandCounts[b] = (timelineBrandCounts[b] ?? 0) + 1
-  }
-  const timelineTotal = Object.values(timelineBrandCounts).reduce((a, b) => a + b, 0)
+  const { timelineBrandCounts, timelineTotal } = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const h of history) {
+      const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+      if (dateFrom && ymd < dateFrom) continue
+      if (dateTo && ymd > dateTo) continue
+      const b = h.brand_name ?? '미분류'
+      counts[b] = (counts[b] ?? 0) + 1
+    }
+    return {
+      timelineBrandCounts: counts,
+      timelineTotal: Object.values(counts).reduce((a, b) => a + b, 0),
+    }
+  }, [history, dateFrom, dateTo])
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -231,19 +245,29 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
   onToggleDailyBrand: (b: string) => void; onToggleDailyTag: (t: Tag) => void; onToggleDailyPriority: (p: Priority) => void
 }) {
   const selectedDate = dateFrom || dateStr(new Date())
-  const dayItems = history.filter(h =>
-    new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }) === selectedDate
-  )
-  const dayTagCounts: Record<string, number> = {}
-  for (const t of TAG_KEYS) dayTagCounts[t] = 0
-  for (const h of dayItems) for (const t of h.tags ?? []) dayTagCounts[t] = (dayTagCounts[t] ?? 0) + 1
 
-  const brandCounts: Record<string, number> = {}
-  for (const h of dayItems) {
-    const b = h.brand_name ?? '미분류'
-    brandCounts[b] = (brandCounts[b] ?? 0) + 1
-  }
-  const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  const dayItems = useMemo(() =>
+    history.filter(h =>
+      new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }) === selectedDate
+    ),
+    [history, selectedDate]
+  )
+
+  const dayTagCounts = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const t of TAG_KEYS) counts[t] = 0
+    for (const h of dayItems) for (const t of h.tags ?? []) counts[t] = (counts[t] ?? 0) + 1
+    return counts
+  }, [dayItems])
+
+  const topBrands = useMemo(() => {
+    const counts: Record<string, number> = {}
+    for (const h of dayItems) {
+      const b = h.brand_name ?? '미분류'
+      counts[b] = (counts[b] ?? 0) + 1
+    }
+    return Object.entries(counts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  }, [dayItems])
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
