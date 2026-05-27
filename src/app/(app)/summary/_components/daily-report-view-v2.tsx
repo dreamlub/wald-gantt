@@ -48,7 +48,7 @@ const BADGE_SCHEDULE  = { label: '일정',    cls: 'bg-lilac-100 text-lilac-600'
 function StatPill({ value, label, cls }: { value: number; label: string; cls: string }) {
   return (
     <div className="flex flex-col items-end gap-1">
-      <span className={`text-3xl font-black tabular-nums leading-none ${cls}`}>
+      <span className={`text-xl font-black tabular-nums leading-none ${cls}`}>
         {String(value).padStart(2, '0')}
       </span>
       <span className="text-2xs text-ink-400 leading-none">{label}</span>
@@ -66,19 +66,19 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
   const pendingTotal = content.pending.reduce((s, p) => s + p.count, 0)
 
   return (
-    <div className="shrink-0 border-b border-border px-6 py-5 bg-card flex items-end justify-between gap-6">
+    <div className="shrink-0 border-b border-border px-6 py-3 bg-card flex items-center justify-between gap-6">
       <div>
-        <p className="text-2xs font-semibold text-ink-400 uppercase tracking-widest mb-2">
+        <p className="text-2xs text-ink-400 uppercase tracking-widest mb-1">
           DAILY REPORT · VOL.{vol} / NO.{no}
         </p>
-        <div className="flex items-baseline gap-2.5">
-          <span className="text-5xl font-black tracking-tight text-foreground tabular-nums leading-none">
+        <div className="flex items-baseline gap-2">
+          <span className="text-2xl font-black tracking-tight text-foreground tabular-nums leading-none">
             {dayLabel}
           </span>
-          <span className="text-xl font-semibold text-ink-300">{dowLabel}</span>
+          <span className="text-sm font-semibold text-ink-300">{dowLabel}</span>
         </div>
       </div>
-      <div className="flex items-end gap-7 pb-0.5">
+      <div className="flex items-center gap-6">
         <StatPill value={content.action_items.length} label="총 항목"  cls="text-foreground" />
         <StatPill value={urgentCount}                 label="긴급"     cls="text-status-late" />
         <StatPill value={content.decisions.length}    label="결정"     cls="text-mint-500" />
