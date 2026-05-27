@@ -283,7 +283,7 @@ export function TaskDetailDrawer({
 
           {/* 연결 프로젝트 */}
           <DrawerProjectSection
-            key={task?.id}
+            key={task?.id ? `${task.id}-projects` : 'projects'}
             linkedProjects={linkedProjects}
             setLinkedProjects={setLinkedProjects}
             onSearchProjects={onSearchProjects}
@@ -291,7 +291,7 @@ export function TaskDetailDrawer({
 
           {/* 라벨 */}
           <DrawerLabelSection
-            key={task?.id}
+            key={task?.id ? `${task.id}-labels` : 'labels'}
             labels={labels}
             setLabels={setLabels}
             labelSuggestions={labelSuggestions}

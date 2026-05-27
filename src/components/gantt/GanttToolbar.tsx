@@ -341,7 +341,7 @@ export function GanttToolbar({
         </button>
       )}
       {boardName && (
-        <h1 className="text-sm font-semibold text-foreground whitespace-nowrap">{boardName}</h1>
+        <h1 className="text-xl font-semibold text-foreground whitespace-nowrap">{boardName}</h1>
       )}
       <div className="flex-1" />
       {controls}

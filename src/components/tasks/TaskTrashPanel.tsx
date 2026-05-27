@@ -28,7 +28,7 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
       fetchDeps={[workspaceId]}
       renderItem={task => (
         <>
-          <div className="text-xs font-medium text-foreground truncate">{task.title}</div>
+          <div className="text-sm font-medium text-foreground truncate">{task.title}</div>
           <div className="flex items-center gap-1.5 mt-0.5">
             <span
               className="text-xs font-medium px-1.5 py-0.5 rounded-full"
@@ -37,10 +37,10 @@ export function TaskTrashPanel({ open, onClose, workspaceId, onRestore }: Props)
               {STATUS_LABEL[task.status] ?? task.status}
             </span>
             {task.assignee && (
-              <span className="text-xs text-muted-foreground truncate">{task.assignee}</span>
+              <span className="text-sm text-muted-foreground truncate">{task.assignee}</span>
             )}
             {task.deleted_at && (
-              <span className="text-xs text-ink-300">{formatDateYMD(task.deleted_at)}</span>
+              <span className="text-sm text-ink-300">{formatDateYMD(task.deleted_at)}</span>
             )}
           </div>
         </>

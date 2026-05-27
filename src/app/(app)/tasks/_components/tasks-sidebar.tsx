@@ -102,7 +102,7 @@ export function TasksSidebar({
             className={`sidebar-btn w-full ${quickFilter === item.key ? 'sidebar-btn-active' : ''}`}
           >
             {item.icon}
-            <span className="flex-1 text-left truncate">{item.label}</span>
+            <span className="flex-1 text-left truncate text-sm">{item.label}</span>
             <span className={`text-sm ${item.count > 0 ? item.countColor : 'text-ink-400'}`}>
               {item.count}
             </span>
@@ -112,7 +112,7 @@ export function TasksSidebar({
         {/* 프로젝트 */}
         {projects.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">프로젝트</div>
+            <div className="px-2 mb-1 text-sm font-semibold text-foreground uppercase tracking-wider">프로젝트</div>
             {projects.map(p => (
               <button
                 key={p.id}
@@ -120,7 +120,7 @@ export function TasksSidebar({
                 className={`sidebar-btn ${filterProject === p.id ? 'sidebar-btn-active' : ''}`}
               >
                 <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: PROJECT_COLORS[p.colorIdx % PROJECT_COLORS.length] }} />
-                <span className="flex-1 truncate text-left">{p.name}</span>
+                <span className="flex-1 truncate text-left text-sm">{p.name}</span>
                 <span className="text-sm text-ink-400">{p.count}</span>
               </button>
             ))}
@@ -129,7 +129,7 @@ export function TasksSidebar({
 
         {/* 담당자 */}
         <div className="mt-3">
-          <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">담당자</div>
+          <div className="px-2 mb-1 text-sm font-semibold text-foreground uppercase tracking-wider">담당자</div>
           <div className="relative mx-2 mb-1.5">
             <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300" />
             <input
@@ -150,7 +150,7 @@ export function TasksSidebar({
                 className="w-2 h-2 rounded-full shrink-0"
                 style={{ backgroundColor: assigneeColorMap.get(a.key) ?? 'var(--color-ink-300)' }}
               />
-              <span className="flex-1 truncate text-left">{a.label}</span>
+              <span className="flex-1 truncate text-left text-sm">{a.label}</span>
               <span className="text-sm text-ink-400">{a.count}</span>
             </button>
           ))}
@@ -167,7 +167,7 @@ export function TasksSidebar({
         {/* 라벨 */}
         {labels.length > 0 && (
           <div className="mt-3">
-            <div className="px-2 mb-1.5 text-sm font-semibold text-ink-400 uppercase tracking-wider">라벨</div>
+            <div className="px-2 mb-1.5 text-sm font-semibold text-foreground uppercase tracking-wider">라벨</div>
             <div className="flex flex-wrap gap-1 px-2">
               {labels.map(l => (
                 <LabelBadge

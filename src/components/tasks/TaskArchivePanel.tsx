@@ -37,7 +37,7 @@ export function TaskArchivePanel({ open, onClose, workspaceId, onUnarchive }: Pr
   }
 
   return (
-    <Drawer open={open} onClose={onClose} width={320} backdrop={false} panelClass="border-l shadow-xl">
+    <Drawer open={open} onClose={onClose} width={320} panelClass="border-l shadow-xl">
       {/* 헤더 */}
       <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
         <Archive size={14} className="text-muted-foreground shrink-0" />

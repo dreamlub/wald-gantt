@@ -32,7 +32,7 @@ export function Drawer({
     <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'}`}>
       <div
         className={`absolute inset-0 transition-opacity duration-200 ${
-          backdrop ? 'bg-black/40' : ''
+          backdrop ? 'bg-black/30' : ''
         } ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={closeOnBackdrop ? onClose : undefined}
       />
