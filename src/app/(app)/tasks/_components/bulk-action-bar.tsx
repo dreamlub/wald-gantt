@@ -23,7 +23,7 @@ export function BulkActionBar({
   if (selectedCount === 0) return null
 
   return (
-    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-50 flex items-center gap-1.5 bg-sidebar text-sidebar-foreground px-3 py-2 rounded-xl shadow-xl border border-sidebar-border">
+    <div className="fixed bottom-6 left-1/2 -translate-x-1/2 z-dialog flex items-center gap-1.5 bg-sidebar text-sidebar-foreground px-3 py-2 rounded-xl shadow-xl border border-sidebar-border">
       <span className="text-xs font-medium px-1.5">{selectedCount}개 선택됨</span>
       <div className="w-px h-4 bg-sidebar-border mx-0.5" />
       <div className="relative">
@@ -34,7 +34,7 @@ export function BulkActionBar({
           상태 변경 <ChevronDown size={11} />
         </button>
         {bulkStatusOpen && (
-          <div className="absolute bottom-full mb-1.5 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[110px] z-50">
+          <div className="absolute bottom-full mb-1.5 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[110px] z-above">
             {STATUS_GROUPS.map(({ status, label, color }) => (
               <button
                 key={status}

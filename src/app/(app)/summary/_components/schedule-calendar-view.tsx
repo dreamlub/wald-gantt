@@ -391,9 +391,9 @@ export function ScheduleCalendarView() {
         const top  = overflow.y + 8 + (window.innerHeight - overflow.y < 260 ? -260 : 0)
         return (
           <>
-            <div className="fixed inset-0 z-40" onClick={() => setOverflow(null)} />
+            <div className="fixed inset-0 z-overlay" onClick={() => setOverflow(null)} />
             <div
-              className="fixed z-50 w-56 bg-card border border-border rounded-xl shadow-lg py-2 overflow-hidden"
+              className="fixed z-dialog w-56 bg-card border border-border rounded-xl shadow-lg py-2 overflow-hidden"
               style={{ left, top }}
             >
               <div className="flex items-center justify-between px-3 pb-1.5 border-b border-border mb-1">

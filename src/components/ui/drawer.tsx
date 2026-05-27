@@ -29,7 +29,7 @@ export function Drawer({
   if (!mounted) return null
 
   return createPortal(
-    <div className={`fixed inset-0 z-[100] ${open ? '' : 'pointer-events-none'}`}>
+    <div className={`fixed inset-0 z-dialog ${open ? '' : 'pointer-events-none'}`}>
       <div
         className={`absolute inset-0 transition-opacity duration-200 ${
           backdrop ? 'bg-black/30' : ''

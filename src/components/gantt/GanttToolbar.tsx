@@ -170,7 +170,7 @@ export function GanttToolbar({
               <ChevronDown size={11} />
             </button>
             {showFilter && (
-              <div className="fixed bg-card border rounded-lg shadow-lg py-1 w-[260px]" style={{ top: filterPos.top, right: filterPos.right, zIndex: 9999 }}>
+              <div className="fixed bg-card border rounded-lg shadow-lg py-1 w-[260px]" style={{ top: filterPos.top, right: filterPos.right, zIndex: 'var(--z-dialog)' }}>
                 {allTeams.length > 0 && (
                   <>
                     <div className="px-3 py-1.5 border-b flex items-center justify-between gap-2">
@@ -277,7 +277,7 @@ export function GanttToolbar({
             <ChevronDown size={11} />
           </button>
           {showSort && (
-            <div className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg z-50 min-w-[140px] py-1">
+            <div className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg z-dialog min-w-[140px] py-1">
               {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
                 <button
                   key={mode}
