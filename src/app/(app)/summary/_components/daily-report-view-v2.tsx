@@ -90,9 +90,8 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
 }
 
 // ── Headline cards ────────────────────────────────────────────────────
-function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
-  const color = brandColor(item.brand) ?? 'var(--color-status-late)'
-  // 짝수 인덱스 → 브랜드 색상, 홀수 인덱스 → 잉크 다크
+function HeadlineCard({ text, brand, index }: { text: string; brand?: string; index: number }) {
+  const color = brand ? (brandColor(brand) ?? 'var(--color-lilac-500)') : 'var(--color-lilac-500)'
   const bg = index % 2 === 0 ? color : 'var(--color-ink-900)'
   const labelOpacity = index % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)'
   const num = String(index + 1).padStart(2, '0')
@@ -110,33 +109,39 @@ function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
           <span className="text-3xl font-black leading-none text-white/80">{num}</span>
         </div>
         <p className="text-sm font-semibold text-white leading-relaxed">
-          {renderBold(item.title)}
+          {renderBold(text)}
         </p>
       </div>
-      <div className="px-5 pb-4">
-        <span className="text-2xs font-semibold text-white/55 border border-white/20 px-2.5 py-1 rounded-full">
-          {item.brand}
-        </span>
-      </div>
+      {brand && (
+        <div className="px-5 pb-4">
+          <span className="text-2xs font-semibold text-white/55 border border-white/20 px-2.5 py-1 rounded-full">
+            {brand}
+          </span>
+        </div>
+      )}
     </article>
   )
 }
 
-function V2Lead({ items }: { items: ActionItem[] }) {
-  // 전체 action_items를 심각도 순 정렬 (개수 제한 없음)
-  const top = useMemo(() =>
-    [...items].sort((a, b) =>
-      ({ urgent: 0, watch: 1, info: 2 }[a.severity] ?? 2) -
-      ({ urgent: 0, watch: 1, info: 2 }[b.severity] ?? 2)
-    )
-  , [items])
+// headline 텍스트를 문장 단위로 쪼개고, action_items 브랜드명과 매칭
+function V2Lead({ headline, actionItems }: { headline: string; actionItems: ActionItem[] }) {
+  const sentences = useMemo(() => {
+    return headline
+      .split('\n')
+      .map(l => l.trim().replace(/^[-•*\d.]\s*/, ''))
+      .filter(Boolean)
+      .flatMap(line => line.split(/(?<=[.!?])\s+/).filter(Boolean))
+  }, [headline])
 
-  if (top.length === 0) return null
+  const brands = useMemo(() =>
+    [...new Set(actionItems.map(a => a.brand))],
+  [actionItems])
 
-  // 카드 수에 따라 그리드 컬럼 결정 (개수 제한 없음)
+  if (sentences.length === 0) return null
+
   const gridCls =
-    top.length === 1 ? 'grid-cols-1 max-w-sm' :
-    top.length <= 4  ? 'grid-cols-2' :
+    sentences.length === 1 ? 'grid-cols-1 max-w-sm' :
+    sentences.length <= 4  ? 'grid-cols-2' :
     'grid-cols-3'
 
   return (
@@ -146,10 +151,13 @@ function V2Lead({ items }: { items: ActionItem[] }) {
           LEAD
         </span>
         <span className="text-sm font-semibold text-foreground">오늘의 핵심</span>
-        <span className="text-sm text-ink-400">· {top.length}건</span>
+        <span className="text-sm text-ink-400">· {sentences.length}건</span>
       </div>
       <div className={`grid ${gridCls} gap-3`}>
-        {top.map((item, i) => <HeadlineCard key={item.id} item={item} index={i} />)}
+        {sentences.map((text, i) => {
+          const brand = brands.find(b => text.includes(b))
+          return <HeadlineCard key={i} text={text} brand={brand} index={i} />
+        })}
       </div>
     </div>
   )
@@ -437,7 +445,7 @@ export function DailyReportViewV2({
   return (
     <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <V2Header content={content} date={date} />
-      <V2Lead items={content.action_items} />
+      <V2Lead headline={content.headline} actionItems={content.action_items} />
       <V2BrandDeck content={content} reportDate={selectedDate} />
       <V2Bottom content={content} />
     </div>
