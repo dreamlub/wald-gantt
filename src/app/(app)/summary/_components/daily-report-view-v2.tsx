@@ -96,8 +96,8 @@ function HeadlineCard({ text, brand, index }: { text: string; brand?: string; in
     <article className="flex-1 rounded-xl border border-border bg-card flex flex-col min-w-0">
       <div className="p-5 flex-1">
         <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-2xs font-black text-ink-300 tracking-widest uppercase">HEADLINE</span>
-          <span className="text-3xl font-black leading-none text-ink-200">{num}</span>
+          <span className="text-2xs font-black text-ink-400 tracking-widest uppercase">HEADLINE</span>
+          <span className="text-3xl font-black leading-none text-ink-700">{num}</span>
         </div>
         <p className="text-sm font-semibold text-foreground leading-relaxed">
           {renderBold(text)}
