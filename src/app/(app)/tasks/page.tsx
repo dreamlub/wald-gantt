@@ -40,23 +40,24 @@ function TasksPageContent() {
 
   const [sidebarOpen, setSidebarOpen] = useState(true)
   const [view,        setView]        = useState<ViewType>('basic')
-  const [formOpen,    setFormOpen]    = useState(false)
-  const [editTask,    setEditTask]    = useState<GanttTask | null>(null)
   const [trashOpen,   setTrashOpen]   = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
-  const [defaultStatus, setDefaultStatus] = useState<TaskStatus>('to-do')
-  const [pendingParentId, setPendingParentId] = useState<string | null>(null)
-  const [pendingDefaultProjects, setPendingDefaultProjects] = useState<{ id: string; name: string; board_name: string }[]>([])
-  const [drawerTask,       setDrawerTask]       = useState<GanttTask | null>(null)
-  const [drawerOpen,       setDrawerOpen]       = useState(false)
-  const [drawerInitialTab, setDrawerInitialTab] = useState<'info' | 'memo' | 'history'>('info')
 
-  function openAdd(status: TaskStatus) {
-    setDefaultStatus(status); setEditTask(null); setPendingParentId(null); setFormOpen(true)
+  type ActiveDetail = { task: GanttTask; tab: 'info' | 'memo' | 'history' }
+  const [activeDetail, setActiveDetail] = useState<ActiveDetail | null>(null)
+
+  type ActiveForm = {
+    editTask:        GanttTask | null
+    defaultStatus:   TaskStatus
+    parentId:        string | null
+    defaultProjects: { id: string; name: string; board_name: string }[]
   }
+  const [activeForm, setActiveForm] = useState<ActiveForm | null>(null)
 
-  const editHandler     = (t: GanttTask) => { setDrawerTask(t); setDrawerInitialTab('info'); setDrawerOpen(true) }
-  const editMemoHandler = (t: GanttTask) => { setDrawerTask(t); setDrawerInitialTab('memo'); setDrawerOpen(true) }
+  const openAdd         = (status: TaskStatus) =>
+    setActiveForm({ editTask: null, defaultStatus: status, parentId: null, defaultProjects: [] })
+  const editHandler     = (t: GanttTask) => setActiveDetail({ task: t, tab: 'info' })
+  const editMemoHandler = (t: GanttTask) => setActiveDetail({ task: t, tab: 'memo' })
 
   if (data.loading) return (
     <div className="flex-1 flex items-center justify-center text-ink-400 text-xs">로딩 중...</div>
@@ -210,35 +211,34 @@ function TasksPageContent() {
         )}
       </div>
 
-      <TaskFormDialog
-        open={formOpen}
-        onClose={() => { setFormOpen(false); setEditTask(null); setPendingDefaultProjects([]); setPendingParentId(null) }}
-        onSave={async (fields, projectIds) => {
-          await data.handleSave(fields, projectIds, pendingParentId)
-          setPendingParentId(null)
-          setPendingDefaultProjects([])
-        }}
-        editTask={editTask}
-        parentTask={pendingParentId ? (data.tasks.find(t => t.id === pendingParentId) ?? null) : null}
-        defaultStatus={defaultStatus}
-        defaultProjects={pendingDefaultProjects}
-        onSearchProjects={filters.handleSearch}
-        assigneeSuggestions={filters.allAssignees.map(a => a.label).filter(Boolean)}
-        labelSuggestions={filters.allLabels}
-      />
-
       <TaskDetailDrawer
-        open={drawerOpen}
-        task={drawerTask}
-        subTasks={drawerTask ? data.tasks.filter(t => t.parent_id === drawerTask.id) : []}
-        parentTask={drawerTask?.parent_id ? (data.tasks.find(t => t.id === drawerTask.parent_id) ?? null) : null}
-        initialTab={drawerInitialTab}
-        onClose={() => setDrawerOpen(false)}
+        open={!!activeDetail}
+        task={activeDetail?.task ?? null}
+        subTasks={activeDetail ? data.tasks.filter(t => t.parent_id === activeDetail.task.id) : []}
+        parentTask={activeDetail?.task.parent_id ? (data.tasks.find(t => t.id === activeDetail.task.parent_id) ?? null) : null}
+        initialTab={activeDetail?.tab ?? 'info'}
+        onClose={() => setActiveDetail(null)}
         onSave={data.handleDrawerSave}
         onDelete={data.handleDelete}
         onDuplicate={data.handleDuplicate}
         onAddSubTask={data.handleAddSubTask}
         onStatusChange={data.handleStatusChange}
+        onSearchProjects={filters.handleSearch}
+        assigneeSuggestions={filters.allAssignees.map(a => a.label).filter(Boolean)}
+        labelSuggestions={filters.allLabels}
+      />
+
+      <TaskFormDialog
+        open={!!activeForm}
+        onClose={() => setActiveForm(null)}
+        onSave={async (fields, projectIds) => {
+          await data.handleSave(fields, projectIds, activeForm?.parentId ?? null)
+          setActiveForm(null)
+        }}
+        editTask={activeForm?.editTask ?? null}
+        parentTask={activeForm?.parentId ? (data.tasks.find(t => t.id === activeForm.parentId) ?? null) : null}
+        defaultStatus={activeForm?.defaultStatus ?? 'to-do'}
+        defaultProjects={activeForm?.defaultProjects ?? []}
         onSearchProjects={filters.handleSearch}
         assigneeSuggestions={filters.allAssignees.map(a => a.label).filter(Boolean)}
         labelSuggestions={filters.allLabels}
