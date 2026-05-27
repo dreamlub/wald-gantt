@@ -92,8 +92,12 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
 // ── Headline cards ────────────────────────────────────────────────────
 function HeadlineCard({ text, brand, index }: { text: string; brand?: string; index: number }) {
   const num = String(index + 1).padStart(2, '0')
+  const borderColor = brand ? brandColor(brand) : undefined
   return (
-    <article className="flex-1 rounded-xl border border-border bg-card flex flex-col min-w-0">
+    <article
+      className="flex-1 rounded-xl border bg-card flex flex-col min-w-0"
+      style={borderColor ? { borderColor } : undefined}
+    >
       <div className="p-5 flex-1">
         <div className="flex items-baseline gap-2 mb-3">
           <span className="text-2xs font-black text-ink-400 tracking-widest uppercase">HEADLINE</span>
