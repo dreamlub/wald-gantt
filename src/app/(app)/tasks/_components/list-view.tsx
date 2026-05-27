@@ -209,6 +209,70 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
       </div>
 
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
+
+      {/* ── Inbox 섹션 ───────────────────────────────────── */}
+      {onInboxCreate && (
+        <div>
+          <button
+            onClick={() => setInboxCollapsed(c => !c)}
+            className="w-full flex items-center gap-2 px-4 py-2 border-b transition-colors"
+            style={{ backgroundColor: 'var(--task-status-inbox-bg)' }}
+          >
+            {inboxCollapsed
+              ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
+              : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
+            <Inbox size={13} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
+            <span className="text-sm font-semibold" style={{ color: 'var(--task-status-inbox)' }}>Inbox</span>
+            {inboxTasks.length > 0 && <span className="text-sm text-ink-400">{inboxTasks.length}</span>}
+          </button>
+          {!inboxCollapsed && (
+            <>
+              {inboxTasks.map(task => {
+                const isDone = task.status === 'done'
+                const color  = assigneeColorMap.get(getAssigneeKey(task)) ?? 'var(--color-ink-300)'
+                return (
+                  <div
+                    key={task.id}
+                    onClick={() => onEdit(task)}
+                    className="flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer"
+                  >
+                    <div className="w-6 shrink-0 flex items-center">
+                      <button
+                        onClick={e => { e.stopPropagation(); onStatusChange(task.id, 'to-do') }}
+                        className="shrink-0" title="To-Do로 이동"
+                      >
+                        <Circle size={16} className="hover:text-lilac-400 transition-colors" style={{ color: 'var(--task-status-inbox)' }} />
+                      </button>
+                    </div>
+                    <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
+                      <span className={`text-sm truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
+                      {(task.labels ?? []).slice(0, 3).map(l => <LabelBadge key={l} variant="display" name={l} />)}
+                    </div>
+                    <div className="w-28 shrink-0 flex items-center gap-1.5">
+                      <span className="text-2xs text-muted-foreground truncate" style={{ color }}>{task.type === 'mine' ? '내 할일' : (task.assignee ?? '')}</span>
+                    </div>
+                  </div>
+                )
+              })}
+              {/* 상시 캡처 인풋 */}
+              <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-ink-150 bg-accent/20">
+                <Inbox size={10} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
+                <input
+                  value={inboxTitle}
+                  onChange={e => setInboxTitle(e.target.value)}
+                  onKeyDown={e => {
+                    if (e.key === 'Enter') { e.preventDefault(); commitInboxCreate() }
+                    if (e.key === 'Escape') setInboxTitle('')
+                  }}
+                  placeholder="생각나는 할 일 입력 후 Enter"
+                  className="flex-1 text-sm outline-none placeholder:text-ink-300 bg-transparent text-foreground"
+                />
+              </div>
+            </>
+          )}
+        </div>
+      )}
+
       {renderList.length === 0 ? (
         <div className="flex items-center justify-center h-40 text-ink-400 text-sm">{emptyMessage}</div>
       ) : groups.flatMap(({ parent, subs }) => {

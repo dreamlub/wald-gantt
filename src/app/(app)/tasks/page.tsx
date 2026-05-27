@@ -142,6 +142,7 @@ function TasksPageContent() {
             onStatusChange={data.handleStatusChange}
             emptyMessage={listEmptyMsg}
             onQuickCreate={quick.listQuickCreate}
+            onInboxCreate={quick.inboxQuickCreate}
             onSubQuickCreate={quick.listSubQuickCreate}
             selectionMode={selection.selectionMode}
             selectedIds={selection.selectedIds}

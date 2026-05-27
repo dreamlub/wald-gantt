@@ -83,9 +83,11 @@ export function GanttToolbar({
   const [showFilter, setShowFilter] = useState(false)
   const [filterPos,  setFilterPos]  = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const [showSort,   setShowSort]   = useState(false)
+  const [sortPos,    setSortPos]    = useState<{ top: number; right: number }>({ top: 0, right: 0 })
 
   const searchInputRef = useRef<HTMLInputElement>(null)
   const filterBtnRef   = useRef<HTMLButtonElement>(null)
+  const sortBtnRef     = useRef<HTMLButtonElement>(null)
 
   const searchRef = useClickAway<HTMLDivElement>(searchOpen, () => { if (!searchQuery) setSearchOpen(false) })
   const filterRef = useClickAway<HTMLDivElement>(showFilter, () => setShowFilter(false))
@@ -263,9 +265,18 @@ export function GanttToolbar({
         </div>
 
         {/* 정렬 드롭다운 */}
-        <div className="relative" ref={sortRef}>
+        <div ref={sortRef}>
           <button
-            onClick={() => setShowSort(v => !v)}
+            ref={sortBtnRef}
+            onClick={() => {
+              setShowSort(v => {
+                if (!v && sortBtnRef.current) {
+                  const rect = sortBtnRef.current.getBoundingClientRect()
+                  setSortPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                }
+                return !v
+              })
+            }}
             className={`flex items-center gap-1 text-sm px-2 py-1 border rounded transition-colors ${
               sortActive
                 ? 'border-lilac-300 bg-lilac-100 text-lilac-600 font-medium'
@@ -277,7 +288,7 @@ export function GanttToolbar({
             <ChevronDown size={11} />
           </button>
           {showSort && (
-            <div className="absolute right-0 top-full mt-1 bg-card border rounded-lg shadow-lg z-dialog min-w-[140px] py-1">
+            <div className="fixed bg-card border rounded-lg shadow-lg min-w-[140px] py-1" style={{ top: sortPos.top, right: sortPos.right, zIndex: 9999 }}>
               {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
                 <button
                   key={mode}
