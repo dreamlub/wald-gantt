@@ -260,7 +260,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   }
 
   return (
-    <Drawer open={open} onClose={onClose} width={440}>
+    <Drawer open={open} onClose={onClose} width={380}>
         {/* Header */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">

@@ -226,9 +226,14 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
   }
   const today = fmt(new Date())
 
-  function applyPreset(preset: 'week' | 'month' | 'lastmonth' | 'all') {
+  function applyPreset(preset: 'today' | 'week' | 'month' | 'lastmonth' | 'all') {
     if (preset === 'all') { onDateFromChange(''); onDateToChange(''); return }
     const now = new Date()
+    if (preset === 'today') {
+      onDateFromChange(today)
+      onDateToChange(today)
+      return
+    }
     if (preset === 'week') {
       const d = new Date(now.getTime() - 6 * 86400000)
       onDateFromChange(fmt(d))
@@ -245,6 +250,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
   }
 
   const presets = [
+    ['today', '오늘'],
     ['week', '최근 1주'],
     ['month', '이번 달'],
     ['lastmonth', '지난 달'],
@@ -253,6 +259,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
 
   function activePreset(): string | null {
     if (!dateFrom && !dateTo) return 'all'
+    if (dateFrom === today && dateTo === today) return 'today'
     const now = new Date()
     const weekAgo = fmt(new Date(now.getTime() - 6 * 86400000))
     if (dateFrom === weekAgo && dateTo === today) return 'week'

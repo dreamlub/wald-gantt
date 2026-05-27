@@ -4,7 +4,7 @@ import type { DayInfo } from '@/lib/gantt-utils'
 import {
   buildWeekRange, buildDayRange, dayOffset, dayOffsetInWeeks, colFracToDate,
 } from '@/lib/gantt-utils'
-import { formatBarDate } from './_GanttRows'
+import { formatBarDateWithDow } from './_GanttRows'
 import {
   COL_WIDTH, WEEK_COL_WIDTH, DAY_COL_WIDTH, AVG_DAYS_PER_MONTH,
   type ViewMode,
@@ -90,7 +90,7 @@ export function useBarDrag({
           if (metaEl) { metaEl.style.left = `${(previewColEnd + 1) * cw + 12}px` }
           const sk = ds[Math.max(0, Math.min(previewColStart, ds.length-1))].key
           const ek = ds[Math.max(0, Math.min(previewColEnd,   ds.length-1))].key
-          tooltipText = formatBarDate(sk, ek)
+          tooltipText = formatBarDateWithDow(sk, ek)
         } else {
           snapDelta = Math.round(raw / pxPerSnap)
           const d = snapDelta * snapDays
@@ -100,7 +100,7 @@ export function useBarDrag({
           else                             { ne = shift(origEndDate, d);    if (ne < origStartDate) ne = origStartDate }
           if (barEl) { const px = barPx(ns, ne); barEl.style.left = `${px.left}px`; barEl.style.width = `${px.width}px` }
           if (metaEl) { const px = barPx(ns, ne); metaEl.style.left = `${px.left + px.width + 16}px` }
-          tooltipText = formatBarDate(fmt(ns), fmt(ne))
+          tooltipText = formatBarDateWithDow(fmt(ns), fmt(ne))
         }
         setBarDrag({ cursor, tooltipText, x: me.clientX, y: me.clientY })
       }

@@ -59,6 +59,23 @@ export function formatBarDate(start: string, end: string): string {
   return `${sy.slice(2)}.${sLabel} ~ ${ey.slice(2)}.${eLabel}`
 }
 
+const DOW_KO = ['일', '월', '화', '수', '목', '금', '토'] as const
+
+// 드래그 툴팁 전용 — M/D(요일) 형식
+export function formatBarDateWithDow(start: string, end: string): string {
+  const sDow = DOW_KO[new Date(start + 'T00:00:00').getDay()]
+  const eDow = DOW_KO[new Date(end   + 'T00:00:00').getDay()]
+  const [sy, sm, sd] = start.split('-')
+  const [ey, em, ed] = end.split('-')
+  const sLabel = `${parseInt(sm)}/${parseInt(sd)}(${sDow})`
+  const eDay   = parseInt(ed)
+  if (sy === ey) {
+    if (sm === em) return `${sLabel} ~ ${eDay}(${eDow})`
+    return `${sLabel} ~ ${parseInt(em)}/${eDay}(${eDow})`
+  }
+  return `${sy.slice(2)}.${parseInt(sm)}/${parseInt(sd)}(${sDow}) ~ ${ey.slice(2)}.${parseInt(em)}/${eDay}(${eDow})`
+}
+
 function daysBetween(fromDate: string, toDateStr: string): number {
   const from = new Date(fromDate + 'T00:00:00')
   const to   = new Date(toDateStr + 'T00:00:00')
