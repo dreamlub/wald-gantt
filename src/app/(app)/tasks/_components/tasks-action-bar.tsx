@@ -59,7 +59,7 @@ export function TasksActionBar({
             <button
               key={tab.key}
               onClick={() => onViewChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 text-xs font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 view === tab.key
                   ? 'border-lilac-500 text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
