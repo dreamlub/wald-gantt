@@ -31,6 +31,7 @@ interface DailyReport {
   analyzed_at: string
   item_count: number
   brand_count: number
+  report_date?: string
 }
 
 function renderBold(text: string) {
@@ -205,6 +206,8 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
+  const [effectiveDate, setEffectiveDate] = useState(selectedDate)
+  const [isFallback, setIsFallback] = useState(false)
   const [useV2, setUseV2] = useState(() => {
     try { return localStorage.getItem('dailyReport_v2') === '1' } catch { return false }
   })
@@ -219,13 +222,35 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
 
   const fetchReport = useCallback(async () => {
     setLoading(true)
+    setIsFallback(false)
     const sb = createClient()
+
+    // 1) 정확한 날짜 조회
     const { data } = await sb
       .from('daily_reports')
-      .select('content, analyzed_at, item_count, brand_count')
+      .select('content, analyzed_at, item_count, brand_count, report_date')
       .eq('report_date', selectedDate)
       .maybeSingle()
-    setReport(data as DailyReport | null)
+
+    if (data) {
+      setReport(data as DailyReport)
+      setEffectiveDate(selectedDate)
+      setLoading(false)
+      return
+    }
+
+    // 2) 없으면 직전 리포트 날짜로 fallback
+    const { data: fallback } = await sb
+      .from('daily_reports')
+      .select('content, analyzed_at, item_count, brand_count, report_date')
+      .lt('report_date', selectedDate)
+      .order('report_date', { ascending: false })
+      .limit(1)
+      .maybeSingle()
+
+    setReport(fallback as DailyReport | null)
+    setEffectiveDate(fallback?.report_date ?? selectedDate)
+    setIsFallback(!!fallback)
     setLoading(false)
   }, [selectedDate])
 
@@ -235,9 +260,9 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   }, [fetchReport])
 
   const dateLabel = useMemo(() => {
-    try { return format(new Date(selectedDate + 'T00:00:00'), 'yyyy년 M월 d일 (eee)', { locale: ko }) }
-    catch { return selectedDate }
-  }, [selectedDate])
+    try { return format(new Date(effectiveDate + 'T00:00:00'), 'yyyy년 M월 d일 (eee)', { locale: ko }) }
+    catch { return effectiveDate }
+  }, [effectiveDate])
 
   if (loading) {
     return (
@@ -273,6 +298,17 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   }
   const reportWithLabel = { ...report, dateLabel }
 
+  // ── fallback 배너 ──
+  const FallbackBanner = isFallback ? (
+    <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-status-warn/10 border-b border-border text-sm text-status-warn">
+      <CalendarDays size={13} />
+      <span>
+        {format(new Date(selectedDate + 'T00:00:00'), 'M/d', { locale: ko })} 리포트 없음 →{' '}
+        <strong className="font-semibold">{format(new Date(effectiveDate + 'T00:00:00'), 'M월 d일 (eee)', { locale: ko })}</strong> 리포트 표시 중
+      </span>
+    </div>
+  ) : null
+
   // ── 버전 토글 바 ──
   const VersionToggle = (
     <div className="shrink-0 flex items-center justify-end px-4 py-1.5 border-b border-border bg-card">
@@ -294,9 +330,10 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     return (
       <>
         {VersionToggle}
+        {FallbackBanner}
         <DailyReportViewV2
           report={report}
-          selectedDate={selectedDate}
+          selectedDate={effectiveDate}
           filterBrands={filterBrands}
           filterTags={filterTags}
           filterPriorities={filterPriorities}
@@ -309,6 +346,7 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   return (
     <>
       {VersionToggle}
+      {FallbackBanner}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="space-y-0">
           <HeadlineCard content={content} report={reportWithLabel} />
