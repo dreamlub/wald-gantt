@@ -123,13 +123,13 @@ function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
 }
 
 function V2Lead({ items }: { items: ActionItem[] }) {
-  // urgent 전부 → watch 전부 → 전체 순으로 fallback, 개수 제한 없음
-  const top = useMemo(() => {
-    const urgents = items.filter(i => i.severity === 'urgent')
-    if (urgents.length > 0) return urgents
-    const watches = items.filter(i => i.severity === 'watch')
-    return watches.length > 0 ? watches : items
-  }, [items])
+  // 전체 action_items를 심각도 순 정렬 (개수 제한 없음)
+  const top = useMemo(() =>
+    [...items].sort((a, b) =>
+      ({ urgent: 0, watch: 1, info: 2 }[a.severity] ?? 2) -
+      ({ urgent: 0, watch: 1, info: 2 }[b.severity] ?? 2)
+    )
+  , [items])
 
   if (top.length === 0) return null
 
