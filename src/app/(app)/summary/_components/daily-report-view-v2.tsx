@@ -1,11 +1,11 @@
 'use client'
 
-import { useMemo } from 'react'
+import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { CalendarDays, Clock, CheckSquare } from 'lucide-react'
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
-import { BrandBadge } from './badges'
+import { BrandBadge, PriorityBars } from './badges'
 import { BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
 import { brandColor } from '@/lib/history-service'
 
@@ -163,49 +163,108 @@ interface UnifiedItem {
   date: string
   title: string
   badge: { label: string; cls: string }
+  severity: 'urgent' | 'watch' | 'info' | 'other'
   summary?: string
   action?: string
 }
 
+// 헤더 우측 심각도 카운터 뱃지
+function SevCount({ count, cls }: { count: number; cls: string }) {
+  if (count === 0) return null
+  return (
+    <span className={`text-2xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${cls}`}>
+      {count}
+    </span>
+  )
+}
+
+// 접힌 행 — 한 줄 요약
+function CollapsedRow({ item, isLast, onExpand }: {
+  item: UnifiedItem; isLast: boolean; onExpand: () => void
+}) {
+  const dotColor =
+    item.severity === 'urgent' ? 'var(--color-status-late)' :
+    item.severity === 'watch'  ? 'var(--color-status-warn)' :
+    item.severity === 'info'   ? 'var(--color-ink-300)' :
+    'var(--color-mint-500)'
+
+  return (
+    <div
+      onClick={onExpand}
+      className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+    >
+      {item.date && (
+        <span className="text-2xs text-ink-400 tabular-nums shrink-0">{item.date}</span>
+      )}
+      <span className="flex-1 text-sm text-foreground truncate">{item.title}</span>
+      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
+    </div>
+  )
+}
+
+// 펼친 행 — 전체 상세
+function ExpandedRow({ item, isLast, onCollapse }: {
+  item: UnifiedItem; isLast: boolean; onCollapse: () => void
+}) {
+  const priority = item.severity === 'urgent' ? 'high' : item.severity === 'watch' ? 'medium' : 'low'
+  return (
+    <div
+      onClick={onCollapse}
+      className={`border-l-2 border-lilac-500 bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+    >
+      <div className="px-4 py-3.5">
+        <div className="flex items-start gap-2 mb-3">
+          {item.date && (
+            <span className="text-2xs text-ink-400 tabular-nums shrink-0 mt-0.5">{item.date}</span>
+          )}
+          <span className="flex-1 text-sm font-semibold text-foreground leading-snug">{item.title}</span>
+          <span className="shrink-0 mt-0.5"><PriorityBars priority={priority} /></span>
+        </div>
+        {item.summary && (
+          <BodyBullets text={item.summary} className="text-sm text-ink-500 leading-relaxed mb-2.5" />
+        )}
+        {item.action && (
+          <p className="text-sm text-ink-400 border-l-2 border-ink-200 pl-2.5 mb-3">{item.action}</p>
+        )}
+        <div className="flex items-center gap-1.5">
+          <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full ${item.badge.cls}`}>
+            {item.badge.label}
+          </span>
+        </div>
+      </div>
+    </div>
+  )
+}
+
 function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
-  const color = brandColor(brand)
+  const [expandedKey, setExpandedKey] = useState<string | null>(() =>
+    (items.find(i => i.severity === 'urgent') ?? items.find(i => i.severity === 'watch') ?? items[0])?.key ?? null
+  )
+  const color       = brandColor(brand)
+  const urgentCount = items.filter(i => i.severity === 'urgent').length
+  const watchCount  = items.filter(i => i.severity === 'watch').length
+
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-card">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-muted/50">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
         <span className="w-2 h-2 rounded-full shrink-0"
           style={{ background: color ?? 'var(--color-ink-300)' }} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
-        <span className="text-2xs font-bold text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded-full">
-          {items.length}
-        </span>
+        <span className="text-sm text-ink-400 mr-1">{items.length}</span>
+        <SevCount count={urgentCount} cls="bg-status-late text-white" />
+        <SevCount count={watchCount}  cls="bg-status-warn text-white" />
       </div>
       <div>
-        {items.map((item, i) => (
-          <div key={item.key}
-            className={`px-4 py-3 ${i < items.length - 1 ? 'border-b border-border/50' : ''}`}>
-            <div className="flex items-start gap-2 flex-wrap">
-              {item.date && (
-                <span className="text-2xs text-ink-400 shrink-0 mt-0.5 tabular-nums">{item.date}</span>
-              )}
-              <span className="flex-1 text-sm font-medium text-foreground leading-snug min-w-0">
-                {item.title}
-              </span>
-              <span className={`shrink-0 text-2xs font-semibold px-1.5 py-0.5 rounded-xs ${item.badge.cls}`}>
-                {item.badge.label}
-              </span>
-            </div>
-            {item.summary && (
-              <div className="mt-2">
-                <BodyBullets text={item.summary} className="text-sm text-ink-500 leading-relaxed" />
-                {item.action && (
-                  <p className="text-sm text-ink-400 mt-1.5 border-l-2 border-ink-200 pl-2.5">
-                    {item.action}
-                  </p>
-                )}
-              </div>
-            )}
-          </div>
-        ))}
+        {items.map((item, i) => {
+          const isLast = i === items.length - 1
+          return item.key === expandedKey ? (
+            <ExpandedRow key={item.key} item={item} isLast={isLast}
+              onCollapse={() => setExpandedKey(null)} />
+          ) : (
+            <CollapsedRow key={item.key} item={item} isLast={isLast}
+              onExpand={() => setExpandedKey(item.key)} />
+          )
+        })}
       </div>
     </div>
   )
@@ -223,15 +282,16 @@ function V2BrandDeck({ content, reportDate }: { content: InsightContent; reportD
     content.action_items.forEach(a => push(a.brand, {
       key: a.id, date: dateShort, title: a.title,
       badge: SEV_BADGE[a.severity] ?? SEV_BADGE.info,
+      severity: a.severity,
       summary: a.summary, action: a.action,
     }))
     content.decisions.forEach(d => push(d.brand, {
       key: `d_${d.id}`, date: '', title: d.title,
-      badge: BADGE_DECISION, summary: d.desc,
+      badge: BADGE_DECISION, severity: 'other', summary: d.desc,
     }))
     content.upcoming.forEach((u, i) => push(u.brand, {
       key: `u_${i}`, date: u.date, title: u.title,
-      badge: BADGE_SCHEDULE,
+      badge: BADGE_SCHEDULE, severity: 'other',
     }))
     return map
   }, [content, dateShort])
