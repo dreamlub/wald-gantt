@@ -141,7 +141,7 @@ function V2Lead({ headline, actionItems }: { headline: string; actionItems: Acti
 
   const gridCls =
     sentences.length === 1 ? 'grid-cols-1 max-w-sm' :
-    sentences.length <= 4  ? 'grid-cols-2' :
+    sentences.length === 2 ? 'grid-cols-2' :
     'grid-cols-3'
 
   return (
