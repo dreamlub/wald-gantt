@@ -9,54 +9,25 @@
 
 ---
 
-## 최근 변경 (2026-05-28) — Gantt/Calendar 뷰 우선순위 텍스트 스타일 제거
+## `7bab0b3` (2026-05-28) — 오버레이 충돌 수정 + 태스크 뷰 스타일 통일
 
-### 중요도별 텍스트 굵기·색상 제거 (Gantt View, Calendar View)
-- List View와 동일하게 중요도에 따른 font-weight·color 차별화 제거
-- `gantt-view.tsx`: 태스크 제목 `priority === 3 ? 'font-semibold text-rose-500' : ...` → `text-foreground` (완료 시 `line-through text-ink-400` 유지)
-- `calendar-view.tsx`: 태스크 제목 `priority === 3 ? 'font-semibold text-status-late' : ...` → `text-foreground` (완료 시 동일)
+### 오버레이·다이얼로그 렌더링 구조 개선
+- **TaskDetailDrawer 인라인 전환** (`drawer.tsx`, `task-detail-drawer.tsx`, `tasks/page.tsx`)
+  - 포털 기반 backdrop이 Gantt 뷰 sticky/overflow 컨테이너와 충돌해 화면 깨지는 문제 수정
+  - `Drawer`에 `noPortal` prop 추가 → backdrop 없이 인라인 렌더링
+  - Tasks 페이지: 뷰 영역 + 디테일 패널 나란히 배치, `width 0 ↔ 480px` 슬라이드 애니메이션
+- **ProjectFormDialog 인라인 전환** (`ProjectFormDialog.tsx`, `projects/page.tsx`)
+  - 동일 원인으로 Projects 페이지도 동일 구조로 전환
+- **CategoryAddDialog page 레벨로 이동** (`GanttChart.tsx`, `projects/page.tsx`)
+  - GanttChart 내부 stacking context가 다이얼로그 backdrop을 가리는 z-index 충돌 해결
+  - 다이얼로그 상태(`addCatOpen` 등)와 렌더링을 `projects/page.tsx`로 분리
+  - `GanttChart`에 `onOpenAddCategory` prop 추가
 
----
-
-## 최근 변경 (2026-05-28) — CategoryAddDialog backdrop 버그 수정
-
-### CategoryAddDialog → page 레벨로 이동 (z-index 충돌 해결)
-- **원인**: `CategoryAddDialog`가 `GanttChart` 컴포넌트 내부에서 렌더링되어, GanttChart 왼쪽 패널(`zIndex: 'var(--z-above)'`)이 다이얼로그 backdrop(z-dialog: 200) 위에 나타나는 stacking context 충돌
-- **해결**: 다이얼로그 상태 및 렌더링을 `GanttChart` 외부(`projects/page.tsx`)로 이동
-- `src/components/gantt/GanttChart.tsx`:
-  - `addingCat` / `newCatName` / `newCatColor` 상태 제거
-  - `submitAddCat` 함수 제거, `CategoryAddDialog` 렌더링 제거
-  - `onOpenAddCategory?: () => void` prop 추가 — 툴바 및 헤더 버튼에 연결
-  - 더블클릭 빈 공간 핸들러도 `onOpenAddCategory?.()` 호출로 변경
-- `src/app/(app)/projects/page.tsx`:
-  - `addCatOpen` / `newCatName` / `newCatColor` 상태 추가
-  - `submitAddCat` 추가, `useEffect`로 dialog 열릴 때 랜덤 색상 선택
-  - `CategoryAddDialog` + `randomCatColor` 임포트 및 렌더링 추가
-  - GanttChart에 `onOpenAddCategory={() => setAddCatOpen(true)}` 전달
-
----
-
-## 최근 변경 (2026-05-28) — Tasks 디테일 패널 인라인 전환 + 우선순위 컬럼 정렬
-
-### ProjectFormDialog → 인라인 사이드패널 전환 (Projects 페이지)
-- **원인**: 포털 기반 `Drawer` backdrop이 GanttChart sticky/overflow 컨테이너와 충돌
-- `src/components/gantt/ProjectFormDialog.tsx`: `noPortal` prop 추가, `Drawer`로 전달
-- `src/app/(app)/projects/page.tsx`: 레이아웃 재구성
-  - GanttChart 영역 + 인라인 프로젝트폼 패널 나란히 배치
-  - 패널 `width: 0 ↔ 480px` 슬라이드 — 프로젝트 추가/수정 시 간트가 옆으로 밀림
-- `src/components/gantt/_CategoryAddDialog.tsx`: `showCloseButton={false}` 추가 (푸터 취소 버튼과 X 버튼 중복 제거)
-
-### TaskDetailDrawer → 인라인 사이드패널 전환
-- **원인**: 포털 기반 `fixed inset-0` backdrop이 Gantt 뷰의 `sticky` 컬럼 / `overflow-auto` 컨테이너와 충돌 → 화면 깨짐
-- `src/components/ui/drawer.tsx`: `noPortal` prop 추가. `true`이면 포털·backdrop 없이 children만 렌더링
-- `src/app/(app)/tasks/_components/task-detail-drawer.tsx`: `noPortal` prop 추가, `Drawer`로 전달
-- `src/app/(app)/tasks/page.tsx`: 레이아웃 구조 변경
-  - `flex-1 flex flex-col overflow-hidden` (뷰 영역) + `shrink-0 border-l` (디테일 패널) 나란히 배치
-  - 디테일 패널: `width: activeDetail ? 480 : 0` + `transition: width 300ms ease-out` — 간트 포함 모든 뷰에서 콘텐츠를 밀어내는 슬라이드 애니메이션
-  - backdrop 오버레이 완전 제거; X 버튼으로 닫기
-
-### List View 우선순위 컬럼 헤더·행 너비 정렬
-- `list-view.tsx`: 헤더·행 모두 `w-8` → `w-12`로 통일 (이전 세션에서 헤더만 변경되어 어긋났던 문제 수정)
+### 태스크 뷰 스타일 통일
+- **우선순위 텍스트 스타일 제거** — Gantt·Calendar 뷰에서 `font-semibold / text-rose-500` 등 우선순위별 색상·굵기 제거, List 뷰와 동일하게 `text-foreground` 단일화
+- **Gantt 뷰 폰트 크기** — 태스크 타이틀 `text-xs` → `text-sm` (List 뷰 맞춤)
+- **Gantt 뷰 상태 표시** — 단순 블릿(`w-2 h-2`) → 프로젝트 뷰와 동일한 상태 원(`w-3.5 h-3.5` + 약어 + 클릭 시 상태 변경)
+- **List View 우선순위 컬럼 너비** — 헤더·행 `w-8` → `w-12` 통일
 
 ---
 
