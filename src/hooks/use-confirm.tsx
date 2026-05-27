@@ -48,9 +48,9 @@ export function useConfirm() {
             </span>
           )}
           <div className="flex-1 min-w-0">
-            <h3 className="text-xs font-semibold text-foreground">{state.opts.title}</h3>
+            <h3 className="text-sm font-semibold text-foreground">{state.opts.title}</h3>
             {state.opts.description && (
-              <p className="mt-1 text-xs text-muted-foreground leading-relaxed">{state.opts.description}</p>
+              <p className="mt-1 text-sm text-muted-foreground leading-relaxed">{state.opts.description}</p>
             )}
           </div>
           <button
@@ -64,13 +64,13 @@ export function useConfirm() {
         <div className="flex justify-end gap-2 px-5 py-4 border-t bg-muted">
           <button
             onClick={() => close(false)}
-            className="px-3 py-1.5 text-xs text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
+            className="px-3 py-1.5 text-sm text-muted-foreground hover:text-foreground hover:bg-muted rounded transition-colors"
           >
             취소
           </button>
           <button
             onClick={() => close(true)}
-            className={`px-4 py-1.5 text-xs text-background rounded font-medium transition-colors
+            className={`px-4 py-1.5 text-sm text-background rounded font-medium transition-colors
               ${state.opts.danger !== false
                 ? 'bg-status-late hover:bg-status-late/80'
                 : 'bg-foreground hover:bg-ink-800'}`}
