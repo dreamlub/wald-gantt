@@ -4,7 +4,7 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import {
   Newspaper, AlertCircle,
   CalendarDays, Clock, CheckSquare, Target,
-  Plus,
+  Plus, Sparkles,
 } from 'lucide-react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
@@ -16,6 +16,7 @@ import { brandColor } from '@/lib/history-service'
 import { createClient } from '@/lib/supabase/client'
 import { ActionDetailDrawer, BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
 import { PriorityCallout } from './priority-callout'
+import { DailyReportViewV2 } from './daily-report-view-v2'
 
 interface Props {
   selectedDate: string
@@ -204,6 +205,17 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [drawerItem, setDrawerItem] = useState<ActionItem | null>(null)
+  const [useV2, setUseV2] = useState(() => {
+    try { return localStorage.getItem('dailyReport_v2') === '1' } catch { return false }
+  })
+
+  function toggleV2() {
+    setUseV2(v => {
+      const next = !v
+      try { localStorage.setItem('dailyReport_v2', next ? '1' : '0') } catch {}
+      return next
+    })
+  }
 
   const fetchReport = useCallback(async () => {
     setLoading(true)
@@ -261,8 +273,42 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
   }
   const reportWithLabel = { ...report, dateLabel }
 
+  // ── 버전 토글 바 ──
+  const VersionToggle = (
+    <div className="shrink-0 flex items-center justify-end px-4 py-1.5 border-b border-border bg-card">
+      <button
+        onClick={toggleV2}
+        className={`flex items-center gap-1.5 text-xs px-3 py-1.5 rounded-full border transition-colors ${
+          useV2
+            ? 'bg-foreground text-background border-foreground'
+            : 'bg-transparent text-ink-400 border-border hover:text-foreground hover:border-ink-300'
+        }`}
+      >
+        <Sparkles size={10} />
+        New version
+      </button>
+    </div>
+  )
+
+  if (useV2) {
+    return (
+      <>
+        {VersionToggle}
+        <DailyReportViewV2
+          report={report}
+          selectedDate={selectedDate}
+          filterBrands={filterBrands}
+          filterTags={filterTags}
+          filterPriorities={filterPriorities}
+          onCreateTask={onCreateTask}
+        />
+      </>
+    )
+  }
+
   return (
     <>
+      {VersionToggle}
       <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
         <div className="space-y-0">
           <HeadlineCard content={content} report={reportWithLabel} />
