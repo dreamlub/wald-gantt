@@ -72,7 +72,7 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
           DAILY REPORT · VOL.{vol} / NO.{no}
         </p>
         <div className="flex items-baseline gap-2">
-          <span className="text-2xl font-black tracking-tight text-foreground tabular-nums leading-none">
+          <span className="text-lg font-black tracking-tight text-foreground tabular-nums leading-none">
             {dayLabel}
           </span>
           <span className="text-sm font-semibold text-ink-300">{dowLabel}</span>
