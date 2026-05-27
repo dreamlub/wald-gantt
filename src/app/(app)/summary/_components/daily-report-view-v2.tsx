@@ -91,20 +91,23 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
 
 // ── Headline cards ────────────────────────────────────────────────────
 function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
-  const color  = brandColor(item.brand) ?? 'var(--color-status-late)'
-  const isDark = index > 0
+  const color = brandColor(item.brand) ?? 'var(--color-status-late)'
+  // 짝수 인덱스 → 브랜드 색상, 홀수 인덱스 → 잉크 다크
+  const bg = index % 2 === 0 ? color : 'var(--color-ink-900)'
+  const labelOpacity = index % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)'
+  const num = String(index + 1).padStart(2, '0')
   return (
     <article
-      className="flex-1 rounded-xl overflow-hidden flex flex-col"
-      style={{ background: isDark ? 'var(--color-ink-900)' : color }}
+      className="flex-1 rounded-xl overflow-hidden flex flex-col min-w-0"
+      style={{ background: bg }}
     >
       <div className="p-5 flex-1">
         <div className="flex items-baseline gap-2 mb-4">
           <span className="text-2xs font-black tracking-widest uppercase"
-            style={{ color: isDark ? 'rgba(255,255,255,0.35)' : 'rgba(255,255,255,0.55)' }}>
+            style={{ color: labelOpacity }}>
             HEADLINE
           </span>
-          <span className="text-3xl font-black leading-none text-white/80">0{index + 1}</span>
+          <span className="text-3xl font-black leading-none text-white/80">{num}</span>
         </div>
         <p className="text-sm font-semibold text-white leading-relaxed">
           {renderBold(item.title)}
@@ -120,12 +123,24 @@ function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
 }
 
 function V2Lead({ items }: { items: ActionItem[] }) {
-  const top = useMemo(() =>
-    [...items]
-      .sort((a, b) => ({ urgent: 0, watch: 1, info: 2 }[a.severity] ?? 2) - ({ urgent: 0, watch: 1, info: 2 }[b.severity] ?? 2))
-      .slice(0, 2),
-  [items])
+  // urgent 전부 + urgent 없으면 watch까지 포함, 최대 6개
+  const top = useMemo(() => {
+    const sorted = [...items].sort(
+      (a, b) => ({ urgent: 0, watch: 1, info: 2 }[a.severity] ?? 2) - ({ urgent: 0, watch: 1, info: 2 }[b.severity] ?? 2)
+    )
+    const urgents = sorted.filter(i => i.severity === 'urgent')
+    return (urgents.length > 0 ? urgents : sorted).slice(0, 6)
+  }, [items])
+
   if (top.length === 0) return null
+
+  // 카드 수에 따라 그리드 컬럼 결정
+  const gridCls =
+    top.length === 1 ? 'grid-cols-1 max-w-sm' :
+    top.length === 2 ? 'grid-cols-2' :
+    top.length <= 4  ? 'grid-cols-2' :
+    'grid-cols-3'
+
   return (
     <div className="shrink-0 border-b border-border px-6 py-5 bg-card">
       <div className="flex items-center gap-2 mb-4">
@@ -135,7 +150,7 @@ function V2Lead({ items }: { items: ActionItem[] }) {
         <span className="text-sm font-semibold text-foreground">오늘의 핵심</span>
         <span className="text-sm text-ink-400">· {top.length}건</span>
       </div>
-      <div className="flex gap-3 h-36">
+      <div className={`grid ${gridCls} gap-3`}>
         {top.map((item, i) => <HeadlineCard key={item.id} item={item} index={i} />)}
       </div>
     </div>
