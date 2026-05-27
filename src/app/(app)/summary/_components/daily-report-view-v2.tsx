@@ -123,21 +123,19 @@ function HeadlineCard({ item, index }: { item: ActionItem; index: number }) {
 }
 
 function V2Lead({ items }: { items: ActionItem[] }) {
-  // urgent 전부 + urgent 없으면 watch까지 포함, 최대 6개
+  // urgent 전부 → watch 전부 → 전체 순으로 fallback, 개수 제한 없음
   const top = useMemo(() => {
-    const sorted = [...items].sort(
-      (a, b) => ({ urgent: 0, watch: 1, info: 2 }[a.severity] ?? 2) - ({ urgent: 0, watch: 1, info: 2 }[b.severity] ?? 2)
-    )
-    const urgents = sorted.filter(i => i.severity === 'urgent')
-    return (urgents.length > 0 ? urgents : sorted).slice(0, 6)
+    const urgents = items.filter(i => i.severity === 'urgent')
+    if (urgents.length > 0) return urgents
+    const watches = items.filter(i => i.severity === 'watch')
+    return watches.length > 0 ? watches : items
   }, [items])
 
   if (top.length === 0) return null
 
-  // 카드 수에 따라 그리드 컬럼 결정
+  // 카드 수에 따라 그리드 컬럼 결정 (개수 제한 없음)
   const gridCls =
     top.length === 1 ? 'grid-cols-1 max-w-sm' :
-    top.length === 2 ? 'grid-cols-2' :
     top.length <= 4  ? 'grid-cols-2' :
     'grid-cols-3'
 
