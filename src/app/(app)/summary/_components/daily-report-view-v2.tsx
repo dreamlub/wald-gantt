@@ -96,7 +96,7 @@ function HeadlineCard({ text, brand, index }: { text: string; brand?: string; in
   return (
     <article
       className="flex-1 rounded-xl border bg-card flex flex-col min-w-0"
-      style={borderColor ? { borderColor } : undefined}
+      style={borderColor ? { borderColor, backgroundColor: `${borderColor}18` } : undefined}
     >
       <div className="p-5 flex-1">
         <div className="flex items-baseline gap-2 mb-3">
