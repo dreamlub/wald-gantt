@@ -18,7 +18,7 @@ interface Props {
   brandCounts?: Record<string, number>
   activeBrand?: string | null
   onLoadMore?: () => void
-  onSelectBrand?: (brand: string) => void
+  onSelectBrand?: (brand: string | null) => void
   onClearFilters: () => void
   onCreateTask?: (item: HistoryItem) => void
 }
@@ -202,7 +202,13 @@ export function DailyListView({
   const [expandedId, setExpandedId] = useState<string | null | undefined>(undefined)
   const sentinelRef = useRef<HTMLDivElement>(null)
   const brandList = useMemo(() => buildBrandList(items, brandCounts), [items, brandCounts])
-  const selectedBrand = activeBrand ?? brandList[0]?.name ?? null
+  const selectedBrand = activeBrand ?? null
+  const totalCount = useMemo(() => {
+    if (brandCounts && Object.keys(brandCounts).length > 0) {
+      return Object.values(brandCounts).reduce((s, c) => s + c, 0)
+    }
+    return items.length
+  }, [brandCounts, items.length])
   const visibleBrands = useMemo(() => {
     const query = brandQuery.trim().toLowerCase()
     if (!query) return brandList
@@ -256,6 +262,19 @@ export function DailyListView({
         </div>
         <div className="px-3 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider">브랜드 {brandList.length}</div>
         <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {/* 전체보기 */}
+          <button
+            onClick={() => onSelectBrand?.(null)}
+            className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+              selectedBrand === null ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+              <span className="flex-1 truncate text-sm font-semibold">전체</span>
+              <span className="text-sm tabular-nums">{totalCount}</span>
+            </div>
+          </button>
           {visibleBrands.map(brand => {
             const active = selectedBrand === brand.name
             const color = brandColor(brand.name)
@@ -280,9 +299,10 @@ export function DailyListView({
 
       <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
         <header className="shrink-0 h-16 border-b border-border bg-card px-5 flex items-center gap-4">
-          {selectedBrand && (
-            <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
-          )}
+          {selectedBrand
+            ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
+            : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-ink-300" />
+          }
           <div className="min-w-0">
             <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
           </div>

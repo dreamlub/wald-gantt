@@ -81,7 +81,13 @@ function SortableProjRow({ id, disabled, children }: {
   disabled?: boolean
   children: (props: { listeners: ReturnType<typeof useSortable>['listeners']; isDragging: boolean }) => ReactNode
 }) {
-  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
+  // animateLayoutChanges: () => false — 정렬 모드/필터 변경 시 useDerivedTransform이
+  // LEFT 패널에만 임시 transform을 적용해 RIGHT 패널과 한 프레임 틀어지는 문제 방지
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({
+    id,
+    disabled,
+    animateLayoutChanges: () => false,
+  })
   return (
     <div
       ref={setNodeRef}
@@ -98,7 +104,11 @@ function SortableCatRow({ id, disabled, children }: {
   disabled?: boolean
   children: (props: { listeners: ReturnType<typeof useSortable>['listeners']; isDragging: boolean }) => ReactNode
 }) {
-  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({ id, disabled })
+  const { setNodeRef, transform, transition, isDragging, listeners, attributes } = useSortable({
+    id,
+    disabled,
+    animateLayoutChanges: () => false,
+  })
   return (
     <div
       ref={setNodeRef}

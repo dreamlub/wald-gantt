@@ -9,6 +9,33 @@
 
 ---
 
+## 최근 변경 (2026-05-28) — Daily List 사이드바 "오늘" 프리셋 추가
+
+- `_sidebar-controls.tsx`: `PRESETS` 배열 앞에 `['today', '오늘']` 추가
+- `applyDatePreset`: `'today'` → from/to 모두 오늘 날짜로 설정
+- `getActivePreset`: from === to === 오늘이면 `'today'` 반환
+- 타입 유니온 `'today' | 'default' | 'month' | 'lastmonth' | 'all'` 확장
+- `DateRangePanel` 포함 모든 사이드바(Daily List, Summary 등)에 자동 반영
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
+## 최근 변경 (2026-05-28) — Daily List 전체보기 추가
+
+### 변경 내용
+- `daily-list-view.tsx`: 브랜드 사이드 패널 상단에 **"전체"** 버튼 추가 (카운트는 전체 합계)
+- 기본 선택이 첫 번째 브랜드 → **전체**로 변경 (`selectedBrand = activeBrand ?? null`)
+- 전체 선택 시 헤더 도트는 회색(`bg-ink-300`), 텍스트는 "전체 브랜드"
+- `onSelectBrand` 타입 `string → string | null` 확장
+- `summary-shell.tsx`: `onSelectBrand` 핸들러에서 `null`(전체) 처리 추가
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
 ## 최근 변경 (2026-05-26) — Tasks 디자인 시스템 정합 수정
 
 ### 1. 하드코딩 색상 → 디자인 토큰 교체

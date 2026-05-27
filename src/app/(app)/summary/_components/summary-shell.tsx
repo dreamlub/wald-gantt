@@ -320,7 +320,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   brandCounts={pg.brandCounts}
                   activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
-                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  onSelectBrand={id => setBrandId(id === null || brandId === id ? 'all' : id)}
                   onCreateTask={dialogs.handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />

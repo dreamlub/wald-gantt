@@ -84,6 +84,18 @@ export function useQuickAdd(
     } catch (e) { toast.error(errMsg(e)) }
   }, [workspace, load])
 
+  // ── Inbox 전용 퀵 캡처 ─────────────────────────────────────
+  const inboxQuickCreate = useCallback(async (title: string) => {
+    if (!workspace) return
+    try {
+      await addTask(workspace.id, {
+        title, status: 'inbox', type: 'mine', assignee: null,
+        start_date: null, due_date: null, memo: null, priority: 0, labels: [],
+      }, [])
+      await load()
+    } catch (e) { toast.error(errMsg(e)) }
+  }, [workspace, load])
+
   const listSubQuickCreate = useCallback(async (parentId: string, title: string) => {
     if (!workspace) return
     const parent = tasks.find(t => t.id === parentId)
@@ -112,5 +124,6 @@ export function useQuickAdd(
     commitQuickAdd, cancelQuickAdd,
     openAddSubTask, commitQuickAddSub, cancelQuickAddSub,
     listQuickCreate, listSubQuickCreate,
+    inboxQuickCreate,
   }
 }

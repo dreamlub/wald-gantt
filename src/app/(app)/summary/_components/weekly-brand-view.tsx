@@ -1,13 +1,13 @@
 'use client'
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
-import { format } from 'date-fns'
-import { ChevronDown, ChevronUp, ChevronsUpDown } from 'lucide-react'
+import { Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { brandColor } from '@/lib/history-service'
 
 import type { Tag, Priority } from '../_lib/types'
-import { PriorityBars, TagList } from './badges'
+import { TAG_META, TAG_KEYS } from '../_lib/constants'
+import { PriorityBars } from './badges'
 
 interface WeeklyBrandSummary {
   id: string
@@ -20,6 +20,7 @@ interface WeeklyBrandSummary {
   max_priority: string | null
 }
 
+// ── 인라인 마크다운 렌더 ──────────────────────────────────────
 function renderInline(line: string) {
   return line.split(/(\*\*[^*]+\*\*)/g).map((part, j) =>
     part.startsWith('**') && part.endsWith('**')
@@ -34,19 +35,19 @@ function MarkdownBody({ text, className }: { text: string; className?: string })
     .map(l => l.trim().replace(/^[-•*]\s*/, ''))
     .filter(Boolean)
     .flatMap(line => line.split(/(?<=[.!?])\s+/).filter(Boolean))
-
   return (
     <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
-      {sentences.map((sentence, i) => (
+      {sentences.map((s, i) => (
         <li key={i} className="flex items-start gap-1.5">
           <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
-          <span>{renderInline(sentence)}</span>
+          <span>{renderInline(s)}</span>
         </li>
       ))}
     </ul>
   )
 }
 
+// ── 날짜 헬퍼 ─────────────────────────────────────────────────
 function getWeekLabel(mondayStr: string): string {
   const d = new Date(mondayStr + 'T00:00:00')
   const month = d.getMonth()
@@ -60,19 +61,101 @@ function getWeekRange(mondayStr: string): string {
   const mon = new Date(mondayStr + 'T00:00:00')
   const sun = new Date(mon)
   sun.setDate(mon.getDate() + 6)
-  return `${format(mon, 'M/d')} ~ ${format(sun, 'M/d')}`
+  const fmt = (d: Date) => `${d.getMonth() + 1}/${d.getDate()}`
+  return `${fmt(mon)} ~ ${fmt(sun)}`
 }
 
-type SortKey = 'week' | 'brand' | 'count' | 'priority'
-type SortDir = 'asc' | 'desc'
-
-const PRIORITY_ORDER: Record<string, number> = { high: 0, medium: 1, low: 2 }
-
-function SortIcon({ active, dir }: { active: boolean; dir: SortDir }) {
-  if (!active) return <ChevronsUpDown size={9} className="text-ink-300" />
-  return dir === 'desc' ? <ChevronDown size={9} /> : <ChevronUp size={9} />
+function groupByWeek(rows: WeeklyBrandSummary[]) {
+  const map = new Map<string, WeeklyBrandSummary[]>()
+  for (const r of rows) {
+    const g = map.get(r.week_start)
+    if (g) g.push(r)
+    else map.set(r.week_start, [r])
+  }
+  return [...map.entries()]
+    .sort(([a], [b]) => b.localeCompare(a))
+    .map(([week_start, items]) => ({ week_start, items }))
 }
 
+// ── 태그 요약 (헤더용) ────────────────────────────────────────
+function TagSummary({ rows }: { rows: WeeklyBrandSummary[] }) {
+  const counts: Partial<Record<Tag, number>> = {}
+  for (const r of rows) {
+    for (const t of r.key_tags ?? []) counts[t as Tag] = (counts[t as Tag] ?? 0) + 1
+  }
+  const visible = TAG_KEYS.filter(t => (counts[t] ?? 0) > 0)
+  if (!visible.length) return null
+  return (
+    <div className="flex items-center gap-1.5">
+      {visible.map(tag => {
+        const meta = TAG_META[tag]
+        return (
+          <span
+            key={tag}
+            className="inline-flex items-center gap-1 text-xs font-semibold px-1.5 py-0.5 rounded"
+            style={{ background: meta.bg, color: meta.color }}
+          >
+            {meta.label} {counts[tag]}
+          </span>
+        )
+      })}
+    </div>
+  )
+}
+
+// ── 주간 요약 카드 ────────────────────────────────────────────
+function WeekSummaryRow({ row, expanded, onToggle, showBrand }: {
+  row: WeeklyBrandSummary
+  expanded: boolean
+  onToggle: () => void
+  showBrand: boolean
+}) {
+  const color = brandColor(row.brand_name)
+  const firstTag = (row.key_tags?.[0] ?? null) as Tag | null
+  const tagMeta = firstTag ? TAG_META[firstTag] : null
+
+  return (
+    <div
+      onClick={onToggle}
+      className={`group border border-border bg-card cursor-pointer transition-colors hover:border-ink-300 hover:bg-muted/30 ${
+        expanded ? 'rounded-md shadow-sm' : 'rounded-sm'
+      }`}
+    >
+      <div className="flex items-center gap-2 px-3 py-2 min-h-9">
+        <span className="w-3.5 flex justify-center shrink-0">
+          {row.max_priority
+            ? <PriorityBars priority={row.max_priority as Priority} />
+            : <span className="w-1 h-1 rounded-full bg-ink-300" />
+          }
+        </span>
+        {showBrand && (
+          <span className="flex items-center gap-1.5 shrink-0">
+            <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+            <span className="text-sm font-semibold text-foreground">{row.brand_name}</span>
+          </span>
+        )}
+        <p className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{row.topic}</p>
+        {tagMeta && (
+          <span
+            className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
+            style={{ background: tagMeta.bg, color: tagMeta.color }}
+          >
+            {tagMeta.label}
+          </span>
+        )}
+        <span className="shrink-0 text-sm text-ink-400">{row.item_count}건</span>
+      </div>
+
+      {expanded && (
+        <div className="border-t border-border px-5 py-3">
+          <MarkdownBody text={row.summary} className="text-sm text-ink-500 leading-relaxed" />
+        </div>
+      )}
+    </div>
+  )
+}
+
+// ── 메인 컴포넌트 ─────────────────────────────────────────────
 interface Props {
   dateFrom?: string
   dateTo?: string
@@ -80,12 +163,12 @@ interface Props {
   onCountChange?: (total: number, filtered: number) => void
 }
 
-export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange }: Props) {
-  const [rows, setRows]               = useState<WeeklyBrandSummary[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [activeBrand, setActiveBrand] = useState<string | null>(null)
-  const [sortKey, setSortKey]         = useState<SortKey>('week')
-  const [sortDir, setSortDir]         = useState<SortDir>('desc')
+export function WeeklyBrandView({ dateFrom, dateTo, onCountChange }: Props) {
+  const [rows, setRows]                   = useState<WeeklyBrandSummary[]>([])
+  const [loading, setLoading]             = useState(true)
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
+  const [brandQuery, setBrandQuery]       = useState('')
+  const [expandedId, setExpandedId]       = useState<string | null>(null)
 
   const fetchSummaries = useCallback(async () => {
     setLoading(true)
@@ -117,17 +200,21 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
     fetchSummaries()
   }, [fetchSummaries])
 
-  const allBrandCounts = useMemo(() => {
+  const brandList = useMemo(() => {
     const counts = new Map<string, number>()
     for (const r of rows) counts.set(r.brand_name, (counts.get(r.brand_name) ?? 0) + 1)
     return [...counts.entries()]
       .map(([name, count]) => ({ name, count }))
-      .sort((a, b) => b.count - a.count)
+      .sort((a, b) => b.count - a.count || a.name.localeCompare(b.name, 'ko'))
   }, [rows])
+
+  const visibleBrands = useMemo(() => {
+    const q = brandQuery.trim().toLowerCase()
+    return q ? brandList.filter(b => b.name.toLowerCase().includes(q)) : brandList
+  }, [brandList, brandQuery])
 
   const filtered = useMemo(() => {
     let result = rows
-
     if (dateFrom || dateTo) {
       result = result.filter(r => {
         const sun = new Date(r.week_start + 'T00:00:00')
@@ -138,27 +225,15 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
         return true
       })
     }
-
-    if (activeBrand) result = result.filter(r => r.brand_name === activeBrand)
-
-    return [...result].sort((a, b) => {
-      let cmp = 0
-      if (sortKey === 'week')          cmp = a.week_start.localeCompare(b.week_start)
-      else if (sortKey === 'brand')    cmp = a.brand_name.localeCompare(b.brand_name)
-      else if (sortKey === 'count')    cmp = a.item_count - b.item_count
-      else if (sortKey === 'priority') cmp = (PRIORITY_ORDER[a.max_priority ?? ''] ?? 3) - (PRIORITY_ORDER[b.max_priority ?? ''] ?? 3)
-      return sortDir === 'desc' ? -cmp : cmp
-    })
-  }, [rows, activeBrand, dateFrom, dateTo, sortKey, sortDir])
+    if (selectedBrand) result = result.filter(r => r.brand_name === selectedBrand)
+    return result
+  }, [rows, selectedBrand, dateFrom, dateTo])
 
   useEffect(() => {
     onCountChange?.(rows.length, filtered.length)
   }, [rows.length, filtered.length, onCountChange])
 
-  function toggleSort(key: SortKey) {
-    if (sortKey === key) setSortDir(d => d === 'asc' ? 'desc' : 'asc')
-    else { setSortKey(key); setSortDir('desc') }
-  }
+  const weekGroups = useMemo(() => groupByWeek(filtered), [filtered])
 
   if (loading) {
     return (
@@ -177,143 +252,101 @@ export function WeeklyBrandView({ dateFrom, dateTo, onSelectBrand, onCountChange
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
-      {/* 브랜드 필터 칩 */}
-      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card">
-        <button
-          onClick={() => setActiveBrand(null)}
-          className={`text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
-            !activeBrand
-              ? 'bg-foreground text-white border-foreground'
-              : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-          }`}
-        >
-          전체 {rows.length}
-        </button>
-        {allBrandCounts.map(b => {
-          const active = activeBrand === b.name
-          const color = brandColor(b.name)
-          return (
-            <button
-              key={b.name}
-              onClick={() => setActiveBrand(prev => prev === b.name ? null : b.name)}
-              className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
-                active
-                  ? 'text-white border-transparent'
-                  : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-              }`}
-              style={active ? { backgroundColor: color, borderColor: color } : undefined}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
-              {b.name}
-              <span className={`text-3xs ${active ? 'text-white/70' : 'text-ink-400'}`}>{b.count}</span>
-            </button>
-          )
-        })}
-      </div>
+    <div className="flex-1 min-h-0 flex overflow-hidden bg-background">
 
-      {/* 테이블 */}
-      <div className="flex-1 overflow-auto">
-        <table className="w-full border-collapse text-xs">
-          <thead className="sticky top-0 z-10 bg-muted border-b border-ink-150">
-            <tr>
-              <th
-                className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('week')}
+      {/* 좌측 브랜드 사이드바 */}
+      <aside className="w-60 shrink-0 border-r border-border bg-card flex flex-col min-h-0">
+        <div className="h-16 flex items-center px-3 border-b border-border">
+          <div className="relative w-full">
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
+            <input
+              value={brandQuery}
+              onChange={e => setBrandQuery(e.target.value)}
+              placeholder="브랜드 검색"
+              className="w-full h-8 rounded-md border border-border bg-background pl-7 pr-2 text-sm outline-none focus:border-lilac-300"
+            />
+          </div>
+        </div>
+        <div className="px-3 py-2 text-sm font-semibold text-ink-400 uppercase tracking-wider">
+          브랜드 {brandList.length}
+        </div>
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-1 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <button
+            onClick={() => setSelectedBrand(null)}
+            className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+              selectedBrand === null ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
+            }`}
+          >
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+              <span className="flex-1 truncate text-sm font-semibold">전체</span>
+              <span className="text-sm tabular-nums">{rows.length}</span>
+            </div>
+          </button>
+          {visibleBrands.map(brand => {
+            const active = selectedBrand === brand.name
+            const color = brandColor(brand.name)
+            return (
+              <button
+                key={brand.name}
+                onClick={() => setSelectedBrand(prev => prev === brand.name ? null : brand.name)}
+                className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+                  active ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
+                }`}
               >
-                <span className="flex items-center gap-1">주차 <SortIcon active={sortKey === 'week'} dir={sortDir} /></span>
-              </th>
-              <th
-                className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('brand')}
-              >
-                <span className="flex items-center gap-1">브랜드 <SortIcon active={sortKey === 'brand'} dir={sortDir} /></span>
-              </th>
-              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider w-[180px]">주제</th>
-              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider min-w-[240px]">요약</th>
-              <th className="text-left px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider">태그</th>
-              <th
-                className="text-center px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('priority')}
-              >
-                <span className="flex items-center justify-center gap-1">중요도 <SortIcon active={sortKey === 'priority'} dir={sortDir} /></span>
-              </th>
-              <th
-                className="text-right px-5 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider cursor-pointer select-none hover:text-foreground whitespace-nowrap"
-                onClick={() => toggleSort('count')}
-              >
-                <span className="flex items-center justify-end gap-1">건수 <SortIcon active={sortKey === 'count'} dir={sortDir} /></span>
-              </th>
-            </tr>
-          </thead>
-          <tbody>
-            {filtered.map(row => {
-              const color = brandColor(row.brand_name)
-              return (
-                <tr key={row.id} className="border-t border-border hover:bg-muted/40 transition-colors align-top">
-                  {/* 주차 */}
-                  <td className="px-5 py-2 whitespace-nowrap tabular-nums">
-                    <div className="text-sm font-medium text-foreground">{getWeekLabel(row.week_start)}</div>
-                    <div className="text-sm text-ink-400 mt-0.5">{getWeekRange(row.week_start)}</div>
-                  </td>
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="flex-1 truncate text-sm font-semibold">{brand.name}</span>
+                  <span className="text-sm tabular-nums">{brand.count}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </aside>
 
-                  {/* 브랜드 */}
-                  <td className="px-5 py-2 whitespace-nowrap">
-                    <button
-                      onClick={() => onSelectBrand(row.brand_name)}
-                      className="inline-flex items-center gap-1.5 text-sm text-ink-700 hover:text-foreground transition-colors"
-                    >
-                      <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
-                      <span className="truncate max-w-[100px]">{row.brand_name}</span>
-                    </button>
-                  </td>
+      {/* 우측 메인 */}
+      <main className="flex-1 min-w-0 flex flex-col overflow-hidden">
+        <header className="shrink-0 h-16 border-b border-border bg-card px-5 flex items-center gap-4">
+          {selectedBrand
+            ? <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(selectedBrand) }} />
+            : <span className="w-2.5 h-2.5 rounded-full shrink-0 bg-ink-300" />
+          }
+          <div className="min-w-0">
+            <h2 className="text-sm font-bold text-foreground truncate">{selectedBrand ?? '전체 브랜드'}</h2>
+          </div>
+          <div className="ml-auto">
+            <TagSummary rows={filtered} />
+          </div>
+        </header>
 
-                  {/* 주제 */}
-                  <td className="px-5 py-2">
-                    <p className="text-sm font-medium text-foreground leading-snug">{row.topic}</p>
-                  </td>
-
-                  {/* 요약 */}
-                  <td className="px-5 py-2">
-                    <MarkdownBody
-                      text={row.summary}
-                      className="text-sm text-ink-400 leading-[1.6]"
-                    />
-                  </td>
-
-                  {/* 태그 */}
-                  <td className="px-5 py-2">
-                    <TagList tags={row.key_tags as Tag[]} />
-                  </td>
-
-                  {/* 중요도 */}
-                  <td className="px-5 py-2 text-center">
-                    <PriorityBars priority={row.max_priority as Priority | null} />
-                  </td>
-
-                  {/* 건수 */}
-                  <td className="px-5 py-2 text-right text-sm font-medium text-ink-500 whitespace-nowrap tabular-nums">
-                    {row.item_count}건
-                  </td>
-                </tr>
-              )
-            })}
-          </tbody>
-          <tfoot className="sticky bottom-0 bg-muted border-t border-ink-150">
-            <tr>
-              <td colSpan={7} className="px-5 py-2 text-right text-sm text-ink-400 tabular-nums">
-                {filtered.length === 0
-                  ? <span className="text-ink-300">해당 조건의 위클리 요약이 없습니다.</span>
-                  : <>
-                      전체 <b className="text-foreground font-semibold">{rows.length}</b>건 중{' '}
-                      <b className="text-foreground font-semibold">{filtered.length}</b>건
-                    </>
-                }
-              </td>
-            </tr>
-          </tfoot>
-        </table>
-      </div>
+        <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          {weekGroups.length === 0 ? (
+            <div className="py-16 text-center">
+              <p className="text-sm text-muted-foreground">해당 기간에 데이터가 없습니다</p>
+            </div>
+          ) : weekGroups.map(group => (
+            <section key={group.week_start} className="space-y-2">
+              <div className="flex items-center gap-2 pb-1 border-b border-border">
+                <h3 className="text-sm font-bold text-foreground">{getWeekLabel(group.week_start)}</h3>
+                <span className="text-sm text-ink-400">{getWeekRange(group.week_start)}</span>
+                <span className="text-sm text-ink-400">{group.items.length}건</span>
+              </div>
+              <div className="space-y-1.5">
+                {group.items.map(row => (
+                  <WeekSummaryRow
+                    key={row.id}
+                    row={row}
+                    expanded={expandedId === row.id}
+                    onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
+                    showBrand={!selectedBrand}
+                  />
+                ))}
+              </div>
+            </section>
+          ))}
+        </div>
+      </main>
     </div>
   )
 }

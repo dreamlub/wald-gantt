@@ -41,6 +41,7 @@ export function SidebarDatePicker({ value, onChange, placeholder }: {
 }
 
 export const PRESETS = [
+  ['today',     '오늘'],
   ['default',   '기본'],
   ['month',     '이번 달'],
   ['lastmonth', '지난 달'],
@@ -48,12 +49,18 @@ export const PRESETS = [
 ] as const
 
 export function applyDatePreset(
-  preset: 'default' | 'month' | 'lastmonth' | 'all',
+  preset: 'today' | 'default' | 'month' | 'lastmonth' | 'all',
   onFrom: (s: string) => void,
   onTo: (s: string) => void,
 ) {
   if (preset === 'all') { onFrom(''); onTo(''); return }
   const now = new Date()
+  if (preset === 'today') {
+    const today = dateStr(now)
+    onFrom(today)
+    onTo(today)
+    return
+  }
   if (preset === 'default') {
     const thisMonday = getMondayOfDate(now)
     const lastMonday = new Date(thisMonday)
@@ -74,6 +81,8 @@ export function applyDatePreset(
 export function getActivePreset(dateFrom: string, dateTo: string): string | null {
   if (!dateFrom && !dateTo) return 'all'
   const now = new Date()
+  const today = dateStr(now)
+  if (dateFrom === today && dateTo === today) return 'today'
   const thisMonday = getMondayOfDate(now)
   const lastMonday = new Date(thisMonday)
   lastMonday.setDate(thisMonday.getDate() - 7)

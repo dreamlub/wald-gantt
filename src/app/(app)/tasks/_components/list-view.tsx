@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check } from 'lucide-react'
+import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check, Inbox, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
@@ -11,7 +11,7 @@ import { TaskStatusBadge } from './task-status-badge'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
-const STATUS_ORDER: Record<TaskStatus, number> = { backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
+const STATUS_ORDER: Record<TaskStatus, number> = { inbox: 0, backlog: 1, 'to-do': 2, 'in-progress': 3, done: 4, pending: 5 }
 
 function SortBtn({
   col, label, sortKey, sortDir, onToggle,
@@ -43,13 +43,14 @@ interface Props {
   onStatusChange: (id: string, s: TaskStatus) => void
   emptyMessage?: string
   onQuickCreate?: (title: string, status: TaskStatus) => Promise<void>
+  onInboxCreate?: (title: string) => Promise<void>
   onSubQuickCreate?: (parentId: string, title: string) => Promise<void>
   selectionMode?: boolean
   selectedIds?: Set<string>
   onSelect?: (id: string) => void
 }
 
-export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onSubQuickCreate, selectionMode, selectedIds, onSelect }: Props) {
+export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onInboxCreate, onSubQuickCreate, selectionMode, selectedIds, onSelect }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('due_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
@@ -57,6 +58,8 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
   const [quickAddTitle, setQuickAddTitle] = useState('')
   const [subQuickParentId, setSubQuickParentId] = useState<string | null>(null)
   const [subQuickTitle,    setSubQuickTitle]    = useState('')
+  const [inboxTitle,       setInboxTitle]       = useState('')
+  const [inboxCollapsed,   setInboxCollapsed]   = useState(false)
 
   async function commitSubQuickAdd(parentId: string) {
     if (!onSubQuickCreate) return
@@ -84,6 +87,13 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     await onQuickCreate(title, 'to-do')
     setQuickAddTitle('')
     // 입력창 유지로 연속 등록
+  }
+
+  async function commitInboxCreate() {
+    const title = inboxTitle.trim()
+    if (!title || !onInboxCreate) return
+    await onInboxCreate(title)
+    setInboxTitle('')
   }
 
   function toggleSort(key: SortKey) {
@@ -118,7 +128,10 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     return out
   }
 
-  const sorted = [...tasks].sort((a, b) => {
+  const inboxTasks  = tasks.filter(t => t.status === 'inbox')
+  const otherTasks  = tasks.filter(t => t.status !== 'inbox')
+
+  const sorted = [...otherTasks].sort((a, b) => {
     // 일정(마감일) 정렬: 날짜 없는 항목은 정렬 방향과 무관하게 항상 뒤로
     if (sortKey === 'due_date' || sortKey === 'start_date') {
       const av = a[sortKey]

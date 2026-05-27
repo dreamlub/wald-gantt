@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  LayoutList, Search, PanelLeftClose, Trash2, Archive,
+  LayoutList, Search, PanelLeftClose, Trash2, Archive, Inbox,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
 import { LabelBadge } from './label-badge'
@@ -17,6 +17,7 @@ interface TasksSidebarProps {
   // 퀵 필터
   quickFilter: QuickFilterKey
   onQuickFilterChange: (key: QuickFilterKey) => void
+  inboxCount: number
   overdueCount: number
   startDelayedCount: number
   dueTodayCount: number
@@ -57,7 +58,7 @@ interface TasksSidebarProps {
 export function TasksSidebar({
   open, onClose,
   quickFilter, onQuickFilterChange,
-  overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount, totalCount,
+  inboxCount, overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount, totalCount,
   projects, filterProject, onFilterProjectChange,
   assignees, filterAssignee, onFilterAssigneeChange,
   assigneeSearch, onAssigneeSearchChange,
@@ -68,8 +69,9 @@ export function TasksSidebar({
   trashCount, onTrashOpen,
 }: TasksSidebarProps) {
   const quickItems = [
-    { key: 'all' as const,           label: '전체',         count: totalCount,        icon: <LayoutList size={12} className="shrink-0" />,                          countColor: 'text-ink-400' },
-    { key: 'overdue' as const,       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-status-late shrink-0" />,     countColor: 'text-status-late font-medium' },
+    { key: 'all' as const,           label: '전체',         count: totalCount,        icon: <LayoutList size={12} className="shrink-0" />,                             countColor: 'text-ink-400' },
+    { key: 'inbox' as const,         label: 'Inbox',        count: inboxCount,        icon: <Inbox size={12} className="shrink-0 text-[var(--task-status-inbox)]" />, countColor: 'text-[var(--task-status-inbox)] font-medium' },
+    { key: 'overdue' as const,       label: '지연',          count: overdueCount,       icon: <span className="w-2 h-2 rounded-full bg-status-late shrink-0" />,        countColor: 'text-status-late font-medium' },
     { key: 'start-delayed' as const, label: '시작 지연',     count: startDelayedCount,  icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" />,     countColor: 'text-status-late font-medium' },
     { key: 'due-today' as const,     label: '오늘 마감',     count: dueTodayCount,      icon: <span className="w-2 h-2 rounded-full bg-coral-400 shrink-0" />,      countColor: 'text-status-late font-medium' },
     { key: 'due-this-week' as const, label: '이번 주 마감',  count: dueThisWeekCount,   icon: <span className="w-2 h-2 rounded-full bg-status-warn shrink-0" />,     countColor: 'text-status-late font-medium' },

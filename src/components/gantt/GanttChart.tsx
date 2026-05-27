@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useLayoutEffect } from 'react'
 import {
   DndContext, closestCenter, DragOverlay,
 } from '@dnd-kit/core'
@@ -204,6 +204,15 @@ export function GanttChart({
   const { barDrag, makeDragHandlers } = useBarDrag({
     viewMode, viewStart, viewEnd, totalCols, onUpdateProjectDates,
   })
+
+  // 필터/정렬 변경 시 paint 전에 좌우 패널 scroll 강제 동기화
+  // (LEFT 패널은 DndContext 안에 있어 SortableContext 업데이트로 extra render가 발생할 수 있음)
+  useLayoutEffect(() => {
+    if (leftRef.current && rightRef.current) {
+      leftRef.current.scrollTop = rightRef.current.scrollTop
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [sortMode, startDelayedFilter, overdueFilter, searchQuery, excludedTeams, excludedPMs])
 
   // 카테고리 추가 모달 열릴 때 랜덤 색상
   useEffect(() => {
