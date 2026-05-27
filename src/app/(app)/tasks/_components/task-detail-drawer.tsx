@@ -44,12 +44,15 @@ interface Props {
   onSearchProjects: (query: string) => Promise<ProjectOption[]>
   assigneeSuggestions?: string[]
   labelSuggestions?: string[]
+  /** true: 포털 없이 인라인 렌더링 (레이아웃 컨테이너가 슬라이드 담당) */
+  noPortal?: boolean
 }
 
 export function TaskDetailDrawer({
   open, task, subTasks, parentTask, initialTab,
   onClose, onSave, onDelete, onDuplicate, onAddSubTask, onStatusChange,
   onSearchProjects, assigneeSuggestions = [], labelSuggestions = [],
+  noPortal = false,
 }: Props) {
   const [title,              setTitle]              = useState('')
   const [status,             setStatus]             = useState<TaskStatus>('to-do')
@@ -123,7 +126,7 @@ export function TaskDetailDrawer({
   const currentStatusColor = STATUS_COLOR[status]
 
   return (
-    <Drawer open={open} onClose={onClose}>
+    <Drawer open={open} onClose={onClose} noPortal={noPortal}>
       {/* 헤더 + 탭 */}
       <DrawerHeader>
         <div className="flex items-center px-5 h-12 gap-1">
@@ -229,24 +232,24 @@ export function TaskDetailDrawer({
           {/* 시작일 / 마감일 */}
           <div>
             <div className="flex gap-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
                     onChange={setStartDate}
-                    placeholder="날짜 선택"
+                    placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={dueDate ? d => d > dueDate : undefined}
                   />
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-sm font-semibold text-ink-400 uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
                     onChange={setDueDate}
-                    placeholder="날짜 선택"
+                    placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={startDate ? d => d < startDate : undefined}
                   />
                 </div>

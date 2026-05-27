@@ -190,7 +190,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
   }
 
   return (
-    <Drawer open={open} onClose={onClose} width={440}>
+    <Drawer open={open} onClose={onClose} width={480}>
         {/* Header + 탭 */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
@@ -282,24 +282,24 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
           {/* 시작일 / 마감일 */}
           <div className="flex flex-col gap-1.5">
             <div className="flex gap-3">
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
                     onChange={setStartDate}
-                    placeholder="날짜 선택"
+                    placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={dueDate ? d => d > dueDate : undefined}
                   />
                 </div>
               </div>
-              <div className="flex-1">
+              <div className="flex-1 min-w-0">
                 <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">마감일</label>
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
                     onChange={setDueDate}
-                    placeholder="날짜 선택"
+                    placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={startDate ? d => d < startDate : undefined}
                   />
                 </div>
