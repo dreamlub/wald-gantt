@@ -210,7 +210,7 @@ function ExpandedRow({ item, isLast, onCollapse }: {
   return (
     <div
       onClick={onCollapse}
-      className={`border-l-2 border-lilac-500 bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+      className={`bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
     >
       <div className="px-4 py-3.5">
         <div className="flex items-start gap-2 mb-3">
@@ -246,9 +246,7 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
 
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-card">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border">
-        <span className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: color ?? 'var(--color-ink-300)' }} />
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-ink-100">
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
         <span className="text-sm text-ink-400 mr-1">{items.length}</span>
         <SevCount count={urgentCount} cls="bg-status-late text-white" />
