@@ -90,42 +90,22 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
 }
 
 // ── Headline cards ────────────────────────────────────────────────────
-// 브랜드 dot 색상 대신 배경용으로 보기 좋은 팔레트 순환
-const CARD_PALETTES = [
-  'var(--color-status-late)',    // red
-  'var(--color-ink-900)',        // dark
-  'var(--color-status-future)',  // blue
-  'var(--color-lilac-600)',      // purple
-  'var(--color-status-ok)',      // mint
-  'var(--color-status-warn)',    // orange
-]
-
 function HeadlineCard({ text, brand, index }: { text: string; brand?: string; index: number }) {
-  const bg = CARD_PALETTES[index % CARD_PALETTES.length]
-  const labelOpacity = index % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)'
   const num = String(index + 1).padStart(2, '0')
   return (
-    <article
-      className="flex-1 rounded-xl overflow-hidden flex flex-col min-w-0"
-      style={{ background: bg }}
-    >
+    <article className="flex-1 rounded-xl border border-border bg-card flex flex-col min-w-0">
       <div className="p-5 flex-1">
-        <div className="flex items-baseline gap-2 mb-4">
-          <span className="text-2xs font-black tracking-widest uppercase"
-            style={{ color: labelOpacity }}>
-            HEADLINE
-          </span>
-          <span className="text-3xl font-black leading-none text-white/80">{num}</span>
+        <div className="flex items-baseline gap-2 mb-3">
+          <span className="text-2xs font-black text-ink-300 tracking-widest uppercase">HEADLINE</span>
+          <span className="text-3xl font-black leading-none text-ink-200">{num}</span>
         </div>
-        <p className="text-sm font-semibold text-white leading-relaxed">
+        <p className="text-sm font-semibold text-foreground leading-relaxed">
           {renderBold(text)}
         </p>
       </div>
       {brand && (
         <div className="px-5 pb-4">
-          <span className="text-2xs font-semibold text-white/55 border border-white/20 px-2.5 py-1 rounded-full">
-            {brand}
-          </span>
+          <BrandBadge brandName={brand} />
         </div>
       )}
     </article>
