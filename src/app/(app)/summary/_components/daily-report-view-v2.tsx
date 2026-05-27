@@ -207,10 +207,15 @@ function ExpandedRow({ item, isLast, onCollapse }: {
   item: UnifiedItem; isLast: boolean; onCollapse: () => void
 }) {
   const priority = item.severity === 'urgent' ? 'high' : item.severity === 'watch' ? 'medium' : 'low'
+  const accentColor =
+    item.severity === 'urgent' ? 'var(--color-status-late)' :
+    item.severity === 'watch'  ? 'var(--color-status-warn)' :
+    'var(--color-ink-200)'
   return (
     <div
       onClick={onCollapse}
       className={`bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+      style={{ borderLeft: `3px solid ${accentColor}` }}
     >
       <div className="px-4 py-3.5">
         <div className="flex items-start gap-2 mb-3">
@@ -243,14 +248,18 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   const color       = brandColor(brand)
   const urgentCount = items.filter(i => i.severity === 'urgent').length
   const watchCount  = items.filter(i => i.severity === 'watch').length
+  const otherCount  = items.filter(i => i.severity === 'info' || i.severity === 'other').length
 
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-card">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-ink-100">
+        <span className="w-2 h-2 rounded-full shrink-0"
+          style={{ background: color ?? 'var(--color-ink-300)' }} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
         <span className="text-sm text-ink-400 mr-1">{items.length}</span>
-        <SevCount count={urgentCount} cls="bg-status-late text-white" />
-        <SevCount count={watchCount}  cls="bg-status-warn text-white" />
+        <SevCount count={urgentCount}  cls="bg-status-late text-white" />
+        <SevCount count={watchCount}   cls="bg-status-warn text-white" />
+        <SevCount count={otherCount}   cls="bg-ink-300 text-white" />
       </div>
       <div>
         {items.map((item, i) => {
