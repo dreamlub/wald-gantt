@@ -220,8 +220,8 @@ export function NormalView(props: NormalViewProps) {
         <div className="w-24 shrink-0">일정</div>
       </div>
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
-        {/* ── Inbox 섹션 (항상 표시) ─────────────────────────── */}
-        {!hasFilter && (
+        {/* ── Inbox 섹션 (전체 보기 or inbox 필터 시 표시) ──── */}
+        {(!hasFilter || quickFilter === 'inbox') && (
           <div>
             <button
               onClick={() => setInboxCollapsed(c => !c)}
@@ -263,7 +263,13 @@ export function NormalView(props: NormalViewProps) {
           </div>
         )}
 
-        {filtered.length === 0 && hasFilter ? (
+        {quickFilter === 'inbox' ? (
+          inboxGroup.length === 0 ? (
+            <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
+              <p className="text-sm">Inbox가 비어있어요 ✨</p>
+            </div>
+          ) : null
+        ) : filtered.length === 0 && hasFilter ? (
           <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
             <p className="text-sm">{emptyMsg}</p>
           </div>

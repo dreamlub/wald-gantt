@@ -6,7 +6,7 @@ import { ko } from 'date-fns/locale'
 import { CalendarDays, Clock, CheckSquare } from 'lucide-react'
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
-import { BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
+import { SEV_TO_PRIORITY } from './action-detail-drawer'
 import { brandColor } from '@/lib/history-service'
 
 interface DailyReportData {
@@ -177,9 +177,32 @@ function SevCount({ count, cls }: { count: number; cls: string }) {
   )
 }
 
-// 접힌 행 — 한 줄 요약
-function CollapsedRow({ item, isLast, onExpand }: {
-  item: UnifiedItem; isLast: boolean; onExpand: () => void
+// 요약 본문: "배경:", "경과:", "조치:" 라벨 파싱 후 렌더링
+function SummaryLines({ text }: { text: string }) {
+  const LABELS = ['배경', '경과', '조치', '결과']
+  const lines = text.split('\n').map(l => l.trim().replace(/^•\s*/, '')).filter(Boolean)
+  return (
+    <div className="space-y-1 mb-2.5">
+      {lines.map((line, i) => {
+        const match = line.match(new RegExp(`^(${LABELS.join('|')})[:\\s：](.+)$`))
+        if (match) {
+          return (
+            <p key={i} className="text-sm leading-relaxed">
+              <span className="text-ink-400 font-medium">{match[1]}</span>
+              <span className="text-ink-400 mx-0.5">:</span>
+              <span className="text-ink-600">{match[2].trim()}</span>
+            </p>
+          )
+        }
+        return <p key={i} className="text-sm text-ink-500 leading-relaxed">{line}</p>
+      })}
+    </div>
+  )
+}
+
+// 접힌 행 — 한 줄 요약 (좌측 브랜드 색상 띠)
+function CollapsedRow({ item, isLast, accent, onExpand }: {
+  item: UnifiedItem; isLast: boolean; accent: string; onExpand: () => void
 }) {
   const dotColor =
     item.severity === 'urgent' ? 'var(--color-status-late)' :
@@ -190,7 +213,8 @@ function CollapsedRow({ item, isLast, onExpand }: {
   return (
     <div
       onClick={onExpand}
-      className={`flex items-center gap-2.5 px-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+      className={`flex items-center gap-2.5 pl-3 pr-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+      style={{ borderLeft: `3px solid ${accent}` }}
     >
       {item.date && (
         <span className="text-2xs text-ink-400 tabular-nums shrink-0">{item.date}</span>
@@ -201,34 +225,32 @@ function CollapsedRow({ item, isLast, onExpand }: {
   )
 }
 
-// 펼친 행 — 전체 상세
-function ExpandedRow({ item, isLast, onCollapse }: {
-  item: UnifiedItem; isLast: boolean; onCollapse: () => void
+// 펼친 행 — 전체 상세 (좌측 브랜드 색상 띠)
+function ExpandedRow({ item, isLast, accent, onCollapse }: {
+  item: UnifiedItem; isLast: boolean; accent: string; onCollapse: () => void
 }) {
   const priority = item.severity === 'urgent' ? 'high' : item.severity === 'watch' ? 'medium' : 'low'
-  const accentColor =
-    item.severity === 'urgent' ? 'var(--color-status-late)' :
-    item.severity === 'watch'  ? 'var(--color-status-warn)' :
-    'var(--color-ink-200)'
   return (
     <div
       onClick={onCollapse}
       className={`bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
-      style={{ borderLeft: `3px solid ${accentColor}` }}
+      style={{ borderLeft: `3px solid ${accent}` }}
     >
-      <div className="px-4 py-3.5">
-        <div className="flex items-start gap-2 mb-3">
+      <div className="pl-3 pr-4 py-3.5">
+        <div className="flex items-start gap-2 mb-2.5">
           {item.date && (
             <span className="text-2xs text-ink-400 tabular-nums shrink-0 mt-0.5">{item.date}</span>
           )}
           <span className="flex-1 text-sm font-semibold text-foreground leading-snug">{item.title}</span>
           <span className="shrink-0 mt-0.5"><PriorityBars priority={priority} /></span>
         </div>
-        {item.summary && (
-          <BodyBullets text={item.summary} className="text-sm text-ink-500 leading-relaxed mb-2.5" />
-        )}
+        {item.summary && <SummaryLines text={item.summary} />}
         {item.action && (
-          <p className="text-sm text-ink-400 border-l-2 border-ink-200 pl-2.5 mb-3">{item.action}</p>
+          <p className="text-sm leading-relaxed mb-2.5">
+            <span className="text-ink-400 font-medium">조치</span>
+            <span className="text-ink-400 mx-0.5">:</span>
+            <span className="text-ink-600">{item.action}</span>
+          </p>
         )}
         <div className="flex items-center gap-1.5">
           <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full ${item.badge.cls}`}>
@@ -245,6 +267,7 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
     (items.find(i => i.severity === 'urgent') ?? items.find(i => i.severity === 'watch') ?? items[0])?.key ?? null
   )
   const color       = brandColor(brand)
+  const accent      = color ?? 'var(--color-ink-300)'
   const urgentCount = items.filter(i => i.severity === 'urgent').length
   const watchCount  = items.filter(i => i.severity === 'watch').length
   const otherCount  = items.filter(i => i.severity === 'info' || i.severity === 'other').length
@@ -252,8 +275,7 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   return (
     <div className="border border-border rounded-xl overflow-hidden bg-card">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-ink-100">
-        <span className="w-2 h-2 rounded-full shrink-0"
-          style={{ background: color ?? 'var(--color-ink-300)' }} />
+        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: accent }} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
         <span className="text-sm text-ink-400 mr-1">{items.length}</span>
         <SevCount count={urgentCount}  cls="bg-status-late text-white" />
@@ -264,10 +286,10 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
         {items.map((item, i) => {
           const isLast = i === items.length - 1
           return item.key === expandedKey ? (
-            <ExpandedRow key={item.key} item={item} isLast={isLast}
+            <ExpandedRow key={item.key} item={item} isLast={isLast} accent={accent}
               onCollapse={() => setExpandedKey(null)} />
           ) : (
-            <CollapsedRow key={item.key} item={item} isLast={isLast}
+            <CollapsedRow key={item.key} item={item} isLast={isLast} accent={accent}
               onExpand={() => setExpandedKey(item.key)} />
           )
         })}

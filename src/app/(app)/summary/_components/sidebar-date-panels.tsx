@@ -217,9 +217,10 @@ export function SidebarDatePicker({ value, onChange, placeholder }: {
 }
 
 // ── DateRangePanel ──────────────────────────────────────────
-export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange }: {
+export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToChange, showToday = true }: {
   dateFrom: string; dateTo: string
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
+  showToday?: boolean
 }) {
   function fmt(d: Date) {
     return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
@@ -249,13 +250,10 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
     }
   }
 
-  const presets = [
-    ['today', '오늘'],
-    ['week', '최근 1주'],
-    ['month', '이번 달'],
-    ['lastmonth', '지난 달'],
-    ['all', '전체'],
-  ] as const
+  const presets = (showToday
+    ? [['today', '오늘'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
+    : [['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
+  ) as readonly (readonly [string, string])[]
 
   function activePreset(): string | null {
     if (!dateFrom && !dateTo) return 'all'
@@ -285,7 +283,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
           {presets.map(([key, label]) => (
             <button
               key={key}
-              onClick={() => applyPreset(key)}
+              onClick={() => applyPreset(key as 'today' | 'week' | 'month' | 'lastmonth' | 'all')}
               className={`text-sm px-2 py-0.5 rounded border transition-colors ${
                 active === key
                   ? 'bg-foreground text-background border-foreground'

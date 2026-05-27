@@ -20,7 +20,7 @@ export function CategoryAddDialog({
 }: Props) {
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-sm">
+      <DialogContent className="sm:max-w-sm" showCloseButton={false}>
         <DialogHeader>
           <DialogTitle>카테고리 추가</DialogTitle>
         </DialogHeader>

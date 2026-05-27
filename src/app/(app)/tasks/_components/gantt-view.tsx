@@ -7,13 +7,15 @@ import {
   type WeekInfo,
 } from '@/lib/gantt-utils'
 import type { GanttTask } from '@/types'
-import { STATUS_COLOR, PriorityBars } from '../_constants'
+import { STATUS_COLOR, STATUS_ABBR, STATUS_LABEL, PriorityBars } from '../_constants'
+import type { TaskStatus } from '@/types'
 import { isOverdue, isStartDelayed, clampTooltipPos } from '../_utils'
 
 interface Props {
   tasks: GanttTask[]
   onEdit: (t: GanttTask) => void
   onDateChange?: (id: string, start_date: string | null, due_date: string | null) => void
+  onStatusChange?: (id: string, status: TaskStatus) => void
 }
 
 const WEEK_W   = 36   // px per week column
@@ -113,7 +115,7 @@ function gantSortCompare(a: GanttTask, b: GanttTask): number {
   return (a.sort_order ?? 0) - (b.sort_order ?? 0)
 }
 
-export function GanttView({ tasks, onEdit, onDateChange }: Props) {
+export function GanttView({ tasks, onEdit, onDateChange, onStatusChange }: Props) {
   const [leftWidth, setLeftWidth] = useState(LEFT_W_DEFAULT)
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
   const [localDates, setLocalDates] = useState<Map<string, { start_date: string | null; due_date: string | null }>>(new Map())
@@ -316,10 +318,19 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                 style={{ width: LEFT_W }}
               >
                 {isSub && <CornerDownRight size={11} className="text-ink-300 shrink-0" />}
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: statusColor }} />
+                <button
+                  type="button"
+                  onClick={() => onStatusChange?.(task.id, task.status)}
+                  aria-label={STATUS_LABEL[task.status]}
+                  title={STATUS_LABEL[task.status]}
+                  className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
+                  style={{ backgroundColor: statusColor }}
+                >
+                  {STATUS_ABBR[task.status]}
+                </button>
                 <button
                   onClick={() => onEdit(task)}
-                  className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${isDone ? 'line-through font-medium text-ink-400' : 'text-foreground'}`}
+                  className={`text-sm truncate hover:text-accent-foreground transition-colors text-left ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}
                   title={task.title}
                 >
                   {task.title}
@@ -464,15 +475,20 @@ export function GanttView({ tasks, onEdit, onDateChange }: Props) {
                   style={{ height: ROW_H }}
                 >
                   <div className="shrink-0 sticky left-0 z-10 flex items-center gap-1.5 px-3 border-r bg-inherit" style={{ width: LEFT_W }}>
-                    <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
+                    <button
+                      type="button"
+                      onClick={() => onStatusChange?.(task.id, task.status)}
+                      aria-label={STATUS_LABEL[task.status]}
+                      title={STATUS_LABEL[task.status]}
+                      className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
+                      style={{ backgroundColor: STATUS_COLOR[task.status] }}
+                    >
+                      {STATUS_ABBR[task.status]}
+                    </button>
                     <button
                       onClick={() => onEdit(task)}
-                      className={`text-xs truncate hover:text-accent-foreground transition-colors text-left ${
-                        isDone ? 'line-through font-medium text-ink-400' :
-                        task.priority === 3 ? 'font-semibold text-rose-500' :
-                        task.priority === 2 ? 'font-medium text-foreground' :
-                        task.priority === 1 ? 'font-normal text-muted-foreground' :
-                        'font-normal text-ink-400'
+                      className={`text-sm truncate hover:text-accent-foreground transition-colors text-left ${
+                        isDone ? 'line-through text-ink-400' : 'text-foreground'
                       }`}
                     >
                       {task.title}

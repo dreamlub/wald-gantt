@@ -9,13 +9,141 @@
 
 ---
 
+## 최근 변경 (2026-05-28) — Gantt/Calendar 뷰 우선순위 텍스트 스타일 제거
+
+### 중요도별 텍스트 굵기·색상 제거 (Gantt View, Calendar View)
+- List View와 동일하게 중요도에 따른 font-weight·color 차별화 제거
+- `gantt-view.tsx`: 태스크 제목 `priority === 3 ? 'font-semibold text-rose-500' : ...` → `text-foreground` (완료 시 `line-through text-ink-400` 유지)
+- `calendar-view.tsx`: 태스크 제목 `priority === 3 ? 'font-semibold text-status-late' : ...` → `text-foreground` (완료 시 동일)
+
+---
+
+## 최근 변경 (2026-05-28) — CategoryAddDialog backdrop 버그 수정
+
+### CategoryAddDialog → page 레벨로 이동 (z-index 충돌 해결)
+- **원인**: `CategoryAddDialog`가 `GanttChart` 컴포넌트 내부에서 렌더링되어, GanttChart 왼쪽 패널(`zIndex: 'var(--z-above)'`)이 다이얼로그 backdrop(z-dialog: 200) 위에 나타나는 stacking context 충돌
+- **해결**: 다이얼로그 상태 및 렌더링을 `GanttChart` 외부(`projects/page.tsx`)로 이동
+- `src/components/gantt/GanttChart.tsx`:
+  - `addingCat` / `newCatName` / `newCatColor` 상태 제거
+  - `submitAddCat` 함수 제거, `CategoryAddDialog` 렌더링 제거
+  - `onOpenAddCategory?: () => void` prop 추가 — 툴바 및 헤더 버튼에 연결
+  - 더블클릭 빈 공간 핸들러도 `onOpenAddCategory?.()` 호출로 변경
+- `src/app/(app)/projects/page.tsx`:
+  - `addCatOpen` / `newCatName` / `newCatColor` 상태 추가
+  - `submitAddCat` 추가, `useEffect`로 dialog 열릴 때 랜덤 색상 선택
+  - `CategoryAddDialog` + `randomCatColor` 임포트 및 렌더링 추가
+  - GanttChart에 `onOpenAddCategory={() => setAddCatOpen(true)}` 전달
+
+---
+
+## 최근 변경 (2026-05-28) — Tasks 디테일 패널 인라인 전환 + 우선순위 컬럼 정렬
+
+### ProjectFormDialog → 인라인 사이드패널 전환 (Projects 페이지)
+- **원인**: 포털 기반 `Drawer` backdrop이 GanttChart sticky/overflow 컨테이너와 충돌
+- `src/components/gantt/ProjectFormDialog.tsx`: `noPortal` prop 추가, `Drawer`로 전달
+- `src/app/(app)/projects/page.tsx`: 레이아웃 재구성
+  - GanttChart 영역 + 인라인 프로젝트폼 패널 나란히 배치
+  - 패널 `width: 0 ↔ 480px` 슬라이드 — 프로젝트 추가/수정 시 간트가 옆으로 밀림
+- `src/components/gantt/_CategoryAddDialog.tsx`: `showCloseButton={false}` 추가 (푸터 취소 버튼과 X 버튼 중복 제거)
+
+### TaskDetailDrawer → 인라인 사이드패널 전환
+- **원인**: 포털 기반 `fixed inset-0` backdrop이 Gantt 뷰의 `sticky` 컬럼 / `overflow-auto` 컨테이너와 충돌 → 화면 깨짐
+- `src/components/ui/drawer.tsx`: `noPortal` prop 추가. `true`이면 포털·backdrop 없이 children만 렌더링
+- `src/app/(app)/tasks/_components/task-detail-drawer.tsx`: `noPortal` prop 추가, `Drawer`로 전달
+- `src/app/(app)/tasks/page.tsx`: 레이아웃 구조 변경
+  - `flex-1 flex flex-col overflow-hidden` (뷰 영역) + `shrink-0 border-l` (디테일 패널) 나란히 배치
+  - 디테일 패널: `width: activeDetail ? 480 : 0` + `transition: width 300ms ease-out` — 간트 포함 모든 뷰에서 콘텐츠를 밀어내는 슬라이드 애니메이션
+  - backdrop 오버레이 완전 제거; X 버튼으로 닫기
+
+### List View 우선순위 컬럼 헤더·행 너비 정렬
+- `list-view.tsx`: 헤더·행 모두 `w-8` → `w-12`로 통일 (이전 세션에서 헤더만 변경되어 어긋났던 문제 수정)
+
+---
+
+## 최근 변경 (2026-05-28) — UI 버그 수정 및 폼 너비 조정
+
+### Tasks / Summary 탭 폰트 크기
+- `tasks-action-bar.tsx` / `summary-toolbar.tsx`: 탭 버튼 `text-xs` → `text-sm` 통일
+
+### Drawer 내 DatePicker z-index 수정
+- `src/components/ui/popover.tsx`: Positioner z-index `z-50` → `z-dialog` 로 상향
+- Drawer(`z-dialog`)보다 낮아 DatePicker 캘린더가 뒤에 가리는 문제 해결
+
+### Gantt 행 정렬 변경 시 LEFT/RIGHT 패널 어긋남 수정
+- `_GanttRows.tsx`: `SortableProjRow` / `SortableCatRow` 에 `animateLayoutChanges: () => false` 추가
+  - dnd-kit이 순서 변경 시 임시 CSS transform 적용하는 것을 방지
+- `GanttChart.tsx`: `useLayoutEffect`로 정렬·필터 변경 시 scroll 강제 동기화 추가
+
+### 정렬 드롭다운 클리핑 수정
+- `GanttToolbar.tsx`: 정렬 드롭다운 `absolute` → `fixed` + `getBoundingClientRect()` 방식으로 변경
+  - overflow 컨테이너 밖으로 벗어나 잘리는 문제 해결
+  - 너비 `min-w-[140px]` → `min-w-[100px]` 축소
+
+### Drawer 딤 처리 강화
+- `src/components/ui/drawer.tsx`: 배경 `bg-black/30` → `bg-black/50`
+
+### 폼 너비 조정
+- `ProjectFormDialog.tsx`: `width={440}` → `width={340}`
+- `TaskFormDialog.tsx`: `width={440}` → `width={360}`
+
+---
+
+## 최근 변경 (2026-05-28) — Inbox 행 음영 + 전역 스크롤바 숨김
+
+- `task-row.tsx`: `status === 'inbox'` && 서브태스크 아닐 때 `var(--task-status-inbox-bg)` 배경 적용 (inline style)
+- `globals.css`:
+  - `*` 셀렉터 `scrollbar-width: thin` → `scrollbar-width: none` (+ `scrollbar-color` 제거)
+  - `::-webkit-scrollbar` track/thumb/hover 규칙 전체 제거 → `display: none` 단일 규칙으로 교체
+  - 앱 전체 스크롤바 완전 숨김 (html/body는 이미 `scrollbar-width: none` 적용 중이었음)
+
+---
+
+## 최근 변경 (2026-05-28) — Tasks Inbox 사이드바 필터 버그 수정
+
+### 문제
+사이드바 "Inbox" 클릭 → `quickFilter === 'inbox'` → `hasFilter = true`
+→ Inbox 섹션이 `{!hasFilter && ...}` 조건으로 숨겨짐
+→ `filtered`의 inbox 태스크는 `STATUS_GROUPS`에 inbox가 없어 어떤 그룹에도 렌더 안 됨 → 빈 화면
+
+### 수정 (`normal-view.tsx`)
+1. Inbox 섹션 노출 조건 `!hasFilter` → `!hasFilter || quickFilter === 'inbox'`
+2. 상태 그룹 앞에 `quickFilter === 'inbox'` 분기 추가
+   - inbox 태스크 있으면 위 섹션에서 이미 렌더 (null 반환)
+   - inbox 태스크 없으면 "Inbox가 비어있어요 ✨" 빈 상태 표시
+
+### 검증
+- 변경 파일 `npx tsc --noEmit` 에러 없음
+
+---
+
+## 최근 변경 (2026-05-28) — 탭별 독립 날짜 + Weekly List 오늘 프리셋 제거
+
+### 문제
+`dateFrom`/`dateTo`가 단일 shared state → 탭 이동 시 이전 탭 날짜가 그대로 이월됨
+
+### 변경 내용
+- `summary-shell.tsx`: `getTabDefaultDates(view)` 헬퍼 추가 (컴포넌트 외부)
+  - `dailylist` / `weeklylist` → 최근 7일
+  - `dailyreport` → 오늘
+  - 나머지 → 전체 (빈값)
+- `handleViewChange(newView)` 추가: 탭 전환 시 탭별 기본 날짜로 리셋
+- `tableInitRef` 방식 → 초기 마운트 `useEffect`로 교체 (mount-only, `!dateFrom && !dateTo` 조건)
+- `SummaryToolbar`에 `onViewChange={handleViewChange}` 적용
+- `sidebar-date-panels.tsx`: `DateRangePanel`에 `showToday?: boolean` prop 추가
+  - `false`이면 presets 배열에서 'today' 제외
+- `summary-sidebar.tsx`: Weekly List에 `showToday={false}` 전달
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
 ## 최근 변경 (2026-05-28) — Daily List 사이드바 "오늘" 프리셋 추가
 
-- `_sidebar-controls.tsx`: `PRESETS` 배열 앞에 `['today', '오늘']` 추가
-- `applyDatePreset`: `'today'` → from/to 모두 오늘 날짜로 설정
-- `getActivePreset`: from === to === 오늘이면 `'today'` 반환
-- 타입 유니온 `'today' | 'default' | 'month' | 'lastmonth' | 'all'` 확장
-- `DateRangePanel` 포함 모든 사이드바(Daily List, Summary 등)에 자동 반영
+- `sidebar-date-panels.tsx` `DateRangePanel`: presets 배열 맨 앞에 `['today', '오늘']` 추가
+- `applyPreset`: `'today'` → dateFrom/dateTo 모두 오늘 날짜로 설정
+- `activePreset`: from === to === today이면 `'today'` 활성 반환
+- (참고) `_sidebar-controls.tsx`는 미사용 경로로 해당 파일 수정은 효과 없었음
 
 ### 검증
 - `npx tsc --noEmit` 통과 (에러 0건)

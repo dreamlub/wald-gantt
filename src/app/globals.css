@@ -274,8 +274,7 @@
 @layer base {
   * {
     @apply border-border outline-ring/50;
-    scrollbar-width: thin;
-    scrollbar-color: oklch(0.82 0 0) transparent;
+    scrollbar-width: none;
   }
   body {
     @apply bg-background text-foreground;
@@ -322,18 +321,7 @@
 }
 
 ::-webkit-scrollbar {
-  width: 6px;
-  height: 6px;
-}
-::-webkit-scrollbar-track {
-  background: transparent;
-}
-::-webkit-scrollbar-thumb {
-  background: oklch(0.82 0 0);
-  border-radius: 3px;
-}
-::-webkit-scrollbar-thumb:hover {
-  background: oklch(0.65 0 0);
+  display: none;
 }
 
 [data-sonner-toaster],

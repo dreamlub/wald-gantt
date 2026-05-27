@@ -103,7 +103,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
       <div className="flex-1 overflow-y-auto">
         <div
           className="grid grid-cols-7"
-          style={{ gridAutoRows: `minmax(${rows <= 5 ? 100 : 84}px, 1fr)` }}
+          style={{ gridAutoRows: `minmax(${rows <= 5 ? 118 : 100}px, 1fr)` }}
         >
           {cells.map((d, i) => {
             const dow    = i % 7
@@ -141,7 +141,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                 </div>
 
                 {/* 태스크 칩 */}
-                <div className="flex flex-col gap-0.5 px-1 pb-1 overflow-hidden">
+                <div className="flex flex-col gap-0.5 px-1 pb-1.5 overflow-hidden">
                   {dayTasks.slice(0, 3).map(task => {
                     const isDone      = task.status === 'done'
                     const overdue     = isOverdue(task.due_date, task.status)
@@ -157,11 +157,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                         style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                       >
                         <span className={`truncate flex-1 leading-tight ${
-                          isDone           ? 'line-through text-ink-400' :
-                          task.priority === 3 ? 'font-semibold text-status-late' :
-                          task.priority === 2 ? 'font-medium text-foreground' :
-                          task.priority === 1 ? 'text-ink-600' :
-                          'text-muted-foreground'
+                          isDone ? 'line-through text-ink-400' : 'text-foreground'
                         }`}>
                           {task.title}
                         </span>

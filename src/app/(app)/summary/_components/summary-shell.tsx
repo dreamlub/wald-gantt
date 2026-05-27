@@ -35,6 +35,22 @@ interface Props {
   initialHistory: HistoryItem[]
 }
 
+function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
+  const now = new Date()
+  const fmt = (d: Date) => `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+  const today = fmt(now)
+  if (v === 'dailylist' || v === 'weeklylist') {
+    return { from: fmt(new Date(now.getTime() - 6 * 86400000)), to: today }
+  }
+  if (v === 'dailyreport') {
+    return { from: today, to: today }
+  }
+  if (v === 'timeline') {
+    return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, to: today }
+  }
+  return { from: '', to: '' }
+}
+
 export function SummaryShell({ initialClients, initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
@@ -91,6 +107,12 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   // ── 테이블 뷰 서버 페이지네이션 ────────────────────────────
   const [pg, pgDispatch] = useReducer(pageReducer, PAGE_INIT)
   const fetchIdRef = useRef(0)
+  // brandCounts 는 브랜드 필터 제외 집계 → 날짜 범위 내 전체 건수로 활용
+  const dailyTotalCount = useMemo(() => {
+    const bc = pg.brandCounts
+    if (bc && Object.keys(bc).length > 0) return Object.values(bc).reduce((s, c) => s + c, 0)
+    return pg.total
+  }, [pg.brandCounts, pg.total])
 
   const fetchPage = useCallback(async (cursor?: string) => {
     const id = ++fetchIdRef.current
@@ -111,18 +133,25 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
     pgDispatch({ type: 'loaded', page, append: !!cursor })
   }, [dateFrom, dateTo, brandId, priorityKey, selectedTags, authorKey, searchQuery])
 
-  const tableInitRef = useRef(false)
+  // 탭 전환 핸들러 — 탭별 기본 날짜로 리셋
+  const handleViewChange = useCallback((newView: ViewKey) => {
+    const { from, to } = getTabDefaultDates(newView)
+    setDateFrom(from)
+    setDateTo(to)
+    setView(newView)
+  }, [])
+
+  // 초기 마운트 — URL에 날짜 없을 때 현재 탭 기본값 적용
+  useEffect(() => {
+    if (!dateFrom && !dateTo) {
+      const { from, to } = getTabDefaultDates(view)
+      if (from || to) { setDateFrom(from); setDateTo(to) }
+    }
+    // mount only
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   useEffect(() => {
-    if (view === 'dailylist' && !tableInitRef.current && !dateFrom && !dateTo) {
-      tableInitRef.current = true
-      const now = new Date()
-      const d = new Date(now.getTime() - 6 * 86400000)
-      const fmt = (v: Date) => `${v.getFullYear()}-${String(v.getMonth() + 1).padStart(2, '0')}-${String(v.getDate()).padStart(2, '0')}`
-      setDateFrom(fmt(d))
-      setDateTo(fmt(now))
-      return
-    }
     if (view === 'dailylist') fetchPage()
   }, [view, dateFrom, dateTo, fetchPage])
 
@@ -241,7 +270,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
           sidebarOpen={sidebarOpen}
           onOpenSidebar={() => setSidebarOpen(true)}
           view={view}
-          onViewChange={setView}
+          onViewChange={handleViewChange}
           searchRef={searchRef}
           searchInputRef={searchInputRef}
           searchOpen={searchOpen}
@@ -278,7 +307,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-sm text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
                     <span className="shrink-0">
                       {view === 'dailylist'
-                        ? <><b className="text-foreground font-semibold">{pg.total}건</b></>
+                        ? <>전체 <b className="text-foreground font-semibold">{dailyTotalCount}</b>건{dailyTotalCount !== pg.total && <> 중 <b className="text-foreground font-semibold">{pg.total}</b>건</>}</>
                         : view === 'weeklylist'
                           ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
                           : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>

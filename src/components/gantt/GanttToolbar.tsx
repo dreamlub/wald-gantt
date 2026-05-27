@@ -10,9 +10,9 @@ type SortMode = 'default' | 'start-asc' | 'end-desc' | 'priority-desc'
 
 const SORT_LABELS: Record<SortMode, string> = {
   'default':       '입력순',
-  'start-asc':     '시작일 ↑',
-  'end-desc':      '종료일 ↓',
-  'priority-desc': '우선순위 ↓',
+  'start-asc':     '시작일↑',
+  'end-desc':      '종료일↓',
+  'priority-desc': '우선순위↓',
 }
 
 interface Props {
@@ -83,15 +83,19 @@ export function GanttToolbar({
   const [showFilter,     setShowFilter]     = useState(false)
   const [filterPos,      setFilterPos]      = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const [showSort,       setShowSort]       = useState(false)
-  const [sortPos,        setSortPos]        = useState<{ top: number; right: number }>({ top: 0, right: 0 })
+  const [sortPos,        setSortPos]        = useState<{ top: number; right: number; width: number }>({ top: 0, right: 0, width: 0 })
+  const [showAddProject, setShowAddProject] = useState(false)
+  const [addProjectPos,  setAddProjectPos]  = useState<{ top: number; right: number }>({ top: 0, right: 0 })
 
-  const searchInputRef    = useRef<HTMLInputElement>(null)
-  const filterBtnRef      = useRef<HTMLButtonElement>(null)
-  const sortBtnRef        = useRef<HTMLButtonElement>(null)
+  const searchInputRef   = useRef<HTMLInputElement>(null)
+  const filterBtnRef     = useRef<HTMLButtonElement>(null)
+  const sortBtnRef       = useRef<HTMLButtonElement>(null)
+  const addProjectBtnRef = useRef<HTMLButtonElement>(null)
 
-  const searchRef        = useClickAway<HTMLDivElement>(searchOpen,      () => { if (!searchQuery) setSearchOpen(false) })
-  const filterRef        = useClickAway<HTMLDivElement>(showFilter,      () => setShowFilter(false))
-  const sortRef          = useClickAway<HTMLDivElement>(showSort,        () => setShowSort(false))
+  const searchRef     = useClickAway<HTMLDivElement>(searchOpen,      () => { if (!searchQuery) setSearchOpen(false) })
+  const filterRef     = useClickAway<HTMLDivElement>(showFilter,      () => setShowFilter(false))
+  const sortRef       = useClickAway<HTMLDivElement>(showSort,        () => setShowSort(false))
+  const addProjectRef = useClickAway<HTMLDivElement>(showAddProject,  () => setShowAddProject(false))
 
   const toggleFilter = useCallback(() => {
     setShowFilter(v => {
@@ -272,7 +276,7 @@ export function GanttToolbar({
               setShowSort(v => {
                 if (!v && sortBtnRef.current) {
                   const rect = sortBtnRef.current.getBoundingClientRect()
-                  setSortPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right })
+                  setSortPos({ top: rect.bottom + 4, right: window.innerWidth - rect.right, width: rect.width })
                 }
                 return !v
               })
@@ -288,12 +292,12 @@ export function GanttToolbar({
             <ChevronDown size={11} />
           </button>
           {showSort && (
-            <div className="fixed bg-card border rounded-lg shadow-lg min-w-[100px] py-1" style={{ top: sortPos.top, right: sortPos.right, zIndex: 'var(--z-dialog)' }}>
+            <div className="fixed bg-card border rounded-lg shadow-lg py-0.5 w-max" style={{ top: sortPos.top, right: sortPos.right, minWidth: sortPos.width, zIndex: 'var(--z-dialog)' }}>
               {(Object.keys(SORT_LABELS) as SortMode[]).map(mode => (
                 <button
                   key={mode}
                   onClick={() => { onSortModeChange(mode); setShowSort(false) }}
-                  className={`w-full text-left px-3 py-1.5 text-sm transition-colors ${
+                  className={`block w-full text-left px-3 py-1 text-sm whitespace-nowrap transition-colors ${
                     sortMode === mode
                       ? 'bg-lilac-100 text-lilac-600 font-medium'
                       : 'text-foreground hover:bg-muted'

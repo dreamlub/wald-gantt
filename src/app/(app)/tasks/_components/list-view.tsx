@@ -202,7 +202,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
         </div>
         <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-8 shrink-0 text-sm font-semibold text-ink-400 uppercase tracking-wider">메모</div>
-        <div className="w-8 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-12 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
         <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
@@ -373,7 +373,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 </button>
               )}
             </div>
-            <div className="w-8 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
+            <div className="w-12 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
               <PriorityBars priority={task.priority} />
             </div>
             <div className="w-28 shrink-0 flex items-center gap-1.5">

@@ -11,6 +11,8 @@ interface DrawerProps {
   backdrop?: boolean        // true (기본): bg-black/40 배경
   closeOnBackdrop?: boolean // true (기본): backdrop 클릭 시 닫기
   panelClass?: string       // 없으면 shadow-2xl 적용
+  /** true: 포털 없이 부모 안에서 인라인 렌더링 (레이아웃이 직접 패널 크기를 제어) */
+  noPortal?: boolean
   children: ReactNode
 }
 
@@ -21,18 +23,26 @@ export function Drawer({
   backdrop = true,
   closeOnBackdrop = true,
   panelClass,
+  noPortal = false,
   children,
 }: DrawerProps) {
   const [mounted, setMounted] = useState(false)
   useEffect(() => { setMounted(true) }, [])
 
+  // 인라인 모드: 포털·backdrop 없이 children만 렌더링
+  // 패널 크기·슬라이드 애니메이션은 부모 컨테이너가 직접 담당
+  if (noPortal) {
+    if (!open) return null
+    return <>{children}</>
+  }
+
   if (!mounted) return null
 
   return createPortal(
-    <div className={`fixed inset-0 z-dialog ${open ? '' : 'pointer-events-none'}`}>
+    <div className={`fixed inset-0 z-dialog ${open ? '' : 'pointer-events-none'}`} style={{ zIndex: 'var(--z-dialog)' }}>
       <div
         className={`absolute inset-0 transition-opacity duration-200 ${
-          backdrop ? 'bg-black/30' : ''
+          backdrop ? 'bg-black/50' : ''
         } ${open ? 'opacity-100' : 'opacity-0'}`}
         onClick={closeOnBackdrop ? onClose : undefined}
       />

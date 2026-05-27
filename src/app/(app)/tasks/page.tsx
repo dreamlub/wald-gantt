@@ -162,7 +162,7 @@ function TasksPageContent() {
             onQuickCreate={quick.listQuickCreate}
           />
         ) : view === 'gantt' ? (
-          <GanttView tasks={filters.filtered} onEdit={editHandler} onDateChange={data.handleTaskDateChange} />
+          <GanttView tasks={filters.filtered} onEdit={editHandler} onDateChange={data.handleTaskDateChange} onStatusChange={data.handleStatusChange} />
         ) : (
           <NormalView
             inboxQuickCreate={quick.inboxQuickCreate}

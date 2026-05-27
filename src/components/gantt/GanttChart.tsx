@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useEffect, useLayoutEffect } from 'react'
+import { useState, useLayoutEffect } from 'react'
 import {
   DndContext, closestCenter, DragOverlay,
 } from '@dnd-kit/core'
@@ -16,8 +16,8 @@ import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import {
-  CAT_ROW_H, PROJ_ROW_H, CAT_COLORS, STATUS_META, STATUS_ORDER,
-  randomCatColor, isProjectOverdue, isStartDelayed,
+  CAT_ROW_H, PROJ_ROW_H, STATUS_META, STATUS_ORDER,
+  isProjectOverdue, isStartDelayed,
   GanttCategoryLeft, GanttCategoryRight,
 } from './_GanttRows'
 import {
@@ -29,7 +29,6 @@ import { useBarDrag, colIndexToDate } from './_useBarDrag'
 import { useGanttScroll } from './_useGanttScroll'
 import { useGanttViewData } from './_useGanttViewData'
 import { GanttTimelineHeader } from './_GanttTimelineHeader'
-import { CategoryAddDialog } from './_CategoryAddDialog'
 
 interface Props {
   categories: GanttCategory[]
@@ -42,12 +41,13 @@ interface Props {
   redoCount?: number
   onRedo?: () => void
   onAddCategory: (name: string, color: string) => Promise<void>
+  /** 카테고리 추가 다이얼로그를 여는 콜백 (다이얼로그는 page 레벨에서 렌더링) */
+  onOpenAddCategory?: () => void
   onUpdateCategory: (id: string, updates: { name?: string; color?: string }) => Promise<void>
   onDeleteCategory: (id: string) => Promise<void>
   onAddProject: (categoryId: string) => void
   onEditProject: (project: GanttProject) => void
   onDeleteProject: (id: string) => void
-  onShowHistory: (project: GanttProject) => void
   onOpenMemo: (project: GanttProject) => void
   onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
   onUpdateProjectName: (id: string, name: string) => Promise<void>
@@ -67,7 +67,7 @@ interface Props {
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
-  onAddCategory, onUpdateCategory, onDeleteCategory,
+  onAddCategory, onOpenAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
   onMoveProject, onMoveCategory, onShare,
@@ -82,9 +82,6 @@ export function GanttChart({
   const changeViewMode = (v: ViewMode) => { localStorage.setItem('wald.gantt.viewMode', v); setViewMode(v) }
   const [editCatId, setEditCatId]           = useState<string | null>(null)
   const [editCatVal, setEditCatVal]         = useState('')
-  const [addingCat, setAddingCat]           = useState(false)
-  const [newCatName, setNewCatName]         = useState('')
-  const [newCatColor, setNewCatColor]       = useState<string>(CAT_COLORS[0])
   const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.sortMode') as 'default' | 'start-asc' | 'end-desc' | 'priority-desc' : null) ?? 'default')
   const changeSortMode = (v: 'default' | 'start-asc' | 'end-desc' | 'priority-desc') => { localStorage.setItem('wald.gantt.sortMode', v); setSortMode(v) }
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
@@ -214,11 +211,6 @@ export function GanttChart({
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [sortMode, startDelayedFilter, overdueFilter, searchQuery, excludedTeams, excludedPMs])
 
-  // 카테고리 추가 모달 열릴 때 랜덤 색상
-  useEffect(() => {
-    if (addingCat) setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
-  }, [addingCat, categories])
-
   // 왼쪽 패널 리사이즈
   function onResizeMouseDown(e: React.MouseEvent) {
     e.preventDefault()
@@ -243,12 +235,6 @@ export function GanttChart({
   async function commitEditCat(id: string) {
     if (editCatVal.trim()) await onUpdateCategory(id, { name: editCatVal.trim() })
     setEditCatId(null)
-  }
-
-  async function submitAddCat() {
-    const name = newCatName.trim()
-    if (name) await onAddCategory(name, newCatColor)
-    setNewCatName(''); setAddingCat(false)
   }
 
   function cycleStatus(p: GanttProject) {
@@ -296,7 +282,7 @@ export function GanttChart({
           onSortModeChange={changeSortMode}
           sortedCats={sortedCats}
           onAddProject={onAddProject}
-          onAddCategory={() => setAddingCat(true)}
+          onAddCategory={onOpenAddCategory}
           onShare={onShare}
         />
       )}
@@ -308,7 +294,7 @@ export function GanttChart({
         <div
           ref={leftPanelRef}
           className="shrink-0 flex flex-col shadow-panel-l"
-          style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 'var(--z-overlay)' }}
+          style={{ width: leftWidth, overflowY: 'hidden', overflowX: 'hidden', zIndex: 'var(--z-above)' }}
         >
           <div className="shrink-0 border-b bg-card flex flex-col justify-between px-3" style={{ height: HEADER_H }}>
             {!readOnly && (
@@ -367,7 +353,7 @@ export function GanttChart({
               <span className="text-2xs font-semibold text-muted-foreground">프로젝트</span>
               {!readOnly && (
                 <button
-                  onClick={() => setAddingCat(true)}
+                  onClick={() => onOpenAddCategory?.()}
                   className="flex items-center gap-0.5 text-2xs text-muted-foreground hover:text-foreground transition-colors"
                   title="카테고리 추가"
                 >
@@ -391,12 +377,12 @@ export function GanttChart({
             >
               <div className="flex-1" onDoubleClick={e => {
                 if ((e.target as HTMLElement).closest('[data-row]')) return
-                setAddingCat(true)
+                onOpenAddCategory?.()
               }}>
-                {categories.length === 0 && !addingCat && (
+                {categories.length === 0 && (
                   <div
                     className="flex flex-col items-center justify-center h-28 text-muted-foreground text-xs gap-1 cursor-pointer select-none"
-                    onDoubleClick={() => setAddingCat(true)}
+                    onDoubleClick={() => onOpenAddCategory?.()}
                   >
                     <span>카테고리를 추가해 보세요</span>
                     <span className="text-xs text-ink-300">우측 상단 버튼 또는 더블클릭</span>
@@ -563,17 +549,6 @@ export function GanttChart({
 
       {/* 메모 hover 툴팁 */}
       {memoHover && <MemoTooltip memo={memoHover.text} x={memoHover.x} y={memoHover.y} />}
-
-      {/* 카테고리 추가 모달 */}
-      <CategoryAddDialog
-        open={addingCat}
-        onOpenChange={open => { if (!open) { setAddingCat(false); setNewCatName('') } }}
-        newCatName={newCatName}
-        onNameChange={setNewCatName}
-        newCatColor={newCatColor}
-        onColorChange={setNewCatColor}
-        onSubmit={submitAddCat}
-      />
     </div>
   )
 }

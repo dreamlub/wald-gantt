@@ -35,7 +35,6 @@ export function ShareView({ board, categories, projects }: Props) {
           onAddProject={() => {}}
           onEditProject={() => {}}
           onDeleteProject={() => {}}
-          onShowHistory={() => {}}
           onOpenMemo={() => {}}
           onUpdateProjectDates={async () => {}}
           onUpdateProjectName={async () => {}}

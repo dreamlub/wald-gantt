@@ -103,10 +103,12 @@ interface Props {
   allPMs?: string[]
   initialName?: string
   initialMemo?: string
+  /** true: 포털 없이 인라인 렌더링 */
+  noPortal?: boolean
 }
 
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, noPortal = false }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -185,7 +187,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   }
 
   return (
-    <Drawer open={open} onClose={onClose} width={340}>
+    <Drawer open={open} onClose={onClose} width={480} noPortal={noPortal}>
         {/* Header */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">

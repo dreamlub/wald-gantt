@@ -85,6 +85,7 @@ export function SummarySidebar({
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+          showToday={view === 'dailylist'}
         />
       ) : (
         <MonthGridSection

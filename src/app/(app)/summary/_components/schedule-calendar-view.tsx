@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays, Search } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { Priority } from '../_lib/types'
@@ -79,6 +79,7 @@ export function ScheduleCalendarView() {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [activeBrands, setActiveBrands] = useState<Set<string>>(new Set())
+  const [brandQuery, setBrandQuery] = useState('')
   const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -130,6 +131,21 @@ export function ScheduleCalendarView() {
     }
     return [...set].sort((a, b) => a.localeCompare(b, 'ko'))
   }, [events])
+
+  const brandEventCounts = useMemo(() => {
+    const counts = new Map<string, number>()
+    for (const e of events) {
+      for (const b of e.brand.split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean)) {
+        if (b !== '미분류') counts.set(b, (counts.get(b) ?? 0) + 1)
+      }
+    }
+    return counts
+  }, [events])
+
+  const visibleBrands = useMemo(() => {
+    const q = brandQuery.trim().toLowerCase()
+    return q ? allBrands.filter(b => b.toLowerCase().includes(q)) : allBrands
+  }, [allBrands, brandQuery])
 
   const filteredEvents = useMemo(() => {
     if (activeBrands.size === 0) return events
@@ -201,82 +217,110 @@ export function ScheduleCalendarView() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex overflow-hidden">
 
-      {/* 브랜드 필터 */}
-      <div className="shrink-0 flex flex-wrap items-center gap-1.5 px-4 py-2.5 border-b border-border bg-card max-h-20 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
-        <button
-          onClick={() => setActiveBrands(new Set())}
-          className={`text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
-            activeBrands.size === 0
-              ? 'bg-foreground text-white border-foreground'
-              : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-          }`}
-        >
-          전체
-        </button>
-        {allBrands.map(brand => {
-          const active = activeBrands.has(brand)
-          const color = brandColor(brand)
-          return (
-            <button
-              key={brand}
-              onClick={() => toggleBrand(brand)}
-              className={`inline-flex items-center gap-1.5 text-sm px-2.5 py-[3px] rounded-full border transition-colors ${
-                active ? 'text-white border-transparent' : 'bg-card text-muted-foreground border-border hover:border-ink-400'
-              }`}
-              style={active ? { backgroundColor: color, borderColor: color } : undefined}
-            >
-              <span className="w-1.5 h-1.5 rounded-full" style={{ background: active ? 'white' : color }} />
-              {brand}
-            </button>
-          )
-        })}
-      </div>
-
-      {/* 월 내비게이션 */}
-      <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card">
-        <button onClick={prevMonth} className="p-1 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors">
-          <ChevronLeft size={15} />
-        </button>
-        <span className="text-sm font-semibold text-foreground w-28 text-center">
-          {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
-        </span>
-        <button onClick={nextMonth} className="p-1 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors">
-          <ChevronRight size={15} />
-        </button>
-        <button
-          onClick={goToday}
-          className="ml-1 text-sm px-2 py-1 rounded border border-border text-ink-500 hover:bg-muted transition-colors"
-        >
-          이번 달
-        </button>
-        <span className="ml-auto text-sm text-ink-400">
-          {filteredEvents.filter(e => e.parsedDate).length}건 표시
-          {undatedEvents.length > 0 && ` · 날짜 미정 ${undatedEvents.length}건`}
-        </span>
-      </div>
-
-      {/* 요일 헤더 */}
-      <div className="grid grid-cols-7 border-b bg-muted/50 shrink-0">
-        {WEEKDAYS.map((w, i) => (
-          <div
-            key={w}
-            className={`py-2 text-center text-2xs font-semibold tracking-wide ${
-              i === 0 ? 'text-status-late/80' : i === 6 ? 'text-lilac-400' : 'text-ink-400'
+      {/* 좌측 브랜드 사이드바 */}
+      <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col min-h-0">
+        {/* 검색 */}
+        <div className="h-12 flex items-center px-3 border-b border-border shrink-0">
+          <div className="relative w-full">
+            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
+            <input
+              value={brandQuery}
+              onChange={e => setBrandQuery(e.target.value)}
+              placeholder="브랜드 검색"
+              className="w-full h-8 rounded-md border border-border bg-background pl-7 pr-2 text-sm outline-none focus:border-lilac-300"
+            />
+          </div>
+        </div>
+        {/* 브랜드 목록 */}
+        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+          <div className="px-1 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider">
+            브랜드 {allBrands.length}
+          </div>
+          {/* 전체 */}
+          <button
+            onClick={() => setActiveBrands(new Set())}
+            className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+              activeBrands.size === 0 ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
             }`}
           >
-            {w}
-          </div>
-        ))}
-      </div>
+            <div className="flex items-center gap-2">
+              <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+              <span className="flex-1 truncate text-sm font-semibold">전체</span>
+              <span className="text-sm tabular-nums text-ink-400">{events.length}</span>
+            </div>
+          </button>
+          {visibleBrands.map(brand => {
+            const active = activeBrands.has(brand)
+            const color = brandColor(brand)
+            const count = brandEventCounts.get(brand) ?? 0
+            return (
+              <button
+                key={brand}
+                onClick={() => toggleBrand(brand)}
+                className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
+                  active ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
+                }`}
+              >
+                <div className="flex items-center gap-2">
+                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
+                  <span className="flex-1 truncate text-sm font-semibold">{brand}</span>
+                  <span className="text-sm tabular-nums text-ink-400">{count}</span>
+                </div>
+              </button>
+            )
+          })}
+        </div>
+      </aside>
 
-      {/* 캘린더 + 미정 목록 */}
-      <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
+      {/* 우측 캘린더 */}
+      <div className="flex-1 flex flex-col overflow-hidden">
+
+        {/* 월 내비게이션 */}
+        <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card">
+          <button onClick={prevMonth} className="p-1 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors">
+            <ChevronLeft size={15} />
+          </button>
+          <span className="text-sm font-semibold text-foreground w-28 text-center">
+            {currentMonth.getFullYear()}년 {currentMonth.getMonth() + 1}월
+          </span>
+          <button onClick={nextMonth} className="p-1 rounded hover:bg-muted text-ink-400 hover:text-foreground transition-colors">
+            <ChevronRight size={15} />
+          </button>
+          <button
+            onClick={goToday}
+            className="ml-1 text-sm px-2 py-1 rounded border border-border text-ink-500 hover:bg-muted transition-colors"
+          >
+            이번 달
+          </button>
+          <span className="ml-auto text-sm text-ink-400">
+            {filteredEvents.filter(e => e.parsedDate).length}건 표시
+            {undatedEvents.length > 0 && ` · 날짜 미정 ${undatedEvents.length}건`}
+            {activeBrands.size > 0 && <span className="ml-1 text-lilac-500 font-medium">· {activeBrands.size}개 브랜드 필터</span>}
+          </span>
+        </div>
+
+        {/* 요일 헤더 */}
+        <div className="grid grid-cols-7 border-b bg-muted/50 shrink-0">
+          {WEEKDAYS.map((w, i) => (
+            <div
+              key={w}
+              className={`py-2 text-center text-2xs font-semibold tracking-wide ${
+                i === 0 ? 'text-status-late/80' : i === 6 ? 'text-lilac-400' : 'text-ink-400'
+              }`}
+            >
+              {w}
+            </div>
+          ))}
+        </div>
+
+        {/* 캘린더 + 미정 목록 */}
+        <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [scrollbar-width:none]">
         {/* 날짜 그리드 */}
         <div
           className="grid grid-cols-7"
-          style={{ gridAutoRows: `minmax(${calendarDays.length <= 35 ? 110 : 94}px, 1fr)` }}
+          style={{ gridAutoRows: `minmax(${calendarDays.length <= 35 ? 118 : 100}px, 1fr)` }}
         >
           {calendarDays.map((day, idx) => {
             const isLastRow = idx >= calendarDays.length - 7
@@ -316,7 +360,7 @@ export function ScheduleCalendarView() {
                 </div>
 
                 {/* 이벤트 칩 */}
-                <div className="flex flex-col gap-px overflow-hidden">
+                <div className="flex flex-col gap-0.5 px-1 pb-1 overflow-hidden">
                   {dayEvents.slice(0, MAX).map((e, i) => {
                     const color = brandColor(e.brand)
                     return (
@@ -324,17 +368,18 @@ export function ScheduleCalendarView() {
                         <TooltipTrigger
                           render={
                             <div
-                              className={`text-xs px-1.5 py-[2px] rounded leading-tight truncate cursor-default ${
-                                e.fuzzy ? 'border border-dashed opacity-70' : ''
+                              className={`text-xs px-1.5 py-0.5 rounded border-l-2 leading-tight truncate cursor-default font-medium ${
+                                e.fuzzy ? 'opacity-60' : ''
                               }`}
                               style={{
-                                background: `color-mix(in srgb, ${color} 15%, white)`,
-                                color,
-                                borderColor: e.fuzzy ? `color-mix(in srgb, ${color} 50%, transparent)` : undefined,
+                                background: `color-mix(in srgb, ${color} 22%, white)`,
+                                color: `color-mix(in srgb, ${color} 85%, #1e293b)`,
+                                borderLeftColor: color,
                               }}
                             />
                           }
                         >
+                          <span className="font-semibold opacity-70 mr-0.5">{e.brand}</span>
                           {e.title}
                         </TooltipTrigger>
                         <TooltipContent side="top">
@@ -406,16 +451,15 @@ export function ScheduleCalendarView() {
                   return (
                     <div
                       key={i}
-                      className={`text-xs px-1.5 py-[3px] rounded truncate ${
-                        e.fuzzy ? 'border border-dashed opacity-70' : ''
-                      }`}
+                      className={`text-xs px-1.5 py-0.5 rounded border-l-2 truncate font-medium ${e.fuzzy ? 'opacity-60' : ''}`}
                       style={{
-                        background: `color-mix(in srgb, ${color} 15%, white)`,
-                        color,
-                        borderColor: e.fuzzy ? `color-mix(in srgb, ${color} 50%, transparent)` : undefined,
+                        background: `color-mix(in srgb, ${color} 22%, white)`,
+                        color: `color-mix(in srgb, ${color} 85%, #1e293b)`,
+                        borderLeftColor: color,
                       }}
                       title={`[${e.brand}] ${e.title}`}
                     >
+                      <span className="font-semibold opacity-70 mr-0.5">{e.brand}</span>
                       {e.title}
                     </div>
                   )
@@ -425,6 +469,7 @@ export function ScheduleCalendarView() {
           </>
         )
       })()}
+      </div>{/* 우측 캘린더 끝 */}
     </div>
   )
 }

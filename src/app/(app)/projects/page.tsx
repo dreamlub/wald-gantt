@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback } from 'react'
+import { useEffect, useState, useCallback, useMemo } from 'react'
 import { PanelLeftOpen } from 'lucide-react'
 import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
@@ -8,6 +8,8 @@ import { BoardSidebar } from '@/components/gantt/BoardSidebar'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import { TrashPanel } from '@/components/gantt/TrashPanel'
 import { ShareDialog } from '@/components/gantt/ShareDialog'
+import { CategoryAddDialog } from '@/components/gantt/_CategoryAddDialog'
+import { CAT_COLORS, randomCatColor } from '@/components/gantt/_GanttRows'
 import {
   getOrCreateWorkspace,
   getBoards, addBoard, updateBoard, deleteBoard,
@@ -25,12 +27,13 @@ type DialogState =
   | { type: 'share' }
   | null
 
-const CUR_YEAR   = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
-const VIEW_START = `${CUR_YEAR - 1}-01`
-const VIEW_END   = `${CUR_YEAR + 2}-12`
-
 export default function GanttPage() {
   const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
+
+  const { viewStart, viewEnd } = useMemo(() => {
+    const kstYear = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
+    return { viewStart: `${kstYear - 1}-01`, viewEnd: `${kstYear + 2}-12` }
+  }, [])
 
   const [workspace, setWorkspace]             = useState<Workspace | null>(null)
   const [boards, setBoards]                   = useState<GanttBoard[]>([])
@@ -42,6 +45,9 @@ export default function GanttPage() {
   const [loading, setLoading]                 = useState(true)
   const [trashOpen, setTrashOpen]             = useState(false)
   const [trashCount, setTrashCount]           = useState(0)
+  const [addCatOpen, setAddCatOpen]           = useState(false)
+  const [newCatName, setNewCatName]           = useState('')
+  const [newCatColor, setNewCatColor]         = useState(CAT_COLORS[0])
 
   const { undoCount, redoCount, pushUndo, resetStacks, handleUndo, handleRedo, projectsRef } = useUndoRedo({
     projects,
@@ -85,6 +91,12 @@ export default function GanttPage() {
       .finally(() => setLoading(false))
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBoardId])
+
+  // 카테고리 추가 다이얼로그 열릴 때 랜덤 색상 선택
+  useEffect(() => {
+    if (addCatOpen) setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [addCatOpen])
 
   // ── 보드 핸들러 ──────────────────────────────────────────────
 
@@ -135,6 +147,12 @@ export default function GanttPage() {
       const cat = await addCategory(selectedBoardId, workspace.id, name, color)
       setCategories(prev => [...prev, cat])
     } catch (e) { toast.error(errMsg(e)) }
+  }
+
+  async function submitAddCat() {
+    const name = newCatName.trim()
+    if (name) await handleAddCategory(name, newCatColor)
+    setNewCatName(''); setAddCatOpen(false)
   }
 
   async function handleUpdateCategory(id: string, updates: { name?: string; color?: string }) {
@@ -304,60 +322,74 @@ export default function GanttPage() {
         onOpenTrash={() => setTrashOpen(v => !v)}
       />
 
-      <div className="flex flex-1 flex-col overflow-hidden">
-        <main className="flex-1 overflow-hidden bg-background">
-          {loading ? (
-            <div className="h-full flex items-center justify-center">
-              <div className="text-muted-foreground text-xs">로딩 중...</div>
-            </div>
-          ) : selectedBoardId ? (
-            <GanttChart
-              categories={categories}
-              projects={projects}
-              viewStart={VIEW_START}
-              viewEnd={VIEW_END}
-              boardName={selectedBoard?.name}
-              undoCount={undoCount}
-              onUndo={handleUndo}
-              redoCount={redoCount}
-              onRedo={handleRedo}
-              onAddCategory={handleAddCategory}
-              onUpdateCategory={handleUpdateCategory}
-              onDeleteCategory={handleDeleteCategory}
-              onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
-              onEditProject={project => setDialog({ type: 'editProject', project })}
-              onDeleteProject={handleDeleteProject}
-              onShowHistory={() => {}}
-              onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
-              onUpdateProjectDates={handleUpdateProjectDates}
-              onUpdateProjectName={handleUpdateProjectName}
-              onUpdateProjectStatus={handleUpdateProjectStatus}
-              onMoveProject={handleMoveProject}
-              onMoveCategory={handleMoveCategory}
-              onShare={() => setDialog({ type: 'share' })}
-              sidebarClosed={!sidebarOpen}
-              onOpenSidebar={() => setSidebarOpen(true)}
-            />
-          ) : (
-            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
-              사이드바에서 보드를 선택하거나 새로 만들어 보세요
-            </div>
-          )}
-        </main>
-      </div>
+      {/* 메인 콘텐츠 + 인라인 프로젝트 패널 */}
+      <div className="flex-1 flex overflow-hidden min-w-0">
+        {/* 간트 차트 영역 */}
+        <div className="flex-1 flex flex-col overflow-hidden">
+          <main className="flex-1 overflow-hidden bg-background">
+            {loading ? (
+              <div className="h-full flex items-center justify-center">
+                <div className="text-muted-foreground text-xs">로딩 중...</div>
+              </div>
+            ) : selectedBoardId ? (
+              <GanttChart
+                categories={categories}
+                projects={projects}
+                viewStart={viewStart}
+                viewEnd={viewEnd}
+                boardName={selectedBoard?.name}
+                undoCount={undoCount}
+                onUndo={handleUndo}
+                redoCount={redoCount}
+                onRedo={handleRedo}
+                onAddCategory={handleAddCategory}
+                onOpenAddCategory={() => setAddCatOpen(true)}
+                onUpdateCategory={handleUpdateCategory}
+                onDeleteCategory={handleDeleteCategory}
+                onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
+                onEditProject={project => setDialog({ type: 'editProject', project })}
+                onDeleteProject={handleDeleteProject}
+                onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
+                onUpdateProjectDates={handleUpdateProjectDates}
+                onUpdateProjectName={handleUpdateProjectName}
+                onUpdateProjectStatus={handleUpdateProjectStatus}
+                onMoveProject={handleMoveProject}
+                onMoveCategory={handleMoveCategory}
+                onShare={() => setDialog({ type: 'share' })}
+                sidebarClosed={!sidebarOpen}
+                onOpenSidebar={() => setSidebarOpen(true)}
+              />
+            ) : (
+              <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
+                사이드바에서 보드를 선택하거나 새로 만들어 보세요
+              </div>
+            )}
+          </main>
+        </div>
 
-      <ProjectFormDialog
-        open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
-        onClose={() => setDialog(null)}
-        onSave={handleSaveProject}
-        categories={categories}
-        defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
-        editProject={dialog?.type === 'editProject' ? dialog.project : null}
-        initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
-        onDelete={id => { handleDeleteProject(id); setDialog(null) }}
-        allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
-        allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
-      />
+        {/* 인라인 프로젝트 폼 패널 */}
+        <div
+          className="shrink-0 border-l bg-card flex flex-col overflow-hidden"
+          style={{
+            width: (dialog?.type === 'addProject' || dialog?.type === 'editProject') ? 480 : 0,
+            transition: 'width 300ms ease-out',
+          }}
+        >
+          <ProjectFormDialog
+            open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
+            noPortal={true}
+            onClose={() => setDialog(null)}
+            onSave={handleSaveProject}
+            categories={categories}
+            defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
+            editProject={dialog?.type === 'editProject' ? dialog.project : null}
+            initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
+            onDelete={id => { handleDeleteProject(id); setDialog(null) }}
+            allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
+            allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
+          />
+        </div>
+      </div>
 
       <ShareDialog
         open={dialog?.type === 'share'}
@@ -372,6 +404,16 @@ export default function GanttPage() {
         boardId={selectedBoardId ?? ''}
         categories={categories}
         onRestore={handleRestoreProject}
+      />
+
+      <CategoryAddDialog
+        open={addCatOpen}
+        onOpenChange={open => { if (!open) { setAddCatOpen(false); setNewCatName('') } }}
+        newCatName={newCatName}
+        onNameChange={setNewCatName}
+        newCatColor={newCatColor}
+        onColorChange={setNewCatColor}
+        onSubmit={submitAddCat}
       />
     </div>
   )
