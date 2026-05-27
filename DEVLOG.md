@@ -9,6 +9,51 @@
 
 ---
 
+## 최근 변경 (2026-05-28) — Daily Report V2 접힌 행 디자인 개선
+
+### CollapsedRow 재디자인 (B안)
+- 심각도 점(dot) → **뱃지 pill** 교체 (`item.badge.label` + `item.badge.cls`)
+- **ChevronRight** 아이콘 우측 추가 → 클릭 가능함을 명시
+- 항목 구분선 강화: `border-border/40` → `border-border`
+- 패딩 확대: `py-2.5` → `py-3`
+- hover 강화: `hover:bg-muted/40` → `hover:bg-muted/60`
+- 타이틀에 `min-w-0` 추가 → truncate 정상 동작 보장
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
+## 최근 변경 (2026-05-28) — Tasks 간트 뷰 UX 개선
+
+### 1. 주 컬럼 너비 확대 (36px → 52px)
+- `WEEK_W` 상향 → 날짜 레이블 가시성 개선
+- `showFull` / `showShort` 기준도 `WEEK_W * 2` / `WEEK_W` 상대값으로 전환
+
+### 2. 마운트 시 오늘 위치 자동 스크롤
+- `scrollRef` + `useEffect`(mount only) — 뷰포트 중앙에 오늘 선이 오도록 초기 `scrollLeft` 설정
+
+### 3. "오늘" 버튼 추가
+- 헤더 좌측 고정 영역 우하단에 추가 → 클릭 시 smooth scroll
+
+### 4. 드래그 중 델타 레이블 표시
+- `dragDelta` 상태 추가 — 바 드래그 중 `+N일` / `-N일` 레이블을 바 위에 표시
+
+### 5. 하위 태스크 들여쓰기 강화
+- `isSub` 행 좌측 패딩 `px-3` → `pl-6 pr-3` 으로 변경
+
+### 6. 날짜 없는 섹션 헤더 레이아웃 수정
+- `sticky` 레이블 옆 `flex-1` 빈 div 추가 → 가로 스크롤 시 배경 깨짐 해소
+
+### 7. 유틸 함수 분리 (500줄 규칙)
+- `addDays`, `calcViewRange`, `yearGroups`, `monthGroups`, `reorderWithSubs`, `gantSortCompare`, `barLabel` → `_utils.ts` 이동
+- `gantt-view.tsx`: 532줄 → 389줄
+
+### 검증
+- `npx tsc --noEmit` 통과 (에러 0건)
+
+---
+
 ## `7bab0b3` (2026-05-28) — 오버레이 충돌 수정 + 태스크 뷰 스타일 통일
 
 ### 오버레이·다이얼로그 렌더링 구조 개선

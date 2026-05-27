@@ -287,7 +287,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={startDate}
-                    onChange={setStartDate}
+                    onChange={d => { setStartDate(d); if (d && status === 'backlog') setStatus('to-do') }}
                     placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={dueDate ? d => d > dueDate : undefined}
                   />
@@ -298,7 +298,7 @@ export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, de
                 <div className="mt-1.5">
                   <DatePickerButton
                     value={dueDate}
-                    onChange={setDueDate}
+                    onChange={d => { setDueDate(d); if (d && status === 'backlog') setStatus('to-do') }}
                     placeholder="MM/DD 또는 YYYY.MM.DD"
                     disabledDates={startDate ? d => d < startDate : undefined}
                   />

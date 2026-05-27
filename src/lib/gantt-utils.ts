@@ -34,7 +34,9 @@ export function parseDateStr(s: string): Date {
 /** ISO/날짜 문자열 → Date (invalid면 undefined) */
 export function toDate(s: string | null | undefined): Date | undefined {
   if (!s) return undefined
-  const d = new Date(s)
+  const parts = s.split('-').map(Number)
+  if (parts.length < 3 || parts.some(isNaN)) return undefined
+  const d = new Date(parts[0], parts[1] - 1, parts[2])
   return isNaN(d.getTime()) ? undefined : d
 }
 

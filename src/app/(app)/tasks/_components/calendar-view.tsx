@@ -152,7 +152,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                         key={task.id}
                         onClick={() => onEdit(task)}
                         title={task.title}
-                        className={`flex items-center gap-1 text-left text-xs px-1.5 py-0.5 rounded truncate w-full
+                        className={`flex items-center gap-1 text-left text-xs font-medium px-1.5 py-0.5 rounded truncate w-full
                           border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                         style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                       >
@@ -208,7 +208,7 @@ export function CalendarView({ tasks, onEdit }: Props) {
                     <button
                       key={task.id}
                       onClick={() => { setOverflow(null); onEdit(task) }}
-                      className={`flex items-center gap-1 text-left text-xs px-1.5 py-0.5 rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
+                      className={`flex items-center gap-1 text-left text-xs font-medium px-1.5 py-0.5 rounded truncate w-full border-l-2 hover:brightness-95 transition-all ${isDone ? 'opacity-50' : ''}`}
                       style={{ backgroundColor: filledBg, borderLeftColor: stripeColor }}
                     >
                       <span className={`truncate flex-1 leading-tight ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>

@@ -214,7 +214,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
             memoTimerRef.current = setTimeout(() => setMemoPos(null), 100)
           } : undefined}
           className={task.memo
-            ? 'text-lilac-400 hover:text-accent-foreground transition-colors'
+            ? 'text-lilac-500 hover:text-lilac-600 transition-colors'
             : 'text-ink-300 opacity-0 group-hover:opacity-100 hover:text-lilac-500 transition-colors'}
         >
           <StickyNote size={12} />
@@ -256,9 +256,12 @@ interface DraggableTaskRowProps {
 }
 
 export function DraggableTaskRow({ task, isDraggingId, assigneeColor, subTaskStats, onAddSubTask, onToggleExpand, selectionMode, selected, onSelect, ...props }: DraggableTaskRowProps) {
-  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({ id: task.id })
+  const { attributes, listeners, setNodeRef, transform, transition } = useSortable({
+    id: task.id,
+    animateLayoutChanges: () => false,
+  })
   const style = {
-    transform: CSS.Translate.toString(transform),
+    transform: CSS.Transform.toString(transform),
     transition,
   }
   return (

@@ -32,7 +32,8 @@ function PopoverContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
-        className="isolate z-dialog"
+        className="isolate"
+        style={{ zIndex: 'calc(var(--z-dialog) + 1)' }}
       >
         <PopoverPrimitive.Popup
           data-slot="popover-content"

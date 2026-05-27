@@ -1,5 +1,5 @@
-import { todayStrKST, parseDateStr, MS_PER_DAY } from '@/lib/gantt-utils'
-import type { TaskStatus } from '@/types'
+import { todayStrKST, parseDateStr, MS_PER_DAY, formatYearMonth, type WeekInfo } from '@/lib/gantt-utils'
+import type { GanttTask, TaskStatus } from '@/types'
 
 const LABEL_COLORS = [
   '#a5b4fc', '#c4b5fd', '#f9a8d4', '#fda4af',
@@ -112,5 +112,89 @@ export function isDueNextWeek(due: string | null) {
   const ymd = (d: Date) =>
     `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
   return due >= ymd(nextSun) && due <= ymd(nextSat)
+}
+
+// ── 간트 뷰 전용 유틸 ─────────────────────────────────────────────────────────
+
+export function addDays(dateStr: string, days: number): string {
+  const [y, m, d] = dateStr.split('-').map(Number)
+  const dt = new Date(y, m - 1, d)
+  dt.setDate(dt.getDate() + days)
+  return `${dt.getFullYear()}-${String(dt.getMonth() + 1).padStart(2, '0')}-${String(dt.getDate()).padStart(2, '0')}`
+}
+
+export function calcViewRange(dates: string[]): { startYM: string; endYM: string } {
+  const sorted = [...dates].sort()
+  const pad = (y: number, mo: number) => `${y}-${String(mo).padStart(2, '0')}`
+  const [sy, sm] = sorted[0].slice(0, 7).split('-').map(Number)
+  const [ey, em] = sorted[sorted.length - 1].slice(0, 7).split('-').map(Number)
+  return {
+    startYM: sm - 1 < 1  ? pad(sy - 1, 12) : pad(sy, sm - 1),
+    endYM:   em + 1 > 12 ? pad(ey + 1, 1)  : pad(ey, em + 1),
+  }
+}
+
+export function yearGroups(weeks: WeekInfo[]): { year: number; count: number }[] {
+  const groups: { year: number; count: number }[] = []
+  for (const w of weeks) {
+    if (!groups.length || groups[groups.length - 1].year !== w.year)
+      groups.push({ year: w.year, count: 1 })
+    else groups[groups.length - 1].count++
+  }
+  return groups
+}
+
+export function monthGroups(weeks: WeekInfo[]): { ym: string; label: string; count: number }[] {
+  const groups: { ym: string; label: string; count: number }[] = []
+  for (const w of weeks) {
+    const ym = formatYearMonth(w.year, w.month)
+    if (!groups.length || groups[groups.length - 1].ym !== ym)
+      groups.push({ ym, label: `${w.month}월`, count: 1 })
+    else groups[groups.length - 1].count++
+  }
+  return groups
+}
+
+export function reorderWithSubs(arr: GanttTask[]): { task: GanttTask; isSub: boolean }[] {
+  const map = new Map(arr.map(t => [t.id, t]))
+  const subsByParent = new Map<string, GanttTask[]>()
+  for (const t of arr) {
+    if (t.parent_id && map.has(t.parent_id)) {
+      const list = subsByParent.get(t.parent_id) ?? []
+      list.push(t)
+      subsByParent.set(t.parent_id, list)
+    }
+  }
+  const out: { task: GanttTask; isSub: boolean }[] = []
+  const inserted = new Set<string>()
+  for (const t of arr) {
+    if (inserted.has(t.id) || (t.parent_id && map.has(t.parent_id))) continue
+    out.push({ task: t, isSub: false }); inserted.add(t.id)
+    for (const sub of subsByParent.get(t.id) ?? []) {
+      out.push({ task: sub, isSub: true }); inserted.add(sub.id)
+    }
+  }
+  return out
+}
+
+export function gantSortCompare(a: GanttTask, b: GanttTask): number {
+  const FAR = '9999-12-31'
+  const ap = a.start_date ?? a.due_date ?? FAR
+  const bp = b.start_date ?? b.due_date ?? FAR
+  if (ap !== bp) return ap < bp ? -1 : 1
+  const as2 = a.due_date ?? FAR
+  const bs2 = b.due_date ?? FAR
+  if (as2 !== bs2) return as2 < bs2 ? -1 : 1
+  return (a.sort_order ?? 0) - (b.sort_order ?? 0)
+}
+
+export function barLabel(s: string | null, e: string | null): string {
+  const fmt = (d: string) => { const [, m, day] = d.split('-').map(Number); return `${m}/${day}` }
+  if (s && e && s !== e) {
+    const [, sm, sd] = s.split('-').map(Number)
+    const [, em, ed] = e.split('-').map(Number)
+    return sm === em ? `${sm}/${sd} ~ ${ed}` : `${sm}/${sd} ~ ${em}/${ed}`
+  }
+  return s ? fmt(s) : e ? fmt(e) : ''
 }
 

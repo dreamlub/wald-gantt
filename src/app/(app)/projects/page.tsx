@@ -322,74 +322,62 @@ export default function GanttPage() {
         onOpenTrash={() => setTrashOpen(v => !v)}
       />
 
-      {/* 메인 콘텐츠 + 인라인 프로젝트 패널 */}
+      {/* 메인 콘텐츠 */}
       <div className="flex-1 flex overflow-hidden min-w-0">
-        {/* 간트 차트 영역 */}
-        <div className="flex-1 flex flex-col overflow-hidden">
-          <main className="flex-1 overflow-hidden bg-background">
-            {loading ? (
-              <div className="h-full flex items-center justify-center">
-                <div className="text-muted-foreground text-xs">로딩 중...</div>
-              </div>
-            ) : selectedBoardId ? (
-              <GanttChart
-                categories={categories}
-                projects={projects}
-                viewStart={viewStart}
-                viewEnd={viewEnd}
-                boardName={selectedBoard?.name}
-                undoCount={undoCount}
-                onUndo={handleUndo}
-                redoCount={redoCount}
-                onRedo={handleRedo}
-                onAddCategory={handleAddCategory}
-                onOpenAddCategory={() => setAddCatOpen(true)}
-                onUpdateCategory={handleUpdateCategory}
-                onDeleteCategory={handleDeleteCategory}
-                onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
-                onEditProject={project => setDialog({ type: 'editProject', project })}
-                onDeleteProject={handleDeleteProject}
-                onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
-                onUpdateProjectDates={handleUpdateProjectDates}
-                onUpdateProjectName={handleUpdateProjectName}
-                onUpdateProjectStatus={handleUpdateProjectStatus}
-                onMoveProject={handleMoveProject}
-                onMoveCategory={handleMoveCategory}
-                onShare={() => setDialog({ type: 'share' })}
-                sidebarClosed={!sidebarOpen}
-                onOpenSidebar={() => setSidebarOpen(true)}
-              />
-            ) : (
-              <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
-                사이드바에서 보드를 선택하거나 새로 만들어 보세요
-              </div>
-            )}
-          </main>
-        </div>
-
-        {/* 인라인 프로젝트 폼 패널 */}
-        <div
-          className="shrink-0 border-l bg-card flex flex-col overflow-hidden"
-          style={{
-            width: (dialog?.type === 'addProject' || dialog?.type === 'editProject') ? 480 : 0,
-            transition: 'width 300ms ease-out',
-          }}
-        >
-          <ProjectFormDialog
-            open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
-            noPortal={true}
-            onClose={() => setDialog(null)}
-            onSave={handleSaveProject}
-            categories={categories}
-            defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
-            editProject={dialog?.type === 'editProject' ? dialog.project : null}
-            initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
-            onDelete={id => { handleDeleteProject(id); setDialog(null) }}
-            allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
-            allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
-          />
-        </div>
+        <main className="flex-1 overflow-hidden bg-background">
+          {loading ? (
+            <div className="h-full flex items-center justify-center">
+              <div className="text-muted-foreground text-xs">로딩 중...</div>
+            </div>
+          ) : selectedBoardId ? (
+            <GanttChart
+              categories={categories}
+              projects={projects}
+              viewStart={viewStart}
+              viewEnd={viewEnd}
+              boardName={selectedBoard?.name}
+              undoCount={undoCount}
+              onUndo={handleUndo}
+              redoCount={redoCount}
+              onRedo={handleRedo}
+              onAddCategory={handleAddCategory}
+              onOpenAddCategory={() => setAddCatOpen(true)}
+              onUpdateCategory={handleUpdateCategory}
+              onDeleteCategory={handleDeleteCategory}
+              onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
+              onEditProject={project => setDialog({ type: 'editProject', project })}
+              onDeleteProject={handleDeleteProject}
+              onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
+              onUpdateProjectDates={handleUpdateProjectDates}
+              onUpdateProjectName={handleUpdateProjectName}
+              onUpdateProjectStatus={handleUpdateProjectStatus}
+              onMoveProject={handleMoveProject}
+              onMoveCategory={handleMoveCategory}
+              onShare={() => setDialog({ type: 'share' })}
+              sidebarClosed={!sidebarOpen}
+              onOpenSidebar={() => setSidebarOpen(true)}
+            />
+          ) : (
+            <div className="h-full flex items-center justify-center text-muted-foreground text-xs">
+              사이드바에서 보드를 선택하거나 새로 만들어 보세요
+            </div>
+          )}
+        </main>
       </div>
+
+      {/* 프로젝트 폼 드로어 (portal overlay) */}
+      <ProjectFormDialog
+        open={dialog?.type === 'addProject' || dialog?.type === 'editProject'}
+        onClose={() => setDialog(null)}
+        onSave={handleSaveProject}
+        categories={categories}
+        defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
+        editProject={dialog?.type === 'editProject' ? dialog.project : null}
+        initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
+        onDelete={id => { handleDeleteProject(id); setDialog(null) }}
+        allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
+        allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
+      />
 
       <ShareDialog
         open={dialog?.type === 'share'}

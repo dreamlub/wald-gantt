@@ -368,18 +368,16 @@ export function ScheduleCalendarView() {
                         <TooltipTrigger
                           render={
                             <div
-                              className={`text-xs px-1.5 py-0.5 rounded border-l-2 leading-tight truncate cursor-default font-medium ${
+                              className={`text-xs px-1.5 py-0.5 rounded border-l-2 leading-tight truncate cursor-default font-medium text-foreground ${
                                 e.fuzzy ? 'opacity-60' : ''
                               }`}
                               style={{
                                 background: `color-mix(in srgb, ${color} 22%, white)`,
-                                color: `color-mix(in srgb, ${color} 85%, #1e293b)`,
                                 borderLeftColor: color,
                               }}
                             />
                           }
                         >
-                          <span className="font-semibold opacity-70 mr-0.5">{e.brand}</span>
                           {e.title}
                         </TooltipTrigger>
                         <TooltipContent side="top">
@@ -451,15 +449,13 @@ export function ScheduleCalendarView() {
                   return (
                     <div
                       key={i}
-                      className={`text-xs px-1.5 py-0.5 rounded border-l-2 truncate font-medium ${e.fuzzy ? 'opacity-60' : ''}`}
+                      className={`text-xs px-1.5 py-0.5 rounded border-l-2 truncate font-medium text-foreground ${e.fuzzy ? 'opacity-60' : ''}`}
                       style={{
                         background: `color-mix(in srgb, ${color} 22%, white)`,
-                        color: `color-mix(in srgb, ${color} 85%, #1e293b)`,
                         borderLeftColor: color,
                       }}
                       title={`[${e.brand}] ${e.title}`}
                     >
-                      <span className="font-semibold opacity-70 mr-0.5">{e.brand}</span>
                       {e.title}
                     </div>
                   )

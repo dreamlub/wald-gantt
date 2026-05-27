@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { CalendarDays, Clock, CheckSquare } from 'lucide-react'
+import { CalendarDays, Clock, CheckSquare, ChevronRight } from 'lucide-react'
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
 import { SEV_TO_PRIORITY } from './action-detail-drawer'
@@ -204,23 +204,20 @@ function SummaryLines({ text }: { text: string }) {
 function CollapsedRow({ item, isLast, accent, onExpand }: {
   item: UnifiedItem; isLast: boolean; accent: string; onExpand: () => void
 }) {
-  const dotColor =
-    item.severity === 'urgent' ? 'var(--color-status-late)' :
-    item.severity === 'watch'  ? 'var(--color-status-warn)' :
-    item.severity === 'info'   ? 'var(--color-ink-300)' :
-    'var(--color-mint-500)'
-
   return (
     <div
       onClick={onExpand}
-      className={`flex items-center gap-2.5 pl-3 pr-4 py-2.5 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
+      className={`flex items-center gap-2 pl-3 pr-2.5 py-3 cursor-pointer hover:bg-muted/60 transition-colors ${isLast ? '' : 'border-b border-border'}`}
       style={{ borderLeft: `3px solid ${accent}` }}
     >
       {item.date && (
         <span className="text-2xs text-ink-400 tabular-nums shrink-0">{item.date}</span>
       )}
-      <span className="flex-1 text-sm text-foreground truncate">{item.title}</span>
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: dotColor }} />
+      <span className="flex-1 text-sm text-foreground truncate min-w-0">{item.title}</span>
+      <span className={`shrink-0 text-2xs font-medium px-1.5 py-0.5 rounded ${item.badge.cls}`}>
+        {item.badge.label}
+      </span>
+      <ChevronRight size={12} className="shrink-0 text-ink-300" />
     </div>
   )
 }

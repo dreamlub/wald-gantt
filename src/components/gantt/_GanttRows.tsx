@@ -274,7 +274,7 @@ export function GanttCategoryLeft({
                           <span className="shrink-0"><PriorityBars priority={project.priority} /></span>
                         )}
                         <span
-                          className="text-sm truncate min-w-0 cursor-pointer text-muted-foreground"
+                          className="text-sm truncate min-w-0 cursor-pointer text-foreground"
                           onClick={readOnly ? undefined : () => onEditProject(project)}
                           title={project.name}
                         >

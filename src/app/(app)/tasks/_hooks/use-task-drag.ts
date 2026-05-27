@@ -23,7 +23,6 @@ export function useTaskDrag(
 ) {
   const [draggingTask,  setDraggingTask]  = useState<GanttTask | null>(null)
   const [dragOverGroup, setDragOverGroup] = useState<string | null>(null)
-  const [dragOverItemId, setDragOverItemId] = useState<string | null>(null)
   const dragExpandedRef = useRef<string | null>(null)
 
   const sensors = useDndSensorsPointer()
@@ -36,7 +35,6 @@ export function useTaskDrag(
 
   function restoreDragExpanded() {
     setDragOverGroup(null)
-    setDragOverItemId(null)
     if (dragExpandedRef.current) {
       const id = dragExpandedRef.current
       dragExpandedRef.current = null
@@ -49,7 +47,6 @@ export function useTaskDrag(
     if (task) {
       setDraggingTask(task)
       setDragOverGroup(null)
-      setDragOverItemId(null)
       if (expandedParents.has(task.id)) {
         dragExpandedRef.current = task.id
         setExpandedParents(prev => { const next = new Set(prev); next.delete(task.id); return next })
@@ -61,17 +58,15 @@ export function useTaskDrag(
 
   function handleDragOver(event: DragOverEvent) {
     const { over } = event
-    if (!over) { setDragOverGroup(null); setDragOverItemId(null); return }
+    if (!over) { setDragOverGroup(null); return }
     const statusValues = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
     if (statusValues.includes(over.id as string)) {
       setDragOverGroup(over.id as string)
-      setDragOverItemId(null)
     } else {
       const overTask = tasks.find(t => t.id === over.id)
       if (overTask) {
         const overGroup = isOverdue(overTask.due_date, overTask.status) ? '__overdue__' : overTask.status
         setDragOverGroup(overGroup)
-        setDragOverItemId(overTask.id)
       }
     }
   }
@@ -150,17 +145,6 @@ export function useTaskDrag(
 
     if (isSource && !isTarget) {
       return ids.filter(id => id !== dragId)
-    }
-    if (!isSource && isTarget) {
-      const clean = ids.filter(id => id !== dragId)
-      if (dragOverItemId) {
-        const overIdx = clean.indexOf(dragOverItemId)
-        if (overIdx !== -1) {
-          clean.splice(overIdx, 0, dragId)
-          return clean
-        }
-      }
-      return [...clean, dragId]
     }
     return ids
   }
