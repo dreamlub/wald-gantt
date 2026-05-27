@@ -8,15 +8,16 @@ interface Props {
   className?: string
   iconSize?: number
   borderOpacity?: number
+  textColor?: string
 }
 
-export function PriorityCallout({ color, text, className = '', iconSize = 12, borderOpacity = 30 }: Props) {
+export function PriorityCallout({ color, text, className = '', iconSize = 12, borderOpacity = 30, textColor }: Props) {
   return (
     <div
       className={`flex items-center gap-2 font-medium px-3 rounded border border-dashed ${className}`}
       style={{
         borderColor: `color-mix(in srgb, ${color} ${borderOpacity}%, transparent)`,
-        color,
+        color: textColor ?? color,
         background: `color-mix(in srgb, ${color} 6%, transparent)`,
       }}
     >

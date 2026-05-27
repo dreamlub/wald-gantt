@@ -11,8 +11,6 @@ import { createClient } from '@/lib/supabase/client'
 import { useRouter, useSearchParams } from 'next/navigation'
 import { toast } from 'sonner'
 import type { Client } from '../../summary/_lib/types'
-import { useVaultHandle } from '@/hooks/use-vault-handle'
-import { getPathPattern, setPathPattern } from '@/lib/daily-note'
 import { ChannelMappingSection } from './channel-mapping-section'
 import { BrandAliasSection } from './brand-alias-section'
 import {
@@ -102,10 +100,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   const [section, setSection] = useState<Section>(initialSection)
   const { theme, setTheme } = useTheme()
   const router = useRouter()
-
-  const { handle: vaultHandle, status: vaultStatus, connect: vaultConnect, requestPermission: vaultRequestPermission, disconnect: vaultDisconnect } = useVaultHandle()
-  const [vaultPattern, setVaultPattern] = useState(() => getPathPattern())
-  const saveVaultPattern = (v: string) => { const p = v.trim() || 'Daily Notes/YYYY-MM-DD'; setVaultPattern(p); setPathPattern(p) }
 
   const [weeklySources, setWeeklySources] = useState<WeeklySource[]>(initialWeeklySources)
   const [weeklyForm, setWeeklyForm] = useState({ label: '', collection_id: '' })
@@ -296,46 +290,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     </button>
                   )}
                 </div>
-              </SettingCard>
-
-              <SettingCard title="Obsidian Vault">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-2">
-                    {vaultStatus === 'connected' ? (
-                      <CheckCircle2 size={13} className="text-mint-500" />
-                    ) : (
-                      <AlertCircle size={13} className={vaultStatus === 'needs-permission' ? 'text-status-warn' : 'text-ink-400'} />
-                    )}
-                    <span className="text-sm text-foreground">
-                      {vaultStatus === 'loading'          ? '확인 중…' :
-                       vaultStatus === 'connected'        ? `연결됨 — ${vaultHandle?.name}` :
-                       vaultStatus === 'needs-permission' ? `권한 만료 — ${vaultHandle?.name}` :
-                       '연결 안됨'}
-                    </span>
-                  </div>
-                  {vaultStatus === 'connected' && (
-                    <button onClick={vaultDisconnect} className="text-sm text-ink-400 hover:text-status-late transition-colors">연결 해제</button>
-                  )}
-                  {vaultStatus === 'needs-permission' && (
-                    <button onClick={vaultRequestPermission} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity">권한 허용</button>
-                  )}
-                  {vaultStatus === 'disconnected' && (
-                    <button onClick={vaultConnect} className="flex items-center gap-1.5 px-3 py-1.5 rounded bg-foreground text-background text-sm font-medium hover:opacity-80 transition-opacity">Vault 연결</button>
-                  )}
-                </div>
-                {vaultStatus === 'connected' && (
-                  <Row label="경로 패턴">
-                    <input
-                      value={vaultPattern}
-                      onChange={e => setVaultPattern(e.target.value)}
-                      onBlur={e => saveVaultPattern(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Enter') saveVaultPattern(vaultPattern) }}
-                      placeholder="Daily Notes/YYYY-MM-DD"
-                      className="w-48 bg-background border border-border rounded-sm px-2 py-1 text-sm outline-none focus:border-lilac-400 transition-colors"
-                    />
-                  </Row>
-                )}
-                <p className="text-sm text-ink-400">* Chrome / Edge 전용 (File System Access API)</p>
               </SettingCard>
 
             </>

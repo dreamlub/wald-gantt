@@ -59,8 +59,6 @@ interface Props {
   startDelayedFilter?: boolean
   readOnly?: boolean
   hideToolbar?: boolean
-  sidebarClosed?: boolean
-  onOpenSidebar?: () => void
 }
 
 // ── GanttChart ────────────────────────────────────────────────
@@ -74,8 +72,6 @@ export function GanttChart({
   overdueFilter: externalOverdueFilter, startDelayedFilter: externalStartDelayedFilter,
   readOnly = false,
   hideToolbar = false,
-  sidebarClosed = false,
-  onOpenSidebar,
 }: Props) {
   const [leftWidth, setLeftWidth]           = useState(LEFT_WIDTH_DEFAULT)
   const [viewMode, setViewMode]             = useState<ViewMode>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.viewMode') as ViewMode : null) ?? 'week')
@@ -256,8 +252,6 @@ export function GanttChart({
         <GanttToolbar
           boardName={boardName}
           readOnly={readOnly}
-          sidebarClosed={sidebarClosed}
-          onOpenSidebar={onOpenSidebar}
           undoCount={undoCount}
           onUndo={onUndo}
           redoCount={redoCount}

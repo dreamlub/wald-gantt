@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { PanelLeftClose, PanelLeftOpen, FileText, RefreshCw, Settings, CalendarDays, Sparkles, ArrowUpRight, CloudDownload } from 'lucide-react'
+import { FileText, RefreshCw, Settings, CalendarDays, Sparkles, ArrowUpRight, CloudDownload } from 'lucide-react'
 import type { WeeklyTeam } from '../_lib/types'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
@@ -30,7 +30,6 @@ export function WeeklyShell() {
   const [selectedTeam, setSelectedTeam] = useState<string>('')
   const [weeks, setWeeks]               = useState<string[]>([])
   const [selectedIso, setSelectedIso]   = useState<string>('')
-  const [sidebarOpen, setSidebarOpen]   = useState(true)
   const [weeksLoading, setWeeksLoading] = useState(false)
   const [weeksError, setWeeksError]     = useState<string | null>(null)
   const [showInsight, setShowInsight]   = useState(false)
@@ -109,7 +108,15 @@ export function WeeklyShell() {
       const data = await res.json()
       if (data.ok) {
         const total: number = data.total ?? 0
-        toast.success(`수집 완료 — ${total}건 저장`)
+        const results: { team: string; upserted: number; quarterDocsFound: string[] }[] = data.results ?? []
+        const docCount = results.reduce((s: number, r: { quarterDocsFound: string[] }) => s + r.quarterDocsFound.length, 0)
+        if (total === 0 && docCount === 0) {
+          toast.warning('수집된 분기 문서가 없습니다. Outline 문서 제목을 확인해 주세요.')
+        } else if (total === 0) {
+          toast.warning(`분기 문서 ${docCount}개를 찾았지만 섹션이 없습니다. 날짜 형식(## YYYY-MM-DD)을 확인해 주세요.`)
+        } else {
+          toast.success(`수집 완료 — ${total}건 저장`)
+        }
         const team = teams.find(t => t.id === selectedTeam)
         if (team) fetchWeeks(team.label)
       } else {
@@ -126,8 +133,8 @@ export function WeeklyShell() {
     <div className="flex flex-1 overflow-hidden">
       {/* 사이드바 */}
       <div
-        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: sidebarOpen ? 'var(--sidebar-w)' : 0 }}
+        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+        style={{ width: 'var(--sidebar-w)' }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
@@ -141,13 +148,6 @@ export function WeeklyShell() {
               ? <RefreshCw size={14} className="animate-spin" />
               : <CloudDownload size={14} />
             }
-          </button>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
-            title="사이드바 닫기"
-          >
-            <PanelLeftClose size={14} />
           </button>
         </div>
 
@@ -180,16 +180,6 @@ export function WeeklyShell() {
       <div className="flex flex-1 flex-col overflow-hidden">
         {/* 헤더 */}
         <div className="h-12 border-b bg-card flex items-center px-4 gap-3 shrink-0">
-          {!sidebarOpen && (
-            <button
-              onClick={() => setSidebarOpen(true)}
-              className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors shrink-0"
-              title="사이드바 열기"
-            >
-              <PanelLeftOpen size={15} />
-            </button>
-          )}
-
           {selectedIso ? (
             <>
               {/* 금주 날짜 */}

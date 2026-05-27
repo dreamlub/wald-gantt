@@ -2,7 +2,6 @@
 
 import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useReducer } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
-import { PanelLeftClose } from 'lucide-react'
 
 import type { Client, HistoryItem, Tag, Priority, HistoryEditDraft } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/constants'
@@ -66,7 +65,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => parseTags(searchParams.get('tags')))
   const [priorityKey,  setPriorityKey]  = useState<PriorityKey>(() => parsePriority(searchParams.get('priority')))
   const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
-  const [sidebarOpen,  setSidebarOpen]  = useState(true)
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
@@ -227,18 +225,11 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
 
       {/* ── 사이드바 ─────────────────────────────────────────── */}
       <div
-        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: sidebarOpen ? 'var(--sidebar-w)' : 0 }}
+        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+        style={{ width: 'var(--sidebar-w)' }}
       >
-        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-          <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">SUMMARY</h1>
-          <button
-            onClick={() => setSidebarOpen(false)}
-            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
-            title="사이드바 닫기"
-          >
-            <PanelLeftClose size={14} />
-          </button>
+        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
+          <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">SUMMARY</h1>
         </div>
 
         <SummarySidebar
@@ -267,8 +258,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
         <SummaryToolbar
-          sidebarOpen={sidebarOpen}
-          onOpenSidebar={() => setSidebarOpen(true)}
           view={view}
           onViewChange={handleViewChange}
           searchRef={searchRef}

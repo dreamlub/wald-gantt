@@ -6,7 +6,8 @@ import { ko } from 'date-fns/locale'
 import { CalendarDays, Clock, CheckSquare, ChevronRight } from 'lucide-react'
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
-import { SEV_TO_PRIORITY } from './action-detail-drawer'
+import { PriorityCallout } from './priority-callout'
+import { BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
 import { brandColor } from '@/lib/history-service'
 
 interface DailyReportData {
@@ -31,7 +32,7 @@ function dayOfYear(d: Date): number {
 function renderBold(text: string) {
   return text.split(/(\*\*[^*]+\*\*)/g).map((part, i) =>
     part.startsWith('**') && part.endsWith('**')
-      ? <strong key={i} className="font-semibold text-lilac-600 bg-lilac-100 px-0.5 rounded-2xs">{part.slice(2, -2)}</strong>
+      ? <strong key={i} className="font-bold text-white">{part.slice(2, -2)}</strong>
       : <span key={i}>{part.replace(/\*/g, '')}</span>
   )
 }
@@ -41,8 +42,7 @@ const SEV_BADGE: Record<string, { label: string; cls: string }> = {
   watch:  { label: '주시',    cls: 'bg-status-warn/10 text-status-warn' },
   info:   { label: '진행',    cls: 'bg-ink-100 text-ink-500' },
 }
-const BADGE_DECISION = { label: '의사결정', cls: 'bg-mint-100 text-mint-500' }
-const BADGE_SCHEDULE  = { label: '일정',    cls: 'bg-lilac-100 text-lilac-600' }
+
 
 // ── StatPill ─────────────────────────────────────────────────────────
 function StatPill({ value, label, cls }: { value: number; label: string; cls: string }) {
@@ -72,10 +72,10 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
           DAILY REPORT · VOL.{vol} / NO.{no}
         </p>
         <div className="flex items-baseline gap-2">
-          <span className="text-lg font-black tracking-tight text-foreground tabular-nums leading-none">
+          <span className="text-2xl font-black tracking-tight text-foreground tabular-nums leading-none">
             {dayLabel}
           </span>
-          <span className="text-sm font-semibold text-ink-300">{dowLabel}</span>
+          <span className="text-base font-semibold text-ink-300">{dowLabel}</span>
         </div>
       </div>
       <div className="flex items-center gap-6">
@@ -95,15 +95,15 @@ function HeadlineCard({ text, brand, index }: { text: string; brand?: string; in
   const borderColor = brand ? brandColor(brand) : undefined
   return (
     <article
-      className="flex-1 rounded-xl border bg-card flex flex-col min-w-0"
-      style={borderColor ? { borderColor, backgroundColor: `${borderColor}18` } : undefined}
+      className="flex-1 rounded-xl border flex flex-col min-w-0 bg-zinc-700"
+      style={{ borderColor: 'transparent' }}
     >
       <div className="p-5 flex-1">
         <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-2xs font-black text-ink-400 tracking-widest uppercase">HEADLINE</span>
-          <span className="text-3xl font-black leading-none text-ink-700">{num}</span>
+          <span className="text-2xs font-black text-white/40 tracking-widest uppercase">HEADLINE</span>
+          <span className="text-3xl font-black leading-none text-white">{num}</span>
         </div>
-        <p className="text-sm font-semibold text-foreground leading-relaxed">
+        <p className="text-sm font-semibold text-white leading-relaxed">
           {renderBold(text)}
         </p>
       </div>
@@ -177,52 +177,29 @@ function SevCount({ count, cls }: { count: number; cls: string }) {
   )
 }
 
-// 요약 본문: "배경:", "경과:", "조치:" 라벨 파싱 후 렌더링
-function SummaryLines({ text }: { text: string }) {
-  const LABELS = ['배경', '경과', '조치', '결과']
-  const lines = text.split('\n').map(l => l.trim().replace(/^•\s*/, '')).filter(Boolean)
-  return (
-    <div className="space-y-1 mb-2.5">
-      {lines.map((line, i) => {
-        const match = line.match(new RegExp(`^(${LABELS.join('|')})[:\\s：](.+)$`))
-        if (match) {
-          return (
-            <p key={i} className="text-sm leading-relaxed">
-              <span className="text-ink-400 font-medium">{match[1]}</span>
-              <span className="text-ink-400 mx-0.5">:</span>
-              <span className="text-ink-600">{match[2].trim()}</span>
-            </p>
-          )
-        }
-        return <p key={i} className="text-sm text-ink-500 leading-relaxed">{line}</p>
-      })}
-    </div>
-  )
-}
 
-// 접힌 행 — 한 줄 요약 (좌측 브랜드 색상 띠)
-function CollapsedRow({ item, isLast, accent, onExpand }: {
+// 접힌 행
+function CollapsedRow({ item, isLast, onExpand }: {
   item: UnifiedItem; isLast: boolean; accent: string; onExpand: () => void
 }) {
   return (
     <div
       onClick={onExpand}
-      className={`flex items-center gap-2 pl-3 pr-2.5 py-3 cursor-pointer hover:bg-muted/60 transition-colors ${isLast ? '' : 'border-b border-border'}`}
-      style={{ borderLeft: `3px solid ${accent}` }}
+      className={`flex items-start gap-2 px-3 py-2.5 cursor-pointer hover:bg-muted/60 transition-colors ${isLast ? '' : 'border-b border-ink-300'}`}
     >
       {item.date && (
-        <span className="text-2xs text-ink-400 tabular-nums shrink-0">{item.date}</span>
+        <span className="text-2xs text-ink-400 tabular-nums shrink-0 mt-0.5">{item.date}</span>
       )}
-      <span className="flex-1 text-sm text-foreground truncate min-w-0">{item.title}</span>
+      <span className="flex-1 text-sm text-foreground leading-snug">{item.title}</span>
       <span className={`shrink-0 text-2xs font-medium px-1.5 py-0.5 rounded ${item.badge.cls}`}>
         {item.badge.label}
       </span>
-      <ChevronRight size={12} className="shrink-0 text-ink-300" />
+      <ChevronRight size={12} className="shrink-0 text-ink-300 mt-0.5" />
     </div>
   )
 }
 
-// 펼친 행 — 전체 상세 (좌측 브랜드 색상 띠)
+// 펼친 행
 function ExpandedRow({ item, isLast, accent, onCollapse }: {
   item: UnifiedItem; isLast: boolean; accent: string; onCollapse: () => void
 }) {
@@ -230,30 +207,25 @@ function ExpandedRow({ item, isLast, accent, onCollapse }: {
   return (
     <div
       onClick={onCollapse}
-      className={`bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-border/40'}`}
-      style={{ borderLeft: `3px solid ${accent}` }}
+      className={`bg-muted/25 cursor-pointer hover:bg-muted/40 transition-colors ${isLast ? '' : 'border-b border-ink-300'}`}
     >
-      <div className="pl-3 pr-4 py-3.5">
+      <div className="px-3 py-3.5">
         <div className="flex items-start gap-2 mb-2.5">
           {item.date && (
             <span className="text-2xs text-ink-400 tabular-nums shrink-0 mt-0.5">{item.date}</span>
           )}
           <span className="flex-1 text-sm font-semibold text-foreground leading-snug">{item.title}</span>
           <span className="shrink-0 mt-0.5"><PriorityBars priority={priority} /></span>
-        </div>
-        {item.summary && <SummaryLines text={item.summary} />}
-        {item.action && (
-          <p className="text-sm leading-relaxed mb-2.5">
-            <span className="text-ink-400 font-medium">조치</span>
-            <span className="text-ink-400 mx-0.5">:</span>
-            <span className="text-ink-600">{item.action}</span>
-          </p>
-        )}
-        <div className="flex items-center gap-1.5">
-          <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full ${item.badge.cls}`}>
+          <span className={`text-2xs font-semibold px-2 py-0.5 rounded-full shrink-0 mt-0.5 ${item.badge.cls}`}>
             {item.badge.label}
           </span>
         </div>
+        {item.summary && (
+          <BodyBullets text={item.summary} className="text-sm text-ink-600 leading-relaxed mb-2.5" />
+        )}
+        {item.action && (
+          <PriorityCallout color={accent} text={item.action} className="text-sm py-2 mt-1" textColor="var(--color-foreground)" />
+        )}
       </div>
     </div>
   )
@@ -270,14 +242,11 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   const otherCount  = items.filter(i => i.severity === 'info' || i.severity === 'other').length
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card">
-      <div className="flex items-center gap-2 px-4 py-3 border-b border-border bg-ink-100">
+    <div className="border border-ink-400 rounded-xl overflow-hidden bg-card shadow-sm">
+      <div className="flex items-center gap-2 px-4 py-3 border-b border-ink-300 bg-ink-100">
         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: accent }} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
-        <span className="text-sm text-ink-400 mr-1">{items.length}</span>
-        <SevCount count={urgentCount}  cls="bg-status-late text-white" />
-        <SevCount count={watchCount}   cls="bg-status-warn text-white" />
-        <SevCount count={otherCount}   cls="bg-ink-300 text-white" />
+        <span className="text-sm text-ink-400">{items.length}</span>
       </div>
       <div>
         {items.map((item, i) => {
@@ -310,14 +279,6 @@ function V2BrandDeck({ content, reportDate }: { content: InsightContent; reportD
       severity: a.severity,
       summary: a.summary, action: a.action,
     }))
-    content.decisions.forEach(d => push(d.brand, {
-      key: `d_${d.id}`, date: '', title: d.title,
-      badge: BADGE_DECISION, severity: 'other', summary: d.desc,
-    }))
-    content.upcoming.forEach((u, i) => push(u.brand, {
-      key: `u_${i}`, date: u.date, title: u.title,
-      badge: BADGE_SCHEDULE, severity: 'other',
-    }))
     return map
   }, [content, dateShort])
 
@@ -333,7 +294,7 @@ function V2BrandDeck({ content, reportDate }: { content: InsightContent; reportD
         <span className="text-sm text-ink-500">{brands.length}개 브랜드 · {total}건</span>
         <span className="text-2xs text-ink-300 ml-1">접힌 카드 제목을 누르면 펼쳐집니다</span>
       </div>
-      <div className="grid grid-cols-3 gap-3">
+      <div className="grid grid-cols-3 gap-4 items-start">
         {brands.map(brand => (
           <BrandCard key={brand} brand={brand} items={brandMap.get(brand)!} />
         ))}

@@ -1,12 +1,10 @@
 'use client'
 
 import React from 'react'
-import { Plus, Search, X, PanelLeftOpen, CheckSquare } from 'lucide-react'
+import { Plus, Search, X, CheckSquare } from 'lucide-react'
 import { VIEW_TABS, ASSIGNEE_COLORS, type ViewType } from '../_constants'
 
 interface TasksActionBarProps {
-  sidebarOpen: boolean
-  onSidebarOpen: () => void
   view: ViewType
   onViewChange: (v: ViewType) => void
   // 검색
@@ -31,7 +29,6 @@ interface TasksActionBarProps {
 }
 
 export function TasksActionBar({
-  sidebarOpen, onSidebarOpen,
   view, onViewChange,
   searchOpen, onSearchOpenChange, searchQuery, onSearchQueryChange,
   searchRef, searchInputRef,
@@ -43,16 +40,6 @@ export function TasksActionBar({
   return (
     <>
       <div className="h-12 flex items-stretch border-b bg-card shrink-0">
-        {!sidebarOpen && (
-          <button
-            onClick={onSidebarOpen}
-            className="self-center ml-3 mr-1 p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors shrink-0"
-            title="사이드바 열기"
-          >
-            <PanelLeftOpen size={14} />
-          </button>
-        )}
-
         {/* 뷰 탭 */}
         <nav className="flex items-stretch pl-3">
           {VIEW_TABS.map(tab => (
@@ -144,34 +131,6 @@ export function TasksActionBar({
         </div>
       </div>
 
-      {/* 담당자 필터 바 — 사이드바 닫혔을 때만 */}
-      {!sidebarOpen && (view === 'basic' || view === 'listview' || view === 'kanban') && allAssignees.length > 0 && (
-        <div className="flex items-center gap-1.5 px-4 py-2 border-b bg-card shrink-0 overflow-x-auto">
-          <button
-            onClick={() => onFilterAssigneeChange(null)}
-            className={`flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-              ${!filterAssignee ? 'bg-foreground border-foreground text-background' : 'border-border text-muted-foreground hover:border-ink-400'}`}
-          >
-            전체
-          </button>
-          {allAssignees.map(({ key, label }, i) => {
-            const color = ASSIGNEE_COLORS[i % ASSIGNEE_COLORS.length]
-            const active = filterAssignee === key
-            return (
-              <button
-                key={key}
-                onClick={() => onFilterAssigneeChange(active ? null : key)}
-                className={`flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border transition-colors whitespace-nowrap
-                  ${active ? 'text-background border-transparent' : 'border-border text-muted-foreground hover:border-ink-400'}`}
-                style={active ? { backgroundColor: color, borderColor: color } : {}}
-              >
-                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'var(--color-background)' : color }} />
-                {label}
-              </button>
-            )
-          })}
-        </div>
-      )}
     </>
   )
 }

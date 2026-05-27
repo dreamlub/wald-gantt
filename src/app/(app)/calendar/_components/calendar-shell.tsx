@@ -4,7 +4,7 @@ import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
 import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
-  CalendarDays, Plus, PanelLeftOpen, X, Check,
+  CalendarDays, Plus, X, Check,
 } from 'lucide-react'
 import { addDays, parseISO, getISOWeek } from 'date-fns'
 import { Button } from '@/components/ui/button'
@@ -35,7 +35,6 @@ export function CalendarShell() {
   const weekDates = useMemo(() => getWeekDates(weekStart), [weekStart])
   const weekEnd   = weekDates[6]
 
-  const [panelOpen, setPanelOpen] = useState(true)
   const [dragOverAllDay, setDragOverAllDay] = useState<string | null>(null)
   const [highlightTaskId, setHighlightTaskId] = useState<string | null>(null)
 
@@ -118,12 +117,11 @@ export function CalendarShell() {
 
       {/* 사이드바 */}
       <div
-        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-        style={{ width: panelOpen ? 'var(--sidebar-w)' : 0 }}
+        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+        style={{ width: 'var(--sidebar-w)' }}
       >
         <TaskPanel
           tasks={tasks}
-          onClose={() => setPanelOpen(false)}
           onTaskClick={setDrawerTask}
           onUnschedule={handleUnschedule}
         />
@@ -134,12 +132,6 @@ export function CalendarShell() {
 
         {/* 툴바 */}
         <div className="h-12 flex items-center gap-2 px-4 border-b bg-card shrink-0">
-          {!panelOpen && (
-            <Button variant="ghost" size="icon-xs" onClick={() => setPanelOpen(true)} title="사이드바 열기" className="text-ink-400">
-              <PanelLeftOpen size={14} />
-            </Button>
-          )}
-
           <div className="flex items-center gap-0.5">
             <Button variant="ghost" size="icon-xs" onClick={() => goWeek(-1)} className="text-ink-400">
               <ChevronLeft size={15} />

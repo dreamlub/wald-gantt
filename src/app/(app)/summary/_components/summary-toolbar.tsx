@@ -3,7 +3,7 @@
 import type { Dispatch, RefObject, SetStateAction } from 'react'
 import {
   CalendarDays, Database, GitMerge, LayoutList,
-  Newspaper, PanelLeftOpen, Search, Table, X,
+  Newspaper, Search, Table, X,
   type LucideIcon,
 } from 'lucide-react'
 
@@ -19,8 +19,6 @@ const VIEW_TABS: { key: ViewKey; label: string; icon: LucideIcon }[] = [
 ]
 
 interface Props {
-  sidebarOpen: boolean
-  onOpenSidebar: () => void
   view: ViewKey
   onViewChange: (view: ViewKey) => void
   searchRef: RefObject<HTMLDivElement | null>
@@ -32,8 +30,6 @@ interface Props {
 }
 
 export function SummaryToolbar({
-  sidebarOpen,
-  onOpenSidebar,
   view,
   onViewChange,
   searchRef,
@@ -45,16 +41,6 @@ export function SummaryToolbar({
 }: Props) {
   return (
     <div className="h-12 flex items-stretch border-b bg-card shrink-0">
-      {!sidebarOpen && (
-        <button
-          onClick={onOpenSidebar}
-          className="self-center ml-3 mr-1 p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors shrink-0"
-          title="사이드바 열기"
-        >
-          <PanelLeftOpen size={14} />
-        </button>
-      )}
-
       <nav className="flex items-stretch pl-3">
         {VIEW_TABS.map(tab => {
           const Icon = tab.icon

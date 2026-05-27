@@ -41,7 +41,6 @@ export default function GanttPage() {
   const [categories, setCategories]           = useState<GanttCategory[]>([])
   const [projects, setProjects]               = useState<GanttProject[]>([])
   const [dialog, setDialog]                   = useState<DialogState>(null)
-  const [sidebarOpen, setSidebarOpen]         = useState(true)
   const [loading, setLoading]                 = useState(true)
   const [trashOpen, setTrashOpen]             = useState(false)
   const [trashCount, setTrashCount]           = useState(0)
@@ -309,7 +308,6 @@ export default function GanttPage() {
     <div className="flex flex-1 overflow-hidden">
       {confirmDialog}
       <BoardSidebar
-        open={sidebarOpen}
         boards={boards}
         selectedId={selectedBoardId}
         onSelect={id => { if (id !== selectedBoardId) setSelectedBoardId(id) }}
@@ -317,7 +315,6 @@ export default function GanttPage() {
         onRename={handleRenameBoard}
         onDelete={handleDeleteBoard}
         onReorder={handleReorderBoards}
-        onToggle={() => setSidebarOpen(v => !v)}
         trashCount={trashCount}
         onOpenTrash={() => setTrashOpen(v => !v)}
       />
@@ -354,8 +351,6 @@ export default function GanttPage() {
               onMoveProject={handleMoveProject}
               onMoveCategory={handleMoveCategory}
               onShare={() => setDialog({ type: 'share' })}
-              sidebarClosed={!sidebarOpen}
-              onOpenSidebar={() => setSidebarOpen(true)}
             />
           ) : (
             <div className="h-full flex items-center justify-center text-muted-foreground text-xs">

@@ -38,8 +38,7 @@ function TasksPageContent() {
   const selection = useTaskSelection(data.handleBulkDelete, data.handleBulkStatusChange)
   const quick = useQuickAdd(data.workspace, data.tasks, data.setExpandedParents, data.load)
 
-  const [sidebarOpen, setSidebarOpen] = useState(true)
-  const [view,        setView]        = useState<ViewType>('basic')
+  const [view, setView] = useState<ViewType>('basic')
   const [trashOpen,   setTrashOpen]   = useState(false)
   const [archiveOpen, setArchiveOpen] = useState(false)
 
@@ -76,8 +75,6 @@ function TasksPageContent() {
   return (
     <div className="flex flex-1 overflow-hidden">
       <TasksSidebar
-        open={sidebarOpen}
-        onClose={() => setSidebarOpen(false)}
         quickFilter={filters.quickFilter}
         onQuickFilterChange={filters.setQuickFilter}
         inboxCount={filters.inboxCount}
@@ -114,8 +111,6 @@ function TasksPageContent() {
 
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <TasksActionBar
-          sidebarOpen={sidebarOpen}
-          onSidebarOpen={() => setSidebarOpen(true)}
           view={view}
           onViewChange={(v) => { setView(v); if (v !== 'basic' && v !== 'listview') selection.exitSelectionMode() }}
           searchOpen={filters.searchOpen}

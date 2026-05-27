@@ -2,7 +2,7 @@
 
 import { useCallback, useEffect, useRef, useState } from 'react'
 import { useClickAway } from '@/hooks/use-click-away'
-import { Plus, ChevronDown, Search, X, ArrowUpDown, Filter, Link2, PanelLeftOpen } from 'lucide-react'
+import { Plus, ChevronDown, Search, X, ArrowUpDown, Filter, Link2 } from 'lucide-react'
 import type { GanttCategory } from '@/types'
 
 type ViewMode = 'month' | 'week' | 'day'
@@ -18,8 +18,6 @@ const SORT_LABELS: Record<SortMode, string> = {
 interface Props {
   boardName?: string
   readOnly?: boolean
-  sidebarClosed?: boolean
-  onOpenSidebar?: () => void
   // undo / redo
   undoCount?: number
   onUndo?: () => void
@@ -64,8 +62,6 @@ interface Props {
 export function GanttToolbar({
   boardName,
   readOnly,
-  sidebarClosed = false,
-  onOpenSidebar,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
   overdueCount = 0, overdueFilter = false, onToggleOverdueFilter,
   startDelayedCount = 0, startDelayedFilter = false, onToggleStartDelayedFilter,
@@ -346,15 +342,6 @@ export function GanttToolbar({
 
   return (
     <div className="flex items-center px-3 h-12 border-b shrink-0 gap-2">
-      {sidebarClosed && onOpenSidebar && (
-        <button
-          onClick={onOpenSidebar}
-          className="p-1.5 rounded text-muted-foreground hover:text-foreground hover:bg-muted transition-colors"
-          title="사이드바 열기"
-        >
-          <PanelLeftOpen size={15} />
-        </button>
-      )}
       {boardName && (
         <h1 className="text-xl font-semibold text-foreground whitespace-nowrap">{boardName}</h1>
       )}

@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useEffect, useRef, useState } from 'react'
-import { Search, PanelLeftClose, GripVertical, CalendarDays, ChevronDown } from 'lucide-react'
+import { Search, GripVertical, CalendarDays, ChevronDown } from 'lucide-react'
 import type { GanttTask } from '@/types'
 import { Button } from '@/components/ui/button'
 import { STATUS_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
@@ -12,12 +12,11 @@ import { setActiveDragOffsetY } from './drag-state'
 
 interface Props {
   tasks: GanttTask[]
-  onClose?: () => void
   onTaskClick?: (task: GanttTask) => void
   onUnschedule?: (taskId: string) => void
 }
 
-export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) {
+export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
   const [q, setQ]               = useState('')
   const [sort, setSort]         = useState<SortKey>('deadline')
   const [showSort, setShowSort] = useState(false)
@@ -94,11 +93,8 @@ export function TaskPanel({ tasks, onClose, onTaskClick, onUnschedule }: Props) 
   return (
     <div className="flex flex-col h-full overflow-hidden">
       {/* 헤더 */}
-      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
-        <Button variant="ghost" size="icon-xs" onClick={onClose} title="사이드바 닫기" className="text-ink-300">
-          <PanelLeftClose size={14} />
-        </Button>
+      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
+        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
       </div>
 
       {/* 검색 */}

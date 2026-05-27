@@ -1,7 +1,7 @@
 'use client'
 
 import {
-  LayoutList, Search, PanelLeftClose, Trash2, Archive, Inbox,
+  LayoutList, Search, Trash2, Archive, Inbox,
 } from 'lucide-react'
 import { PROJECT_COLORS } from '../_constants'
 import { LabelBadge } from './label-badge'
@@ -12,8 +12,6 @@ interface SidebarAssignee { key: string; label: string; count: number }
 interface SidebarLabel { name: string; count: number }
 
 interface TasksSidebarProps {
-  open: boolean
-  onClose: () => void
   // 퀵 필터
   quickFilter: QuickFilterKey
   onQuickFilterChange: (key: QuickFilterKey) => void
@@ -56,7 +54,6 @@ interface TasksSidebarProps {
 }
 
 export function TasksSidebar({
-  open, onClose,
   quickFilter, onQuickFilterChange,
   inboxCount, overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount, totalCount,
   projects, filterProject, onFilterProjectChange,
@@ -81,18 +78,11 @@ export function TasksSidebar({
 
   return (
     <div
-      className="shrink-0 border-r bg-muted flex flex-col overflow-hidden transition-all duration-200"
-      style={{ width: open ? 'var(--sidebar-w)' : 0 }}
+      className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+      style={{ width: 'var(--sidebar-w)' }}
     >
-      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
-        <button
-          onClick={onClose}
-          className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
-          title="사이드바 닫기"
-        >
-          <PanelLeftClose size={14} />
-        </button>
+      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
+        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
       </div>
 
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">

@@ -28,6 +28,14 @@ function fmtDatetime(iso: string): string {
 
 type ChangeKey = 'new' | 'continued' | 'completed' | 'blocked' | 'dropped'
 type FilterKey = 'all' | ChangeKey
+type TypeKey   = 'all' | 'issue' | 'decision' | 'plan'
+
+const TYPE_TABS: { key: TypeKey; label: string }[] = [
+  { key: 'all',      label: '전체' },
+  { key: 'issue',    label: '이슈' },
+  { key: 'decision', label: '결정' },
+  { key: 'plan',     label: '계획' },
+]
 
 const CHANGE_META: Record<ChangeKey, {
   label: string
@@ -232,6 +240,39 @@ function ChangeSection({ changeKey, items, compareMode }: {
         ))}
       </div>
     </section>
+  )
+}
+
+// ── TypeTab ───────────────────────────────────────────────────────
+
+function TypeTab({
+  typeFilter,
+  onTypeFilterChange,
+  typeCounts,
+}: {
+  typeFilter: TypeKey
+  onTypeFilterChange: (t: TypeKey) => void
+  typeCounts: Record<TypeKey, number>
+}) {
+  return (
+    <div className="flex items-center gap-1 mb-4 border-b border-border">
+      {TYPE_TABS.map(({ key, label }) => (
+        <button
+          key={key}
+          onClick={() => onTypeFilterChange(key)}
+          className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+            typeFilter === key
+              ? 'border-lilac-500 text-lilac-600 dark:text-lilac-400'
+              : 'border-transparent text-ink-400 hover:text-foreground'
+          }`}
+        >
+          {label}
+          <span className={`ml-1.5 text-xs ${typeFilter === key ? 'text-lilac-500' : 'text-ink-300'}`}>
+            {typeCounts[key]}
+          </span>
+        </button>
+      ))}
+    </div>
   )
 }
 
@@ -511,19 +552,32 @@ export function WeeklyDashboard({
 }: Props) {
   const [compareMode, setCompareMode] = useState(false)
   const [filter, setFilter]           = useState<FilterKey>('all')
+  const [typeFilter, setTypeFilter]   = useState<TypeKey>('all')
 
   const allItems = assembleItems(reports)
 
+  // type 탭 필터 먼저 적용
+  const typeFiltered = typeFilter === 'all'
+    ? allItems
+    : allItems.filter(it => it.type === typeFilter)
+
   const counts: Record<FilterKey, number> = {
-    all:       allItems.length,
-    new:       allItems.filter(it => it.change === 'new').length,
-    continued: allItems.filter(it => it.change === 'continued').length,
-    completed: allItems.filter(it => it.change === 'completed').length,
-    blocked:   allItems.filter(it => it.change === 'blocked').length,
-    dropped:   allItems.filter(it => it.change === 'dropped').length,
+    all:       typeFiltered.length,
+    new:       typeFiltered.filter(it => it.change === 'new').length,
+    continued: typeFiltered.filter(it => it.change === 'continued').length,
+    completed: typeFiltered.filter(it => it.change === 'completed').length,
+    blocked:   typeFiltered.filter(it => it.change === 'blocked').length,
+    dropped:   typeFiltered.filter(it => it.change === 'dropped').length,
   }
 
-  const filtered = filter === 'all' ? allItems : allItems.filter(it => it.change === filter)
+  const typeCounts: Record<TypeKey, number> = {
+    all:      allItems.length,
+    issue:    allItems.filter(it => it.type === 'issue').length,
+    decision: allItems.filter(it => it.type === 'decision').length,
+    plan:     allItems.filter(it => it.type === 'plan').length,
+  }
+
+  const filtered = filter === 'all' ? typeFiltered : typeFiltered.filter(it => it.change === filter)
 
   if (reportsLoading) {
     return (
@@ -553,6 +607,11 @@ export function WeeklyDashboard({
         </div>
       ) : (
         <>
+          <TypeTab
+            typeFilter={typeFilter}
+            onTypeFilterChange={(t) => { setTypeFilter(t); setFilter('all') }}
+            typeCounts={typeCounts}
+          />
           <FilterBar
             compareMode={compareMode}
             onCompareModeChange={setCompareMode}

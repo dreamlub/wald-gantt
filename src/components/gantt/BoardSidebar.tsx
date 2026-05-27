@@ -11,11 +11,10 @@ import {
 } from '@dnd-kit/sortable'
 import { useDndSensors } from '@/lib/dnd-utils'
 import { CSS } from '@dnd-kit/utilities'
-import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical, PanelLeftClose } from 'lucide-react'
+import { LayoutDashboard, Plus, Trash2, Check, X, GripVertical } from 'lucide-react'
 import type { GanttBoard } from '@/types'
 
 interface Props {
-  open: boolean
   boards: GanttBoard[]
   selectedId: string | null
   onSelect: (id: string) => void
@@ -23,7 +22,6 @@ interface Props {
   onRename: (id: string, name: string) => Promise<void>
   onDelete: (id: string) => Promise<void>
   onReorder: (reordered: GanttBoard[]) => Promise<void>
-  onToggle: () => void
   trashCount?: number
   onOpenTrash?: () => void
 }
@@ -103,7 +101,7 @@ function SortableBoardItem(props: ItemProps) {
 }
 
 export function BoardSidebar({
-  open, boards, selectedId, onSelect, onAdd, onRename, onDelete, onReorder, onToggle, trashCount = 0, onOpenTrash
+  boards, selectedId, onSelect, onAdd, onRename, onDelete, onReorder, trashCount = 0, onOpenTrash
 }: Props) {
   const [editId, setEditId]     = useState<string | null>(null)
   const [editVal, setEditVal]   = useState('')
@@ -148,19 +146,12 @@ export function BoardSidebar({
 
   return (
     <div
-      className="shrink-0 flex flex-col border-r bg-muted overflow-hidden transition-all duration-200"
-      style={{ width: open ? 'var(--sidebar-w)' : 0 }}
+      className="shrink-0 flex flex-col border-r bg-muted overflow-hidden"
+      style={{ width: 'var(--sidebar-w)' }}
     >
       {/* 헤더 */}
-      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-        <span className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Projects</span>
-        <button
-          onClick={onToggle}
-          className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors"
-          title="사이드바 닫기"
-        >
-          <PanelLeftClose size={14} />
-        </button>
+      <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
+        <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Projects</span>
       </div>
 
       {/* 보드 목록 */}
