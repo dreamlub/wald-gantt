@@ -90,9 +90,18 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
 }
 
 // ── Headline cards ────────────────────────────────────────────────────
+// 브랜드 dot 색상 대신 배경용으로 보기 좋은 팔레트 순환
+const CARD_PALETTES = [
+  'var(--color-status-late)',    // red
+  'var(--color-ink-900)',        // dark
+  'var(--color-status-future)',  // blue
+  'var(--color-lilac-600)',      // purple
+  'var(--color-status-ok)',      // mint
+  'var(--color-status-warn)',    // orange
+]
+
 function HeadlineCard({ text, brand, index }: { text: string; brand?: string; index: number }) {
-  const color = brand ? (brandColor(brand) ?? 'var(--color-lilac-500)') : 'var(--color-lilac-500)'
-  const bg = index % 2 === 0 ? color : 'var(--color-ink-900)'
+  const bg = CARD_PALETTES[index % CARD_PALETTES.length]
   const labelOpacity = index % 2 === 0 ? 'rgba(255,255,255,0.55)' : 'rgba(255,255,255,0.35)'
   const num = String(index + 1).padStart(2, '0')
   return (
