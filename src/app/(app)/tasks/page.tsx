@@ -124,9 +124,6 @@ function TasksPageContent() {
           hideDone={filters.hideDone}
           onHideDoneChange={filters.setHideDone}
           onAdd={() => openAdd('to-do')}
-          allAssignees={filters.allAssignees}
-          filterAssignee={filters.filterAssignee}
-          onFilterAssigneeChange={filters.setFilterAssignee}
         />
 
         {view === 'listview' ? (

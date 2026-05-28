@@ -10,7 +10,7 @@ import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
-import { PRIORITY_META, TAG_META } from '../_lib/constants'
+import { PRIORITY_META } from '../_lib/constants'
 import { PriorityBars, BrandBadge } from './badges'
 import { brandColor } from '@/lib/history-service'
 import { createClient } from '@/lib/supabase/client'

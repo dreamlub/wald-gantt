@@ -2,7 +2,7 @@
 
 import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
-import { useState, useEffect } from 'react'
+import { useSyncExternalStore } from 'react'
 import {
   BarChart2, CheckSquare, FileText, Clock, Settings, LogOut,
   BookOpen, CalendarDays, Sparkles, PanelLeftClose, PanelLeftOpen,
@@ -36,24 +36,32 @@ const navItems: NavItem[] = [
 ]
 
 const STORAGE_KEY = 'nav-collapsed'
+const NAV_COLLAPSE_EVENT = 'nav-collapsed-change'
+
+/* ── 접힘 상태 외부 스토어 (localStorage 구독) ── */
+function subscribeCollapsed(callback: () => void) {
+  window.addEventListener(NAV_COLLAPSE_EVENT, callback)
+  window.addEventListener('storage', callback)
+  return () => {
+    window.removeEventListener(NAV_COLLAPSE_EVENT, callback)
+    window.removeEventListener('storage', callback)
+  }
+}
+function getCollapsedSnapshot() {
+  return localStorage.getItem(STORAGE_KEY) === 'true'
+}
 
 /* ── 컴포넌트 ── */
 export function AppNav() {
   const pathname = usePathname()
   const router   = useRouter()
 
-  // SSR hydration mismatch 방지: 초기값 false, 마운트 후 localStorage 반영
-  const [collapsed, setCollapsed] = useState(false)
-  useEffect(() => {
-    setCollapsed(localStorage.getItem(STORAGE_KEY) === 'true')
-  }, [])
+  // SSR hydration mismatch 방지: 서버 스냅샷 false, 클라이언트에서 localStorage 반영
+  const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false)
 
   function toggleCollapsed() {
-    setCollapsed(prev => {
-      const next = !prev
-      localStorage.setItem(STORAGE_KEY, String(next))
-      return next
-    })
+    localStorage.setItem(STORAGE_KEY, String(!getCollapsedSnapshot()))
+    window.dispatchEvent(new Event(NAV_COLLAPSE_EVENT))
   }
 
   async function handleSignOut() {

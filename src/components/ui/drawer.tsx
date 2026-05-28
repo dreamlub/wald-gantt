@@ -1,7 +1,10 @@
 'use client'
 
-import { type ReactNode, useState, useEffect } from 'react'
+import { type ReactNode, useSyncExternalStore } from 'react'
 import { createPortal } from 'react-dom'
+
+// 클라이언트 마운트 여부 감지 (SSR=false, 클라이언트=true). 포털은 마운트 후에만 렌더.
+const subscribeNoop = () => () => {}
 
 // ─── Drawer ────────────────────────────────────────────────
 interface DrawerProps {
@@ -26,8 +29,7 @@ export function Drawer({
   noPortal = false,
   children,
 }: DrawerProps) {
-  const [mounted, setMounted] = useState(false)
-  useEffect(() => { setMounted(true) }, [])
+  const mounted = useSyncExternalStore(subscribeNoop, () => true, () => false)
 
   // 인라인 모드: 포털·backdrop 없이 children만 렌더링
   // 패널 크기·슬라이드 애니메이션은 부모 컨테이너가 직접 담당

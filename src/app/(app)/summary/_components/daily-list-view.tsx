@@ -12,7 +12,6 @@ import { toKSTDate } from '@/lib/history-query-utils'
 interface Props {
   items: HistoryItem[]
   hasFilters: boolean
-  total?: number
   hasMore?: boolean
   loadingMore?: boolean
   brandCounts?: Record<string, number>
@@ -188,7 +187,6 @@ function HistoryRow({
 export function DailyListView({
   items,
   hasFilters,
-  total,
   hasMore,
   loadingMore,
   brandCounts,

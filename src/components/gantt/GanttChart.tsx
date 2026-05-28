@@ -11,7 +11,6 @@ import { useDndSensors } from '@/lib/dnd-utils'
 import { Plus, GripVertical, Undo2, Redo2 } from 'lucide-react'
 import { GanttToolbar } from './GanttToolbar'
 import { dayOffset, dayOffsetInWeeks } from '@/lib/gantt-utils'
-import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 import { MemoTooltip } from '@/components/MemoTooltip'
@@ -40,7 +39,6 @@ interface Props {
   onUndo?: () => void
   redoCount?: number
   onRedo?: () => void
-  onAddCategory: (name: string, color: string) => Promise<void>
   /** 카테고리 추가 다이얼로그를 여는 콜백 (다이얼로그는 page 레벨에서 렌더링) */
   onOpenAddCategory?: () => void
   onUpdateCategory: (id: string, updates: { name?: string; color?: string }) => Promise<void>
@@ -65,7 +63,7 @@ interface Props {
 export function GanttChart({
   categories, projects, viewStart, viewEnd, boardName,
   undoCount = 0, onUndo, redoCount = 0, onRedo,
-  onAddCategory, onOpenAddCategory, onUpdateCategory, onDeleteCategory,
+  onOpenAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
   onMoveProject, onMoveCategory, onShare,
@@ -111,7 +109,7 @@ export function GanttChart({
   const defaultSortedCats = [...categories].sort((a, b) => a.sort_order - b.sort_order)
 
   const {
-    liveItems, liveCats, isCatDrag,
+    liveItems, liveCats,
     activeCatForOverlay, activeProjForOverlay,
     handleDragStart, handleDragOver, handleDragEnd, handleDragCancel,
   } = useGanttDnd({
@@ -252,16 +250,6 @@ export function GanttChart({
         <GanttToolbar
           boardName={boardName}
           readOnly={readOnly}
-          undoCount={undoCount}
-          onUndo={onUndo}
-          redoCount={redoCount}
-          onRedo={onRedo}
-          overdueCount={overdueCount}
-          overdueFilter={overdueFilter}
-          onToggleOverdueFilter={() => setInternalOverdueFilter(v => !v)}
-          startDelayedCount={startDelayedCount}
-          startDelayedFilter={startDelayedFilter}
-          onToggleStartDelayedFilter={() => setInternalStartDelayedFilter(v => !v)}
           searchQuery={searchQuery}
           onSearchChange={setSearchQuery}
           allTeams={allTeams}

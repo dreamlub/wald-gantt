@@ -1,7 +1,6 @@
 'use client'
 
-import { useEffect, useState, useCallback, useMemo } from 'react'
-import { PanelLeftOpen } from 'lucide-react'
+import { useEffect, useState, useCallback } from 'react'
 import { toast } from 'sonner'
 import { GanttChart } from '@/components/gantt/GanttChart'
 import { BoardSidebar } from '@/components/gantt/BoardSidebar'
@@ -30,10 +29,11 @@ type DialogState =
 export default function GanttPage() {
   const { confirm: showConfirm, dialog: confirmDialog } = useConfirm()
 
-  const { viewStart, viewEnd } = useMemo(() => {
+  // 마운트 시 1회 계산 (현재 KST 연도 기준 뷰 범위). lazy init으로 render 중 시각 호출 회피.
+  const [{ viewStart, viewEnd }] = useState(() => {
     const kstYear = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
     return { viewStart: `${kstYear - 1}-01`, viewEnd: `${kstYear + 2}-12` }
-  }, [])
+  })
 
   const [workspace, setWorkspace]             = useState<Workspace | null>(null)
   const [boards, setBoards]                   = useState<GanttBoard[]>([])
@@ -91,11 +91,11 @@ export default function GanttPage() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [selectedBoardId])
 
-  // 카테고리 추가 다이얼로그 열릴 때 랜덤 색상 선택
-  useEffect(() => {
-    if (addCatOpen) setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
-  // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [addCatOpen])
+  // 카테고리 추가 다이얼로그 열기 — 열 때 랜덤 색상 선택
+  function openAddCategory() {
+    setNewCatColor(randomCatColor(new Set(categories.map(c => c.color))))
+    setAddCatOpen(true)
+  }
 
   // ── 보드 핸들러 ──────────────────────────────────────────────
 
@@ -337,8 +337,7 @@ export default function GanttPage() {
               onUndo={handleUndo}
               redoCount={redoCount}
               onRedo={handleRedo}
-              onAddCategory={handleAddCategory}
-              onOpenAddCategory={() => setAddCatOpen(true)}
+              onOpenAddCategory={openAddCategory}
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
               onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}

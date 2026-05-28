@@ -36,7 +36,6 @@ export function AutocompleteInput({ value, onChange, suggestions, placeholder, c
   useEffect(() => {
     if (!open || !containerRef.current) return
     const rect = containerRef.current.getBoundingClientRect()
-    // eslint-disable-next-line react-hooks/set-state-in-effect
     setDropUp(rect.bottom + 200 > window.innerHeight)
   }, [open])
 

@@ -41,11 +41,20 @@ export function TrashDrawer<T extends { id: string }>({
 
   useEffect(() => {
     if (!open) return
-    setLoading(true)
-    fetchDeleted()
-      .then(setDeleted)
-      .catch(() => {})
-      .finally(() => setLoading(false))
+    let cancelled = false
+    async function load() {
+      setLoading(true)
+      try {
+        const items = await fetchDeleted()
+        if (!cancelled) setDeleted(items)
+      } catch {
+        // 조회 실패 — 빈 목록 유지
+      } finally {
+        if (!cancelled) setLoading(false)
+      }
+    }
+    load()
+    return () => { cancelled = true }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [open, ...fetchDeps])
 

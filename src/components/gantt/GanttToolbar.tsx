@@ -18,19 +18,6 @@ const SORT_LABELS: Record<SortMode, string> = {
 interface Props {
   boardName?: string
   readOnly?: boolean
-  // undo / redo
-  undoCount?: number
-  onUndo?: () => void
-  redoCount?: number
-  onRedo?: () => void
-  // overdue indicator/filter
-  overdueCount?: number
-  overdueFilter?: boolean
-  onToggleOverdueFilter?: () => void
-  // start-delayed indicator/filter
-  startDelayedCount?: number
-  startDelayedFilter?: boolean
-  onToggleStartDelayedFilter?: () => void
   // search
   searchQuery: string
   onSearchChange: (v: string) => void
@@ -62,9 +49,6 @@ interface Props {
 export function GanttToolbar({
   boardName,
   readOnly,
-  undoCount = 0, onUndo, redoCount = 0, onRedo,
-  overdueCount = 0, overdueFilter = false, onToggleOverdueFilter,
-  startDelayedCount = 0, startDelayedFilter = false, onToggleStartDelayedFilter,
   searchQuery, onSearchChange,
   allTeams, excludedTeams, onToggleTeam,
   allPMs, excludedPMs, onTogglePM,
@@ -80,18 +64,14 @@ export function GanttToolbar({
   const [filterPos,      setFilterPos]      = useState<{ top: number; right: number }>({ top: 0, right: 0 })
   const [showSort,       setShowSort]       = useState(false)
   const [sortPos,        setSortPos]        = useState<{ top: number; right: number; width: number }>({ top: 0, right: 0, width: 0 })
-  const [showAddProject, setShowAddProject] = useState(false)
-  const [addProjectPos,  setAddProjectPos]  = useState<{ top: number; right: number }>({ top: 0, right: 0 })
 
   const searchInputRef   = useRef<HTMLInputElement>(null)
   const filterBtnRef     = useRef<HTMLButtonElement>(null)
   const sortBtnRef       = useRef<HTMLButtonElement>(null)
-  const addProjectBtnRef = useRef<HTMLButtonElement>(null)
 
   const searchRef     = useClickAway<HTMLDivElement>(searchOpen,      () => { if (!searchQuery) setSearchOpen(false) })
   const filterRef     = useClickAway<HTMLDivElement>(showFilter,      () => setShowFilter(false))
   const sortRef       = useClickAway<HTMLDivElement>(showSort,        () => setShowSort(false))
-  const addProjectRef = useClickAway<HTMLDivElement>(showAddProject,  () => setShowAddProject(false))
 
   const toggleFilter = useCallback(() => {
     setShowFilter(v => {
