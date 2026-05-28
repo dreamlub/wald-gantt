@@ -76,26 +76,36 @@ export function isThreadReplyPermalink(permalink: string, ts: string): boolean {
   }
 }
 
-export async function listHistory(sb?: Sb): Promise<HistoryItem[]> {
+export async function listHistory(sb?: Sb, daysBack = 90): Promise<HistoryItem[]> {
   const client = sb ?? createBrowserClient()
-  const PAGE = 1000
+  const workspaceId = await getWorkspaceId(client)
 
-  // thread reply IDs: DB에서 집계 (max_rows 제한 없음)
+  // 날짜 하한: KST 기준 daysBack일 전 00:00 UTC
+  const since = new Date()
+  since.setDate(since.getDate() - daysBack)
+  since.setHours(since.getHours() - 9) // KST→UTC 보정
+  since.setMinutes(0, 0, 0)
+  const sinceIso = since.toISOString()
+
+  // thread reply IDs (workspace 범위)
   const replyResult = await client.rpc('get_thread_reply_raw_ids', {
-    p_workspace_id: await getWorkspaceId(client),
+    p_workspace_id: workspaceId,
   })
   const threadReplyRawIds = new Set<string>(
     (replyResult.data ?? []).map((r: { id: string }) => r.id)
   )
 
-  // client_history 전체를 1000행씩 페이지네이션
+  // workspace_id + occurred_at 범위로 필터링 — idx_ch_workspace_occurred 인덱스 활용
+  const PAGE = 1000
   const allRows: DbHistory[] = []
   let from = 0
   while (true) {
     const { data, error } = await client
       .from('client_history')
       .select('*')
+      .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
+      .gte('occurred_at', sinceIso)
       .order('occurred_at', { ascending: false })
       .range(from, from + PAGE - 1)
     if (error) throw error

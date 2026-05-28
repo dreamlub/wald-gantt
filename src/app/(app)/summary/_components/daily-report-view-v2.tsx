@@ -3,7 +3,7 @@
 import { useMemo, useState } from 'react'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
-import { CalendarDays, Clock, CheckSquare, ChevronRight } from 'lucide-react'
+import { CalendarDays, Clock, CheckSquare, ChevronRight, Link2, Check } from 'lucide-react'
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
 import { PriorityCallout } from './priority-callout'
@@ -23,6 +23,7 @@ interface Props {
   filterTags: Set<Tag>
   filterPriorities: Set<Priority>
   onCreateTask?: (title: string, memo: string) => void
+  hideShare?: boolean
 }
 
 function dayOfYear(d: Date): number {
@@ -38,9 +39,9 @@ function renderBold(text: string) {
 }
 
 const SEV_BADGE: Record<string, { label: string; cls: string }> = {
-  urgent: { label: '이슈',    cls: 'bg-status-late/10 text-status-late' },
-  watch:  { label: '주시',    cls: 'bg-status-warn/10 text-status-warn' },
-  info:   { label: '진행',    cls: 'bg-ink-100 text-ink-500' },
+  urgent: { label: '이슈',    cls: 'bg-status-late/25 text-status-late font-semibold' },
+  watch:  { label: '주시',    cls: 'bg-status-warn/25 text-status-warn font-semibold' },
+  info:   { label: '진행',    cls: 'bg-ink-200 text-ink-600 font-semibold' },
 }
 
 
@@ -57,13 +58,43 @@ function StatPill({ value, label, cls }: { value: number; label: string; cls: st
 }
 
 // ── Header ────────────────────────────────────────────────────────────
-function V2Header({ content, date }: { content: InsightContent; date: Date }) {
+function V2Header({
+  content, date, selectedDate, hideShare,
+}: {
+  content: InsightContent
+  date: Date
+  selectedDate: string
+  hideShare?: boolean
+}) {
   const vol = format(date, 'MM')
   const no  = String(dayOfYear(date)).padStart(3, '0')
   const dayLabel = format(date, 'MM·dd', { locale: ko })
   const dowLabel = format(date, 'EEE', { locale: ko }).toUpperCase()
   const urgentCount = content.action_items.filter(i => i.severity === 'urgent').length
   const pendingTotal = content.pending.reduce((s, p) => s + p.count, 0)
+
+  const [sharing, setSharing] = useState(false)
+  const [copied, setCopied]   = useState(false)
+
+  async function handleShare() {
+    setSharing(true)
+    try {
+      const res  = await fetch('/api/summary/daily-share', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ date: selectedDate }),
+      })
+      const data = await res.json() as { url?: string; error?: string }
+      if (!res.ok || !data.url) throw new Error(data.error ?? '공유 링크 생성 실패')
+      await navigator.clipboard.writeText(data.url)
+      setCopied(true)
+      setTimeout(() => setCopied(false), 2000)
+    } catch (e) {
+      console.error('[share]', e)
+    } finally {
+      setSharing(false)
+    }
+  }
 
   return (
     <div className="shrink-0 border-b border-border px-6 py-3 bg-card flex items-center justify-between gap-6">
@@ -84,6 +115,19 @@ function V2Header({ content, date }: { content: InsightContent; date: Date }) {
         <StatPill value={content.decisions.length}    label="결정"     cls="text-mint-500" />
         <StatPill value={content.upcoming.length}     label="일정"     cls="text-status-future" />
         <StatPill value={pendingTotal}                label="대기"     cls="text-status-warn" />
+        {!hideShare && (
+          <button
+            onClick={handleShare}
+            disabled={sharing}
+            title="공유 링크 복사"
+            className="flex items-center gap-1.5 text-2xs font-medium px-2.5 py-1.5 rounded-md border border-border text-foreground hover:bg-muted transition-colors disabled:opacity-50"
+          >
+            {copied
+              ? <><Check size={11} className="text-mint-500" /><span className="text-mint-500">복사됨</span></>
+              : <><Link2 size={11} /><span>공유</span></>
+            }
+          </button>
+        )}
       </div>
     </div>
   )
@@ -318,7 +362,7 @@ function V2Bottom({ content }: { content: InsightContent }) {
             {content.upcoming.length}
           </span>
         </div>
-        <div className="space-y-2.5">
+        <div className="space-y-4">
           {content.upcoming.map((u, i) => (
             <div key={i} className="flex items-center gap-2">
               <span className="text-sm font-bold text-lilac-600 min-w-[3.5ch] tabular-nums">{u.date}</span>
@@ -355,28 +399,28 @@ function V2Bottom({ content }: { content: InsightContent }) {
       </div>
 
       {/* 결정 사항 */}
-      <div className="bg-ink-900 px-6 py-5">
+      <div className="px-6 py-5 bg-background">
         <div className="flex items-center gap-1.5 mb-4">
           <CheckSquare size={11} className="text-ink-400" />
-          <span className="text-2xs font-black text-ink-400 uppercase tracking-widest">결정 사항</span>
+          <span className="text-2xs font-black text-ink-500 uppercase tracking-widest">결정 사항</span>
           <span className="text-2xs text-ink-400 font-semibold ml-1">ON THE BOOKS</span>
-          <span className="text-2xs font-bold text-ink-300 bg-ink-800 px-1.5 py-0.5 rounded-full ml-auto">
+          <span className="text-2xs font-bold text-ink-400 bg-ink-100 px-1.5 py-0.5 rounded-full ml-auto">
             {content.decisions.length}
           </span>
         </div>
         <div className="space-y-3">
           {content.decisions.length === 0 && (
-            <p className="text-sm text-ink-700">—</p>
+            <p className="text-sm text-ink-300">—</p>
           )}
           {content.decisions.map(d => (
-            <div key={d.id} className="border border-ink-800 rounded-lg p-3.5">
+            <div key={d.id} className="border border-border rounded-lg p-3.5">
               <div className="flex items-center gap-2 mb-2">
-                <span className="text-2xs font-black text-mint-500 border border-mint-500/30 px-1.5 py-0.5 rounded-xs uppercase tracking-wide">
+                <span className="text-2xs font-black text-mint-600 border border-mint-500/40 bg-mint-50 px-1.5 py-0.5 rounded-xs uppercase tracking-wide">
                   ✓ CLOSED
                 </span>
                 <span className="text-2xs text-ink-400">{d.brand}</span>
               </div>
-              <p className="text-sm font-semibold text-white leading-snug mb-1.5">{d.title}</p>
+              <p className="text-sm font-semibold text-foreground leading-snug mb-1.5">{d.title}</p>
               <p className="text-sm text-ink-400 leading-relaxed">{d.desc}</p>
             </div>
           ))}
@@ -396,7 +440,7 @@ function tagAllowed(tags: Set<Tag>, tag: Tag): boolean {
 
 // ── Main export ───────────────────────────────────────────────────────
 export function DailyReportViewV2({
-  report, selectedDate, filterBrands, filterTags, filterPriorities,
+  report, selectedDate, filterBrands, filterTags, filterPriorities, hideShare,
 }: Props) {
   const date = useMemo(() => new Date(selectedDate + 'T00:00:00'), [selectedDate])
   const raw  = report.content
@@ -417,7 +461,7 @@ export function DailyReportViewV2({
 
   return (
     <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <V2Header content={content} date={date} />
+      <V2Header content={content} date={date} selectedDate={selectedDate} hideShare={hideShare} />
       <V2Lead headline={content.headline} actionItems={content.action_items} />
       <V2BrandDeck content={content} reportDate={selectedDate} />
       <V2Bottom content={content} />
