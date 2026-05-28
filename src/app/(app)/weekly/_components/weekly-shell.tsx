@@ -6,7 +6,7 @@ import type { WeeklyTeam } from '../_lib/types'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
 import { WeeklyDashboard } from './weekly-dashboard'
-import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
+import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight, analyzeWeekly } from '@/lib/weekly-service'
 import { toast } from 'sonner'
 
 function fmtHeader(isoDate: string): string {
@@ -38,6 +38,11 @@ export function WeeklyShell() {
   const [insight, setInsight]         = useState<WeeklyInsight | null>(null)
   const [dashLoading, setDashLoading] = useState(false)
 
+  // 수집 후 자동 분류 진행 상태
+  const [autoAnalyzing, setAutoAnalyzing]             = useState(false)
+  const [autoAnalyzeProgress, setAutoAnalyzeProgress] = useState(0)
+  const [autoAnalyzeStatus, setAutoAnalyzeStatus]     = useState<string | null>(null)
+
   const prevWeekStart = selectedIso ? prevWeekOf(selectedIso) : ''
 
   useEffect(() => {
@@ -50,7 +55,8 @@ export function WeeklyShell() {
       .catch(() => setTeams([]))
   }, [])
 
-  const fetchWeeks = useCallback(async (teamLabel: string) => {
+  /** 팀의 주차 목록을 로드하고 첫 주를 선택 — 로드된 주차 배열 반환 */
+  const fetchWeeks = useCallback(async (teamLabel: string): Promise<string[]> => {
     setWeeksLoading(true)
     setWeeksError(null)
     setWeeks([])
@@ -59,8 +65,10 @@ export function WeeklyShell() {
       const data = await getWeeklyWeeks(teamLabel)
       setWeeks(data)
       if (data.length > 0) setSelectedIso(data[0])
+      return data
     } catch (e) {
       setWeeksError(e instanceof Error ? e.message : '주차 조회 실패')
+      return []
     } finally {
       setWeeksLoading(false)
     }
@@ -100,6 +108,33 @@ export function WeeklyShell() {
     if (selectedIso) fetchDashData(selectedIso)
   }, [selectedIso, fetchDashData])
 
+  /** 전체 체인 AI 분류 — 수집 완료 후 자동 실행 */
+  const handleAutoAnalyze = useCallback(async (weekStart: string) => {
+    setAutoAnalyzing(true)
+    setAutoAnalyzeProgress(5)
+    setAutoAnalyzeStatus(null)
+    try {
+      const result = await analyzeWeekly(weekStart, (msg) => {
+        setAutoAnalyzeStatus(msg)
+        if (msg.includes('조회'))         setAutoAnalyzeProgress(10)
+        else if (msg.includes('분석 중')) setAutoAnalyzeProgress(p => Math.min(p + 8, 75))
+        else if (msg.includes('종합'))    setAutoAnalyzeProgress(82)
+        else if (msg.includes('저장'))    setAutoAnalyzeProgress(95)
+      })
+      setAutoAnalyzeProgress(100)
+      setInsight(result)
+      fetchDashData(weekStart)
+      toast.success('AI 분류 완료')
+      setTimeout(() => { setAutoAnalyzeProgress(0); setAutoAnalyzeStatus(null) }, 1000)
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '분석 실패')
+      setAutoAnalyzeProgress(0)
+      setAutoAnalyzeStatus(null)
+    } finally {
+      setAutoAnalyzing(false)
+    }
+  }, [fetchDashData])
+
   const [importing, setImporting] = useState(false)
   const handleImportOutline = useCallback(async () => {
     setImporting(true)
@@ -118,7 +153,13 @@ export function WeeklyShell() {
           toast.success(`수집 완료 — ${total}건 저장`)
         }
         const team = teams.find(t => t.id === selectedTeam)
-        if (team) fetchWeeks(team.label)
+        if (team) {
+          const freshWeeks = await fetchWeeks(team.label)
+          // 새로 수집된 데이터가 있으면 최신 주차 자동 분류
+          if (total > 0 && freshWeeks.length > 0) {
+            handleAutoAnalyze(freshWeeks[0]) // fire-and-forget
+          }
+        }
       } else {
         toast.error(`수집 실패: ${data.error}`)
       }
@@ -127,7 +168,7 @@ export function WeeklyShell() {
     } finally {
       setImporting(false)
     }
-  }, [teams, selectedTeam, fetchWeeks])
+  }, [teams, selectedTeam, fetchWeeks, handleAutoAnalyze])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -140,9 +181,9 @@ export function WeeklyShell() {
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">WEEKLY</h1>
           <button
             onClick={handleImportOutline}
-            disabled={importing}
+            disabled={importing || autoAnalyzing}
             className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            title="Outline에서 주간보고 수집"
+            title="Outline 수집 후 AI 분류"
           >
             {importing
               ? <RefreshCw size={14} className="animate-spin" />
@@ -182,13 +223,11 @@ export function WeeklyShell() {
         <div className="h-12 border-b bg-card flex items-center px-4 gap-3 shrink-0">
           {selectedIso ? (
             <>
-              {/* 금주 날짜 */}
               <div className="flex items-center gap-1.5 text-xs bg-muted px-2.5 py-1 rounded-md">
                 <CalendarDays size={11} className="text-ink-400" />
                 <span className="font-medium text-foreground">{fmtHeader(selectedIso)}</span>
               </div>
 
-              {/* 전주 날짜 */}
               {prevWeekStart && (
                 <div className="flex items-center gap-1.5 text-xs text-ink-400 px-2.5 py-1 rounded-md border border-border">
                   <CalendarDays size={11} />
@@ -196,7 +235,6 @@ export function WeeklyShell() {
                 </div>
               )}
 
-              {/* AI 요약 버튼 */}
               <button
                 onClick={() => setShowInsight(v => !v)}
                 className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-ink-800 transition-colors"
@@ -210,6 +248,22 @@ export function WeeklyShell() {
             <span className="text-sm font-semibold text-foreground">Weekly</span>
           )}
         </div>
+
+        {/* AI 분류 진행 표시 */}
+        {autoAnalyzing && (
+          <div className="border-b bg-card px-4 py-2 flex items-center gap-3 shrink-0">
+            <RefreshCw size={11} className="animate-spin text-lilac-500 shrink-0" />
+            <div className="flex-1 relative h-1 rounded-full bg-ink-100 overflow-hidden">
+              <div
+                className="absolute inset-y-0 left-0 h-full bg-lilac-500"
+                style={{ width: `${autoAnalyzeProgress}%`, transition: 'width 0.5s ease-out' }}
+              />
+            </div>
+            {autoAnalyzeStatus && (
+              <span className="text-xs text-ink-400 shrink-0 max-w-[220px] truncate">{autoAnalyzeStatus}</span>
+            )}
+          </div>
+        )}
 
         {/* 콘텐츠 */}
         <div className="flex-1 overflow-y-auto bg-background">

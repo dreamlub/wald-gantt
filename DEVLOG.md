@@ -9,6 +9,32 @@
 
 ---
 
+## 최근 변경 (2026-05-28) — Weekly: Outline 수집 + AI 자동 분류
+
+### 1. Outline import 정규식 수정 (`import-outline/route.ts`)
+- 날짜 구분자: `##YYYY.MM.DD` (점) → `##YYYY-MM-DD` (하이픈) 둘 다 지원, 내부 통일
+- 분기 문서 탐지 패턴 `isQuarterDoc()` 신규 추가: `2026 Q1`, `Q2 2026`, `2026 1Q` 등 다양한 표기 허용
+- `results` 타입에 `quarterDocsFound: string[]` 추가 → 디버깅용 문서 목록 반환
+
+### 2. 수집 토스트 피드백 세분화 (`weekly-shell.tsx`)
+- 분기 문서 0개: "Outline 문서 제목을 확인해 주세요" 경고
+- 문서는 있지만 섹션 0개: "날짜 형식(## YYYY-MM-DD)을 확인해 주세요" 경고
+- 정상 수집: "N건 저장" 성공
+
+### 3. 이슈/결정/계획 타입 탭 UI (`weekly-dashboard.tsx`)
+- `TypeKey`, `TYPE_TABS` 상수 추가 (전체/이슈/결정/계획)
+- `TypeTab` 컴포넌트 — 언더라인 탭 + 건수 배지
+- `typeFilter` 상태 + `typeCounts` 연산, `FilterBar` 위에 렌더링
+
+### 4. 수집 후 자동 AI 분류 (`weekly-shell.tsx`)
+- `fetchWeeks()` 반환 타입: `void` → `Promise<string[]>` 변경
+- `handleAutoAnalyze(weekStart)` 추가 — `analyzeWeekly()` 호출 + 인라인 진행 표시
+- `handleImportOutline` 개선: 수집 완료(total > 0) 후 `fetchWeeks` → `handleAutoAnalyze(freshWeeks[0])` 자동 실행
+- 헤더 아래 슬림 진행 바 + 상태 텍스트 표시 (autoAnalyzing 중)
+- CloudDownload 버튼: importing || autoAnalyzing 동안 비활성화
+
+---
+
 ## 최근 변경 (2026-05-28) — Daily Report V2 접힌 행 디자인 개선
 
 ### CollapsedRow 재디자인 (B안)
