@@ -48,7 +48,7 @@ export default function NotesPage() {
     } catch { toast.error('메모 생성에 실패했습니다.') }
   }
 
-  async function handleUpdate(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) {
+  async function handleUpdate(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n))
     try {
       await updateNote(id, patch)
@@ -245,7 +245,7 @@ export default function NotesPage() {
 interface CollectionProps {
   notes:     Note[]
   viewMode:  ViewMode
-  onUpdate:  (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) => void
+  onUpdate:  (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
   onDelete:  (id: string) => void
   onOpen:    (id: string) => void
   highlight: string

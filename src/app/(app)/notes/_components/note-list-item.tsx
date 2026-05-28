@@ -1,6 +1,6 @@
 'use client'
 
-import { GripVertical, Pin, PinOff, Trash2 } from 'lucide-react'
+import { ArrowUpRight, GripVertical, Pin, PinOff, Trash2 } from 'lucide-react'
 import { format } from 'date-fns'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
@@ -9,7 +9,7 @@ import { NOTE_COLORS } from './note-color-picker'
 
 interface Props {
   note:      Note
-  onUpdate:  (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) => void
+  onUpdate:  (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
   onDelete:  (id: string) => void
   onOpen:    (id: string) => void
   highlight?: string
@@ -85,8 +85,14 @@ export function NoteListItem({ note, onUpdate, onDelete, onOpen, highlight = '' 
         )}
       </div>
 
-      {/* 날짜 + 핀 */}
+      {/* 날짜 + 핀 + 연결 배지 */}
       <div className="shrink-0 flex items-center gap-1.5 text-2xs text-ink-400">
+        {(note.links?.length ?? 0) > 0 && (
+          <span className="flex items-center gap-0.5 text-lilac-500 dark:text-lilac-400">
+            <ArrowUpRight size={10} />
+            {note.links.length}
+          </span>
+        )}
         {note.pinned && <Pin size={10} />}
         <span>{date}</span>
       </div>

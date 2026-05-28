@@ -196,6 +196,12 @@ export interface WeeklyReport {
 
 export type NoteColor = 'default' | 'yellow' | 'blue' | 'green' | 'pink' | 'purple'
 
+export interface NoteLink {
+  type:  'task' | 'project'
+  id:    string
+  title: string
+}
+
 export interface Note {
   id: string
   user_id: string
@@ -204,6 +210,7 @@ export interface Note {
   color: NoteColor
   pinned: boolean
   sort_order: number
+  links: NoteLink[]
   created_at: string
   updated_at: string
 }
