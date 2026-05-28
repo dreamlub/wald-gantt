@@ -13,6 +13,7 @@ import {
   FilterBar,
 } from './weekly-dashboard-parts'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
+import { WeeklyRawPanel } from './weekly-raw-panel'
 
 // ── WeeklyDashboard ───────────────────────────────────────────────
 
@@ -26,11 +27,14 @@ interface Props {
   onCloseInsight: () => void
   onInsightUpdate: (insight: WeeklyInsight) => void
   onRefresh: () => void
+  showRaw: boolean
+  onCloseRaw: () => void
 }
 
 export function WeeklyDashboard({
   weekStart, reports, insight, reportsLoading,
   showInsight, onCloseInsight, onInsightUpdate, onRefresh,
+  showRaw, onCloseRaw,
 }: Props) {
   const [compareMode, setCompareMode] = useState(false)
   const [filter, setFilter]           = useState<FilterKey>('all')
@@ -79,6 +83,14 @@ export function WeeklyDashboard({
           onInsightUpdate={onInsightUpdate}
           onRefresh={onRefresh}
           onClose={onCloseInsight}
+        />
+      )}
+
+      {showRaw && (
+        <WeeklyRawPanel
+          weekStart={weekStart}
+          reports={reports}
+          onClose={onCloseRaw}
         />
       )}
 

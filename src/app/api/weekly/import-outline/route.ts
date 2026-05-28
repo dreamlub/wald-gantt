@@ -54,8 +54,12 @@ function isQuarterDoc(title: string): boolean {
   return /20\d{2}\s*[Qq]\s*[1-4]|[Qq]\s*[1-4]\s*20\d{2}|20\d{2}\s*[1-4][Qq]/i.test(title)
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    // 특정 팀만 수집할 때 { collectionId } 전달 (없으면 전체 팀 수집)
+    const body = await req.json().catch(() => ({})) as { collectionId?: unknown }
+    const onlyCollectionId = typeof body.collectionId === 'string' ? body.collectionId : null
+
     const sb = await createClient()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -67,13 +71,17 @@ export async function POST() {
       .single()
     if (!member) return NextResponse.json({ error: 'No workspace' }, { status: 404 })
 
-    const { data: sources } = await sb
+    const { data: allSources } = await sb
       .from('weekly_sources')
       .select('*')
       .eq('workspace_id', member.workspace_id)
       .order('sort_order')
 
-    if (!sources || sources.length === 0) {
+    const sources = onlyCollectionId
+      ? (allSources ?? []).filter(s => s.collection_id === onlyCollectionId)
+      : (allSources ?? [])
+
+    if (sources.length === 0) {
       return NextResponse.json({ ok: true, results: [], total: 0 })
     }
 

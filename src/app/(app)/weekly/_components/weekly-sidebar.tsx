@@ -1,6 +1,6 @@
 ﻿'use client'
 
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CloudDownload, RefreshCw } from 'lucide-react'
 import type { WeeklyTeam } from '../_lib/types'
 
 interface Props {
@@ -10,6 +10,9 @@ interface Props {
   weeks: string[]          // week_start 'YYYY-MM-DD' 내림차순
   selectedIso: string
   onSelect: (weekStart: string) => void
+  onCollectTeam: (team: WeeklyTeam) => void
+  collectingTeamId: string | null
+  collectDisabled: boolean
 }
 
 function getWeekLabel(isoDate: string): string {
@@ -25,6 +28,7 @@ function getWeekLabel(isoDate: string): string {
 export function WeeklySidebar({
   teams, selectedTeam, onSelectTeam,
   weeks, selectedIso, onSelect,
+  onCollectTeam, collectingTeamId, collectDisabled,
 }: Props) {
   const idx = weeks.indexOf(selectedIso)
 
@@ -39,20 +43,38 @@ export function WeeklySidebar({
 
   return (
     <div className="flex flex-col overflow-hidden flex-1 min-h-0">
-      {/* 팀 선택 탭 */}
-      {teams.length > 1 && (
+      {/* 팀 선택 + 팀별 수집 */}
+      {teams.length > 0 && (
         <div className="shrink-0 px-2 pt-2 pb-1 border-b border-border">
           <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">팀</div>
           <div className="flex flex-col gap-0.5">
-            {teams.map(team => (
-              <button
-                key={team.id}
-                onClick={() => onSelectTeam(team.id)}
-                className={`sidebar-btn ${selectedTeam === team.id ? 'sidebar-btn-active' : ''}`}
-              >
-                <span className="truncate">{team.label}</span>
-              </button>
-            ))}
+            {teams.map(team => {
+              const collecting = collectingTeamId === team.id
+              return (
+                <div
+                  key={team.id}
+                  className={`sidebar-btn flex items-center gap-1 pr-1 ${selectedTeam === team.id ? 'sidebar-btn-active' : ''}`}
+                >
+                  <button
+                    onClick={() => onSelectTeam(team.id)}
+                    className="flex-1 truncate text-left min-w-0"
+                  >
+                    {team.label}
+                  </button>
+                  <button
+                    onClick={e => { e.stopPropagation(); onCollectTeam(team) }}
+                    disabled={collectDisabled}
+                    title={`${team.label} 주간보고 수집`}
+                    className="shrink-0 p-1 rounded text-ink-300 hover:text-lilac-600 hover:bg-card transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                  >
+                    {collecting
+                      ? <RefreshCw size={12} className="animate-spin" />
+                      : <CloudDownload size={12} />
+                    }
+                  </button>
+                </div>
+              )
+            })}
           </div>
         </div>
       )}
