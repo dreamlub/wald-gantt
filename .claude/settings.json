@@ -1,0 +1,30 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-settings.json",
+  "hooks": {
+    "PostToolUse": [
+      {
+        "matcher": "Write|Edit",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/lint-guard.sh",
+            "statusMessage": "ESLint·500줄 검사 중...",
+            "timeout": 60
+          }
+        ]
+      }
+    ],
+    "Stop": [
+      {
+        "hooks": [
+          {
+            "type": "command",
+            "command": "bash .claude/hooks/typecheck-guard.sh",
+            "statusMessage": "TypeScript 타입 검사 중...",
+            "timeout": 120
+          }
+        ]
+      }
+    ]
+  }
+}
