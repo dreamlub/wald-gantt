@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import { fetchUserDirectory } from '@/lib/slack-service'
 
 interface MappingInput {
@@ -43,7 +44,7 @@ export async function GET() {
 
     const unresolved = channels.filter(ch => USER_ID_RE.test(ch.channel_name))
     if (unresolved.length > 0) {
-      const token = process.env.SLACK_USER_TOKEN
+      const token = await getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN)
       if (token) {
         const userDir = await fetchUserDirectory(new WebClient(token))
         for (const ch of unresolved) {

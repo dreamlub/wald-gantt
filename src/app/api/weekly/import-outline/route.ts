@@ -1,11 +1,10 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 
 const OUTLINE_API = 'https://waldlust.getoutline.com/api'
 
-async function outlinePost(endpoint: string, body: object) {
-  const token = process.env.OUTLINE_API_TOKEN
-  if (!token) throw new Error('OUTLINE_API_TOKEN이 설정되지 않았습니다')
+async function outlinePost(endpoint: string, body: object, token: string) {
 
   const res = await fetch(`${OUTLINE_API}/${endpoint}`, {
     method: 'POST',
@@ -67,6 +66,11 @@ export async function POST() {
       .single()
     if (!member) return NextResponse.json({ error: 'No workspace' }, { status: 404 })
 
+    const outlineToken = await getApiKey(sb, member.workspace_id, 'outline', process.env.OUTLINE_API_TOKEN)
+    if (!outlineToken) {
+      return NextResponse.json({ error: 'Outline API 토큰 미설정. 설정 > API 키에서 등록해 주세요.' }, { status: 500 })
+    }
+
     const { data: sources } = await sb
       .from('weekly_sources')
       .select('*')
@@ -84,7 +88,7 @@ export async function POST() {
       const docsRes = await outlinePost('documents.list', {
         collectionId: source.collection_id,
         limit: 100,
-      })
+      }, outlineToken)
       const allDocs: OutlineDoc[] = docsRes.data ?? []
 
       // 2. 분기 문서 탐색
@@ -104,7 +108,7 @@ export async function POST() {
         // 3. 쿼터 문서 내용 조회
         let text: string
         try {
-          const docRes = await outlinePost('documents.info', { id: qDoc.id })
+          const docRes = await outlinePost('documents.info', { id: qDoc.id }, outlineToken)
           text = docRes.data?.text ?? ''
         } catch {
           errors++

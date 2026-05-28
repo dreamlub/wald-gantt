@@ -24,7 +24,8 @@ import Anthropic from '@anthropic-ai/sdk'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { WebClient } from '@slack/web-api'
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// 모듈 레벨 singleton — env 미설정 시에도 import 오류 없게 null 허용
+const _defaultAnthropicKey = process.env.ANTHROPIC_API_KEY ?? ''
 
 // 발트루스트 슬랙 워크스페이스 도메인
 const WORKSPACE_DOMAIN = 'waldlust-product'
@@ -278,7 +279,9 @@ export function resolveChannelName(dir: UserDirectory, name: string): string {
 export async function classifyMessage(
   raw: RawJson,
   brandName: string,
+  anthropicApiKey?: string,
 ): Promise<ClassifyResult | null> {
+  const anthropic = new Anthropic({ apiKey: anthropicApiKey || _defaultAnthropicKey })
   const clientName = brandName || '미분류'
 
   const fullText = [

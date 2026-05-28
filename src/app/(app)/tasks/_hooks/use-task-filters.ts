@@ -8,9 +8,9 @@ import type { GanttTask, Workspace } from '@/types'
 import { ASSIGNEE_COLORS } from '../_constants'
 import { isOverdue, isStartDelayed, isDueThisWeek, isDueNextWeek, overdueDays, daysDiff } from '../_utils'
 
-export type QuickFilterKey = 'all' | 'inbox' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week' | 'done'
+export type QuickFilterKey = 'all' | 'overdue' | 'start-delayed' | 'due-today' | 'due-this-week' | 'due-next-week' | 'done'
 
-const QUICK_FILTER_KEYS: QuickFilterKey[] = ['all', 'inbox', 'overdue', 'start-delayed', 'due-today', 'due-this-week', 'due-next-week', 'done']
+const QUICK_FILTER_KEYS: QuickFilterKey[] = ['all', 'overdue', 'start-delayed', 'due-today', 'due-this-week', 'due-next-week', 'done']
 
 function parseQuickFilter(value: string | null): QuickFilterKey {
   return QUICK_FILTER_KEYS.includes(value as QuickFilterKey) ? value as QuickFilterKey : 'all'
@@ -56,14 +56,13 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
   const todayStr = todayStrKST()
 
   const stats = useMemo(() => {
-    const inboxCount         = tasks.filter(t => t.status === 'inbox').length
     const overdueCount       = tasks.filter(t => isOverdue(t.due_date, t.status)).length
     const startDelayedCount  = tasks.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status)).length
     const dueTodayCount      = tasks.filter(t => t.due_date === todayStr && t.status !== 'done').length
     const dueThisWeekCount   = tasks.filter(t => isDueThisWeek(t.due_date) && t.status !== 'done').length
     const dueNextWeekCount   = tasks.filter(t => isDueNextWeek(t.due_date) && t.status !== 'done').length
     const doneCount          = tasks.filter(t => t.status === 'done').length
-    return { inboxCount, overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount }
+    return { overdueCount, startDelayedCount, dueTodayCount, dueThisWeekCount, dueNextWeekCount, doneCount }
   }, [tasks, todayStr])
 
   // ── 사이드바 데이터 (tasks 변경 시만 재계산) ───────────────
@@ -135,7 +134,6 @@ export function useTaskFilters(workspace: Workspace | null, tasks: GanttTask[]) 
       result = [...withLabel, ...subsOfMatched]
     }
     const baseFiltered = result
-    if (quickFilter === 'inbox')         result = result.filter(t => t.status === 'inbox')
     if (quickFilter === 'overdue')       result = result.filter(t => isOverdue(t.due_date, t.status))
     if (quickFilter === 'start-delayed') result = result.filter(t => isStartDelayed(t.start_date, t.status) && !isOverdue(t.due_date, t.status))
     if (quickFilter === 'due-today')     result = result.filter(t => t.due_date === todayStr && t.status !== 'done')

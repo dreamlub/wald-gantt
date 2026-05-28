@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 
 const ActionItemSchema = z.object({
   id:            z.string(),
@@ -41,7 +42,7 @@ const InsightContentSchema = z.object({
   decisions:    z.array(DecisionItemSchema),
 })
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// anthropic client는 요청마다 워크스페이스 키로 생성 (아래 stream 안에서)
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Promise<string> {
   const { data: { user } } = await sb.auth.getUser()
@@ -144,6 +145,12 @@ export async function POST(req: NextRequest) {
 
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
+        const anthropicApiKey = await getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY)
+        if (!anthropicApiKey) {
+          send('error', { message: 'Anthropic API 키 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const anthropic = new Anthropic({ apiKey: anthropicApiKey })
 
         // 주 범위 계산 (월~일)
         const monday = new Date(week_start + 'T00:00:00')

@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import type { WeeklyReportSummary, WeeklyReportItem, WeeklyDiffSummary } from '@/types/index'
 
 // AI 추출용 스키마 - change/prev 필드 없이 순수 추출만
@@ -26,7 +27,7 @@ const InsightNarrativeSchema = z.object({
   changes:  z.string(),
 })
 
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+// anthropic client는 요청마다 워크스페이스 키로 생성
 
 /** JSON 문자열 내부의 리터럴 줄바꿈/탭을 이스케이프 처리 */
 function repairJson(raw: string): string {
@@ -165,6 +166,7 @@ async function analyzeReport(
   report: DbReport,
   prevItems: WeeklyReportItem[],
   weekStart: string,
+  anthropic: Anthropic,
 ): Promise<WeeklyReportSummary> {
   if (!report.raw_content) {
     return { items: [], summary: '', diff_summary: buildDiffSummary([], prevItems, prevItems) }
@@ -274,6 +276,12 @@ export async function POST(req: NextRequest) {
       try {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
+        const anthropicApiKey = await getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY)
+        if (!anthropicApiKey) {
+          send('error', { message: 'Anthropic API 키 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const anthropic = new Anthropic({ apiKey: anthropicApiKey })
 
         send('status', { message: '주간 보고서 조회 중...' })
 
@@ -327,7 +335,7 @@ export async function POST(req: NextRequest) {
 
             send('status', { message: `${wk} 분석 중... (${i + 1}/${reports.length}: ${report.team})` })
 
-            const summaryData = await analyzeReport(sb, report, prevItems, wk)
+            const summaryData = await analyzeReport(sb, report, prevItems, wk, anthropic)
             currTeamMap.set(report.team, summaryData)
           }
 

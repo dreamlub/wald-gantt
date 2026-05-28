@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check, Inbox, ChevronDown, ChevronRight } from 'lucide-react'
+import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check, ChevronDown, ChevronRight } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
@@ -11,7 +11,7 @@ import { TaskStatusBadge } from './task-status-badge'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
-const STATUS_ORDER: Record<TaskStatus, number> = { inbox: 0, backlog: 1, 'to-do': 2, 'in-progress': 3, done: 4, pending: 5 }
+const STATUS_ORDER: Record<TaskStatus, number> = { inbox: -1, backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
 
 function SortBtn({
   col, label, sortKey, sortDir, onToggle,
@@ -43,14 +43,13 @@ interface Props {
   onStatusChange: (id: string, s: TaskStatus) => void
   emptyMessage?: string
   onQuickCreate?: (title: string, status: TaskStatus) => Promise<void>
-  onInboxCreate?: (title: string) => Promise<void>
   onSubQuickCreate?: (parentId: string, title: string) => Promise<void>
   selectionMode?: boolean
   selectedIds?: Set<string>
   onSelect?: (id: string) => void
 }
 
-export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onInboxCreate, onSubQuickCreate, selectionMode, selectedIds, onSelect }: Props) {
+export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onStatusChange, emptyMessage = '태스크가 없어요', onQuickCreate, onSubQuickCreate, selectionMode, selectedIds, onSelect }: Props) {
   const [sortKey, setSortKey] = useState<SortKey>('due_date')
   const [sortDir, setSortDir] = useState<'asc' | 'desc'>('asc')
   const [memoHover, setMemoHover] = useState<{ taskId: string; x: number; y: number } | null>(null)
@@ -58,9 +57,6 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
   const [quickAddTitle, setQuickAddTitle] = useState('')
   const [subQuickParentId, setSubQuickParentId] = useState<string | null>(null)
   const [subQuickTitle,    setSubQuickTitle]    = useState('')
-  const [inboxTitle,       setInboxTitle]       = useState('')
-  const [inboxCollapsed,   setInboxCollapsed]   = useState(false)
-
   async function commitSubQuickAdd(parentId: string) {
     if (!onSubQuickCreate) return
     const title = subQuickTitle.trim()
@@ -87,13 +83,6 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     await onQuickCreate(title, 'to-do')
     setQuickAddTitle('')
     // 입력창 유지로 연속 등록
-  }
-
-  async function commitInboxCreate() {
-    const title = inboxTitle.trim()
-    if (!title || !onInboxCreate) return
-    await onInboxCreate(title)
-    setInboxTitle('')
   }
 
   function toggleSort(key: SortKey) {
@@ -128,10 +117,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
     return out
   }
 
-  const inboxTasks  = tasks.filter(t => t.status === 'inbox')
-  const otherTasks  = tasks.filter(t => t.status !== 'inbox')
-
-  const sorted = [...otherTasks].sort((a, b) => {
+  const sorted = [...tasks].sort((a, b) => {
     // 일정(마감일) 정렬: 날짜 없는 항목은 정렬 방향과 무관하게 항상 뒤로
     if (sortKey === 'due_date' || sortKey === 'start_date') {
       const av = a[sortKey]
@@ -209,69 +195,6 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
       </div>
 
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
-
-      {/* ── Inbox 섹션 ───────────────────────────────────── */}
-      {onInboxCreate && (
-        <div>
-          <button
-            onClick={() => setInboxCollapsed(c => !c)}
-            className="w-full flex items-center gap-2 px-4 py-2 border-b transition-colors"
-            style={{ backgroundColor: 'var(--task-status-inbox-bg)' }}
-          >
-            {inboxCollapsed
-              ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
-              : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
-            <Inbox size={13} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
-            <span className="text-sm font-semibold" style={{ color: 'var(--task-status-inbox)' }}>Inbox</span>
-            {inboxTasks.length > 0 && <span className="text-sm text-ink-400">{inboxTasks.length}</span>}
-          </button>
-          {!inboxCollapsed && (
-            <>
-              {inboxTasks.map(task => {
-                const isDone = task.status === 'done'
-                const color  = assigneeColorMap.get(getAssigneeKey(task)) ?? 'var(--color-ink-300)'
-                return (
-                  <div
-                    key={task.id}
-                    onClick={() => onEdit(task)}
-                    className="flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer"
-                  >
-                    <div className="w-6 shrink-0 flex items-center">
-                      <button
-                        onClick={e => { e.stopPropagation(); onStatusChange(task.id, 'to-do') }}
-                        className="shrink-0" title="To-Do로 이동"
-                      >
-                        <Circle size={16} className="hover:text-lilac-400 transition-colors" style={{ color: 'var(--task-status-inbox)' }} />
-                      </button>
-                    </div>
-                    <div className="flex items-center gap-1.5 flex-1 min-w-0 overflow-hidden">
-                      <span className={`text-sm truncate min-w-0 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>{task.title}</span>
-                      {(task.labels ?? []).slice(0, 3).map(l => <LabelBadge key={l} variant="display" name={l} />)}
-                    </div>
-                    <div className="w-28 shrink-0 flex items-center gap-1.5">
-                      <span className="text-2xs text-muted-foreground truncate" style={{ color }}>{task.type === 'mine' ? '내 할일' : (task.assignee ?? '')}</span>
-                    </div>
-                  </div>
-                )
-              })}
-              {/* 상시 캡처 인풋 */}
-              <div className="flex items-center gap-1.5 px-4 py-1.5 border-b border-ink-150 bg-accent/20">
-                <Inbox size={10} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
-                <input
-                  value={inboxTitle}
-                  onChange={e => setInboxTitle(e.target.value)}
-                  onKeyDown={e => {
-                    if (e.key === 'Enter') { e.preventDefault(); commitInboxCreate() }
-                    if (e.key === 'Escape') setInboxTitle('')
-                  }}
-                  placeholder="생각나는 할 일 입력 후 Enter"
-                  className="flex-1 text-sm outline-none placeholder:text-ink-300 bg-transparent text-foreground"
-                />
-              </div>
-            </>
-          )}
-        </div>
-      )}
 
       {renderList.length === 0 ? (
         <div className="flex items-center justify-center h-40 text-ink-400 text-sm">{emptyMessage}</div>

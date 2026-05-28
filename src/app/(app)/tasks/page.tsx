@@ -62,8 +62,7 @@ function TasksPageContent() {
     <div className="flex-1 flex items-center justify-center text-ink-400 text-xs">로딩 중...</div>
   )
 
-  const listEmptyMsg = filters.quickFilter === 'inbox'         ? 'Inbox가 비어있어요 ✨'
-                     : filters.quickFilter === 'overdue'       ? '지연된 태스크가 없어요 👍'
+  const listEmptyMsg = filters.quickFilter === 'overdue'       ? '지연된 태스크가 없어요 👍'
                      : filters.quickFilter === 'start-delayed' ? '시작 지연 태스크가 없어요 👍'
                      : filters.quickFilter === 'due-today'     ? '오늘 마감 태스크가 없어요'
                      : filters.quickFilter === 'due-this-week' ? '이번 주 마감 태스크가 없어요'
@@ -77,7 +76,6 @@ function TasksPageContent() {
       <TasksSidebar
         quickFilter={filters.quickFilter}
         onQuickFilterChange={filters.setQuickFilter}
-        inboxCount={filters.inboxCount}
         overdueCount={filters.overdueCount}
         startDelayedCount={filters.startDelayedCount}
         dueTodayCount={filters.dueTodayCount}
@@ -135,7 +133,6 @@ function TasksPageContent() {
             onStatusChange={data.handleStatusChange}
             emptyMessage={listEmptyMsg}
             onQuickCreate={quick.listQuickCreate}
-            onInboxCreate={quick.inboxQuickCreate}
             onSubQuickCreate={quick.listSubQuickCreate}
             selectionMode={selection.selectionMode}
             selectedIds={selection.selectedIds}
@@ -157,7 +154,6 @@ function TasksPageContent() {
           <GanttView tasks={filters.filtered} onEdit={editHandler} onDateChange={data.handleTaskDateChange} onStatusChange={data.handleStatusChange} />
         ) : (
           <NormalView
-            inboxQuickCreate={quick.inboxQuickCreate}
             filtered={filters.filtered}
             hasFilter={filters.hasFilter}
             collapsed={data.collapsed}

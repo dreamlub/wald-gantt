@@ -1,5 +1,6 @@
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import { fetchUserDirectory } from '@/lib/slack-service'
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
@@ -56,11 +57,10 @@ async function fetchChannelsByType(
 
 export async function GET() {
   try {
-    const token = process.env.SLACK_USER_TOKEN
-    if (!token) return Response.json({ error: 'SLACK_USER_TOKEN 미설정' }, { status: 500 })
-
     const sb = await createClient()
     const workspaceId = await getWorkspaceId(sb)
+    const token = await getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN)
+    if (!token) return Response.json({ error: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' }, { status: 500 })
     const slack = new WebClient(token)
 
     // 기존 매핑 조회

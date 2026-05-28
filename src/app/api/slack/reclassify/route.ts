@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import {
   matchBrand, classifyMessage, fetchBrandMappings,
   buildSourceRef, tsToISO, delay, isObviousNoise,
@@ -32,15 +33,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const token = process.env.SLACK_USER_TOKEN
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'SLACK_USER_TOKEN 환경변수 미설정' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   const encoder = new TextEncoder()
-  const slack = new WebClient(token)
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -51,6 +44,16 @@ export async function POST(req: NextRequest) {
       try {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
+
+        const [token, anthropicKey] = await Promise.all([
+          getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN),
+          getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY),
+        ])
+        if (!token) {
+          send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const slack = new WebClient(token)
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
         const [brandMappings, userDir, aliasMap] = await Promise.all([
@@ -117,7 +120,7 @@ export async function POST(req: NextRequest) {
             const rawBrand = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
             const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
             try {
-              const result = await classifyMessage(rj, brandName)
+              const result = await classifyMessage(rj, brandName, anthropicKey ?? undefined)
               if (!result) { totalAiSkip++; return null }
               return {
                 workspace_id: workspaceId,

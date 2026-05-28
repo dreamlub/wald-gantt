@@ -4,7 +4,7 @@ import { useState, useEffect } from 'react'
 import {
   User, Link2, Monitor, Database,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
-  Download, ChevronRight, Plus, BookOpen, Trash2, GripVertical, Hash,
+  Download, ChevronRight, Plus, BookOpen, Hash,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
@@ -13,15 +13,15 @@ import { toast } from 'sonner'
 import type { Client } from '../../summary/_lib/types'
 import { ChannelMappingSection } from './channel-mapping-section'
 import { BrandAliasSection } from './brand-alias-section'
+import { ApiKeysSection } from './api-keys-section'
+import { SortableWeeklyRow } from './weekly-source-row'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
 } from '@dnd-kit/core'
 import {
-  SortableContext, verticalListSortingStrategy,
-  useSortable, arrayMove,
+  SortableContext, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
-import { CSS } from '@dnd-kit/utilities'
 
 type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'data'
 
@@ -292,6 +292,9 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                 </div>
               </SettingCard>
 
+              <SettingCard title="API 키">
+                <ApiKeysSection />
+              </SettingCard>
             </>
           )}
 
@@ -463,33 +466,4 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
   )
 }
 
-function SortableWeeklyRow({ src, onDelete }: { src: WeeklySource; onDelete: (id: string) => void }) {
-  const { attributes, listeners, setNodeRef, transform, transition, isDragging } = useSortable({ id: src.id })
-  const style = { transform: CSS.Transform.toString(transform), transition, opacity: isDragging ? 0.5 : 1 }
-  return (
-    <div
-      ref={setNodeRef}
-      style={style}
-      className="flex items-center gap-2 px-3 py-2 rounded border border-border bg-background"
-    >
-      <button
-        {...attributes}
-        {...listeners}
-        className="text-ink-400 hover:text-foreground transition-colors cursor-grab active:cursor-grabbing shrink-0"
-        aria-label="순서 변경"
-      >
-        <GripVertical size={14} />
-      </button>
-      <span className="text-sm font-medium text-foreground w-24 shrink-0 truncate">{src.label}</span>
-      <span className="text-sm text-muted-foreground flex-1 truncate">{src.collection_id}</span>
-      <button
-        onClick={() => onDelete(src.id)}
-        className="text-ink-400 hover:text-status-late transition-colors shrink-0"
-        aria-label={`${src.label} 삭제`}
-      >
-        <Trash2 size={13} />
-      </button>
-    </div>
-  )
-}
 

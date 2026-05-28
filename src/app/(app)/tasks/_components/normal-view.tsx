@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import React, { useState } from 'react'
-import { Plus, ChevronDown, ChevronRight, Inbox } from 'lucide-react'
+import { Plus, ChevronDown, ChevronRight } from 'lucide-react'
 import {
   DndContext, DragOverlay,
   type CollisionDetection, type DragEndEvent, type DragStartEvent, type DragOverEvent,
@@ -62,8 +62,6 @@ interface NormalViewProps {
   getAssigneeKey: (t: GanttTask) => string
   // 빠른 필터 이름(빈 상태 메시지용)
   quickFilter: string
-  // inbox 퀵 캡처
-  inboxQuickCreate?: (title: string) => Promise<void>
 }
 
 function QuickAddRow({ autoFocus, value, onChange, onCommit, onCancel, placeholder, indent }: {
@@ -176,20 +174,8 @@ export function NormalView(props: NormalViewProps) {
     commitQuickAdd, cancelQuickAdd, commitQuickAddSub, cancelQuickAddSub,
     selectionMode, selectedIds, onSelect,
     assigneeColorMap, getAssigneeKey,
-    quickFilter, inboxQuickCreate,
+    quickFilter,
   } = props
-
-  const [inboxTitle, setInboxTitle] = useState('')
-  const [inboxCollapsed, setInboxCollapsed] = useState(false)
-
-  const inboxGroup = getGroup('inbox')
-
-  async function commitInboxCapture() {
-    const title = inboxTitle.trim()
-    if (!title || !inboxQuickCreate) return
-    await inboxQuickCreate(title)
-    setInboxTitle('')
-  }
 
   const emptyMsg = quickFilter === 'overdue'       ? '지연된 태스크가 없어요 👍'
                  : quickFilter === 'start-delayed' ? '시작 지연 태스크가 없어요 👍'
@@ -220,60 +206,11 @@ export function NormalView(props: NormalViewProps) {
         <div className="w-24 shrink-0">일정</div>
       </div>
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
-        {/* ── Inbox 섹션 (전체 보기 or inbox 필터 시 표시) ──── */}
-        {(!hasFilter || quickFilter === 'inbox') && (
-          <div>
-            <button
-              onClick={() => setInboxCollapsed(c => !c)}
-              className="w-full flex items-center gap-2 px-4 py-2 border-b transition-colors"
-              style={{ backgroundColor: 'var(--task-status-inbox-bg)' }}
-            >
-              {inboxCollapsed
-                ? <ChevronRight size={12} className="text-ink-400 shrink-0" />
-                : <ChevronDown  size={12} className="text-ink-400 shrink-0" />}
-              <Inbox size={13} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
-              <span className="text-sm font-semibold" style={{ color: 'var(--task-status-inbox)' }}>Inbox</span>
-              {inboxGroup.length > 0 && <span className="text-sm text-ink-400">{inboxGroup.length}</span>}
-            </button>
-            {!inboxCollapsed && (
-              <>
-                {inboxGroup.map(task => {
-                  const subs = getSubTasks(task.id)
-                  const isExp = expandedParents.has(task.id) || quickAddParentId === task.id
-                  return (
-                    <TaskGroup key={task.id} task={task} subs={subs} isExp={isExp} {...groupProps} />
-                  )
-                })}
-                {/* 항상 표시되는 캡처 인풋 */}
-                <div className="flex items-center gap-1.5 pl-10 pr-4 py-1.5 border-b border-ink-150 bg-accent/20">
-                  <Inbox size={10} className="shrink-0" style={{ color: 'var(--task-status-inbox)' }} />
-                  <input
-                    value={inboxTitle}
-                    onChange={e => setInboxTitle(e.target.value)}
-                    onKeyDown={e => {
-                      if (e.key === 'Enter') { e.preventDefault(); commitInboxCapture() }
-                      if (e.key === 'Escape') setInboxTitle('')
-                    }}
-                    placeholder="생각나는 할 일 입력 후 Enter"
-                    className="flex-1 text-sm outline-none placeholder:text-ink-300 bg-transparent text-foreground"
-                  />
-                </div>
-              </>
-            )}
-          </div>
-        )}
-
-        {quickFilter === 'inbox' ? (
-          inboxGroup.length === 0 ? (
-            <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
-              <p className="text-sm">Inbox가 비어있어요 ✨</p>
-            </div>
-          ) : null
-        ) : filtered.length === 0 && hasFilter ? (
+        {filtered.length === 0 && hasFilter ? (
           <div className="flex flex-col items-center justify-center h-40 text-ink-400 gap-2">
             <p className="text-sm">{emptyMsg}</p>
           </div>
-        ) : filtered.filter(t => t.status !== 'inbox').length === 0 && !hasFilter ? (
+        ) : filtered.length === 0 && !hasFilter ? (
           <div className="flex flex-col items-center justify-center h-32 text-ink-400 gap-2">
             <button onClick={() => onAdd('to-do')} className="text-sm text-foreground hover:text-black">+ 첫 번째 태스크 추가</button>
           </div>

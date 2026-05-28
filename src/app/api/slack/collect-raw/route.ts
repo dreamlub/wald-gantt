@@ -1,6 +1,7 @@
 import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import {
   fetchBrandMappings, getExcludedChannelIds,
   buildSourceRef, delay,
@@ -44,15 +45,7 @@ export async function POST(req: NextRequest) {
     })
   }
 
-  const token = process.env.SLACK_USER_TOKEN
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'SLACK_USER_TOKEN 환경변수 미설정' }), {
-      status: 500, headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   const encoder = new TextEncoder()
-  const slack = new WebClient(token)
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -63,6 +56,13 @@ export async function POST(req: NextRequest) {
       try {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
+
+        const token = await getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN)
+        if (!token) {
+          send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const slack = new WebClient(token)
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
         const [brandMappings, userDir] = await Promise.all([

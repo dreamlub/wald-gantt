@@ -1,5 +1,6 @@
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 import {
   matchBrand, classifyMessage, fetchBrandMappings, getExcludedChannelIds,
   buildSourceRef, tsToISO, delay,
@@ -22,16 +23,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
 }
 
 export async function POST() {
-  const token = process.env.SLACK_USER_TOKEN
-  if (!token) {
-    return new Response(JSON.stringify({ error: 'SLACK_USER_TOKEN 환경변수 미설정' }), {
-      status: 500,
-      headers: { 'Content-Type': 'application/json' },
-    })
-  }
-
   const encoder = new TextEncoder()
-  const slack = new WebClient(token)
 
   const stream = new ReadableStream({
     async start(controller) {
@@ -44,6 +36,16 @@ export async function POST() {
       try {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
+
+        const [token, anthropicKey] = await Promise.all([
+          getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN),
+          getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY),
+        ])
+        if (!token) {
+          send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const slack = new WebClient(token)
 
         send('status', { message: '스레드 업데이트 대상 조회 중...' })
 
@@ -164,7 +166,7 @@ export async function POST() {
           const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
 
           try {
-            const result = await classifyMessage(updatedRj, brandName)
+            const result = await classifyMessage(updatedRj, brandName, anthropicKey ?? undefined)
             if (!result) { skipped++; await delay(80); continue }
 
             await sb.from('client_history').upsert(

@@ -1,7 +1,8 @@
 'use client'
 
 import { useEffect, useLayoutEffect, useRef, useState } from 'react'
-import { Pin, PinOff, Trash2 } from 'lucide-react'
+import { Maximize2, Pin, PinOff, Trash2 } from 'lucide-react'
+import { format } from 'date-fns'
 import type { Note } from '@/types'
 import { NOTE_COLORS, ColorPicker } from './note-color-picker'
 
@@ -9,6 +10,7 @@ interface Props {
   note: Note
   onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) => void
   onDelete: (id: string) => void
+  onOpen: (id: string) => void
 }
 
 function autoResize(el: HTMLTextAreaElement | null) {
@@ -17,7 +19,7 @@ function autoResize(el: HTMLTextAreaElement | null) {
   el.style.height = el.scrollHeight + 'px'
 }
 
-export function NoteCard({ note, onUpdate, onDelete }: Props) {
+export function NoteCard({ note, onUpdate, onDelete, onOpen }: Props) {
   const [editing,  setEditing]  = useState(false)
   const [title,    setTitle]    = useState(note.title)
   const [content,  setContent]  = useState(note.content)
@@ -25,9 +27,8 @@ export function NoteCard({ note, onUpdate, onDelete }: Props) {
   const titleRef     = useRef<HTMLTextAreaElement>(null)
   const contentRef   = useRef<HTMLTextAreaElement>(null)
 
-  // 텍스트 변경 시 높이 자동 조절
   useLayoutEffect(() => { autoResize(titleRef.current) },   [title])
-  useLayoutEffect(() => { autoResize(contentRef.current) }, [content])
+  useLayoutEffect(() => { autoResize(contentRef.current) }, [content, editing])
 
   // 외부 클릭 시 저장
   useEffect(() => {
@@ -40,26 +41,28 @@ export function NoteCard({ note, onUpdate, onDelete }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, title, content])
 
-  // note prop 변경 반영 (다른 곳에서 업데이트됐을 때) — 편집 중이 아니면 render 중 동기화
-  const [synced, setSynced] = useState({ title: note.title, content: note.content })
-  if (!editing && (synced.title !== note.title || synced.content !== note.content)) {
-    setSynced({ title: note.title, content: note.content })
-    setTitle(note.title)
-    setContent(note.content)
-  }
-
-  function enterEdit() { setEditing(true) }
+  // note prop 변경 반영
+  useEffect(() => {
+    if (!editing) { setTitle(note.title); setContent(note.content) }
+  }, [note.title, note.content, editing])
 
   function commit() {
     setEditing(false)
     const t = title.trim()
     const c = content.trim()
-    if (t !== note.title || c !== note.content) {
-      onUpdate(note.id, { title: t, content: c })
-    }
+    if (t !== note.title || c !== note.content) onUpdate(note.id, { title: t, content: c })
   }
 
-  const bg = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  function handleExpand() {
+    commit()
+    // commit이 state를 업데이트하므로 setTimeout으로 모달 열기
+    setTimeout(() => onOpen(note.id), 0)
+  }
+
+  const bg   = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  const date = format(new Date(note.updated_at), 'M/d')
+  // 내용이 길면 카드에서 페이드 처리
+  const isLong = !editing && content.length > 200
 
   return (
     <div
@@ -72,7 +75,7 @@ export function NoteCard({ note, onUpdate, onDelete }: Props) {
           ref={titleRef}
           value={title}
           onChange={e => setTitle(e.target.value)}
-          onFocus={enterEdit}
+          onFocus={() => setEditing(true)}
           onKeyDown={e => { if (e.key === 'Escape') commit() }}
           rows={1}
           placeholder="제목"
@@ -80,35 +83,44 @@ export function NoteCard({ note, onUpdate, onDelete }: Props) {
         />
       )}
 
-      {/* 본문 */}
-      <textarea
-        ref={contentRef}
-        value={content}
-        onChange={e => setContent(e.target.value)}
-        onFocus={enterEdit}
-        onKeyDown={e => { if (e.key === 'Escape') commit() }}
-        placeholder="메모 작성..."
-        className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-ink-300 outline-none leading-relaxed min-h-[3rem] cursor-text"
-      />
-
-      {/* 제목 없는 카드에서 제목 입력 유도 — 본문만 있을 때 빈 위쪽 클릭 시 제목 포커스 */}
-      {!title && !editing && (
-        <div
-          className="absolute inset-x-0 top-0 h-4 cursor-text"
-          onClick={() => { enterEdit(); setTimeout(() => titleRef.current?.focus(), 10) }}
+      {/* 본문 — 비편집 시 최대 높이 제한 */}
+      <div
+        className="relative"
+        style={!editing ? { maxHeight: '10rem', overflow: 'hidden' } : undefined}
+      >
+        <textarea
+          ref={contentRef}
+          value={content}
+          onChange={e => setContent(e.target.value)}
+          onFocus={() => setEditing(true)}
+          onKeyDown={e => { if (e.key === 'Escape') commit() }}
+          placeholder="메모 작성..."
+          className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-ink-300 outline-none leading-relaxed min-h-[3rem] cursor-text"
         />
-      )}
+        {/* 긴 내용 페이드 오버레이 */}
+        {isLong && (
+          <div
+            className="absolute bottom-0 inset-x-0 h-10 pointer-events-none"
+            style={{ background: 'linear-gradient(to bottom, transparent, var(--color-background, white))' }}
+          />
+        )}
+      </div>
 
       {/* 하단 툴바 */}
       <div
-        onMouseDown={e => e.stopPropagation()} // 외부클릭 감지 차단 (저장 방지)
+        onMouseDown={e => e.stopPropagation()}
         className={`flex items-center gap-1 mt-3 pt-2 border-t border-black/5 transition-opacity ${editing ? 'opacity-100' : 'opacity-0 group-hover:opacity-100'}`}
       >
-        <ColorPicker
-          value={note.color}
-          onChange={color => onUpdate(note.id, { color })}
-        />
+        <ColorPicker value={note.color} onChange={color => onUpdate(note.id, { color })} />
+        <span className="text-2xs text-ink-400 ml-1 tabular-nums">{date}</span>
         <div className="flex-1" />
+        <button
+          onClick={handleExpand}
+          title="전체화면 편집"
+          className="p-1.5 rounded-full text-ink-400 hover:text-foreground hover:bg-black/5 transition-colors"
+        >
+          <Maximize2 size={13} />
+        </button>
         <button
           onClick={() => onUpdate(note.id, { pinned: !note.pinned })}
           title={note.pinned ? '고정 해제' : '상단 고정'}

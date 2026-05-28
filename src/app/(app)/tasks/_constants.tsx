@@ -11,11 +11,11 @@ export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string; 
 ]
 
 export const STATUS_ABBR: Record<TaskStatus, string> = {
-  inbox: '↓', backlog: 'B', 'to-do': 'T', 'in-progress': 'I', done: 'D', pending: 'P',
+  inbox: 'X', backlog: 'B', 'to-do': 'T', 'in-progress': 'I', done: 'D', pending: 'P',
 }
 
 export const STATUS_COLOR: Record<TaskStatus, string> = {
-  inbox:         'var(--task-status-inbox)',
+  inbox:         'var(--task-status-inbox, var(--color-ink-400))',
   backlog:       'var(--task-status-backlog)',
   'to-do':       'var(--task-status-todo)',
   'in-progress': 'var(--task-status-in-progress)',
@@ -24,7 +24,7 @@ export const STATUS_COLOR: Record<TaskStatus, string> = {
 }
 
 export const STATUS_BG_COLOR: Record<TaskStatus, string> = {
-  inbox:         'var(--task-status-inbox-bg)',
+  inbox:         'var(--task-status-inbox-bg, var(--color-muted))',
   backlog:       'var(--task-status-backlog-bg)',
   'to-do':       'var(--task-status-todo-bg)',
   'in-progress': 'var(--task-status-in-progress-bg)',

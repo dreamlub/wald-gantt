@@ -222,8 +222,6 @@
   --sidebar-ring: oklch(0.708 0 0);
 
   /* 태스크/프로젝트 상태 색상 (inline style용) */
-  --task-status-inbox:             var(--color-id-teal);
-  --task-status-inbox-bg:          color-mix(in srgb, var(--color-id-teal) 12%, transparent);
   --task-status-backlog:           var(--color-ink-300);
   --task-status-todo:              var(--color-lilac-500);
   --task-status-in-progress:       var(--color-status-warn);
