@@ -19,17 +19,19 @@ export async function createNote(params: {
   content?: string
   color?: NoteColor
   pinned?: boolean
+  sort_order?: number
 }): Promise<Note> {
   const { data: { user } } = await db().auth.getUser()
   if (!user) throw new Error('로그인이 필요합니다')
   const { data, error } = await db()
     .from('notes')
     .insert({
-      user_id: user.id,
-      title:   params.title   ?? '',
-      content: params.content ?? '',
-      color:   params.color   ?? 'default',
-      pinned:  params.pinned  ?? false,
+      user_id:    user.id,
+      title:      params.title      ?? '',
+      content:    params.content    ?? '',
+      color:      params.color      ?? 'default',
+      pinned:     params.pinned     ?? false,
+      sort_order: params.sort_order ?? 0,
     })
     .select()
     .single()

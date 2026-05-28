@@ -49,7 +49,7 @@ export function NoteCreateBar({ onCreate }: Props) {
     return (
       <div
         onClick={() => { setOpen(true); setTimeout(() => contentRef.current?.focus(), 50) }}
-        className="w-full max-w-xl mx-auto flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-card shadow-sm cursor-text hover:shadow-md transition-shadow"
+        className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-card shadow-sm cursor-text hover:shadow-md transition-shadow"
       >
         <Plus size={16} className="text-ink-300 shrink-0" />
         <span className="text-sm text-ink-300 select-none">메모 작성...</span>
@@ -61,7 +61,7 @@ export function NoteCreateBar({ onCreate }: Props) {
     <div
       ref={containerRef}
       onKeyDown={handleKeyDown}
-      className={`w-full max-w-xl mx-auto rounded-2xl border border-border shadow-md p-4 ${bg}`}
+      className={`w-full rounded-2xl border border-border shadow-md p-4 ${bg}`}
     >
       <input
         autoFocus

@@ -1,7 +1,7 @@
 'use client'
 
 import { useLayoutEffect, useRef, useState } from 'react'
-import { X, Pin, PinOff, Trash2 } from 'lucide-react'
+import { Check, Pin, PinOff, Trash2 } from 'lucide-react'
 import type { Note } from '@/types'
 import { NOTE_COLORS, ColorPicker } from './note-color-picker'
 
@@ -94,8 +94,8 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
             onClick={commit}
             className="flex items-center gap-1 px-3 py-1.5 rounded-lg text-sm font-medium bg-foreground text-background hover:bg-ink-800 transition-colors"
           >
-            <X size={12} />
-            닫기
+            <Check size={12} />
+            완료
           </button>
         </div>
       </div>
