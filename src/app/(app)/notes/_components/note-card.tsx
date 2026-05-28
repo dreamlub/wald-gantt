@@ -1,13 +1,13 @@
 'use client'
 
 import { format } from 'date-fns'
-import { Pin, PinOff, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Pin, PinOff, Trash2 } from 'lucide-react'
 import type { Note } from '@/types'
 import { NOTE_COLORS, ColorPicker } from './note-color-picker'
 
 interface Props {
   note: Note
-  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned'>>) => void
+  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
   onDelete: (id: string) => void
   onOpen:   (id: string) => void
   highlight?: string
@@ -62,6 +62,14 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
           }
         </p>
       </div>
+
+      {/* 연결 배지 */}
+      {(note.links?.length ?? 0) > 0 && (
+        <div className="flex items-center gap-1 mt-2 text-2xs text-lilac-500 dark:text-lilac-400">
+          <ArrowUpRight size={10} />
+          <span>{note.links.length}개 연결됨</span>
+        </div>
+      )}
 
       {/* 하단 툴바: 색상·액션은 hover, 날짜는 항상 표시 */}
       <div

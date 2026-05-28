@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { GanttTask, Priority, RecurrenceRule, TaskStatus, TaskType } from '@/types'
+import { removeTaskLinkFromNotes } from './note-service'
 
 const db = () => createClient()
 
@@ -124,6 +125,7 @@ export async function softDeleteTask(id: string): Promise<void> {
     .update({ deleted_at: now })
     .eq('id', id)
   if (error) throw error
+  void removeTaskLinkFromNotes(id)  // 메모 링크 정리 (태스크 삭제와 독립적)
 }
 
 export async function restoreTask(id: string): Promise<void> {
@@ -136,6 +138,7 @@ export async function restoreTask(id: string): Promise<void> {
 }
 
 export async function permanentDeleteTask(id: string): Promise<void> {
+  void removeTaskLinkFromNotes(id)  // 메모 링크 정리
   const { error } = await db().from('gantt_tasks').delete().eq('id', id)
   if (error) throw error
 }
@@ -245,6 +248,7 @@ export async function bulkSoftDeleteTasks(ids: string[]): Promise<void> {
     .update({ deleted_at: new Date().toISOString() })
     .in('id', ids)
   if (error) throw error
+  void Promise.all(ids.map(id => removeTaskLinkFromNotes(id)))
 }
 
 export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): Promise<void> {

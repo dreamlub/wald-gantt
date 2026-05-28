@@ -77,6 +77,7 @@ export interface GanttTask {
   archived_at: string | null
   scheduled_at: string | null   // ISO 8601, time blocking 시작 시각
   duration_minutes: number | null
+  google_event_id: string | null // 연결된 구글 캘린더 이벤트 ID (앱→구글 동기화)
   // 반복 설정
   recurrence_rule: RecurrenceRule | null
   recurrence_interval: number | null  // N일/N주/N개월마다
@@ -196,6 +197,12 @@ export interface WeeklyReport {
 
 export type NoteColor = 'default' | 'yellow' | 'blue' | 'green' | 'pink' | 'purple'
 
+export interface NoteLink {
+  type:  'task' | 'project'
+  id:    string
+  title: string
+}
+
 export interface Note {
   id: string
   user_id: string
@@ -204,6 +211,7 @@ export interface Note {
   color: NoteColor
   pinned: boolean
   sort_order: number
+  links: NoteLink[]
   created_at: string
   updated_at: string
 }
