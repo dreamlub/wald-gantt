@@ -45,15 +45,25 @@ export async function POST(req: NextRequest) {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        const [token, anthropicKey] = await Promise.all([
+        const [token, anthropicKey, slackDomain] = await Promise.all([
           getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN),
           getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY),
+          getApiKey(sb, workspaceId, 'slack_domain', process.env.SLACK_WORKSPACE_DOMAIN),
         ])
         if (!token) {
           send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
           return
         }
         const slack = new WebClient(token)
+
+        // 토큰 소유자 ID 자동 감지 → 멘션 태그 감지에 사용
+        let mentionUserId: string | undefined
+        try {
+          const authInfo = await slack.auth.test()
+          mentionUserId = authInfo.user_id as string | undefined
+        } catch {
+          // 실패해도 수집은 계속 진행
+        }
 
         send('status', { message: '브랜드 매핑 / 사용자 디렉토리 조회 중...' })
         const [brandMappings, userDir, aliasMap] = await Promise.all([
@@ -120,7 +130,7 @@ export async function POST(req: NextRequest) {
             const rawBrand = matchBrand(rj.channel_id, brandMappings) ?? FALLBACK_BRAND
             const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
             try {
-              const result = await classifyMessage(rj, brandName, anthropicKey ?? undefined)
+              const result = await classifyMessage(rj, brandName, anthropicKey ?? undefined, mentionUserId ?? undefined)
               if (!result) { totalAiSkip++; return null }
               return {
                 workspace_id: workspaceId,
@@ -131,7 +141,7 @@ export async function POST(req: NextRequest) {
                 tags: result.tags,
                 channel: rj.channel,
                 source_id: rj.ts,
-                source_ref: buildSourceRef(rj.channel_id, rj.ts),
+                source_ref: buildSourceRef(rj.channel_id, rj.ts, slackDomain ?? undefined),
                 title: result.title,
                 body: result.body,
                 priority: result.priority,

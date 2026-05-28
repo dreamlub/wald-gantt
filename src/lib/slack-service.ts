@@ -27,11 +27,6 @@ import type { WebClient } from '@slack/web-api'
 // 모듈 레벨 singleton — env 미설정 시에도 import 오류 없게 null 허용
 const _defaultAnthropicKey = process.env.ANTHROPIC_API_KEY ?? ''
 
-// 발트루스트 슬랙 워크스페이스 도메인
-const WORKSPACE_DOMAIN = 'waldlust-product'
-// 멘션 감지 대상 User ID
-const MENTION_USER_ID = 'U09H44MEK5Z'
-
 // ── 타입 ─────────────────────────────────────────────────────────
 
 export interface RawReply {
@@ -75,10 +70,14 @@ export function tsToISO(ts: string): string {
   return new Date(parseFloat(ts) * 1000).toISOString()
 }
 
-/** 슬랙 메시지 permalink URL 생성 */
-export function buildSourceRef(channelId: string, ts: string): string {
+/**
+ * 슬랙 메시지 permalink URL 생성.
+ * domain: 워크스페이스별 설정값 (예: "my-company"). 미설정 시 빈 문자열 반환.
+ */
+export function buildSourceRef(channelId: string, ts: string, domain?: string): string {
+  if (!domain) return ''
   const pTs = ts.replace('.', '')
-  return `https://${WORKSPACE_DOMAIN}.slack.com/archives/${channelId}/p${pTs}`
+  return `https://${domain}.slack.com/archives/${channelId}/p${pTs}`
 }
 
 /** JSON 문자열 내부 리터럴 줄바꿈/탭 이스케이프 */
@@ -280,6 +279,7 @@ export async function classifyMessage(
   raw: RawJson,
   brandName: string,
   anthropicApiKey?: string,
+  mentionUserId?: string,
 ): Promise<ClassifyResult | null> {
   const anthropic = new Anthropic({ apiKey: anthropicApiKey || _defaultAnthropicKey })
   const clientName = brandName || '미분류'
@@ -357,7 +357,7 @@ ${fullText}
 
   const tags = Array.isArray(parsed.tags) ? parsed.tags as string[] : []
   const allText = raw.text + ' ' + raw.replies.map(r => r.text).join(' ')
-  if (allText.includes(`<@${MENTION_USER_ID}>`) && !tags.includes('mention')) {
+  if (mentionUserId && allText.includes(`<@${mentionUserId}>`) && !tags.includes('mention')) {
     tags.push('mention')
   }
 

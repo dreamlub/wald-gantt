@@ -7,21 +7,24 @@ import { toast } from 'sonner'
 interface ApiKeyInfo {
   name: string
   label: string
+  secret: boolean
   set: boolean
   masked: string | null
   updated_at: string | null
 }
 
 const PLACEHOLDERS: Record<string, string> = {
-  anthropic:  'sk-ant-api03-...',
-  slack_user: 'xoxp-...',
-  outline:    'ol_api_...',
+  anthropic:    'sk-ant-api03-...',
+  slack_user:   'xoxp-...',
+  outline:      'ol_api_...',
+  slack_domain: 'my-company',
 }
 
 const DESCRIPTIONS: Record<string, string> = {
-  anthropic:  'AI 일일·주간 분석에 사용됩니다',
-  slack_user: 'Slack 채널 메시지 수집에 사용됩니다',
-  outline:    'Outline 문서 불러오기에 사용됩니다',
+  anthropic:    'AI 일일·주간 분석에 사용됩니다',
+  slack_user:   'Slack 채널 메시지 수집에 사용됩니다',
+  outline:      'Outline 문서 불러오기에 사용됩니다',
+  slack_domain: '메시지 원본 링크 생성에 사용됩니다 (예: my-company → my-company.slack.com)',
 }
 
 function KeyRow({ info, onSaved, onDeleted }: {
@@ -87,7 +90,7 @@ function KeyRow({ info, onSaved, onDeleted }: {
         <div className="flex items-center gap-2 shrink-0">
           {info.set && !editing && (
             <>
-              <span className="text-xs font-mono text-ink-400 bg-muted px-2 py-0.5 rounded">
+              <span className={`text-xs ${info.secret ? 'font-mono' : ''} text-ink-400 bg-muted px-2 py-0.5 rounded max-w-[180px] truncate`}>
                 {info.masked}
               </span>
               <button
@@ -121,21 +124,23 @@ function KeyRow({ info, onSaved, onDeleted }: {
         <div className="flex items-center gap-2 mt-2">
           <div className="relative flex-1">
             <input
-              type={visible ? 'text' : 'password'}
+              type={info.secret ? (visible ? 'text' : 'password') : 'text'}
               value={value}
               onChange={e => setValue(e.target.value)}
               onKeyDown={e => { if (e.key === 'Enter') handleSave() }}
               placeholder={PLACEHOLDERS[info.name]}
               autoFocus
-              className="w-full bg-background border border-border rounded-sm px-2.5 py-1.5 text-sm font-mono outline-none focus:border-lilac-400 transition-colors pr-8"
+              className={`w-full bg-background border border-border rounded-sm px-2.5 py-1.5 text-sm outline-none focus:border-lilac-400 transition-colors ${info.secret ? 'font-mono pr-8' : 'pr-2.5'}`}
             />
-            <button
-              type="button"
-              onClick={() => setVisible(v => !v)}
-              className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 hover:text-foreground"
-            >
-              {visible ? <EyeOff size={13} /> : <Eye size={13} />}
-            </button>
+            {info.secret && (
+              <button
+                type="button"
+                onClick={() => setVisible(v => !v)}
+                className="absolute right-2 top-1/2 -translate-y-1/2 text-ink-400 hover:text-foreground"
+              >
+                {visible ? <EyeOff size={13} /> : <Eye size={13} />}
+              </button>
+            )}
           </div>
           <button
             onClick={handleSave}

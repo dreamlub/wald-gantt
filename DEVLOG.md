@@ -28,10 +28,15 @@
 ### 3. NoteCard / NoteListItem
 - 연결 태스크가 있으면 "↗ N개 연결됨" 배지 표시 (보라색)
 
+### 4. 태스크 삭제 시 메모 링크 자동 정리 (`eed0b29`)
+- `removeTaskLinkFromNotes(taskId)` 추가 (note-service): JSONB `cs` 필터로 해당 taskId가 포함된 메모 조회 후 links 배열에서 제거
+- `softDeleteTask`, `permanentDeleteTask`, `bulkSoftDeleteTasks` 에 정리 호출 추가 (fire-and-forget)
+- 태스크 삭제 후 메모 카드의 "N개 연결됨" 배지가 즉시 사라지지 않을 수 있으나 다음 로드 시 반영됨
+
 ### 검증
 - `npx tsc --noEmit` 통과
 - Supabase SQL Editor에서 마이그레이션 수동 실행 완료
-- `git push origin master` 완료 (`010054d`)
+- `git push origin master` 완료 (`eed0b29`)
 
 ---
 

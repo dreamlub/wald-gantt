@@ -57,7 +57,10 @@ export async function POST(req: NextRequest) {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        const token = await getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN)
+        const [token, slackDomain] = await Promise.all([
+          getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN),
+          getApiKey(sb, workspaceId, 'slack_domain', process.env.SLACK_WORKSPACE_DOMAIN),
+        ])
         if (!token) {
           send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
           return
@@ -246,7 +249,7 @@ export async function POST(req: NextRequest) {
                   ts: parentTs, text: parentMsg.text ?? '', user: parentMsg.user ?? '',
                   user_name: resolveUserName(userDir, parentMsg.user, parentMsg.username),
                   channel: opChName, channel_id: op.channelId,
-                  permalink: buildSourceRef(op.channelId, parentTs),
+                  permalink: buildSourceRef(op.channelId, parentTs, slackDomain ?? undefined),
                   reply_count: replies.length, replies,
                 },
               })

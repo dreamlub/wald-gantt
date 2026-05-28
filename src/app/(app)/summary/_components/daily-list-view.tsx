@@ -127,7 +127,30 @@ function HistoryRow({
         <span className="w-3.5 flex justify-center shrink-0">
           {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
         </span>
-        <p className="flex-1 min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
+        <div className="flex items-center gap-2.5 flex-1 min-w-0">
+          <p className="min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
+          {item.source_ref && (
+            <a
+              href={item.source_ref}
+              target="_blank"
+              rel="noreferrer"
+              onClick={e => e.stopPropagation()}
+              className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            >
+              <ExternalLink size={10} />
+              Slack
+            </a>
+          )}
+          {onCreateTask && (
+            <button
+              onClick={e => { e.stopPropagation(); onCreateTask() }}
+              className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+            >
+              <ListTodo size={10} />
+              태스크
+            </button>
+          )}
+        </div>
         {(item.tags ?? []).slice(0, 1).map(tag => {
           const meta = TAG_META[tag]
           return (
@@ -154,29 +177,6 @@ function HistoryRow({
           <div className="flex items-center gap-2 text-sm text-ink-400">
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
-            <div className="ml-auto flex items-center gap-1 opacity-0 group-hover:opacity-100 transition-opacity">
-              {item.source_ref && (
-                <a
-                  href={item.source_ref}
-                  target="_blank"
-                  rel="noreferrer"
-                  onClick={event => event.stopPropagation()}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-background hover:text-foreground"
-                >
-                  <ExternalLink size={10} />
-                  Slack
-                </a>
-              )}
-              {onCreateTask && (
-                <button
-                  onClick={event => { event.stopPropagation(); onCreateTask() }}
-                  className="inline-flex items-center gap-1 px-1.5 py-0.5 rounded border border-border bg-background hover:text-foreground"
-                >
-                  <ListTodo size={10} />
-                  태스크
-                </button>
-              )}
-            </div>
           </div>
         </div>
       )}

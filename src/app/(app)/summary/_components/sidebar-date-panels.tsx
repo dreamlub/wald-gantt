@@ -227,12 +227,18 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
   }
   const today = fmt(new Date())
 
-  function applyPreset(preset: 'today' | 'week' | 'month' | 'lastmonth' | 'all') {
+  function applyPreset(preset: 'today' | 'yesterday' | 'week' | 'month' | 'lastmonth' | 'all') {
     if (preset === 'all') { onDateFromChange(''); onDateToChange(''); return }
     const now = new Date()
     if (preset === 'today') {
       onDateFromChange(today)
       onDateToChange(today)
+      return
+    }
+    if (preset === 'yesterday') {
+      const yest = fmt(new Date(now.getTime() - 86400000))
+      onDateFromChange(yest)
+      onDateToChange(yest)
       return
     }
     if (preset === 'week') {
@@ -251,14 +257,16 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
   }
 
   const presets = (showToday
-    ? [['today', '오늘'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
-    : [['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
+    ? [['today', '오늘'], ['yesterday', '어제'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
+    : [['yesterday', '어제'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
   ) as readonly (readonly [string, string])[]
 
   function activePreset(): string | null {
     if (!dateFrom && !dateTo) return 'all'
     if (dateFrom === today && dateTo === today) return 'today'
     const now = new Date()
+    const yest = fmt(new Date(now.getTime() - 86400000))
+    if (dateFrom === yest && dateTo === yest) return 'yesterday'
     const weekAgo = fmt(new Date(now.getTime() - 6 * 86400000))
     if (dateFrom === weekAgo && dateTo === today) return 'week'
     const monthStart = `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`
@@ -283,7 +291,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
           {presets.map(([key, label]) => (
             <button
               key={key}
-              onClick={() => applyPreset(key as 'today' | 'week' | 'month' | 'lastmonth' | 'all')}
+              onClick={() => applyPreset(key as 'today' | 'yesterday' | 'week' | 'month' | 'lastmonth' | 'all')}
               className={`text-sm px-2 py-0.5 rounded border transition-colors ${
                 active === key
                   ? 'bg-foreground text-background border-foreground'

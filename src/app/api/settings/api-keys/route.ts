@@ -1,13 +1,17 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const ALLOWED_KEYS = ['anthropic', 'slack_user', 'outline'] as const
+const ALLOWED_KEYS = ['anthropic', 'slack_user', 'outline', 'slack_domain'] as const
 type KeyName = typeof ALLOWED_KEYS[number]
 
+/** 화면에 마스킹 표시할 항목 */
+const SECRET_KEYS = new Set<KeyName>(['anthropic', 'slack_user', 'outline'])
+
 const KEY_LABELS: Record<KeyName, string> = {
-  anthropic: 'Anthropic API Key',
-  slack_user: 'Slack User Token',
-  outline:    'Outline API 토큰',
+  anthropic:    'Anthropic API Key',
+  slack_user:   'Slack User Token',
+  outline:      'Outline API 토큰',
+  slack_domain: 'Slack 워크스페이스 도메인',
 }
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Promise<string> {
@@ -43,13 +47,18 @@ export async function GET() {
 
     const saved = Object.fromEntries((data ?? []).map(r => [r.key_name, r]))
 
-    const result = ALLOWED_KEYS.map(name => ({
-      name,
-      label: KEY_LABELS[name],
-      set: !!saved[name],
-      masked: saved[name] ? mask(saved[name].key_value) : null,
-      updated_at: saved[name]?.updated_at ?? null,
-    }))
+    const result = ALLOWED_KEYS.map(name => {
+      const isSecret = SECRET_KEYS.has(name)
+      const raw = saved[name]?.key_value ?? null
+      return {
+        name,
+        label: KEY_LABELS[name],
+        secret: isSecret,
+        set: !!saved[name],
+        masked: raw ? (isSecret ? mask(raw) : raw) : null,
+        updated_at: saved[name]?.updated_at ?? null,
+      }
+    })
 
     return NextResponse.json(result)
   } catch (e) {

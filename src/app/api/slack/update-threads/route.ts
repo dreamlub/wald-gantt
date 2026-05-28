@@ -37,15 +37,25 @@ export async function POST() {
         const sb = await createClient()
         const workspaceId = await getWorkspaceId(sb)
 
-        const [token, anthropicKey] = await Promise.all([
+        const [token, anthropicKey, slackDomain] = await Promise.all([
           getApiKey(sb, workspaceId, 'slack_user', process.env.SLACK_USER_TOKEN),
           getApiKey(sb, workspaceId, 'anthropic', process.env.ANTHROPIC_API_KEY),
+          getApiKey(sb, workspaceId, 'slack_domain', process.env.SLACK_WORKSPACE_DOMAIN),
         ])
         if (!token) {
           send('error', { message: 'Slack User Token 미설정. 설정 > API 키에서 등록해 주세요.' })
           return
         }
         const slack = new WebClient(token)
+
+        // 토큰 소유자 ID 자동 감지 → 멘션 태그 감지에 사용
+        let mentionUserId: string | undefined
+        try {
+          const authInfo = await slack.auth.test()
+          mentionUserId = authInfo.user_id as string | undefined
+        } catch {
+          // 실패해도 업데이트는 계속 진행
+        }
 
         send('status', { message: '스레드 업데이트 대상 조회 중...' })
 
@@ -166,7 +176,7 @@ export async function POST() {
           const brandName = resolveBrandAlias(rawBrand, aliasMap) ?? rawBrand
 
           try {
-            const result = await classifyMessage(updatedRj, brandName, anthropicKey ?? undefined)
+            const result = await classifyMessage(updatedRj, brandName, anthropicKey ?? undefined, mentionUserId ?? undefined)
             if (!result) { skipped++; await delay(80); continue }
 
             await sb.from('client_history').upsert(
@@ -179,7 +189,7 @@ export async function POST() {
                 tags: result.tags,
                 channel: updatedRj.channel,
                 source_id: updatedRj.ts,
-                source_ref: buildSourceRef(updatedRj.channel_id, updatedRj.ts),
+                source_ref: buildSourceRef(updatedRj.channel_id, updatedRj.ts, slackDomain ?? undefined),
                 title: result.title,
                 body: result.body,
                 priority: result.priority,
