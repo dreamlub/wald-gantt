@@ -2,23 +2,24 @@
 
 import { useState, useLayoutEffect } from 'react'
 import {
-  DndContext, closestCenter, DragOverlay,
+  DndContext, closestCenter,
 } from '@dnd-kit/core'
 import {
   SortableContext, verticalListSortingStrategy,
 } from '@dnd-kit/sortable'
 import { useDndSensors } from '@/lib/dnd-utils'
-import { Plus, GripVertical, Undo2, Redo2 } from 'lucide-react'
+import { Plus } from 'lucide-react'
 import { GanttToolbar } from './GanttToolbar'
 import { dayOffset, dayOffsetInWeeks } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import {
-  CAT_ROW_H, PROJ_ROW_H, STATUS_META, STATUS_ORDER,
+  STATUS_ORDER,
   isProjectOverdue, isStartDelayed,
   GanttCategoryLeft, GanttCategoryRight,
 } from './_GanttRows'
+import { GanttLeftHeaderActions, GanttDragOverlay } from './_GanttChartParts'
 import {
   LEFT_WIDTH_DEFAULT, LEFT_WIDTH_MIN, LEFT_WIDTH_MAX, HEADER_H,
   type ViewMode,
@@ -280,56 +281,18 @@ export function GanttChart({
         >
           <div className="shrink-0 border-b bg-card flex flex-col justify-between px-3" style={{ height: HEADER_H }}>
             {!readOnly && (
-              <div className="flex items-center gap-1.5 pt-1.5">
-                {onUndo && (
-                  <button
-                    onClick={onUndo}
-                    disabled={undoCount === 0}
-                    title={`실행 취소 (Ctrl+Z)${undoCount > 0 ? ` — ${undoCount}단계` : ''}`}
-                    className="flex items-center gap-0.5 text-2xs px-1 py-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <Undo2 size={11} />
-                    {undoCount > 0 && <span className="tabular-nums">{undoCount}</span>}
-                  </button>
-                )}
-                {onRedo && (
-                  <button
-                    onClick={onRedo}
-                    disabled={redoCount === 0}
-                    title={`다시 실행 (Ctrl+Y)${redoCount > 0 ? ` — ${redoCount}단계` : ''}`}
-                    className="flex items-center gap-0.5 text-2xs px-1 py-0.5 rounded transition-colors disabled:opacity-30 disabled:cursor-not-allowed text-muted-foreground hover:text-foreground hover:bg-muted"
-                  >
-                    <Redo2 size={11} />
-                    {redoCount > 0 && <span className="tabular-nums">{redoCount}</span>}
-                  </button>
-                )}
-                {overdueCount > 0 && (
-                  <button
-                    onClick={() => setInternalOverdueFilter(v => !v)}
-                    className={`flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded-full border transition-colors ${
-                      overdueFilter
-                        ? 'bg-status-late text-white border-status-late'
-                        : 'bg-status-late/10 text-status-late border-status-late/15 hover:bg-status-late/20'
-                    }`}
-                  >
-                    <span className="w-1 h-1 rounded-full bg-current" />
-                    지연 {overdueCount}
-                  </button>
-                )}
-                {startDelayedCount > 0 && (
-                  <button
-                    onClick={() => setInternalStartDelayedFilter(v => !v)}
-                    className={`flex items-center gap-0.5 text-2xs font-medium px-1.5 py-0.5 rounded-full border transition-colors ${
-                      startDelayedFilter
-                        ? 'bg-status-warn text-white border-status-warn'
-                        : 'bg-status-warn/10 text-status-warn border-status-warn/15 hover:bg-status-warn/20'
-                    }`}
-                  >
-                    <span className="w-1 h-1 rounded-full bg-current" />
-                    시작지연 {startDelayedCount}
-                  </button>
-                )}
-              </div>
+              <GanttLeftHeaderActions
+                onUndo={onUndo}
+                undoCount={undoCount}
+                onRedo={onRedo}
+                redoCount={redoCount}
+                overdueCount={overdueCount}
+                overdueFilter={overdueFilter}
+                onToggleOverdueFilter={() => setInternalOverdueFilter(v => !v)}
+                startDelayedCount={startDelayedCount}
+                startDelayedFilter={startDelayedFilter}
+                onToggleStartDelayedFilter={() => setInternalStartDelayedFilter(v => !v)}
+              />
             )}
             <div className="flex items-center justify-between pb-1.5">
               <span className="text-2xs font-semibold text-muted-foreground">프로젝트</span>
@@ -398,39 +361,11 @@ export function GanttChart({
               </div>
 
               {/* DragOverlay */}
-              <DragOverlay dropAnimation={null}>
-                {activeCatForOverlay ? (
-                  <div
-                    className="flex items-center gap-1.5 border border-lilac-300 bg-muted shadow-xl rounded px-2 cursor-grabbing"
-                    style={{ height: CAT_ROW_H, width: leftWidth - 4, opacity: 0.95, borderLeft: `3px solid ${activeCatForOverlay.color}` }}
-                  >
-                    <GripVertical size={13} className="text-ink-400 shrink-0" />
-                    <span className="text-xs font-bold text-foreground truncate flex-1">
-                      {activeCatForOverlay.name}
-                    </span>
-                  </div>
-                ) : activeProjForOverlay ? (() => {
-                  const sm = STATUS_META[activeProjForOverlay.status]
-                  return (
-                    <div
-                      className="flex items-center gap-1.5 border border-lilac-300 bg-card shadow-xl rounded px-2 cursor-grabbing"
-                      style={{ height: PROJ_ROW_H, width: leftWidth - 4, opacity: 0.95 }}
-                    >
-                      <GripVertical size={13} className="text-ink-400 shrink-0" />
-                      <span
-                        className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
-                        style={{ backgroundColor: sm.dot }}
-                        aria-label={sm.label}
-                      >
-                        {sm.abbr}
-                      </span>
-                      <span className="text-xs font-medium text-foreground truncate flex-1">
-                        {activeProjForOverlay.name}
-                      </span>
-                    </div>
-                  )
-                })() : null}
-              </DragOverlay>
+              <GanttDragOverlay
+                activeCat={activeCatForOverlay}
+                activeProj={activeProjForOverlay}
+                leftWidth={leftWidth}
+              />
             </DndContext>
           </div>
         </div>
