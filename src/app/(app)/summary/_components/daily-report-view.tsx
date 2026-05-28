@@ -239,7 +239,7 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
       return
     }
 
-    // 2) 없으면 직전 리포트 날짜로 fallback
+    // 2) 없으면 가장 최근 리포트로 fallback
     const { data: fallback } = await sb
       .from('daily_reports')
       .select('content, analyzed_at, item_count, brand_count, report_date')
@@ -303,7 +303,7 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     <div className="shrink-0 flex items-center gap-2 px-4 py-2 bg-status-warn/10 border-b border-border text-sm text-status-warn">
       <CalendarDays size={13} />
       <span>
-        {format(new Date(selectedDate + 'T00:00:00'), 'M/d', { locale: ko })} 리포트 없음 →{' '}
+        {format(new Date(selectedDate + 'T00:00:00'), 'M/d', { locale: ko })} 리포트 없음 — 가장 최근{' '}
         <strong className="font-semibold">{format(new Date(effectiveDate + 'T00:00:00'), 'M월 d일 (eee)', { locale: ko })}</strong> 리포트 표시 중
       </span>
     </div>
