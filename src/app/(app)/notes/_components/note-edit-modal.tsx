@@ -48,50 +48,28 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
     const t = taskTitle.trim() || title.trim() || '(제목 없음)'
     setLinking(true)
     try {
-      // 1단계: workspace 조회
-      let workspace
-      try {
-        workspace = await getOrCreateWorkspace()
-      } catch (e) {
-        console.error('[note→task] getOrCreateWorkspace 실패:', e)
-        throw new Error(`워크스페이스 조회 실패: ${(e as Record<string, unknown>)?.message ?? String(e)}`)
-      }
-
-      // 2단계: 태스크 생성
-      let task
-      try {
-        task = await addTask(workspace.id, {
-          title:      t,
-          status:     'to-do',
-          type:       'mine',
-          assignee:   null,
-          start_date: null,
-          due_date:   null,
-          memo:       content.trim() || null,
-          priority:   0,
-          labels:     [],
-        })
-      } catch (e) {
-        console.error('[note→task] addTask 실패:', e)
-        throw new Error(`태스크 DB 저장 실패: ${(e as Record<string, unknown>)?.message ?? String(e)}`)
-      }
-
-      // 3단계: 노트에 링크 저장
+      const workspace = await getOrCreateWorkspace()
+      const task = await addTask(workspace.id, {
+        title:      t,
+        status:     'to-do',
+        type:       'mine',
+        assignee:   null,
+        start_date: null,
+        due_date:   null,
+        memo:       content.trim() || null,
+        priority:   0,
+        labels:     [],
+      })
       const newLink: NoteLink = { type: 'task', id: task.id, title: task.title }
       const updated = [...links, newLink]
-      try {
-        await updateNote(note.id, { links: updated })
-      } catch (e) {
-        console.error('[note→task] updateNote 실패:', e)
-        throw new Error(`링크 저장 실패: ${(e as Record<string, unknown>)?.message ?? String(e)}`)
-      }
-
+      await updateNote(note.id, { links: updated })
       onUpdate(note.id, { links: updated })
       setShowTaskForm(false)
       setTaskTitle('')
       toast.success(`태스크 "${task.title}" 생성됐습니다.`)
     } catch (e) {
-      toast.error(e instanceof Error ? e.message : '태스크 생성에 실패했습니다.')
+      const msg = e instanceof Error ? e.message : (e as Record<string, unknown>)?.message as string ?? '알 수 없는 오류'
+      toast.error(`태스크 생성 실패: ${msg}`)
     } finally {
       setLinking(false)
     }
