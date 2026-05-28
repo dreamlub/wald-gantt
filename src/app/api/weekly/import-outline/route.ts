@@ -24,6 +24,19 @@ type OutlineDoc = {
   parentDocumentId: string | null
 }
 
+/** collections.documents 트리 노드 (중첩 children 포함) */
+type OutlineTreeNode = { id: string; title: string; children?: OutlineTreeNode[] }
+
+/** 중첩 트리를 평탄화하면서 parentDocumentId를 채운다 (documents.list가 중첩을 안 주는 경우 대비) */
+function flattenTree(nodes: OutlineTreeNode[] | undefined, parentId: string | null): OutlineDoc[] {
+  const out: OutlineDoc[] = []
+  for (const n of nodes ?? []) {
+    out.push({ id: n.id, title: n.title, parentDocumentId: parentId })
+    if (n.children?.length) out.push(...flattenTree(n.children, n.id))
+  }
+  return out
+}
+
 /** ## YYYY-MM-DD 또는 ## YYYY.MM.DD 섹션 단위로 분리 */
 function parseWeeklySections(text: string): { weekStart: string; content: string }[] {
   const sections: { weekStart: string; content: string }[] = []
@@ -100,12 +113,12 @@ export async function POST(req: Request) {
     const results: { team: string; upserted: number; errors: number; quarterDocsFound: string[] }[] = []
 
     for (const source of sources) {
-      // 1. 컬렉션 전체 문서 목록 조회
-      const docsRes = await outlinePost('documents.list', {
-        collectionId: source.collection_id,
-        limit: 100,
+      // 1. 컬렉션 전체 문서 트리 조회 (중첩 문서 포함) → 평탄화
+      //    documents.list 는 중첩 하위 문서를 누락할 수 있어 collections.documents(트리)를 사용
+      const treeRes = await outlinePost('collections.documents', {
+        id: source.collection_id,
       }, outlineToken)
-      const allDocs: OutlineDoc[] = docsRes.data ?? []
+      const allDocs: OutlineDoc[] = flattenTree(treeRes.data as OutlineTreeNode[] | undefined, null)
 
       // 2. 분기 문서 탐색
       //    우선순위: "주간회의" 폴더(정확 일치) 하위의 분기 문서
@@ -123,6 +136,17 @@ export async function POST(req: Request) {
       if (quarterDocs.length === 0) {
         quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
       }
+
+      // 진단 로그 (수집 0건 원인 파악용) — Vercel 런타임 로그에서 확인
+      console.log('[import-outline]', JSON.stringify({
+        team: source.label,
+        collectionId: source.collection_id,
+        allDocsCount: allDocs.length,
+        weeklyParentCount: weeklyParentIds.size,
+        quarterDocsCount: quarterDocs.length,
+        quarterTitles: quarterDocs.map(d => d.title),
+        sampleTitles: allDocs.slice(0, 50).map(d => d.title),
+      }))
 
       let upserted = 0
       let errors = 0
