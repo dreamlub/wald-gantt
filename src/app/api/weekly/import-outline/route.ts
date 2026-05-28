@@ -104,14 +104,21 @@ export async function POST(req: Request) {
       const allDocs: OutlineDoc[] = docsRes.data ?? []
 
       // 2. 분기 문서 탐색
-      //    우선순위: "주간회의" 하위 → 없으면 컬렉션 전체에서 분기 패턴
-      const weeklyParent = allDocs.find(
-        d => d.title === '주간회의' || d.title.includes('주간회의')
+      //    우선순위: "주간회의" 폴더(정확 일치) 하위의 분기 문서
+      //    └ 폴더를 못 찾거나 하위에 분기 문서가 없으면 컬렉션 전체에서 분기 패턴으로 폴백
+      //    ※ includes('주간회의')는 "기획1팀 주간회의(2025.4Q)" 같은 분기 문서까지
+      //      부모로 오인할 수 있어 정확 일치로 제한한다.
+      const weeklyParentIds = new Set(
+        allDocs.filter(d => d.title.trim() === '주간회의').map(d => d.id)
       )
 
-      const quarterDocs = weeklyParent
-        ? allDocs.filter(d => d.parentDocumentId === weeklyParent.id && isQuarterDoc(d.title))
-        : allDocs.filter(d => isQuarterDoc(d.title))
+      let quarterDocs = weeklyParentIds.size > 0
+        ? allDocs.filter(d => d.parentDocumentId != null && weeklyParentIds.has(d.parentDocumentId) && isQuarterDoc(d.title))
+        : []
+
+      if (quarterDocs.length === 0) {
+        quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
+      }
 
       let upserted = 0
       let errors = 0
