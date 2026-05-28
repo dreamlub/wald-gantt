@@ -204,7 +204,10 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
                       <p className={`text-xs leading-snug line-clamp-2 ${isDone ? 'line-through text-ink-400' : 'text-foreground'}`}>
                         {task.title}
                       </p>
-                      <p className="text-xs text-ink-400 mt-0.5">{fmtScheduledAt(task.scheduled_at!)}</p>
+                      <p className="text-xs text-ink-400 mt-0.5">
+                        {fmtScheduledAt(task.scheduled_at!)}
+                        {task.due_date && <span> · 목표 {fmtDate(task.due_date)}</span>}
+                      </p>
                     </div>
                   </div>
                 </div>

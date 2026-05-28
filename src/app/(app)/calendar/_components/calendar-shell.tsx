@@ -11,14 +11,15 @@ import { Button } from '@/components/ui/button'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/task-detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
-import { DAY_LABELS, WORK_HOURS_PER_DAY, DRAG_OVER_BG, HOUR_H } from '../_constants'
+import { DAY_LABELS, DRAG_OVER_BG, HOUR_H, STICKY_ALLDAY_TOP, STICKY_HEADER_H } from '../_constants'
 import {
-  toDateStr, getSundayOf, getWeekDates, calcDayHours, fmtHrs,
+  toDateStr, getSundayOf, getWeekDates,
   isAllDayScheduled,
 } from '../_utils'
 import { useCalendarData } from '../_hooks/use-calendar-data'
 import { TimeGrid } from './time-grid'
 import { TaskPanel } from './task-panel'
+import { DeadlineRow } from './deadline-row'
 import { GoogleIcon } from './event-block'
 import { setActiveDragOffsetY } from './drag-state'
 
@@ -79,8 +80,7 @@ export function CalendarShell() {
       const d = new Date(task.scheduled_at)
       const taskMinutes = d.getHours() * 60 + d.getMinutes()
       const START_H = 7
-      const STICKY_H = 67
-      const scrollTo = ((taskMinutes - START_H * 60) / 60) * HOUR_H + STICKY_H - 80
+      const scrollTo = ((taskMinutes - START_H * 60) / 60) * HOUR_H + STICKY_HEADER_H - 80
       requestAnimationFrame(() => {
         scrollContainerRef.current?.scrollTo({ top: Math.max(0, scrollTo), behavior: 'smooth' })
       })
@@ -200,11 +200,11 @@ export function CalendarShell() {
           </div>
         )}
 
-        {/* 날짜 헤더 + 통계 + ALL-DAY + 타임그리드 */}
+        {/* 날짜 헤더 + 마감 + ALL-DAY + 타임그리드 */}
         <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
 
           {/* 날짜 헤더 (sticky) */}
-          <div className="sticky top-0 z-30 flex border-b bg-card">
+          <div className="sticky top-0 z-30 flex border-b bg-muted">
             <div className="w-12 shrink-0" />
             {weekDates.map(date => {
               const d       = parseISO(date)
@@ -232,30 +232,11 @@ export function CalendarShell() {
             })}
           </div>
 
-          {/* 업무가능 시간 통계 (sticky) */}
-          <div className="sticky top-8 z-30 flex border-b bg-muted">
-            <div className="w-12 shrink-0" />
-            {weekDates.map(date => {
-              const googleHrs    = calcDayHours(date, events)
-              const hasAllDay    = allDayTasks.some(t => toDateStr(new Date(t.scheduled_at!)) === date)
-              const availableHrs = hasAllDay ? 0 : Math.max(0, WORK_HOURS_PER_DAY - googleHrs)
-              const isZero       = availableHrs === 0
-              const isTight      = !isZero && availableHrs <= 2
-              return (
-                <div key={date} className="flex-1 border-l border-border h-7 flex items-center justify-center px-1">
-                  <span className="text-xs text-ink-400">
-                    업무가능{' '}
-                    <span className={isZero ? 'font-semibold text-status-warn' : isTight ? 'font-semibold text-status-late' : availableHrs < WORK_HOURS_PER_DAY ? 'font-semibold text-foreground' : ''}>
-                      {fmtHrs(availableHrs)}
-                    </span>
-                  </span>
-                </div>
-              )
-            })}
-          </div>
+          {/* 마감 행 (sticky) — 목표일자 기준 */}
+          <DeadlineRow weekDates={weekDates} tasks={tasks} onTaskClick={setDrawerTask} />
 
           {/* ALL-DAY 행 (sticky) */}
-          <div className="sticky top-[60px] z-30 flex border-b bg-card">
+          <div className="sticky z-30 flex border-b bg-card" style={{ top: STICKY_ALLDAY_TOP }}>
             <div className="w-12 shrink-0 flex items-start justify-end pt-1.5 pr-2">
               <span className="text-xs text-ink-400 whitespace-nowrap">ALL-DAY</span>
             </div>

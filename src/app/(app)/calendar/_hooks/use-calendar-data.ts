@@ -64,30 +64,63 @@ export function useCalendarData() {
     }
   }, [])
 
+  /* ── 구글 캘린더 동기화 (앱→구글) ── */
+
+  // 시간 배치/이동/리사이즈 → 구글 이벤트 생성·수정 (DB 저장 성공 후 호출)
+  const syncToGoogle = useCallback(async (taskId: string) => {
+    try {
+      const res = await fetch('/api/calendar/events', {
+        method:  'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ taskId }),
+      })
+      if (!res.ok) return // 미연동(403)·일시 오류는 조용히 무시 (배너가 안내)
+      const json = await res.json() as { googleEventId?: string }
+      if (json.googleEventId) {
+        setTasks(prev => prev.map(t => t.id === taskId ? { ...t, google_event_id: json.googleEventId! } : t))
+      }
+    } catch { toast.error('구글 캘린더 반영 실패') }
+  }, [])
+
+  // 배치 해제/삭제 → 연결된 구글 이벤트 삭제
+  const unsyncFromGoogle = useCallback(async (taskId: string) => {
+    try {
+      await fetch('/api/calendar/events', {
+        method:  'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        body:    JSON.stringify({ taskId }),
+      })
+      setTasks(prev => prev.map(t => t.id === taskId ? { ...t, google_event_id: null } : t))
+    } catch { /* 구글 삭제 실패는 무시 (다음 동기화 때 정리) */ }
+  }, [])
+
   /* ── 스케줄 핸들러 ── */
 
   const handleDrop = useCallback(async (taskId: string, scheduledAt: string, durationMinutes: number) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: scheduledAt, duration_minutes: durationMinutes } : t))
     try {
       await updateTaskSchedule(taskId, scheduledAt, durationMinutes)
+      syncToGoogle(taskId)
     } catch { toast.error('저장 실패'); await loadTasks() }
-  }, [loadTasks])
+  }, [loadTasks, syncToGoogle])
 
   const handleMove = useCallback(async (taskId: string, scheduledAt: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: scheduledAt } : t))
     try {
       const task = tasks.find(t => t.id === taskId)
       await updateTaskSchedule(taskId, scheduledAt, task?.duration_minutes ?? 30)
+      syncToGoogle(taskId)
     } catch { toast.error('저장 실패'); await loadTasks() }
-  }, [tasks, loadTasks])
+  }, [tasks, loadTasks, syncToGoogle])
 
   const handleResize = useCallback(async (taskId: string, durationMinutes: number) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, duration_minutes: durationMinutes } : t))
     try {
       const task = tasks.find(t => t.id === taskId)
       await updateTaskSchedule(taskId, task?.scheduled_at ?? null, durationMinutes)
+      syncToGoogle(taskId)
     } catch { toast.error('저장 실패'); await loadTasks() }
-  }, [tasks, loadTasks])
+  }, [tasks, loadTasks, syncToGoogle])
 
   const handleStatusChange = useCallback(async (taskId: string, status: string) => {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, status: status as GanttTask['status'] } : t))
@@ -100,16 +133,18 @@ export function useCalendarData() {
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: null, duration_minutes: null } : t))
     try {
       await updateTaskSchedule(taskId, null, null)
+      unsyncFromGoogle(taskId)
     } catch { toast.error('저장 실패'); await loadTasks() }
-  }, [loadTasks])
+  }, [loadTasks, unsyncFromGoogle])
 
   const handleDropAllDay = useCallback(async (taskId: string, date: string) => {
     const scheduledAt = buildAllDayIso(date)
     setTasks(prev => prev.map(t => t.id === taskId ? { ...t, scheduled_at: scheduledAt, duration_minutes: 0 } : t))
     try {
       await updateTaskSchedule(taskId, scheduledAt, 0)
+      syncToGoogle(taskId)
     } catch { toast.error('저장 실패'); await loadTasks() }
-  }, [loadTasks])
+  }, [loadTasks, syncToGoogle])
 
   /* ── Drawer 핸들러 ── */
 
@@ -125,9 +160,10 @@ export function useCalendarData() {
 
   const handleDrawerDelete = useCallback(async (id: string) => {
     await softDeleteTask(id)
+    unsyncFromGoogle(id)
     setDrawerTask(null)
     await loadTasks()
-  }, [loadTasks])
+  }, [loadTasks, unsyncFromGoogle])
 
   const handleDrawerDuplicate = useCallback(async (task: GanttTask) => {
     if (!workspaceId) return

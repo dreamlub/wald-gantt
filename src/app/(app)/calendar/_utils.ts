@@ -1,6 +1,5 @@
 import { addDays, parseISO, startOfWeek } from 'date-fns'
-import type { CalendarEvent, GanttTask } from '@/types'
-import { HOUR_H, SNAP_MIN, WORK_SLOTS } from './_constants'
+import { HOUR_H, SNAP_MIN } from './_constants'
 
 /* ── 날짜 변환 ── */
 
@@ -71,36 +70,6 @@ export function pxToMinutes(px: number): number {
 
 export function clamp(v: number, min: number, max: number): number {
   return Math.max(min, Math.min(max, v))
-}
-
-/* ── 통계 ── */
-
-/** 특정 날짜의 Google Calendar 이벤트가 업무시간에서 차지하는 시간 */
-export function calcDayHours(date: string, events: CalendarEvent[]): number {
-  const dayEvents = events.filter(e => !e.isAllDay && toDateStr(new Date(e.start)) === date)
-  let total = 0
-  for (const ev of dayEvents) {
-    const evStart = new Date(ev.start).getHours() + new Date(ev.start).getMinutes() / 60
-    const evEnd   = new Date(ev.end).getHours()   + new Date(ev.end).getMinutes()   / 60
-    for (const slot of WORK_SLOTS) {
-      const overlap = Math.min(evEnd, slot.end) - Math.max(evStart, slot.start)
-      if (overlap > 0) total += overlap
-    }
-  }
-  return total
-}
-
-/** 특정 날짜의 스케줄된 태스크 총 시간 */
-export function calcTaskHours(date: string, tasks: GanttTask[]): number {
-  return tasks
-    .filter(t => !!t.scheduled_at && toDateStr(new Date(t.scheduled_at)) === date)
-    .reduce((sum, t) => sum + (t.duration_minutes ?? 30) / 60, 0)
-}
-
-/** 시간을 '0h' / '3h' / '2.5h' 형태로 포매팅 */
-export function fmtHrs(h: number): string {
-  if (h === 0) return '0h'
-  return Number.isInteger(h) ? `${h}h` : `${h.toFixed(1)}h`
 }
 
 /* ── 포매팅 ── */

@@ -1,6 +1,10 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import type { CalendarEvent } from '@/types'
+import {
+  getValidAccessToken, buildEventTimes, gcalInsert, gcalPatch, gcalDelete,
+  WALD_ORIGIN_KEY,
+} from '@/lib/google-calendar'
 
 function parseGoogleApiError(body: string): { reason?: string; message?: string } {
   try {
@@ -20,35 +24,6 @@ function parseGoogleApiError(body: string): { reason?: string; message?: string 
   }
 }
 
-async function refreshAccessToken(
-  supabase: Awaited<ReturnType<typeof createClient>>,
-  userId: string,
-  refreshToken: string
-): Promise<string | null> {
-  const res = await fetch('https://oauth2.googleapis.com/token', {
-    method:  'POST',
-    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-    body:    new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      refresh_token: refreshToken,
-      grant_type:    'refresh_token',
-    }),
-  })
-  if (!res.ok) return null
-
-  const data = await res.json() as { access_token: string; expires_in: number }
-  const expiresAt = new Date(Date.now() + data.expires_in * 1000).toISOString()
-
-  await supabase.from('google_calendar_tokens').update({
-    access_token: data.access_token,
-    expires_at:   expiresAt,
-    updated_at:   new Date().toISOString(),
-  }).eq('user_id', userId)
-
-  return data.access_token
-}
-
 export async function GET(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
@@ -64,33 +39,9 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 })
   }
 
-  // 저장된 토큰 조회
-  const { data: tokenRow } = await supabase
-    .from('google_calendar_tokens')
-    .select('access_token, refresh_token, expires_at')
-    .eq('user_id', user.id)
-    .single()
+  const tk = await getValidAccessToken(supabase, user.id)
+  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
 
-  if (!tokenRow) {
-    return NextResponse.json({ error: 'NO_TOKEN' }, { status: 403 })
-  }
-
-  // 만료 여부 확인 (30초 여유)
-  let accessToken = tokenRow.access_token
-  const isExpired = new Date(tokenRow.expires_at).getTime() < Date.now() + 30_000
-
-  if (isExpired) {
-    if (!tokenRow.refresh_token) {
-      return NextResponse.json({ error: 'TOKEN_EXPIRED' }, { status: 403 })
-    }
-    const refreshed = await refreshAccessToken(supabase, user.id, tokenRow.refresh_token)
-    if (!refreshed) {
-      return NextResponse.json({ error: 'TOKEN_EXPIRED' }, { status: 403 })
-    }
-    accessToken = refreshed
-  }
-
-  // Google Calendar API 호출
   const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')
   url.searchParams.set('timeMin',      `${date}T00:00:00+09:00`)
   url.searchParams.set('timeMax',      `${endDate}T23:59:59+09:00`)
@@ -100,7 +51,7 @@ export async function GET(req: NextRequest) {
   url.searchParams.set('maxResults',   '200')
 
   const res = await fetch(url.toString(), {
-    headers: { Authorization: `Bearer ${accessToken}` },
+    headers: { Authorization: `Bearer ${tk.token}` },
   })
 
   if (!res.ok) {
@@ -116,21 +67,87 @@ export async function GET(req: NextRequest) {
   }
 
   const json = await res.json() as { items?: Record<string, unknown>[] }
-  const events: CalendarEvent[] = (json.items ?? []).map(item => {
-    const isAllDay = Boolean((item.start as Record<string, unknown>)?.date)
-    return {
-      id:          item.id as string,
-      title:       (item.summary as string) ?? '(제목 없음)',
-      start:       ((item.start as Record<string, string>)?.dateTime ?? (item.start as Record<string, string>)?.date ?? ''),
-      end:         ((item.end   as Record<string, string>)?.dateTime ?? (item.end   as Record<string, string>)?.date ?? ''),
-      color:       item.colorId ? (GOOGLE_COLORS[item.colorId as string] ?? null) : null,
-      isAllDay,
-      location:    (item.location as string) ?? null,
-      description: (item.description as string) ?? null,
-    }
-  })
+  const events: CalendarEvent[] = (json.items ?? [])
+    // 앱에서 생성한 이벤트는 이미 태스크 블록으로 표시되므로 제외 (중복 방지)
+    .filter(item => {
+      const ext = item.extendedProperties as { private?: Record<string, string> } | undefined
+      return !ext?.private?.[WALD_ORIGIN_KEY]
+    })
+    .map(item => {
+      const isAllDay = Boolean((item.start as Record<string, unknown>)?.date)
+      return {
+        id:          item.id as string,
+        title:       (item.summary as string) ?? '(제목 없음)',
+        start:       ((item.start as Record<string, string>)?.dateTime ?? (item.start as Record<string, string>)?.date ?? ''),
+        end:         ((item.end   as Record<string, string>)?.dateTime ?? (item.end   as Record<string, string>)?.date ?? ''),
+        color:       item.colorId ? (GOOGLE_COLORS[item.colorId as string] ?? null) : null,
+        isAllDay,
+        location:    (item.location as string) ?? null,
+        description: (item.description as string) ?? null,
+      }
+    })
 
   return NextResponse.json({ events })
+}
+
+/** 태스크 시간 배치 → 구글 이벤트 생성/수정 (upsert) */
+export async function POST(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { taskId } = await req.json() as { taskId?: string }
+  if (!taskId) return NextResponse.json({ error: 'taskId required' }, { status: 400 })
+
+  const { data: task } = await supabase
+    .from('gantt_tasks')
+    .select('title, scheduled_at, duration_minutes, google_event_id')
+    .eq('id', taskId)
+    .single()
+  if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
+  if (!task.scheduled_at) return NextResponse.json({ ok: true, skipped: true })
+
+  const tk = await getValidAccessToken(supabase, user.id)
+  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
+
+  const title = task.title || '(제목 없음)'
+  const times = buildEventTimes(task.scheduled_at, task.duration_minutes)
+
+  // 기존 연결이 있으면 수정, 실패 시(삭제됨 등) 새로 생성
+  if (task.google_event_id) {
+    const ok = await gcalPatch(tk.token, task.google_event_id, title, times)
+    if (ok) return NextResponse.json({ ok: true, googleEventId: task.google_event_id })
+  }
+
+  const newId = await gcalInsert(tk.token, taskId, title, times)
+  if (!newId) return NextResponse.json({ error: 'GOOGLE_API_ERROR' }, { status: 502 })
+
+  await supabase.from('gantt_tasks').update({ google_event_id: newId }).eq('id', taskId)
+  return NextResponse.json({ ok: true, googleEventId: newId })
+}
+
+/** 배치 해제/삭제 → 연결된 구글 이벤트 삭제 */
+export async function DELETE(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { taskId } = await req.json() as { taskId?: string }
+  if (!taskId) return NextResponse.json({ error: 'taskId required' }, { status: 400 })
+
+  const { data: task } = await supabase
+    .from('gantt_tasks')
+    .select('google_event_id')
+    .eq('id', taskId)
+    .single()
+  if (!task?.google_event_id) return NextResponse.json({ ok: true, skipped: true })
+
+  const tk = await getValidAccessToken(supabase, user.id)
+  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
+
+  await gcalDelete(tk.token, task.google_event_id)
+  await supabase.from('gantt_tasks').update({ google_event_id: null }).eq('id', taskId)
+  return NextResponse.json({ ok: true })
 }
 
 const GOOGLE_COLORS: Record<string, string> = {

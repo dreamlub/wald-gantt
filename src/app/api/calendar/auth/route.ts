@@ -23,7 +23,7 @@ export async function GET(req: NextRequest) {
     client_id:     process.env.GOOGLE_CLIENT_ID!,
     redirect_uri:  `${origin}/api/calendar/callback`,
     response_type: 'code',
-    scope:         'https://www.googleapis.com/auth/calendar.readonly',
+    scope:         'https://www.googleapis.com/auth/calendar.events',
     access_type:   'offline',
     prompt:        'consent',
     state,
