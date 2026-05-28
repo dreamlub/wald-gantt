@@ -9,6 +9,32 @@
 
 ---
 
+## 최근 변경 (2026-05-29) — 메모 → 태스크 연결 기능
+
+### 목적
+메모장의 주목적(아이디어 빠른 캡처 → 태스크 전환)을 지원하는 워크플로우 추가
+
+### 1. DB 변경
+- `notes` 테이블에 `links JSONB NOT NULL DEFAULT '[]'` 컬럼 추가 (마이그레이션 `20260529000002`)
+- `NoteLink` 타입: `{ type: 'task' | 'project', id: string, title: string }`
+
+### 2. NoteEditModal — 태스크 등록 흐름
+- 하단 툴바에 "↗ 태스크 등록" 버튼 추가
+- 클릭 시 인라인 폼 슬라이드인: 제목(note.title pre-fill), Enter 등록
+- `addTask()` 호출, 메모 내용 → 태스크 `memo` 필드 자동 입력
+- 등록 완료 후 `note.links`에 `{ type: 'task', id, title }` 저장
+- 모달 상단에 연결 배지 목록 표시 → 클릭 시 `/tasks` 이동, ✕ 링크 해제
+
+### 3. NoteCard / NoteListItem
+- 연결 태스크가 있으면 "↗ N개 연결됨" 배지 표시 (보라색)
+
+### 검증
+- `npx tsc --noEmit` 통과
+- Supabase SQL Editor에서 마이그레이션 수동 실행 완료
+- `git push origin master` 완료 (`010054d`)
+
+---
+
 ## 최근 변경 (2026-05-28) — Weekly: Outline 수집 + AI 자동 분류
 
 ### 1. Outline import 정규식 수정 (`import-outline/route.ts`)
@@ -32,6 +58,18 @@
 - `handleImportOutline` 개선: 수집 완료(total > 0) 후 `fetchWeeks` → `handleAutoAnalyze(freshWeeks[0])` 자동 실행
 - 헤더 아래 슬림 진행 바 + 상태 텍스트 표시 (autoAnalyzing 중)
 - CloudDownload 버튼: importing || autoAnalyzing 동안 비활성화
+
+---
+
+## 최근 변경 (2026-05-29) — Slack 분류 (2026-05-28)
+
+### 슬랙 분류 결과
+- 총 raw 메시지: 120건
+- **분류 저장: 55건** / 제외: 65건 (봇·자동알림·단순응답·빈메시지)
+- 브랜드 수: **22개**
+- 우선순위: high 22건, medium 26건, low 7건
+- 결정 항목: 6건 (CBK 세트메뉴 ERP 6/4 오픈, HPS D3 판가 확정, 삼성웰스토리 시안 확정, 쿠우쿠우 친구플러스 미지급 확인, 전사 조직 2건)
+- 주요 이슈: 몬스터커피 목원대점 신규 오픈 다중 장애(5건), HPS 카카오페이 매출 불일치, 쿠우쿠우 데이터 분석·계약해지 준비, 도쿄플라츠 GMO POS 사양서 누락
 
 ---
 
