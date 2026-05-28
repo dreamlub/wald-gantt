@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Note, NoteColor } from '@/types'
+import type { Note, NoteColor, NoteLink } from '@/types'
 
 const db = () => createClient()
 
@@ -50,4 +50,29 @@ export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' |
 export async function deleteNote(id: string): Promise<void> {
   const { error } = await db().from('notes').delete().eq('id', id)
   if (error) throw error
+}
+
+/**
+ * 태스크가 삭제될 때 연결된 모든 메모에서 해당 링크를 제거합니다.
+ * 태스크 삭제 성공 여부에는 영향을 주지 않으므로 에러는 조용히 처리합니다.
+ */
+export async function removeTaskLinkFromNotes(taskId: string): Promise<void> {
+  try {
+    // links JSONB 배열 안에 해당 taskId를 가진 객체가 있는 notes 조회
+    const { data: notes } = await db()
+      .from('notes')
+      .select('id, links')
+      .filter('links', 'cs', JSON.stringify([{ id: taskId }]))
+
+    if (!notes?.length) return
+
+    await Promise.all(
+      notes.map(note => {
+        const filtered = (note.links as NoteLink[]).filter(l => l.id !== taskId)
+        return db().from('notes').update({ links: filtered }).eq('id', note.id)
+      })
+    )
+  } catch {
+    // 태스크 삭제는 이미 완료됐으므로 링크 정리 실패는 무시
+  }
 }
