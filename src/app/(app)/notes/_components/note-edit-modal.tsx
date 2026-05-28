@@ -67,8 +67,10 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
       setShowTaskForm(false)
       setTaskTitle('')
       toast.success(`태스크 "${task.title}" 생성됐습니다.`)
-    } catch {
-      toast.error('태스크 생성에 실패했습니다.')
+    } catch (e) {
+      console.error('[note→task]', e)
+      const msg = e instanceof Error ? e.message : String(e)
+      toast.error(`태스크 생성 실패: ${msg}`)
     } finally {
       setLinking(false)
     }
