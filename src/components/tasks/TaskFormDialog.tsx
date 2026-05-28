@@ -1,193 +1,46 @@
-﻿'use client'
+'use client'
 
-import { useState, useEffect, useRef } from 'react'
 import { X, Search, ChevronDown, Tag, RotateCw } from 'lucide-react'
-import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule } from '@/types'
+import type { TaskStatus } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/app/(app)/tasks/_constants'
-import { toDate, toDateStr } from '@/lib/gantt-utils'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { labelColor } from '@/app/(app)/tasks/_utils'
 import { DatePickerButton } from '@/components/ui/date-picker-button'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { TaskHistorySection } from '@/app/(app)/tasks/_components/task-history-section'
+import { RECURRENCE_OPTIONS, STATUS_OPTIONS, type Props, type ProjectOption } from './_TaskFormConstants'
+import { useTaskForm } from './_useTaskForm'
 
-type FormTab = 'info' | 'memo' | 'history'
-
-interface ProjectOption {
-  id: string
-  name: string
-  board_name: string
-}
-
-const RECURRENCE_OPTIONS: { value: RecurrenceRule; label: string }[] = [
-  { value: 'daily',   label: '매일' },
-  { value: 'weekly',  label: '매주' },
-  { value: 'monthly', label: '매월' },
-  { value: 'yearly',  label: '매년' },
-]
-
-interface Props {
-  open: boolean
-  onClose: () => void
-  onSave: (
-    fields: { title: string; status: TaskStatus; type: TaskType; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; priority: Priority; labels: string[]; recurrence_rule: RecurrenceRule | null; recurrence_interval: number | null },
-    projectIds: string[]
-  ) => Promise<void>
-  editTask?: GanttTask | null
-  parentTask?: GanttTask | null
-  defaultStatus?: TaskStatus
-  defaultProjects?: ProjectOption[]
-  onSearchProjects: (query: string) => Promise<ProjectOption[]>
-  assigneeSuggestions?: string[]
-  labelSuggestions?: string[]
-  initialTitle?: string
-  initialMemo?: string
-  initialTab?: FormTab
-}
-
-const STATUS_OPTIONS: { value: TaskStatus; label: string }[] = [
-  { value: 'backlog',      label: 'Backlog' },
-  { value: 'to-do',       label: 'To-Do' },
-  { value: 'in-progress', label: 'In Progress' },
-  { value: 'done',        label: 'Done' },
-  { value: 'pending',     label: 'Pending' },
-]
+export type { FormTab, ProjectOption } from './_TaskFormConstants'
 
 
 // ── TaskFormDialog ────────────────────────────────────────────
-export function TaskFormDialog({ open, onClose, onSave, editTask, parentTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, assigneeSuggestions = [], labelSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
-  const [tab,       setTab]       = useState<FormTab>('info')
-  const [title,     setTitle]     = useState('')
-  const [status,    setStatus]    = useState<TaskStatus>('to-do')
-  const [priority,  setPriority]  = useState<Priority>(2)
-  const [assignee,  setAssignee]  = useState('')
-  const [startDate, setStartDate] = useState<Date | undefined>(undefined)
-  const [dueDate,   setDueDate]   = useState<Date | undefined>(undefined)
-  const [memo,      setMemo]      = useState('')
-  const [labels,    setLabels]    = useState<string[]>([])
-  const [labelInput, setLabelInput] = useState('')
-  const [labelOpen,  setLabelOpen]  = useState(false)
-  const [saving,    setSaving]    = useState(false)
-  const [recurrenceRule,     setRecurrenceRule]     = useState<RecurrenceRule | null>(null)
-  const [recurrenceInterval, setRecurrenceInterval] = useState<number>(1)
-
-  const [linkedProjects, setLinkedProjects] = useState<ProjectOption[]>([])
-  const [projSearch,     setProjSearch]     = useState('')
-  const [projResults,    setProjResults]    = useState<ProjectOption[]>([])
-  const [showProjDrop,   setShowProjDrop]   = useState(false)
-  const projRef  = useRef<HTMLDivElement>(null)
-  const labelRef = useRef<HTMLDivElement>(null)
-  const titleRef = useRef<HTMLInputElement>(null)
-  const memoRef  = useRef<HTMLTextAreaElement>(null)
-
-  // validation
-  const dateError = startDate && dueDate && startDate > dueDate
-    ? '시작일이 마감일보다 늦을 수 없어요' : null
-  const isValid = title.trim().length > 0 && !dateError
-
-  // open 시 탭 설정 + 포커스
-  useEffect(() => {
-    if (open) {
-      // eslint-disable-next-line react-hooks/set-state-in-effect
-      setTab(initialTab)
-      const t = setTimeout(() => {
-        if (initialTab === 'memo') memoRef.current?.focus()
-        else titleRef.current?.focus()
-      }, 310)
-      return () => clearTimeout(t)
-    }
-  }, [open, initialTab])
-
-  // open/editTask 변경 시 폼 상태 동기화 (외부 트리거 기반 → 의도된 setState)
-  useEffect(() => {
-    if (!open) return
-    /* eslint-disable react-hooks/set-state-in-effect */
-    if (editTask) {
-      setTitle(editTask.title)
-      setStatus(editTask.status)
-      setPriority(editTask.priority ?? 0)
-      setAssignee(editTask.assignee ?? '')
-      setStartDate(toDate(editTask.start_date))
-      setDueDate(toDate(editTask.due_date))
-      setMemo(editTask.memo ?? '')
-      setLabels(editTask.labels ?? [])
-      setLinkedProjects(editTask.projects ?? [])
-      setRecurrenceRule(editTask.recurrence_rule ?? null)
-      setRecurrenceInterval(editTask.recurrence_interval ?? 1)
-    } else {
-
-      setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
-
-      setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
-      setLabels([]); setLinkedProjects(defaultProjects ?? [])
-      setRecurrenceRule(null); setRecurrenceInterval(1)
-    }
-    setProjSearch(''); setProjResults([]); setShowProjDrop(false); setLabelInput(''); setLabelOpen(false)
-    /* eslint-enable react-hooks/set-state-in-effect */
-  }, [open, editTask, defaultStatus, defaultProjects, initialTitle, initialMemo])
-
-  useEffect(() => {
-    if (!showProjDrop) return
-    const timer = setTimeout(async () => {
-      const results = await onSearchProjects(projSearch)
-      setProjResults(results.filter(r => !linkedProjects.some(l => l.id === r.id)))
-    }, projSearch.trim() ? 200 : 0)
-    return () => clearTimeout(timer)
-  }, [projSearch, linkedProjects, onSearchProjects, showProjDrop])
-
-  useEffect(() => {
-    function onClick(e: MouseEvent) {
-      if (projRef.current && !projRef.current.contains(e.target as Node))
-        setShowProjDrop(false)
-      if (labelRef.current && !labelRef.current.contains(e.target as Node))
-        setLabelOpen(false)
-    }
-    document.addEventListener('mousedown', onClick)
-    return () => document.removeEventListener('mousedown', onClick)
-  }, [])
-
-  async function handleSave() {
-    if (!isValid) return
-    setSaving(true)
-    try {
-      const trimmedAssignee = assignee.trim() || null
-      await onSave(
-        {
-          title: title.trim(),
-          status,
-          type: trimmedAssignee ? 'delegated' : 'mine',
-          assignee: trimmedAssignee,
-          start_date: toDateStr(startDate),
-          due_date: toDateStr(dueDate),
-          memo: memo.trim() || null,
-          priority,
-          labels,
-          recurrence_rule: recurrenceRule,
-          recurrence_interval: recurrenceRule ? recurrenceInterval : null,
-        },
-        linkedProjects.map(p => p.id)
-      )
-      onClose()
-    } finally {
-      setSaving(false)
-    }
-  }
-
-  function addLabel() {
-    const val = labelInput.trim()
-    if (!val || labels.includes(val)) { setLabelInput(''); return }
-    setLabels(prev => [...prev, val])
-    setLabelInput('')
-  }
-
-  function linkProject(p: ProjectOption) {
-    setLinkedProjects(prev => [...prev, p])
-    setProjSearch(''); setProjResults([]); setShowProjDrop(false)
-  }
-
-  function unlinkProject(id: string) {
-    setLinkedProjects(prev => prev.filter(p => p.id !== id))
-  }
+export function TaskFormDialog(props: Props) {
+  const { open, onClose, editTask, parentTask, assigneeSuggestions = [] } = props
+  const {
+    tab, setTab,
+    title, setTitle,
+    status, setStatus,
+    priority, setPriority,
+    assignee, setAssignee,
+    startDate, setStartDate,
+    dueDate, setDueDate,
+    memo, setMemo,
+    labels, setLabels,
+    labelInput, setLabelInput,
+    labelOpen, setLabelOpen,
+    saving,
+    recurrenceRule, setRecurrenceRule,
+    recurrenceInterval, setRecurrenceInterval,
+    linkedProjects,
+    projSearch, setProjSearch,
+    projResults,
+    showProjDrop, setShowProjDrop,
+    projRef, labelRef, titleRef, memoRef,
+    dateError, isValid,
+    labelSuggestions,
+    handleSave, addLabel, linkProject, unlinkProject,
+  } = useTaskForm(props)
 
   return (
     <Drawer open={open} onClose={onClose} width={480}>

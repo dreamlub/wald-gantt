@@ -6,7 +6,7 @@ import { X, ExternalLink, Copy, Check, Plus, Pencil, ChevronDown } from 'lucide-
 import { useEffect, useState } from 'react'
 import { useClickAway } from '@/hooks/use-click-away'
 
-import type { Client, HistoryItem, Tag, Priority, ThreadReply, HistoryEditDraft } from '../_lib/types'
+import type { Client, HistoryItem, Priority, ThreadReply, HistoryEditDraft } from '../_lib/types'
 import { createClient } from '@/lib/supabase/client'
 import { fetchThreadRepliesForItem } from '../_lib/thread-replies'
 import { TAG_META, TAG_KEYS, PRIORITY_META } from '../_lib/constants'

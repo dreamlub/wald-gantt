@@ -3,7 +3,6 @@
 import { useEffect, useRef, useState } from 'react'
 import { Search, GripVertical, CalendarDays, ChevronDown } from 'lucide-react'
 import type { GanttTask } from '@/types'
-import { Button } from '@/components/ui/button'
 import { STATUS_COLOR, STATUS_LABEL } from '@/app/(app)/tasks/_constants'
 import { STATUS_ORDER, SORT_LABELS, SORT_CYCLE, DRAG_OVER_BG } from '../_constants'
 import type { SortKey } from '../_constants'

@@ -40,10 +40,13 @@ export function NoteCard({ note, onUpdate, onDelete }: Props) {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [editing, title, content])
 
-  // note prop 변경 반영 (다른 곳에서 업데이트됐을 때)
-  useEffect(() => {
-    if (!editing) { setTitle(note.title); setContent(note.content) }
-  }, [note.title, note.content, editing])
+  // note prop 변경 반영 (다른 곳에서 업데이트됐을 때) — 편집 중이 아니면 render 중 동기화
+  const [synced, setSynced] = useState({ title: note.title, content: note.content })
+  if (!editing && (synced.title !== note.title || synced.content !== note.content)) {
+    setSynced({ title: note.title, content: note.content })
+    setTitle(note.title)
+    setContent(note.content)
+  }
 
   function enterEdit() { setEditing(true) }
 

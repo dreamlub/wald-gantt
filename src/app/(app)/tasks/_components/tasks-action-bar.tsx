@@ -2,7 +2,7 @@
 
 import React from 'react'
 import { Plus, Search, X, CheckSquare } from 'lucide-react'
-import { VIEW_TABS, ASSIGNEE_COLORS, type ViewType } from '../_constants'
+import { VIEW_TABS, type ViewType } from '../_constants'
 
 interface TasksActionBarProps {
   view: ViewType
@@ -22,10 +22,6 @@ interface TasksActionBarProps {
   onHideDoneChange: (v: boolean) => void
   // 추가
   onAdd: () => void
-  // 담당자 필터 바 (사이드바 닫힘 시)
-  allAssignees: { key: string; label: string }[]
-  filterAssignee: string | null
-  onFilterAssigneeChange: (key: string | null) => void
 }
 
 export function TasksActionBar({
@@ -35,7 +31,6 @@ export function TasksActionBar({
   selectionMode, onToggleSelection,
   hideDone, onHideDoneChange,
   onAdd,
-  allAssignees, filterAssignee, onFilterAssigneeChange,
 }: TasksActionBarProps) {
   return (
     <>

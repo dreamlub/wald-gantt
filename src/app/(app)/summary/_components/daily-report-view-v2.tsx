@@ -136,7 +136,6 @@ function V2Header({
 // ── Headline cards ────────────────────────────────────────────────────
 function HeadlineCard({ text, brand, index }: { text: string; brand?: string; index: number }) {
   const num = String(index + 1).padStart(2, '0')
-  const borderColor = brand ? brandColor(brand) : undefined
   return (
     <article
       className="flex-1 rounded-xl border flex flex-col min-w-0 bg-zinc-700"
@@ -211,17 +210,6 @@ interface UnifiedItem {
   action?: string
 }
 
-// 헤더 우측 심각도 카운터 뱃지
-function SevCount({ count, cls }: { count: number; cls: string }) {
-  if (count === 0) return null
-  return (
-    <span className={`text-2xs font-black w-5 h-5 rounded-full flex items-center justify-center shrink-0 ${cls}`}>
-      {count}
-    </span>
-  )
-}
-
-
 // 접힌 행
 function CollapsedRow({ item, isLast, onExpand }: {
   item: UnifiedItem; isLast: boolean; accent: string; onExpand: () => void
@@ -281,9 +269,6 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   )
   const color       = brandColor(brand)
   const accent      = color ?? 'var(--color-ink-300)'
-  const urgentCount = items.filter(i => i.severity === 'urgent').length
-  const watchCount  = items.filter(i => i.severity === 'watch').length
-  const otherCount  = items.filter(i => i.severity === 'info' || i.severity === 'other').length
 
   return (
     <div className="border border-ink-400 rounded-xl overflow-hidden bg-card shadow-sm">

@@ -56,10 +56,17 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   const searchParams  = useSearchParams()
   const [, startTransition] = useTransition()
 
-  // URL → 초기 state
-  const [view,         setView]         = useState<ViewKey>(() => parseView(searchParams.get('view')))
-  const [dateFrom,     setDateFrom]     = useState<string>(searchParams.get('from') ?? '')
-  const [dateTo,       setDateTo]       = useState<string>(searchParams.get('to') ?? '')
+  // URL → 초기 state. 날짜가 URL에 둘 다 없으면 현재 탭 기본값으로 lazy 초기화.
+  const initialView = parseView(searchParams.get('view'))
+  const [view,         setView]         = useState<ViewKey>(initialView)
+  const [dateFrom,     setDateFrom]     = useState<string>(() => {
+    const f = searchParams.get('from') ?? '', t = searchParams.get('to') ?? ''
+    return (!f && !t) ? getTabDefaultDates(initialView).from : f
+  })
+  const [dateTo,       setDateTo]       = useState<string>(() => {
+    const f = searchParams.get('from') ?? '', t = searchParams.get('to') ?? ''
+    return (!f && !t) ? getTabDefaultDates(initialView).to : t
+  })
   const weekStart = searchParams.get('week') ?? getCurrentWeekStart()
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
   const [selectedTags, setSelectedTags] = useState<Set<Tag>>(() => parseTags(searchParams.get('tags')))
@@ -93,11 +100,14 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   })
 
   // 날짜가 바뀌면 DailyReport 필터 초기화 (이전 날짜 선택 기준 필터가 잔류하는 버그 방지)
-  useEffect(() => {
+  // render 중 dateFrom 변화 감지 후 동기 초기화 (effect 대비 추가 페인트 없음)
+  const [prevDateFrom, setPrevDateFrom] = useState(dateFrom)
+  if (prevDateFrom !== dateFrom) {
+    setPrevDateFrom(dateFrom)
     setDailyBrands(new Set())
     setDailyTags(new Set())
     setDailyPriorities(new Set())
-  }, [dateFrom])
+  }
 
   const searchRef       = useRef<HTMLDivElement>(null)
   const searchInputRef  = useRef<HTMLInputElement>(null)
@@ -137,16 +147,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
     setDateFrom(from)
     setDateTo(to)
     setView(newView)
-  }, [])
-
-  // 초기 마운트 — URL에 날짜 없을 때 현재 탭 기본값 적용
-  useEffect(() => {
-    if (!dateFrom && !dateTo) {
-      const { from, to } = getTabDefaultDates(view)
-      if (from || to) { setDateFrom(from); setDateTo(to) }
-    }
-    // mount only
-    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
   useEffect(() => {
@@ -332,7 +332,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                 <DailyListView
                   items={pg.items}
                   hasFilters={hasFilters}
-                  total={pg.total}
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
                   brandCounts={pg.brandCounts}

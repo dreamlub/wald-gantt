@@ -49,3 +49,6 @@ supabase/.temp/
 
 # 로컬 스크립트 (credentials 포함 가능)
 classify-raw.mjs
+!.claude/settings.json
+!.claude/hooks
+!.claude/hooks/**

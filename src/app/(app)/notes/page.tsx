@@ -22,7 +22,7 @@ export default function NotesPage() {
     }
   }, [])
 
-  useEffect(() => { load() }, [load])
+  useEffect(() => { void (async () => { await load() })() }, [load])
 
   async function handleCreate(params: { title: string; content: string; color: NoteColor }) {
     try {

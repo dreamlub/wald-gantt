@@ -29,7 +29,6 @@ export function ShareView({ board, categories, projects }: Props) {
           viewEnd={VIEW_END}
           boardName={board.name}
           readOnly
-          onAddCategory={async () => {}}
           onUpdateCategory={async () => {}}
           onDeleteCategory={async () => {}}
           onAddProject={() => {}}
