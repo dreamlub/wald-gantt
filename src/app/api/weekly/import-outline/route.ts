@@ -49,9 +49,17 @@ function parseWeeklySections(text: string): { weekStart: string; content: string
   return sections
 }
 
-/** 문서 제목이 분기 문서인지 판별 — "2026 Q1", "Q2 2026", "2026 1Q", "1Q 2026" 등 */
+/**
+ * 문서 제목이 분기 문서인지 판별.
+ * 실제 Outline 제목 형식: "DX기획1팀(2026.2Q)", "기획1팀 주간회의(2025.4Q)"
+ * 그 외 "2026 Q1", "Q2 2026", "2026년 2분기" 등도 허용 (연/분기 사이 . - 공백 년 구분자 모두 허용)
+ */
 function isQuarterDoc(title: string): boolean {
-  return /20\d{2}\s*[Qq]\s*[1-4]|[Qq]\s*[1-4]\s*20\d{2}|20\d{2}\s*[1-4][Qq]/i.test(title)
+  // 연도 → 분기: "2026.2Q", "2026 Q2", "2026년 2분기"
+  const yearFirst    = /20\d{2}\s*[.\-\s년]?\s*(?:[1-4]\s*[Qq]|[Qq]\s*[1-4]|[1-4]\s*분기)/
+  // 분기 → 연도: "Q2 2026", "2Q 2026"
+  const quarterFirst = /(?:[1-4]\s*[Qq]|[Qq]\s*[1-4])\s*[.\-\s]?\s*20\d{2}/
+  return yearFirst.test(title) || quarterFirst.test(title)
 }
 
 export async function POST(req: Request) {
