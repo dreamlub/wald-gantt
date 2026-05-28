@@ -35,6 +35,46 @@
 
 ---
 
+## 최근 변경 (2026-05-29) — 메모장 개선 + API 키 관리 + Tasks inbox 정리
+
+### 1. 메모장(Notes) 기능 개선
+- **NoteCard 개선**: 최대 높이(10rem) 제한 + 긴 내용 하단 fade 마스크, 날짜 표시(`M/d`), 전체화면 편집 버튼(`Maximize2`) 추가
+- **NoteEditModal 신규**: 전체화면 편집 모달. Ctrl+Enter/Esc로 저장/닫기, 제목·내용 auto-resize, 배경 클릭 저장
+- **NoteListItem 신규**: 리스트 뷰 행 컴포넌트. 색상 점·제목·내용 미리보기·날짜·핀 표시, hover 시 액션 버튼(확장/핀/삭제)
+- **notes/page.tsx 전면 개선**:
+  - 검색 바: title + content 대소문자 무시 필터
+  - 실행취소 삭제: 삭제 즉시 UI에서 제거 후 5초 타이머, 토스트 "실행취소" 클릭 시 복원
+  - 리스트/그리드 뷰 전환: 아이콘 토글, `localStorage('notes-view')`에 저장
+  - 고정 메모 우선, 그 아래 최신순 정렬
+
+### 2. 설정 > API 키 탭 신규
+- `workspace_api_keys` 테이블 마이그레이션 (`20260529000001_create_workspace_api_keys.sql`)
+  - `workspace_id`, `service` (slack_user | anthropic), `token` 저장
+  - RLS: 본인 워크스페이스만 읽기/쓰기
+- `ApiKeysSection` 컴포넌트: Slack User Token / Anthropic API Key 등록·삭제 UI
+- `settings-shell.tsx`: `Section` 타입에 `'apikeys'` 추가, NAV·SECTION_TITLE 동기화
+
+### 3. Slack/AI API 라우트 — DB 우선, env 폴백
+- `slack-service.ts`: `classifyMessage()` 3번째 인자로 `anthropicApiKey?` 수신
+- `collect-raw`, `reclassify`, `channels`, `channel-mappings`, `update-threads`: `getApiKey(sb, workspaceId, 'slack_user', env폴백)` 패턴으로 토큰 조회
+- `insights/generate`, `weekly/analyze`, `weekly/import-outline`: Anthropic 키도 동일 패턴
+
+### 4. Tasks inbox 정리
+- Inbox 전용 퀵캡처(`inboxQuickCreate`) 제거 — inbox는 TaskStatus 값으로만 존재
+- 사이드바 `inboxCount` 및 `QuickFilterKey`에서 `'inbox'` 제거
+- `STATUS_ORDER`에서 inbox를 -1(정렬 최상단)으로 조정
+- `_constants.tsx`: STATUS_ABBR inbox 약자 `↓` → `X`, CSS 변수에 폴백 값 추가
+
+### 5. TypeScript 수정
+- `settings-shell.tsx` Section 타입 + SECTION_TITLE에 `'apikeys'` 누락 → 추가
+- `note-card.tsx` 충돌 해소: render 중 setState 패턴 → `useEffect` 방식으로 교체
+
+### 검증
+- `npx tsc --noEmit` 통과 (weekly 2건은 pre-existing 오류, 본 작업 무관)
+- `git push origin master` 완료 (`34e0a35`)
+
+---
+
 ## 최근 변경 (2026-05-28) — Daily Report V2 접힌 행 디자인 개선
 
 ### CollapsedRow 재디자인 (B안)
