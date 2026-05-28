@@ -48,13 +48,25 @@ function parseWeeklySections(text: string): { weekStart: string; content: string
   return sections
 }
 
-/** 문서 제목이 분기 문서인지 판별 — "2026 Q1", "Q2 2026", "2026 1Q", "1Q 2026" 등 */
+/**
+ * 문서 제목이 분기 문서인지 판별.
+ * 실제 Outline 제목 형식: "DX기획1팀(2026.2Q)", "기획1팀 주간회의(2025.4Q)"
+ * 그 외 "2026 Q1", "Q2 2026", "2026년 2분기" 등도 허용 (연/분기 사이 . - 공백 년 구분자 모두 허용)
+ */
 function isQuarterDoc(title: string): boolean {
-  return /20\d{2}\s*[Qq]\s*[1-4]|[Qq]\s*[1-4]\s*20\d{2}|20\d{2}\s*[1-4][Qq]/i.test(title)
+  // 연도 → 분기: "2026.2Q", "2026 Q2", "2026년 2분기"
+  const yearFirst    = /20\d{2}\s*[.\-\s년]?\s*(?:[1-4]\s*[Qq]|[Qq]\s*[1-4]|[1-4]\s*분기)/
+  // 분기 → 연도: "Q2 2026", "2Q 2026"
+  const quarterFirst = /(?:[1-4]\s*[Qq]|[Qq]\s*[1-4])\s*[.\-\s]?\s*20\d{2}/
+  return yearFirst.test(title) || quarterFirst.test(title)
 }
 
-export async function POST() {
+export async function POST(req: Request) {
   try {
+    // 특정 팀만 수집할 때 { collectionId } 전달 (없으면 전체 팀 수집)
+    const body = await req.json().catch(() => ({})) as { collectionId?: unknown }
+    const onlyCollectionId = typeof body.collectionId === 'string' ? body.collectionId : null
+
     const sb = await createClient()
     const { data: { user } } = await sb.auth.getUser()
     if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
@@ -71,13 +83,17 @@ export async function POST() {
       return NextResponse.json({ error: 'Outline API 토큰 미설정. 설정 > API 키에서 등록해 주세요.' }, { status: 500 })
     }
 
-    const { data: sources } = await sb
+    const { data: allSources } = await sb
       .from('weekly_sources')
       .select('*')
       .eq('workspace_id', member.workspace_id)
       .order('sort_order')
 
-    if (!sources || sources.length === 0) {
+    const sources = onlyCollectionId
+      ? (allSources ?? []).filter(s => s.collection_id === onlyCollectionId)
+      : (allSources ?? [])
+
+    if (sources.length === 0) {
       return NextResponse.json({ ok: true, results: [], total: 0 })
     }
 
@@ -92,14 +108,21 @@ export async function POST() {
       const allDocs: OutlineDoc[] = docsRes.data ?? []
 
       // 2. 분기 문서 탐색
-      //    우선순위: "주간회의" 하위 → 없으면 컬렉션 전체에서 분기 패턴
-      const weeklyParent = allDocs.find(
-        d => d.title === '주간회의' || d.title.includes('주간회의')
+      //    우선순위: "주간회의" 폴더(정확 일치) 하위의 분기 문서
+      //    └ 폴더를 못 찾거나 하위에 분기 문서가 없으면 컬렉션 전체에서 분기 패턴으로 폴백
+      //    ※ includes('주간회의')는 "기획1팀 주간회의(2025.4Q)" 같은 분기 문서까지
+      //      부모로 오인할 수 있어 정확 일치로 제한한다.
+      const weeklyParentIds = new Set(
+        allDocs.filter(d => d.title.trim() === '주간회의').map(d => d.id)
       )
 
-      const quarterDocs = weeklyParent
-        ? allDocs.filter(d => d.parentDocumentId === weeklyParent.id && isQuarterDoc(d.title))
-        : allDocs.filter(d => isQuarterDoc(d.title))
+      let quarterDocs = weeklyParentIds.size > 0
+        ? allDocs.filter(d => d.parentDocumentId != null && weeklyParentIds.has(d.parentDocumentId) && isQuarterDoc(d.title))
+        : []
+
+      if (quarterDocs.length === 0) {
+        quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
+      }
 
       let upserted = 0
       let errors = 0

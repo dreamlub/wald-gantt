@@ -33,6 +33,7 @@ export function WeeklyShell() {
   const [weeksLoading, setWeeksLoading] = useState(false)
   const [weeksError, setWeeksError]     = useState<string | null>(null)
   const [showInsight, setShowInsight]   = useState(false)
+  const [showRaw, setShowRaw]           = useState(false)
 
   const [reports, setReports]         = useState<WeeklyReport[]>([])
   const [insight, setInsight]         = useState<WeeklyInsight | null>(null)
@@ -135,40 +136,54 @@ export function WeeklyShell() {
     }
   }, [fetchDashData])
 
-  const [importing, setImporting] = useState(false)
-  const handleImportOutline = useCallback(async () => {
-    setImporting(true)
+  const [importing, setImporting]               = useState(false)
+  const [collectingTeamId, setCollectingTeamId] = useState<string | null>(null)
+
+  /** Outline 수집 공통 로직 — collectionId 지정 시 해당 팀만, 없으면 전체 팀 수집 */
+  const runImport = useCallback(async (collectionId: string | null, focusTeam: WeeklyTeam | null) => {
     try {
-      const res = await fetch('/api/weekly/import-outline', { method: 'POST' })
+      const res = await fetch('/api/weekly/import-outline', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(collectionId ? { collectionId } : {}),
+      })
       const data = await res.json()
-      if (data.ok) {
-        const total: number = data.total ?? 0
-        const results: { team: string; upserted: number; quarterDocsFound: string[] }[] = data.results ?? []
-        const docCount = results.reduce((s: number, r: { quarterDocsFound: string[] }) => s + r.quarterDocsFound.length, 0)
-        if (total === 0 && docCount === 0) {
-          toast.warning('수집된 분기 문서가 없습니다. Outline 문서 제목을 확인해 주세요.')
-        } else if (total === 0) {
-          toast.warning(`분기 문서 ${docCount}개를 찾았지만 섹션이 없습니다. 날짜 형식(## YYYY-MM-DD)을 확인해 주세요.`)
-        } else {
-          toast.success(`수집 완료 — ${total}건 저장`)
-        }
-        const team = teams.find(t => t.id === selectedTeam)
-        if (team) {
-          const freshWeeks = await fetchWeeks(team.label)
-          // 새로 수집된 데이터가 있으면 최신 주차 자동 분류
-          if (total > 0 && freshWeeks.length > 0) {
-            handleAutoAnalyze(freshWeeks[0]) // fire-and-forget
-          }
-        }
-      } else {
+      if (!data.ok) {
         toast.error(`수집 실패: ${data.error}`)
+        return
+      }
+      const total: number = data.total ?? 0
+      const results: { quarterDocsFound: string[] }[] = data.results ?? []
+      const docCount = results.reduce((s: number, r: { quarterDocsFound: string[] }) => s + r.quarterDocsFound.length, 0)
+      if (total === 0 && docCount === 0) {
+        toast.warning('수집된 분기 문서가 없습니다. Outline 문서 제목을 확인해 주세요.')
+      } else if (total === 0) {
+        toast.warning(`분기 문서 ${docCount}개를 찾았지만 섹션이 없습니다. 날짜 형식(## YYYY-MM-DD)을 확인해 주세요.`)
+      } else {
+        toast.success(`수집 완료 — ${total}건 저장`)
+      }
+
+      const team = focusTeam ?? teams.find(t => t.id === selectedTeam)
+      if (team) {
+        if (focusTeam && focusTeam.id !== selectedTeam) setSelectedTeam(team.id)
+        const freshWeeks = await fetchWeeks(team.label)
+        // 새로 수집된 데이터가 있으면 최신 주차 자동 분류
+        if (total > 0 && freshWeeks.length > 0) handleAutoAnalyze(freshWeeks[0]) // fire-and-forget
       }
     } catch {
       toast.error('수집 중 오류가 발생했습니다')
-    } finally {
-      setImporting(false)
     }
   }, [teams, selectedTeam, fetchWeeks, handleAutoAnalyze])
+
+  const handleImportOutline = useCallback(async () => {
+    setImporting(true)
+    try { await runImport(null, null) } finally { setImporting(false) }
+  }, [runImport])
+
+  const handleImportTeam = useCallback(async (team: WeeklyTeam) => {
+    setCollectingTeamId(team.id)
+    try { await runImport(team.collection_id, team) } finally { setCollectingTeamId(null) }
+  }, [runImport])
 
   return (
     <div className="flex flex-1 overflow-hidden">
@@ -200,6 +215,9 @@ export function WeeklyShell() {
             weeks={weeks}
             selectedIso={selectedIso}
             onSelect={setSelectedIso}
+            onCollectTeam={handleImportTeam}
+            collectingTeamId={collectingTeamId}
+            collectDisabled={importing || autoAnalyzing || collectingTeamId !== null}
           />
         )}
 
@@ -236,8 +254,15 @@ export function WeeklyShell() {
               )}
 
               <button
+                onClick={() => setShowRaw(v => !v)}
+                className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md border border-border text-foreground hover:bg-muted transition-colors"
+              >
+                <FileText size={11} />
+                원본
+              </button>
+              <button
                 onClick={() => setShowInsight(v => !v)}
-                className="ml-auto flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-ink-800 transition-colors"
+                className="flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-ink-800 transition-colors"
               >
                 <Sparkles size={11} />
                 AI 요약
@@ -314,6 +339,8 @@ export function WeeklyShell() {
                 onCloseInsight={() => setShowInsight(false)}
                 onInsightUpdate={setInsight}
                 onRefresh={handleRefresh}
+                showRaw={showRaw}
+                onCloseRaw={() => setShowRaw(false)}
               />
             </div>
           )}

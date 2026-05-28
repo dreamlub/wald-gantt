@@ -174,7 +174,7 @@ export function ApiKeysSection() {
     }
   }, [])
 
-  useEffect(() => { fetchKeys() }, [fetchKeys])
+  useEffect(() => { void (async () => { await fetchKeys() })() }, [fetchKeys])
 
   if (loading) {
     return <p className="text-sm text-ink-400">불러오는 중...</p>

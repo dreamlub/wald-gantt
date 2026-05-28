@@ -33,7 +33,7 @@ export default function NotesPage() {
     finally { setLoading(false) }
   }, [])
 
-  useEffect(() => { void load() }, [load])
+  useEffect(() => { void (async () => { await load() })() }, [load])
 
   function changeView(v: ViewMode) {
     setViewMode(v)

@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check, ChevronDown, ChevronRight } from 'lucide-react'
+import { Circle, CheckCircle2, StickyNote, CornerDownRight, Paperclip, Plus, Check } from 'lucide-react'
 import type { GanttTask, TaskStatus } from '@/types'
 import { fmtRange, isOverdue, overdueDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
