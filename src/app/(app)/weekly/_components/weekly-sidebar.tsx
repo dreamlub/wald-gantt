@@ -1,132 +1,172 @@
-﻿'use client'
+'use client'
 
-import { ChevronLeft, ChevronRight, CloudDownload, RefreshCw } from 'lucide-react'
+import { CloudDownload, RefreshCw, ChevronRight, Check } from 'lucide-react'
 import type { WeeklyTeam } from '../_lib/types'
+import type { WeeklyReport } from '@/types/index'
+import { teamColor } from '../_lib/team-colors'
 
 interface Props {
   teams: WeeklyTeam[]
-  selectedTeam: string
-  onSelectTeam: (id: string) => void
-  weeks: string[]          // week_start 'YYYY-MM-DD' 내림차순
+  weeks: string[]                                  // week_start 'YYYY-MM-DD' 내림차순
+  byWeek: Map<string, Map<string, WeeklyReport>>   // week → teamLabel → report
   selectedIso: string
-  onSelect: (weekStart: string) => void
+  onSelect: (weekStart: string) => void            // 주차 선택 (전체 원본)
+  onSelectTeam: (weekStart: string, teamLabel: string) => void  // 주차+팀 원본
   onCollectTeam: (team: WeeklyTeam) => void
   collectingTeamId: string | null
   collectDisabled: boolean
 }
 
-function getWeekLabel(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
+/** 'YYYY-MM-DD' → { wk: 'W22', label: '5월 4주', range: '5/25 – 5/31' } */
+function weekMeta(iso: string): { wk: string; label: string; range: string } {
+  const d = new Date(iso + 'T00:00:00')
+  const end = new Date(d); end.setDate(d.getDate() + 6)
   const month = d.getMonth() + 1
-  const day = d.getDate()
-  const dow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
-  const firstMon = 1 + (dow === 0 ? 1 : dow === 1 ? 0 : 8 - dow)
-  const weekNum = Math.floor((d.getDate() - firstMon) / 7) + 1
-  return `${month}월 ${weekNum}주 (${month}/${day}~)`
+  // 해당 월의 몇 번째 주(월요일 기준)
+  const firstDow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
+  const firstMon = 1 + (firstDow === 0 ? 1 : firstDow === 1 ? 0 : 8 - firstDow)
+  const weekNum = Math.max(1, Math.floor((d.getDate() - firstMon) / 7) + 1)
+  // ISO 주차 번호 (Wxx)
+  const jan1 = new Date(d.getFullYear(), 0, 1)
+  const isoWeek = Math.ceil(((d.getTime() - jan1.getTime()) / 86400000 + jan1.getDay() + 1) / 7)
+  const md = (x: Date) => `${x.getMonth() + 1}/${x.getDate()}`
+  return { wk: `W${isoWeek}`, label: `${month}월 ${weekNum}주`, range: `${md(d)} – ${md(end)}` }
 }
 
 export function WeeklySidebar({
-  teams, selectedTeam, onSelectTeam,
-  weeks, selectedIso, onSelect,
+  teams, weeks, byWeek, selectedIso, onSelect, onSelectTeam,
   onCollectTeam, collectingTeamId, collectDisabled,
 }: Props) {
-  const idx = weeks.indexOf(selectedIso)
-
-  function movePrev() {
-    if (idx < weeks.length - 1) onSelect(weeks[idx + 1])
-  }
-  function moveNext() {
-    if (idx > 0) onSelect(weeks[idx - 1])
-  }
-
-  const selectedWeek = weeks[idx]
+  const totalTeams = teams.length
 
   return (
     <div className="flex flex-col overflow-hidden flex-1 min-h-0">
-      {/* 팀 선택 + 팀별 수집 */}
-      {teams.length > 0 && (
-        <div className="shrink-0 px-2 pt-2 pb-1 border-b border-border">
-          <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">팀</div>
-          <div className="flex flex-col gap-0.5">
-            {teams.map(team => {
-              const collecting = collectingTeamId === team.id
-              return (
-                <div
-                  key={team.id}
-                  className={`sidebar-btn flex items-center gap-1 pr-1 ${selectedTeam === team.id ? 'sidebar-btn-active' : ''}`}
+      {/* 헤더 */}
+      <div className="shrink-0 px-4 pt-3 pb-2 border-b border-border">
+        <div className="text-sm font-semibold text-foreground">수집 현황</div>
+        <div className="text-2xs text-ink-400 mt-0.5">
+          최근 {weeks.length}주차 · {weeks.length}주 수집됨
+        </div>
+      </div>
+
+      {/* 주차 카드 목록 */}
+      <div className="flex flex-col gap-2 p-2 overflow-y-auto flex-1 min-h-0">
+        {weeks.length === 0 && (
+          <p className="px-2 py-4 text-sm text-muted-foreground text-center">수집된 주간보고가 없어요</p>
+        )}
+
+        {weeks.map((w, wi) => {
+          const meta = weekMeta(w)
+          const teamMap = byWeek.get(w) ?? new Map<string, WeeklyReport>()
+          const collectedCount = teams.filter(t => teamMap.has(t.label)).length
+          const isLatest = wi === 0
+          const isSelected = w === selectedIso
+          const expanded = isLatest || isSelected
+
+          if (expanded) {
+            // 펼침 카드 — 팀별 제출 상태
+            return (
+              <div
+                key={w}
+                className={`rounded-lg border bg-card overflow-hidden ${isSelected ? 'border-lilac-400 ring-1 ring-lilac-200' : 'border-border'}`}
+              >
+                <button
+                  onClick={() => onSelect(w)}
+                  className="w-full flex items-center gap-2 px-3 py-2.5 hover:bg-muted transition-colors text-left"
                 >
-                  <button
-                    onClick={() => onSelectTeam(team.id)}
-                    className="flex-1 truncate text-left min-w-0"
-                  >
-                    {team.label}
-                  </button>
-                  <button
-                    onClick={e => { e.stopPropagation(); onCollectTeam(team) }}
-                    disabled={collectDisabled}
-                    title={`${team.label} 주간보고 수집`}
-                    className="shrink-0 p-1 rounded text-ink-300 hover:text-lilac-600 hover:bg-card transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
-                  >
-                    {collecting
-                      ? <RefreshCw size={12} className="animate-spin" />
-                      : <CloudDownload size={12} />
-                    }
-                  </button>
+                  <span className="text-sm font-bold text-foreground">{meta.wk}</span>
+                  <span className="text-xs text-ink-500">{meta.label}</span>
+                  {isLatest && (
+                    <span className="text-4xs font-bold tracking-[0.04em] px-1.5 py-0.5 rounded-2xs bg-lilac-100 text-lilac-600">진행 중</span>
+                  )}
+                  <ChevronRight size={13} className="ml-auto text-ink-300" />
+                </button>
+                <div className="px-3 pb-1 text-2xs text-ink-400">{meta.range}</div>
+                <div className="flex flex-col py-1">
+                  {teams.map((t, ti) => {
+                    const submitted = teamMap.has(t.label)
+                    return (
+                      <button
+                        key={t.id}
+                        onClick={() => submitted ? onSelectTeam(w, t.label) : undefined}
+                        disabled={!submitted}
+                        className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors disabled:hover:bg-transparent disabled:cursor-default"
+                      >
+                        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: teamColor(ti) }} />
+                        <span className="flex-1 text-sm text-foreground truncate">{t.label}</span>
+                        {submitted ? (
+                          <span className="text-2xs text-ink-400">제출됨</span>
+                        ) : (
+                          <span className="text-2xs font-semibold text-status-late">미제출</span>
+                        )}
+                      </button>
+                    )
+                  })}
                 </div>
+              </div>
+            )
+          }
+
+          // 접힘 카드 — 색 막대 + N팀 수집
+          return (
+            <button
+              key={w}
+              onClick={() => onSelect(w)}
+              className="rounded-lg border border-border bg-card hover:border-lilac-300 transition-colors px-3 py-2.5 text-left"
+            >
+              <div className="flex items-center gap-2">
+                <span className="text-sm font-bold text-foreground">{meta.wk}</span>
+                <span className="text-xs text-ink-500">{meta.label}</span>
+              </div>
+              <div className="text-2xs text-ink-400 mt-0.5">{meta.range}</div>
+              <div className="flex gap-1 mt-2">
+                {teams.map((t, ti) => (
+                  <span
+                    key={t.id}
+                    className="h-1.5 flex-1 rounded-full"
+                    style={{ background: teamMap.has(t.label) ? teamColor(ti) : 'var(--color-ink-150)' }}
+                  />
+                ))}
+              </div>
+              <div className="flex items-center gap-1 mt-1.5 text-2xs text-ink-400">
+                <Check size={11} className="text-mint-500" />
+                {collectedCount}팀 수집
+                {collectedCount < totalTeams && (
+                  <span className="text-status-late ml-1">{totalTeams - collectedCount} 미제출</span>
+                )}
+              </div>
+            </button>
+          )
+        })}
+      </div>
+
+      {/* 팀별 수집 버튼 (하단) */}
+      {teams.length > 0 && (
+        <div className="shrink-0 px-2 py-2 border-t border-border">
+          <div className="px-2 mb-1 text-2xs font-semibold text-ink-400 uppercase tracking-wider">팀별 수집</div>
+          <div className="flex flex-wrap gap-1 px-1">
+            {teams.map((t, ti) => {
+              const collecting = collectingTeamId === t.id
+              return (
+                <button
+                  key={t.id}
+                  onClick={() => onCollectTeam(t)}
+                  disabled={collectDisabled}
+                  title={`${t.label} 수집`}
+                  className="flex items-center gap-1 px-2 py-1 rounded text-2xs text-ink-500 hover:text-foreground hover:bg-muted transition-colors disabled:opacity-40 disabled:cursor-not-allowed"
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: teamColor(ti) }} />
+                  <span className="truncate max-w-[72px]">{t.label}</span>
+                  {collecting
+                    ? <RefreshCw size={10} className="animate-spin shrink-0" />
+                    : <CloudDownload size={10} className="shrink-0" />
+                  }
+                </button>
               )
             })}
           </div>
         </div>
       )}
-
-      {/* 주차 목록 */}
-      <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
-        <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">주차 선택</div>
-
-        {/* 네비게이터 */}
-        {selectedWeek && (
-          <div className="mx-2 flex items-stretch bg-card border border-border rounded overflow-hidden mb-2">
-            <button
-              onClick={movePrev}
-              disabled={idx >= weeks.length - 1}
-              className="w-7 flex items-center justify-center text-ink-400 border-r border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed"
-            >
-              <ChevronLeft size={13} />
-            </button>
-            <div className="flex-1 flex flex-col items-center justify-center py-2 px-1">
-              <div className="text-sm font-semibold text-foreground">
-                {selectedWeek.replace(/-/g, '.')}
-              </div>
-            </div>
-            <button
-              onClick={moveNext}
-              disabled={idx <= 0}
-              className="w-7 flex items-center justify-center text-ink-400 border-l border-border hover:bg-muted hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed"
-            >
-              <ChevronRight size={13} />
-            </button>
-          </div>
-        )}
-
-        {weeks.map((w, i) => (
-          <button
-            key={w}
-            onClick={() => onSelect(w)}
-            className={`sidebar-btn ${w === selectedIso ? 'sidebar-btn-active' : ''}`}
-          >
-            <span className="flex-1 flex items-center gap-1.5 truncate text-left">
-              {getWeekLabel(w)}
-              {i === 0 && (
-                <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NEW</span>
-              )}
-            </span>
-          </button>
-        ))}
-
-        {weeks.length === 0 && (
-          <p className="px-2 text-sm text-muted-foreground">수집된 주간보고가 없어요</p>
-        )}
-      </div>
     </div>
   )
 }

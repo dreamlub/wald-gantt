@@ -14,21 +14,6 @@ export type UpsertWeeklyReportInput = {
   summary?: Record<string, unknown> | null
 }
 
-// 팀의 수집된 주차 목록 (week_start 내림차순)
-export async function getWeeklyWeeks(
-  team: string,
-  sb?: Sb,
-): Promise<string[]> {
-  const client = sb ?? createBrowserClient()
-  const { data, error } = await client
-    .from('weekly_reports')
-    .select('week_start')
-    .eq('team', team)
-    .order('week_start', { ascending: false })
-  if (error) throw error
-  return [...new Set((data ?? []).map(r => r.week_start as string))]
-}
-
 // 해당 주 전체 리포트 조회 (week_start 기준)
 export async function getWeeklyReports(
   weekStart: string,
@@ -57,6 +42,35 @@ export async function getWeeklyInsight(
     .maybeSingle()
   return (data as WeeklyInsight | null) ?? null
 }
+
+/**
+ * 전체 팀의 모든 주차 리포트를 한 번에 조회해 주차×팀 매트릭스로 구성.
+ * 사이드바의 "수집 현황"(주차별 팀 제출 상태)에 사용.
+ * 반환: 주차 목록(내림차순) + week→team(label)→report 맵.
+ */
+export async function getWeeklyMatrix(
+  sb?: Sb,
+): Promise<{ weeks: string[]; byWeek: Map<string, Map<string, WeeklyReport>> }> {
+  const client = sb ?? createBrowserClient()
+  const { data, error } = await client
+    .from('weekly_reports')
+    .select('*')
+    .order('week_start', { ascending: false })
+    .order('team', { ascending: true })
+  if (error) throw error
+
+  const reports = (data ?? []) as WeeklyReport[]
+  const byWeek = new Map<string, Map<string, WeeklyReport>>()
+  for (const r of reports) {
+    let teamMap = byWeek.get(r.week_start)
+    if (!teamMap) { teamMap = new Map(); byWeek.set(r.week_start, teamMap) }
+    // 같은 팀·주차에 source가 여러 개면 먼저 온 것(정렬상 안정) 유지
+    if (!teamMap.has(r.team)) teamMap.set(r.team, r)
+  }
+  const weeks = [...byWeek.keys()].sort((a, b) => (a < b ? 1 : -1))
+  return { weeks, byWeek }
+}
+
 
 export async function analyzeWeekly(
   weekStart: string,
