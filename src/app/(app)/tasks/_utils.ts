@@ -1,4 +1,5 @@
 import { todayStrKST, parseDateStr, MS_PER_DAY, formatYearMonth, type WeekInfo } from '@/lib/gantt-utils'
+import { kstToday, kstParts, addDaysYMD } from '@/lib/kst'
 import type { GanttTask, TaskStatus } from '@/types'
 
 const LABEL_COLORS = [
@@ -94,24 +95,17 @@ export function startDelayedDays(start: string | null): number {
 /** KST 기준 이번 주(오늘~이번 주 토요일) 마감 여부 */
 export function isDueThisWeek(due: string | null) {
   if (!due) return false
-  const today = todayStrKST()
-  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
-  const daysUntilSat = 6 - kstNow.getUTCDay()
-  const sat = new Date(kstNow.getTime() + daysUntilSat * MS_PER_DAY)
-  const endStr = `${sat.getUTCFullYear()}-${String(sat.getUTCMonth() + 1).padStart(2, '0')}-${String(sat.getUTCDate()).padStart(2, '0')}`
-  return due >= today && due <= endStr
+  const today = kstToday()
+  const sat = addDaysYMD(today, 6 - kstParts().dow)
+  return due >= today && due <= sat
 }
 
 /** KST 기준 다음 주(다음 주 일~토) 마감 여부 */
 export function isDueNextWeek(due: string | null) {
   if (!due) return false
-  const kstNow = new Date(Date.now() + 9 * 60 * 60 * 1000)
-  const daysUntilNextSun = 7 - kstNow.getUTCDay()
-  const nextSun = new Date(kstNow.getTime() + daysUntilNextSun * MS_PER_DAY)
-  const nextSat = new Date(nextSun.getTime() + 6 * MS_PER_DAY)
-  const ymd = (d: Date) =>
-    `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
-  return due >= ymd(nextSun) && due <= ymd(nextSat)
+  const nextSun = addDaysYMD(kstToday(), 7 - kstParts().dow)
+  const nextSat = addDaysYMD(nextSun, 6)
+  return due >= nextSun && due <= nextSat
 }
 
 // ── 간트 뷰 전용 유틸 ─────────────────────────────────────────────────────────

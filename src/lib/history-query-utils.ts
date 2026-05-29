@@ -1,15 +1,12 @@
 import type { HistoryItem, Priority, Tag } from '@/app/(app)/summary/_lib/types'
+import { kstDate } from '@/lib/kst'
 
+// 하위 호환 re-export — KST 기준은 @/lib/kst 단일 모듈로 일원화됨
+export { kstDayStart, kstDayEnd } from '@/lib/kst'
+
+/** UTC timestamp → KST 기준 `YYYY-MM-DD` */
 export function toKSTDate(utc: string): string {
-  return new Date(new Date(utc).getTime() + 9 * 3600_000).toISOString().slice(0, 10)
-}
-
-export function kstDayStart(date: string): string {
-  return `${date}T00:00:00+09:00`
-}
-
-export function kstDayEnd(date: string): string {
-  return `${date}T23:59:59+09:00`
+  return kstDate(utc)
 }
 
 export function matchesAllTags(itemTags: Tag[] | null | undefined, selectedTags: Iterable<Tag>): boolean {

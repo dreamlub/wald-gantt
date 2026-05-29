@@ -9,6 +9,7 @@ import { useDroppable } from '@dnd-kit/core'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
+import { kstDate } from '@/lib/kst'
 import { fmtRange, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { LabelBadge } from './label-badge'
@@ -139,7 +140,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
                 const to = fmtHHMM(new Date(endMs).toISOString())
                 return `${dateLabel} ${from} → ${to}`
               })()
-          const dateStr = new Date(task.scheduled_at!).toISOString().slice(0, 10)
+          const dateStr = kstDate(task.scheduled_at!)
           return (
             <Link
               href={`/calendar?highlight=${task.id}&date=${dateStr}`}

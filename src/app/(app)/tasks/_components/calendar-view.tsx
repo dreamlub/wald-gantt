@@ -3,6 +3,7 @@
 import { useState } from 'react'
 import { ChevronLeft, ChevronRight } from 'lucide-react'
 import { todayStrKST } from '@/lib/gantt-utils'
+import { kstParts } from '@/lib/kst'
 import type { GanttTask } from '@/types'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '../_constants'
 import { DAY_LABELS } from '@/app/(app)/calendar/_constants'
@@ -16,8 +17,8 @@ interface Props {
 export function CalendarView({ tasks, onEdit }: Props) {
   const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
   const [cur, setCur] = useState(() => {
-    const kst = new Date(Date.now() + 9 * 60 * 60 * 1000)
-    return { year: kst.getUTCFullYear(), month: kst.getUTCMonth() }
+    const { year, month } = kstParts()
+    return { year, month: month - 1 }
   })
   const todayKST = todayStrKST()
   const [cty, ctm, ctd] = todayKST.split('-').map(Number)

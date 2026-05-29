@@ -6,6 +6,7 @@ import type { Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
 import { PriorityBars } from './badges'
 import { brandColor } from '@/lib/history-service'
+import { kstDate } from '@/lib/kst'
 import { GroupTitle, MonthGridSection, DateRangePanel } from './sidebar-date-panels'
 import { RawDataSidebarPanel } from './raw-data-sidebar'
 
@@ -145,7 +146,7 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
 }) {
   const timelineBrandCounts: Record<string, number> = {}
   for (const h of history) {
-    const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+    const ymd = kstDate(h.occurred_at)
     if (dateFrom && ymd < dateFrom) continue
     if (dateTo && ymd > dateTo) continue
     const b = h.brand_name ?? '미분류'
@@ -202,7 +203,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
 }) {
   const selectedDate = dateFrom || dateStr(new Date())
   const dayItems = history.filter(h =>
-    new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }) === selectedDate
+    kstDate(h.occurred_at) === selectedDate
   )
   const dayTagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) dayTagCounts[t] = 0

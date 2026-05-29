@@ -10,6 +10,7 @@ import { PriorityBars, BrandBadge } from './badges'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { PriorityCallout } from './priority-callout'
 import { toKSTDate } from '@/lib/history-query-utils'
+import { kstDayStart, kstDayRange } from '@/lib/kst'
 
 export const SEV_TO_PRIORITY: Record<string, Priority> = { urgent: 'high', watch: 'medium', info: 'low' }
 
@@ -145,17 +146,15 @@ export function ActionDetailDrawer({
     ;(async () => {
       const sb = createClient()
 
-      // occurred_at은 UTC로 저장하고, 조회 범위만 KST 날짜 경계(+09:00)로 비교한다.
-      const [y, mo, d] = date.split('-').map(Number)
-      const nextDate = new Date(y, mo - 1, d + 1)
-      const nextDay = `${nextDate.getFullYear()}-${String(nextDate.getMonth() + 1).padStart(2, '0')}-${String(nextDate.getDate()).padStart(2, '0')}`
+      // occurred_at은 UTC로 저장하고, 조회 범위만 KST 날짜 경계로 비교한다.
+      const dayRange = kstDayRange(date)
 
       const { data: histData } = await sb
         .from('client_history')
         .select('id, title, body, tags, priority, author, thread_count, raw_message_id')
         .eq('brand_name', item.brand)
-        .gte('occurred_at', `${date}T00:00:00+09:00`)
-        .lt('occurred_at', `${nextDay}T00:00:00+09:00`)
+        .gte('occurred_at', dayRange.gte)
+        .lt('occurred_at', dayRange.lt)
         .is('deleted_at', null)
 
       if (cancelled) return
@@ -196,7 +195,7 @@ export function ActionDetailDrawer({
           .from('client_history')
           .select('id, title, body, tags, occurred_at')
           .eq('brand_name', item.brand)
-          .lt('occurred_at', `${date}T00:00:00+09:00`)
+          .lt('occurred_at', kstDayStart(date))
           .or(orFilter)
           .is('deleted_at', null)
           .order('occurred_at', { ascending: false })

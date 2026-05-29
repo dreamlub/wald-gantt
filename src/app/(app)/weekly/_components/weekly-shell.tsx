@@ -7,6 +7,7 @@ import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import { WeeklySidebar } from './weekly-sidebar'
 import { WeeklyDashboard } from './weekly-dashboard'
 import { getWeeklyWeeks, getWeeklyReports, getWeeklyInsight, analyzeWeekly } from '@/lib/weekly-service'
+import { addDaysYMD } from '@/lib/kst'
 import { toast } from 'sonner'
 
 function fmtHeader(isoDate: string): string {
@@ -20,9 +21,7 @@ function fmtPrev(isoDate: string): string {
 }
 
 function prevWeekOf(isoDate: string): string {
-  const d = new Date(isoDate + 'T00:00:00')
-  d.setDate(d.getDate() - 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysYMD(isoDate, -7)
 }
 
 export function WeeklyShell() {

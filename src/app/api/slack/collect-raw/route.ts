@@ -2,6 +2,7 @@ import { NextRequest } from 'next/server'
 import { WebClient } from '@slack/web-api'
 import { createClient } from '@/lib/supabase/server'
 import { getApiKey } from '@/lib/workspace-api-keys'
+import { kstDateRange } from '@/lib/kst'
 import {
   fetchBrandMappings, getExcludedChannelIds,
   buildSourceRef, delay,
@@ -23,18 +24,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>) {
   return member.workspace_id
 }
 
-function dateRange(from: string, to: string): string[] {
-  const dates: string[] = []
-  const [fy, fm, fd] = from.split('-').map(Number)
-  const [ty, tm, td] = to.split('-').map(Number)
-  let d = new Date(Date.UTC(fy, fm - 1, fd))
-  const end = new Date(Date.UTC(ty, tm - 1, td))
-  while (d <= end) {
-    dates.push(d.toISOString().slice(0, 10))
-    d = new Date(Date.UTC(d.getUTCFullYear(), d.getUTCMonth(), d.getUTCDate() + 1))
-  }
-  return dates
-}
+const dateRange = kstDateRange
 
 export async function POST(req: NextRequest) {
   const { from, to } = await req.json() as { from: string; to: string }

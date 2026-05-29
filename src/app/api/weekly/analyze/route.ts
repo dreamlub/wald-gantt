@@ -5,6 +5,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiKey } from '@/lib/workspace-api-keys'
+import { addDaysYMD } from '@/lib/kst'
 import type { WeeklyReportSummary, WeeklyReportItem, WeeklyDiffSummary } from '@/types/index'
 
 // AI 추출용 스키마 - change/prev 필드 없이 순수 추출만
@@ -44,9 +45,7 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Pro
 }
 
 function subtractWeek(dateStr: string): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() - 7)
-  return d.toISOString().slice(0, 10)
+  return addDaysYMD(dateStr, -7)
 }
 
 function countItems(summaries: WeeklyReportSummary[], type: string): number {

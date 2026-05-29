@@ -7,6 +7,7 @@ import { ko } from 'date-fns/locale'
 
 import type { HistoryItem } from '../_lib/types'
 import { dateStr } from './_sidebar-utils'
+import { kstDate } from '@/lib/kst'
 import { Calendar } from '@/components/ui/calendar'
 import { Popover, PopoverTrigger, PopoverContent } from '@/components/ui/popover'
 
@@ -66,7 +67,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
   const dayCounts = (() => {
     const m: Record<string, number> = {}
     for (const h of history) {
-      const ymd = new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' })
+      const ymd = kstDate(h.occurred_at)
       m[ymd] = (m[ymd] ?? 0) + 1
     }
     return m

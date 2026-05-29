@@ -28,7 +28,7 @@ function item(overrides: Partial<HistoryItem>): HistoryItem {
 describe('history query date helpers', () => {
   it('builds KST day boundaries while keeping occurred_at stored as UTC-compatible input', () => {
     expect(kstDayStart('2026-01-07')).toBe('2026-01-07T00:00:00+09:00')
-    expect(kstDayEnd('2026-01-07')).toBe('2026-01-07T23:59:59+09:00')
+    expect(kstDayEnd('2026-01-07')).toBe('2026-01-07T23:59:59.999+09:00')
   })
 
   it('converts UTC timestamps to KST date before slicing', () => {

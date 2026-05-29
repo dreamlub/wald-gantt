@@ -2,6 +2,7 @@ import { createClient } from '@supabase/supabase-js'
 import { WebClient } from '@slack/web-api'
 import type { Block, KnownBlock } from '@slack/web-api'
 import { formatDay } from '@/lib/date-utils'
+import { kstToday, addDaysYMD } from '@/lib/kst'
 
 const PRIORITY_FLAG: Record<number, string> = { 3: '🔺 ', 2: '', 1: '', 0: '' }
 
@@ -48,8 +49,8 @@ export function getReminderConfig(env: ReminderEnv): ReminderConfig {
   }
 }
 
-function todayKST()    { return new Date(Date.now() + 9 * 3600000).toISOString().slice(0, 10) }
-function tomorrowKST() { return new Date(Date.now() + 33 * 3600000).toISOString().slice(0, 10) }
+function todayKST()    { return kstToday() }
+function tomorrowKST() { return addDaysYMD(kstToday(), 1) }
 
 function diffDays(due: string, today: string) {
   return Math.round((new Date(today).getTime() - new Date(due).getTime()) / 86400000)

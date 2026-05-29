@@ -1,5 +1,6 @@
 // 'YYYY-MM' 형식 유틸리티
 import { format } from 'date-fns'
+import { kstToday, kstYear } from '@/lib/kst'
 
 /** 1일의 밀리초 (24 * 60 * 60 * 1000) */
 export const MS_PER_DAY = 86_400_000
@@ -13,16 +14,16 @@ export function isLightColor(hex: string): boolean {
 }
 
 // ── KST(UTC+9) 유틸 ───────────────────────────────────────────
+// KST 기준은 @/lib/kst 단일 모듈로 일원화됨. 아래는 하위 호환 별칭.
 
-/** KST(UTC+9) 기준 오늘 날짜 문자열 "YYYY-MM-DD" 반환 */
+/** KST 기준 오늘 날짜 문자열 "YYYY-MM-DD" 반환 */
 export function todayStrKST(): string {
-  const d = new Date(Date.now() + 9 * 60 * 60 * 1000)
-  return `${d.getUTCFullYear()}-${String(d.getUTCMonth() + 1).padStart(2, '0')}-${String(d.getUTCDate()).padStart(2, '0')}`
+  return kstToday()
 }
 
-/** KST(UTC+9) 기준 현재 연도 */
+/** KST 기준 현재 연도 */
 export function currentYearKST(): number {
-  return new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
+  return kstYear()
 }
 
 /** "YYYY-MM-DD" 문자열을 로컬 자정 Date로 파싱 (UTC midnight 파싱 문제 방지) */

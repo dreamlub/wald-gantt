@@ -3,6 +3,7 @@ import Anthropic from '@anthropic-ai/sdk'
 import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
+import { kstDayStart, kstDayEnd, addDaysYMD } from '@/lib/kst'
 import { getApiKey } from '@/lib/workspace-api-keys'
 
 const ActionItemSchema = z.object({
@@ -153,12 +154,9 @@ export async function POST(req: NextRequest) {
         }
         const anthropic = new Anthropic({ apiKey: anthropicApiKey })
 
-        // 주 범위 계산 (월~일). occurred_at은 순수 UTC 저장이므로 경계는 KST(+09:00)로 명시.
-        const [wy, wm, wd] = week_start.split('-').map(Number)
-        const sundayDate = new Date(Date.UTC(wy, wm - 1, wd + 6))
-        const sundayStr = sundayDate.toISOString().slice(0, 10)
-        const weekStartBound = `${week_start}T00:00:00+09:00`
-        const weekEndBound = `${sundayStr}T23:59:59+09:00`
+        // 주 범위 계산 (월~일). occurred_at은 순수 UTC 저장이므로 경계는 KST로 비교.
+        const weekStartBound = kstDayStart(week_start)
+        const weekEndBound = kstDayEnd(addDaysYMD(week_start, 6))
 
         // 기존 인사이트 조회
         const { data: existing } = await sb

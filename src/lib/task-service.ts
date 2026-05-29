@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/client'
 import type { GanttTask, Priority, RecurrenceRule, TaskStatus, TaskType } from '@/types'
+import { addDaysYMD, addMonthsYMD, kstDayRange } from '@/lib/kst'
 import { removeTaskLinkFromNotes } from './note-service'
 
 const db = () => createClient()
@@ -170,9 +171,7 @@ export async function duplicateTask(workspaceId: string, task: GanttTask): Promi
 // ── 반복 태스크 ────────────────────────────────────────────
 
 function addDays(dateStr: string, days: number): string {
-  const d = new Date(dateStr + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return d.toISOString().slice(0, 10)
+  return addDaysYMD(dateStr, days)
 }
 
 function calcNextDates(
@@ -192,11 +191,7 @@ function calcNextDates(
     }
   }
 
-  function shiftMonth(dateStr: string, months: number): string {
-    const d = new Date(dateStr + 'T00:00:00')
-    d.setMonth(d.getMonth() + months)
-    return d.toISOString().slice(0, 10)
-  }
+  const shiftMonth = addMonthsYMD
 
   const months = rule === 'monthly' ? interval : interval * 12
   return {
@@ -263,16 +258,15 @@ export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): P
 // ── Time Blocking ──────────────────────────────────────────
 
 export async function getScheduledTasks(workspaceId: string, dateStr: string): Promise<GanttTask[]> {
-  // scheduled_at은 캘린더 전반에서 KST 기준 instant로 다루므로 경계도 KST(+09:00)로 명시
-  const dayStart = `${dateStr}T00:00:00+09:00`
-  const dayEnd   = `${dateStr}T23:59:59+09:00`
+  // scheduled_at은 캘린더 전반에서 KST 기준 instant로 다루므로 경계도 KST 반열린 구간으로 비교
+  const { gte, lt } = kstDayRange(dateStr)
   const { data, error } = await db()
     .from('gantt_tasks')
     .select('*')
     .eq('workspace_id', workspaceId)
     .is('deleted_at', null)
-    .gte('scheduled_at', dayStart)
-    .lte('scheduled_at', dayEnd)
+    .gte('scheduled_at', gte)
+    .lt('scheduled_at', lt)
     .order('scheduled_at')
   if (error) throw error
   return (data ?? []).map(row => ({ ...row, projects: [] }))

@@ -2,6 +2,7 @@ import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { Client, HistoryItem, HistoryType, StatusKind, Priority, Tag } from '@/app/(app)/summary/_lib/types'
 import { kstDayEnd, kstDayStart, toKSTDate } from '@/lib/history-query-utils'
+import { addDaysYMD, kstToday } from '@/lib/kst'
 
 type Sb = SupabaseClient
 
@@ -80,12 +81,8 @@ export async function listHistory(sb?: Sb, daysBack = 90): Promise<HistoryItem[]
   const client = sb ?? createBrowserClient()
   const workspaceId = await getWorkspaceId(client)
 
-  // 날짜 하한: KST 기준 daysBack일 전 00:00 UTC
-  const since = new Date()
-  since.setDate(since.getDate() - daysBack)
-  since.setHours(since.getHours() - 9) // KST→UTC 보정
-  since.setMinutes(0, 0, 0)
-  const sinceIso = since.toISOString()
+  // 날짜 하한: KST 기준 daysBack일 전 00:00 (occurred_at은 UTC지만 +09:00 경계로 비교)
+  const sinceIso = kstDayStart(addDaysYMD(kstToday(), -daysBack))
 
   // thread reply IDs (workspace 범위)
   const replyResult = await client.rpc('get_thread_reply_raw_ids', {

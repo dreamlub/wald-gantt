@@ -17,6 +17,7 @@ import {
   addProject, updateProject, softDeleteProject, restoreProject,
 } from '@/lib/gantt-service'
 import type { GanttBoard, GanttCategory, GanttProject, GanttStatus, Priority, Workspace } from '@/types'
+import { kstYear } from '@/lib/kst'
 import { useConfirm } from '@/hooks/use-confirm'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 
@@ -31,8 +32,8 @@ export default function GanttPage() {
 
   // 마운트 시 1회 계산 (현재 KST 연도 기준 뷰 범위). lazy init으로 render 중 시각 호출 회피.
   const [{ viewStart, viewEnd }] = useState(() => {
-    const kstYear = new Date(Date.now() + 9 * 60 * 60 * 1000).getUTCFullYear()
-    return { viewStart: `${kstYear - 1}-01`, viewEnd: `${kstYear + 2}-12` }
+    const y = kstYear()
+    return { viewStart: `${y - 1}-01`, viewEnd: `${y + 2}-12` }
   })
 
   const [workspace, setWorkspace]             = useState<Workspace | null>(null)

@@ -1,4 +1,5 @@
 import type { createClient } from '@/lib/supabase/server'
+import { kstDate } from '@/lib/kst'
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>
 
@@ -59,9 +60,9 @@ export interface EventTimes { start: EventTime; end: EventTime }
 export function buildEventTimes(scheduledAt: string, durationMinutes: number | null): EventTimes {
   const isAllDay = durationMinutes === 0 || durationMinutes === null
   if (isAllDay) {
-    // KST 달력 날짜로 변환 (서버 TZ 무관하게 +9h 후 UTC date 슬라이스)
+    // KST 달력 날짜로 변환
     const startDate = kstDate(scheduledAt)
-    const endDate   = kstDate(new Date(new Date(scheduledAt).getTime() + 86_400_000).toISOString())
+    const endDate   = kstDate(new Date(new Date(scheduledAt).getTime() + 86_400_000))
     return { start: { date: startDate }, end: { date: endDate } } // end는 exclusive
   }
   const startMs = new Date(scheduledAt).getTime()
@@ -70,10 +71,6 @@ export function buildEventTimes(scheduledAt: string, durationMinutes: number | n
     start: { dateTime: new Date(startMs).toISOString(), timeZone: 'Asia/Seoul' },
     end:   { dateTime: new Date(endMs).toISOString(),   timeZone: 'Asia/Seoul' },
   }
-}
-
-function kstDate(iso: string): string {
-  return new Date(new Date(iso).getTime() + 9 * 3_600_000).toISOString().slice(0, 10)
 }
 
 interface GcalBody extends EventTimes {
