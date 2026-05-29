@@ -46,6 +46,7 @@ function TooltipContent({
         side={side}
         sideOffset={sideOffset}
         className="isolate z-tooltip"
+        style={{ zIndex: 'var(--z-tooltip)' }}
       >
         <TooltipPrimitive.Popup
           data-slot="tooltip-content"
