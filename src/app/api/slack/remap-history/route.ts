@@ -37,25 +37,30 @@ export async function POST() {
         .select('id')
         .eq('workspace_id', workspaceId)
         .eq('channel_id', mapping.channel_id)
+        .limit(20000) // PostgREST 기본 1000행 캡 회피: 채널 전체 메시지를 모두 대상으로
 
       if (!rawRows || rawRows.length === 0) continue
 
       const rawIds = rawRows.map(r => r.id)
 
-      const { data: updated, error: updErr } = await sb
-        .from('client_history')
-        .update({ brand_name: mapping.brand_name })
-        .eq('workspace_id', workspaceId)
-        .in('raw_message_id', rawIds)
-        .is('deleted_at', null)
-        .select('id')
+      // .in() URL 길이 한계 회피를 위해 500개씩 청크 처리
+      for (let i = 0; i < rawIds.length; i += 500) {
+        const chunk = rawIds.slice(i, i + 500)
+        const { data: updated, error: updErr } = await sb
+          .from('client_history')
+          .update({ brand_name: mapping.brand_name })
+          .eq('workspace_id', workspaceId)
+          .in('raw_message_id', chunk)
+          .is('deleted_at', null)
+          .select('id')
 
-      if (updErr) {
-        console.error(`[remap-history] channel_id=${mapping.channel_id} update error:`, updErr)
-        continue
+        if (updErr) {
+          console.error(`[remap-history] channel_id=${mapping.channel_id} update error:`, updErr)
+          continue
+        }
+
+        totalUpdated += updated?.length ?? 0
       }
-
-      totalUpdated += updated?.length ?? 0
     }
 
     return Response.json({ updated: totalUpdated, mappings_applied: mappings.length })

@@ -66,6 +66,7 @@ export async function POST() {
           .eq('workspace_id', workspaceId)
           .is('deleted_at', null)
           .not('raw_message_id', 'is', null)
+          .limit(20000) // PostgREST 기본 1000행 캡 회피: 전체 client_history 대상
 
         if (histErr) throw histErr
         if (!historyItems || historyItems.length === 0) {

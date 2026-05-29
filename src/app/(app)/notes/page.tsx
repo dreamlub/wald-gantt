@@ -90,6 +90,9 @@ export default function NotesPage() {
   async function handleDragEnd(event: DragEndEvent) {
     const { active, over } = event
     if (!over || active.id === over.id) return
+    // 검색 필터가 켜진 동안에는 부분집합만 보이므로 정렬을 막는다
+    // (필터된 부분집합에 sort_order를 부여하면 숨겨진 메모들의 전역 순서가 오염됨)
+    if (searchQuery) return
 
     const activeNote = notes.find(n => n.id === active.id)
     const overNote   = notes.find(n => n.id === over.id)

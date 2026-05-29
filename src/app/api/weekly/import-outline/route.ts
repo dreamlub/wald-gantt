@@ -40,14 +40,16 @@ function flattenTree(nodes: OutlineTreeNode[] | undefined, parentId: string | nu
 /** ## YYYY-MM-DD 또는 ## YYYY.MM.DD 섹션 단위로 분리 */
 function parseWeeklySections(text: string): { weekStart: string; content: string }[] {
   const sections: { weekStart: string; content: string }[] = []
-  // 하이픈(실제 형식) · 점(레거시) 둘 다 허용
-  const regex = /^## (\d{4}[-.]?\d{2}[-.]?\d{2})/gm
+  // 하이픈(실제 형식) · 점(레거시) 둘 다 허용하되 구분자는 필수 (YYYY-MM-DD 형태만)
+  const regex = /^## (\d{4}[-.]\d{2}[-.]\d{2})/gm
   const matches: { index: number; weekStart: string }[] = []
 
   let m: RegExpExecArray | null
   while ((m = regex.exec(text)) !== null) {
     // 구분자를 하이픈으로 통일 → YYYY-MM-DD
     const normalized = m[1].replace(/\./g, '-')
+    // 잘못된 날짜 형식은 week_start 오염 방지를 위해 건너뜀
+    if (!/^\d{4}-\d{2}-\d{2}$/.test(normalized)) continue
     matches.push({ index: m.index, weekStart: normalized })
   }
 

@@ -52,6 +52,7 @@ export function useBarDrag({
 
       const startX = e.clientX
       let snapDelta = 0
+      let dayDelta = 0
       let previewColStart = origColStart, previewColEnd = origColEnd
 
       const cursor = dragType === 'move' ? 'grabbing' : 'ew-resize'
@@ -76,6 +77,7 @@ export function useBarDrag({
         let tooltipText = ''
         if (viewMode === 'day') {
           const delta = Math.round(raw / cw)
+          dayDelta = delta
           if (dragType === 'move') {
             previewColStart = Math.max(0, Math.min(origColStart + delta, totalCols - 1))
             const span = origColEnd - origColStart
@@ -110,8 +112,13 @@ export function useBarDrag({
         document.removeEventListener('mouseup', onMouseUp)
         setBarDrag(null)
         if (viewMode === 'day') {
-          if (previewColStart !== origColStart || previewColEnd !== origColEnd)
-            await onUpdateProjectDates(p.id, ds[Math.max(0, Math.min(previewColStart, ds.length-1))].key, ds[Math.max(0, Math.min(previewColEnd, ds.length-1))].key)
+          // 뷰 가장자리 컬럼 키가 아닌 실제 날짜 + 일수 delta로 저장 (뷰 밖에서 시작/끝나는 바의 날짜 손상 방지)
+          let ns = origStartDate, ne = origEndDate
+          if (dragType === 'move')             { ns = shift(origStartDate, dayDelta); ne = shift(origEndDate, dayDelta) }
+          else if (dragType === 'resize-left') { ns = shift(origStartDate, dayDelta); if (ns > origEndDate)   ns = origEndDate }
+          else                                 { ne = shift(origEndDate, dayDelta);   if (ne < origStartDate) ne = origStartDate }
+          if (fmt(ns) !== p.start_date || fmt(ne) !== p.end_date)
+            await onUpdateProjectDates(p.id, fmt(ns), fmt(ne))
         } else if (snapDelta !== 0) {
           const d = snapDelta * snapDays
           let ns = origStartDate, ne = origEndDate
