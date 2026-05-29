@@ -1,7 +1,7 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
-
-const anthropic = new Anthropic({ apiKey: process.env.ANTHROPIC_API_KEY })
+import { createClient } from '@/lib/supabase/server'
+import { getApiKey } from '@/lib/workspace-api-keys'
 
 export async function POST(req: NextRequest) {
   const { date, content } = await req.json() as { date: string; content: string }
@@ -17,6 +17,29 @@ export async function POST(req: NextRequest) {
       }
 
       try {
+        // 인증 가드 + 워크스페이스 API 키 사용 (누구나 호출해 비용 유발하던 문제 차단)
+        const sb = await createClient()
+        const { data: { user } } = await sb.auth.getUser()
+        if (!user) {
+          send('error', { message: 'Not authenticated' })
+          return
+        }
+        const { data: member } = await sb
+          .from('workspace_members')
+          .select('workspace_id')
+          .eq('user_id', user.id)
+          .single()
+        if (!member) {
+          send('error', { message: 'No workspace' })
+          return
+        }
+        const anthropicApiKey = await getApiKey(sb, member.workspace_id, 'anthropic', process.env.ANTHROPIC_API_KEY)
+        if (!anthropicApiKey) {
+          send('error', { message: 'Anthropic API 키 미설정. 설정 > API 키에서 등록해 주세요.' })
+          return
+        }
+        const anthropic = new Anthropic({ apiKey: anthropicApiKey })
+
         send('status', { message: '요약 생성 중...' })
 
         const message = await anthropic.messages.create({

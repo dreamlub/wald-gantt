@@ -9,10 +9,14 @@ export async function GET(req: NextRequest) {
 
   const sb = await createClient()
 
+  // 심층방어: RLS 외에 명시적 인증 가드 + 본인 워크스페이스로 한정
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
   const { data: member } = await sb
     .from('workspace_members')
     .select('workspace_id')
-    .limit(1)
+    .eq('user_id', user.id)
     .single()
 
   if (!member) return NextResponse.json({ rows: [] })

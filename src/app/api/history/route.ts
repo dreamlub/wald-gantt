@@ -9,6 +9,10 @@ export async function GET(req: NextRequest) {
 
   const sb = await createClient()
 
+  // 심층방어: RLS 외에 명시적 인증 가드 (다른 라우트와 동일 패턴)
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Not authenticated' }, { status: 401 })
+
   if (mode === 'stats') {
     const stats = await getHistoryStats(
       sp.get('from') ?? undefined,
