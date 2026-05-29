@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, type CSSProperties } from 'react'
+import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { Pencil, X } from 'lucide-react'
 import type { CalEvent } from '@/types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -25,6 +25,16 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
   const blockRef = useRef<HTMLDivElement>(null)
   const clickStart = useRef<{ x: number; y: number } | null>(null)
   const [hovered, setHovered] = useState(false)
+
+  useEffect(() => {
+    const el = blockRef.current
+    if (!el) return
+    const enter = () => setHovered(true)
+    const leave = () => setHovered(false)
+    el.addEventListener('mouseenter', enter)
+    el.addEventListener('mouseleave', leave)
+    return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
+  }, [])
 
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
@@ -103,8 +113,6 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
             className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
             style={blockStyle}
           />

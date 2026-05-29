@@ -46,6 +46,17 @@ export function TaskBlock({
     return () => clearTimeout(timer)
   }, [highlight, onHighlightClear])
 
+  /* ── 호버 상태 (툴팁 간섭 방지용 네이티브 리스너) ── */
+  useEffect(() => {
+    const el = blockRef.current
+    if (!el) return
+    const enter = () => setHovered(true)
+    const leave = () => setHovered(false)
+    el.addEventListener('mouseenter', enter)
+    el.addEventListener('mouseleave', leave)
+    return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
+  }, [])
+
   const color  = STATUS_COLOR[task.status] ?? 'var(--color-ink-400)'
   const bg     = STATUS_BG_COLOR[task.status] ?? 'var(--color-ink-100)'
   const isDone = task.status === 'done'
@@ -149,8 +160,6 @@ export function TaskBlock({
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
-            onMouseEnter={() => setHovered(true)}
-            onMouseLeave={() => setHovered(false)}
             className={`absolute rounded px-1.5 py-0.5 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0 ${
               highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
             }`}
