@@ -130,7 +130,7 @@ export function TaskDetailDrawer({
       {/* 헤더 + 탭 */}
       <DrawerHeader>
         <div className="flex items-center px-5 h-12 gap-1">
-          <h2 className="text-sm font-semibold text-foreground flex-1">태스크 수정</h2>
+          <h2 className="text-base font-semibold text-foreground flex-1">태스크 수정</h2>
           <div className="flex items-center gap-1">
             {onDuplicate && task && (
               <button

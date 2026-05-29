@@ -87,7 +87,7 @@ function HeadlineCard({ content, report }: { content: InsightContent; report: Da
     <section className="border-t border-border overflow-hidden">
       <div className="flex items-center gap-2 px-4 py-2 bg-muted border-b border-ink-150">
         <Newspaper size={13} className="text-ink-400" />
-        <h3 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">HEADLINE</h3>
+        <h3 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">헤드라인</h3>
         <span className="text-sm text-ink-400">{report.dateLabel} · {report.item_count}건 · {report.brand_count}개 브랜드</span>
       </div>
       <div className="px-4 py-5">
@@ -115,7 +115,13 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
             style={{ borderLeftColor: PRIORITY_META[pri]?.color }}
           >
             <button
-              onClick={e => { e.stopPropagation(); onCreateTask(a.title, `${a.summary}\n\n→ ${a.action}`) }}
+              onClick={e => {
+                e.stopPropagation()
+                onCreateTask(
+                  a.task_title?.trim() || a.title,
+                  a.task_memo?.trim() || `${a.summary}\n\n→ ${a.action}`,
+                )
+              }}
               className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"
             >
               <Plus size={10} />

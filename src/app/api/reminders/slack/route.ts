@@ -20,36 +20,27 @@ type ReminderConfig =
   | {
       ok: true
       cronSecret: string
-      workspaceId: string
-      reminderChannelId: string
-      botToken: string
+      botToken: string | null
       supabaseUrl: string
-      supabaseAnonKey: string
+      supabaseServiceRoleKey: string
     }
   | { ok: false; error: string; status: number }
 
 export function getReminderConfig(env: ReminderEnv): ReminderConfig {
   if (!env.CRON_SECRET) return { ok: false, error: 'CRON_SECRET 미설정', status: 500 }
-  if (!env.REMINDER_WORKSPACE_ID || !env.SLACK_REMINDER_CHANNEL_ID) {
-    return { ok: false, error: 'REMINDER_WORKSPACE_ID 또는 SLACK_REMINDER_CHANNEL_ID 미설정', status: 500 }
-  }
   const botToken = env.SLACK_USER_TOKEN ?? env.SLACK_BOT_TOKEN
-  if (!botToken) return { ok: false, error: 'SLACK_USER_TOKEN 또는 SLACK_BOT_TOKEN 미설정', status: 500 }
-  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.NEXT_PUBLIC_SUPABASE_ANON_KEY) {
+  if (!env.NEXT_PUBLIC_SUPABASE_URL || !env.SUPABASE_SERVICE_ROLE_KEY) {
     return { ok: false, error: 'Supabase 환경변수 미설정', status: 500 }
   }
   return {
     ok: true,
     cronSecret: env.CRON_SECRET,
-    workspaceId: env.REMINDER_WORKSPACE_ID,
-    reminderChannelId: env.SLACK_REMINDER_CHANNEL_ID,
-    botToken,
+    botToken: botToken ?? null,
     supabaseUrl: env.NEXT_PUBLIC_SUPABASE_URL,
-    supabaseAnonKey: env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
+    supabaseServiceRoleKey: env.SUPABASE_SERVICE_ROLE_KEY,
   }
 }
 
-function todayKST()    { return kstToday() }
 function tomorrowKST() { return addDaysYMD(kstToday(), 1) }
 
 function diffDays(due: string, today: string) {
@@ -66,16 +57,16 @@ function line(t: Task, suffix?: string) {
 export function groupReminderTasks(tasks: Task[], today: string, tomorrow: string) {
   const all = tasks.filter(t => t.due_date <= tomorrow)
   return {
-    overdue: all.filter(t => t.due_date < today),
-    dueToday: all.filter(t => t.due_date === today),
-    dueTomorrow: all.filter(t => t.due_date === tomorrow),
+    overdue:      all.filter(t => t.due_date < today),
+    dueToday:     all.filter(t => t.due_date === today),
+    dueTomorrow:  all.filter(t => t.due_date === tomorrow),
   }
 }
 
 export function buildBlocks(
   overdue: Task[], dueToday: Task[], dueTomorrow: Task[], today: string
 ): (KnownBlock | Block)[] {
-  const total = overdue.length + dueToday.length + dueTomorrow.length
+  const total  = overdue.length + dueToday.length + dueTomorrow.length
   const blocks: (KnownBlock | Block)[] = [
     {
       type: 'header',
@@ -98,25 +89,21 @@ export function buildBlocks(
       },
     })
   }
-
   if (dueToday.length > 0) {
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*📅 오늘 마감 (${dueToday.length}개)*\n` +
-          dueToday.map(t => line(t)).join('\n'),
+        text: `*📅 오늘 마감 (${dueToday.length}개)*\n` + dueToday.map(t => line(t)).join('\n'),
       },
     })
   }
-
   if (dueTomorrow.length > 0) {
     blocks.push({
       type: 'section',
       text: {
         type: 'mrkdwn',
-        text: `*⏰ 내일 마감 (${dueTomorrow.length}개)*\n` +
-          dueTomorrow.map(t => line(t)).join('\n'),
+        text: `*⏰ 내일 마감 (${dueTomorrow.length}개)*\n` + dueTomorrow.map(t => line(t)).join('\n'),
       },
     })
   }
@@ -125,8 +112,37 @@ export function buildBlocks(
     { type: 'divider' },
     { type: 'context', elements: [{ type: 'mrkdwn', text: '🔺 = 높은 우선순위' }] },
   )
-
   return blocks
+}
+
+type WorkspaceReminderSettings = {
+  workspace_id: string
+  channel_id: string
+  slack_token: string | null
+}
+
+type WorkspaceApiKeyRow = {
+  workspace_id: string
+  key_name: string
+  key_value: string
+}
+
+export function buildReminderSettings(rows: WorkspaceApiKeyRow[], envBotToken: string | null): WorkspaceReminderSettings[] {
+  const byWorkspace = new Map<string, { channel_id?: string; slack_token?: string }>()
+  for (const row of rows) {
+    const current = byWorkspace.get(row.workspace_id) ?? {}
+    if (row.key_name === 'slack_reminder_channel') current.channel_id = row.key_value
+    if (row.key_name === 'slack_user') current.slack_token = row.key_value
+    byWorkspace.set(row.workspace_id, current)
+  }
+  return [...byWorkspace.entries()].flatMap(([workspace_id, settings]) => {
+    if (!settings.channel_id) return []
+    return [{
+      workspace_id,
+      channel_id: settings.channel_id,
+      slack_token: envBotToken ?? settings.slack_token ?? null,
+    }]
+  })
 }
 
 export async function GET(req: Request) {
@@ -141,44 +157,70 @@ export async function GET(req: Request) {
     return new Response('Unauthorized', { status: 401 })
   }
 
-  // anon key + SECURITY DEFINER 함수로 RLS 우회
-  const sb = createClient(
-    config.supabaseUrl,
-    config.supabaseAnonKey,
-    { auth: { persistSession: false } }
-  )
+  const sb = createClient(config.supabaseUrl, config.supabaseServiceRoleKey, {
+    auth: { persistSession: false },
+  })
 
-  const today    = todayKST()
+  const { data: keyRows, error: keyErr } = await sb
+    .from('workspace_api_keys')
+    .select('workspace_id, key_name, key_value')
+    .in('key_name', ['slack_reminder_channel', 'slack_user'])
+
+  if (keyErr) {
+    console.error('[reminders/slack] 설정 조회 오류:', keyErr)
+    return Response.json({ error: keyErr.message }, { status: 500 })
+  }
+  const channels = buildReminderSettings((keyRows ?? []) as WorkspaceApiKeyRow[], config.botToken)
+  if (channels.length === 0) {
+    console.log('[reminders/slack] 설정된 리마인더 채널 없음')
+    return Response.json({ sent: false, reason: 'no channels configured' })
+  }
+
+  const today    = kstToday()
   const tomorrow = tomorrowKST()
 
-  const { data: tasks, error } = await sb.rpc('get_reminder_tasks', {
-    p_workspace_id: config.workspaceId,
-  })
+  const results = []
+  for (const { workspace_id, channel_id, slack_token } of channels) {
+    if (!slack_token) {
+      results.push({ workspace_id, sent: false, reason: 'slack token missing' })
+      continue
+    }
 
-  if (error) {
-    console.error('[reminders/slack] DB 오류:', error)
-    return Response.json({ error: error.message }, { status: 500 })
+    const { data: tasks, error: taskErr } = await sb
+      .from('gantt_tasks')
+      .select('id, title, due_date, status, priority')
+      .eq('workspace_id', workspace_id)
+      .is('deleted_at', null)
+      .is('archived_at', null)
+      .not('due_date', 'is', null)
+      .neq('status', 'done')
+      .lte('due_date', tomorrow)
+      .order('due_date', { ascending: true })
+
+    if (taskErr) {
+      console.error(`[reminders/slack] 태스크 조회 오류 (${workspace_id}):`, taskErr)
+      continue
+    }
+
+    const { overdue, dueToday, dueTomorrow } = groupReminderTasks(tasks as Task[], today, tomorrow)
+    if (overdue.length === 0 && dueToday.length === 0 && dueTomorrow.length === 0) {
+      console.log(`[reminders/slack] 알림할 태스크 없음 (${workspace_id})`)
+      results.push({ workspace_id, sent: false, reason: 'nothing urgent' })
+      continue
+    }
+
+    const blocks = buildBlocks(overdue, dueToday, dueTomorrow, today)
+    const slack = new WebClient(slack_token)
+    await slack.chat.postMessage({
+      channel: channel_id,
+      text: `📋 태스크 리마인더 — ${fmtKSTDate(today)}`,
+      blocks,
+    })
+
+    const counts = { overdue: overdue.length, today: dueToday.length, tomorrow: dueTomorrow.length }
+    console.log(`[reminders/slack] 발송 완료 (${workspace_id})`, counts)
+    results.push({ workspace_id, sent: true, counts })
   }
 
-  const { overdue, dueToday, dueTomorrow } = groupReminderTasks(tasks as Task[], today, tomorrow)
-
-  if (overdue.length === 0 && dueToday.length === 0 && dueTomorrow.length === 0) {
-    console.log('[reminders/slack] 알림할 태스크 없음')
-    return Response.json({ sent: false, reason: 'nothing urgent' })
-  }
-
-  const blocks = buildBlocks(overdue, dueToday, dueTomorrow, today)
-
-  const slack = new WebClient(config.botToken)
-  await slack.chat.postMessage({
-    channel: config.reminderChannelId,
-    text: `📋 태스크 리마인더 — ${fmtKSTDate(today)}`,
-    blocks,
-  })
-
-  console.log(`[reminders/slack] 발송 완료 — 지연 ${overdue.length}, 오늘 ${dueToday.length}, 내일 ${dueTomorrow.length}`)
-  return Response.json({
-    sent: true,
-    counts: { overdue: overdue.length, today: dueToday.length, tomorrow: dueTomorrow.length },
-  })
+  return Response.json({ results })
 }

@@ -5,6 +5,36 @@ type ServerSupabase = Awaited<ReturnType<typeof createClient>>
 
 const GCAL_BASE = 'https://www.googleapis.com/calendar/v3/calendars/primary/events'
 
+/** DB(workspace_api_keys)에서 Google OAuth 자격증명 조회, 없으면 환경변수 fallback */
+export async function getGoogleCreds(
+  supabase: ServerSupabase,
+): Promise<{ clientId: string; clientSecret: string } | null> {
+  const { data: { user } } = await supabase.auth.getUser()
+  if (user) {
+    const { data: member } = await supabase
+      .from('workspace_members')
+      .select('workspace_id')
+      .eq('user_id', user.id)
+      .single()
+    if (member?.workspace_id) {
+      const { data: rows } = await supabase
+        .from('workspace_api_keys')
+        .select('key_name, key_value')
+        .eq('workspace_id', member.workspace_id)
+        .in('key_name', ['google_client_id', 'google_client_secret'])
+      const map = Object.fromEntries((rows ?? []).map(r => [r.key_name, r.key_value as string]))
+      if (map.google_client_id && map.google_client_secret) {
+        return { clientId: map.google_client_id, clientSecret: map.google_client_secret }
+      }
+    }
+  }
+  // 환경변수 fallback
+  const clientId     = process.env.GOOGLE_CLIENT_ID
+  const clientSecret = process.env.GOOGLE_CLIENT_SECRET
+  if (clientId && clientSecret) return { clientId, clientSecret }
+  return null
+}
+
 /** 앱에서 생성한 이벤트 식별용 — 읽기 시 중복 표시 방지에 사용 */
 export const WALD_ORIGIN_KEY = 'waldOrigin'
 
@@ -30,12 +60,15 @@ export async function getValidAccessToken(
 
   if (!tokenRow.refresh_token) return { error: 'TOKEN_EXPIRED' }
 
+  const creds = await getGoogleCreds(supabase)
+  if (!creds) return { error: 'TOKEN_EXPIRED' }
+
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    new URLSearchParams({
-      client_id:     process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
+      client_id:     creds.clientId,
+      client_secret: creds.clientSecret,
       refresh_token: tokenRow.refresh_token,
       grant_type:    'refresh_token',
     }),

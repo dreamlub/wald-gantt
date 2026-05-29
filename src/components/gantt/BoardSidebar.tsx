@@ -151,7 +151,7 @@ export function BoardSidebar({
     >
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-        <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Projects</span>
+        <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">프로젝트 관리</span>
       </div>
 
       {/* 보드 목록 */}

@@ -93,7 +93,7 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
     <div className="flex flex-col h-full overflow-hidden">
       {/* 헤더 */}
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Calendar</h1>
+        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">업무시간 관리</h1>
       </div>
 
       {/* 검색 */}

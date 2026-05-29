@@ -41,7 +41,7 @@ export function TaskArchivePanel({ open, onClose, workspaceId, onUnarchive }: Pr
       {/* 헤더 */}
       <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
         <Archive size={14} className="text-muted-foreground shrink-0" />
-        <span className="text-sm font-semibold text-foreground flex-1">아카이브</span>
+        <span className="text-base font-semibold text-foreground flex-1">아카이브</span>
         <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground shrink-0">
           <X size={15} />
         </button>

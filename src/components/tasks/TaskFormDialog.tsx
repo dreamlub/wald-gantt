@@ -47,7 +47,7 @@ export function TaskFormDialog(props: Props) {
         {/* Header + 탭 */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
-            <h2 className="text-sm font-semibold text-foreground flex-1">
+            <h2 className="text-base font-semibold text-foreground flex-1">
               {editTask ? '태스크 수정' : '새 태스크'}
             </h2>
             <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">

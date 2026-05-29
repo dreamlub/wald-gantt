@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { getGoogleCreds } from '@/lib/google-calendar'
 import { cookies } from 'next/headers'
 
 export async function GET(req: NextRequest) {
@@ -11,18 +12,30 @@ export async function GET(req: NextRequest) {
 
   const cookieStore  = await cookies()
   const savedState   = cookieStore.get('gcal_state')?.value
+  const returnTo     = cookieStore.get('gcal_return_to')?.value ?? '/calendar'
   cookieStore.delete('gcal_state')
+  cookieStore.delete('gcal_return_to')
+
+  const redirectBase = `${origin}${returnTo.startsWith('/') ? returnTo : '/calendar'}`
 
   if (errorParam) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=denied`)
+    return NextResponse.redirect(`${redirectBase}${redirectBase.includes('?') ? '&' : '?'}gcal_error=denied`)
   }
   if (!code || !savedState || state !== savedState) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=invalid_state`)
+    return NextResponse.redirect(`${redirectBase}${redirectBase.includes('?') ? '&' : '?'}gcal_error=invalid_state`)
   }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(`${origin}/login`)
+
+  const sep = (url: string) => url.includes('?') ? '&' : '?'
+
+  const creds = await getGoogleCreds(supabase)
+  if (!creds) return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=no_creds`)
+
+  // auth 단계와 동일한 redirect_uri 사용 (GOOGLE_REDIRECT_URI 우선)
+  const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? `${origin}/api/calendar/callback`
 
   // 코드 → 토큰 교환
   const tokenRes = await fetch('https://oauth2.googleapis.com/token', {
@@ -30,15 +43,18 @@ export async function GET(req: NextRequest) {
     headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
     body:    new URLSearchParams({
       code,
-      client_id:     process.env.GOOGLE_CLIENT_ID!,
-      client_secret: process.env.GOOGLE_CLIENT_SECRET!,
-      redirect_uri:  `${origin}/api/calendar/callback`,
+      client_id:     creds.clientId,
+      client_secret: creds.clientSecret,
+      redirect_uri:  redirectUri,
       grant_type:    'authorization_code',
     }),
   })
 
   if (!tokenRes.ok) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=token_exchange`)
+    const errBody = await tokenRes.text()
+    console.error('[gcal callback] token exchange failed', tokenRes.status, errBody)
+    const reason = (() => { try { return (JSON.parse(errBody) as { error?: string }).error ?? 'unknown' } catch { return 'unknown' } })()
+    return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=token_exchange&reason=${encodeURIComponent(reason)}`)
   }
 
   const token     = await tokenRes.json() as {
@@ -57,8 +73,8 @@ export async function GET(req: NextRequest) {
   })
 
   if (error) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=db`)
+    return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=db`)
   }
 
-  return NextResponse.redirect(`${origin}/calendar`)
+  return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_connected=1`)
 }

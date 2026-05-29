@@ -229,7 +229,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
         style={{ width: 'var(--sidebar-w)' }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-          <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">SUMMARY</h1>
+          <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">슬랙메시지 분석</h1>
         </div>
 
         <SummarySidebar

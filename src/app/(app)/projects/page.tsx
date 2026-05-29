@@ -22,7 +22,7 @@ import { useConfirm } from '@/hooks/use-confirm'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 
 type DialogState =
-  | { type: 'addProject'; categoryId: string }
+  | { type: 'addProject'; categoryId: string; parentId?: string | null }
   | { type: 'editProject'; project: GanttProject; initialTab?: 'info' | 'memo' | 'history' }
   | { type: 'share' }
   | null
@@ -208,7 +208,7 @@ export default function GanttPage() {
         })
         setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
       } else {
-        const created = await addProject(selectedBoardId, workspace.id, fields.categoryId, null, {
+        const created = await addProject(selectedBoardId, workspace.id, fields.categoryId, fields.parentId ?? null, {
           name: fields.name,
           status: fields.status,
           start_date: fields.start_date,
@@ -224,11 +224,13 @@ export default function GanttPage() {
   }
 
   async function handleDeleteProject(id: string) {
-    const project = projects.find(p => p.id === id)
+    const project  = projects.find(p => p.id === id)
+    const children = projects.filter(p => p.parent_id === id)
     try {
       await softDeleteProject(id)
-      setProjects(prev => prev.filter(p => p.id !== id))
-      setTrashCount(c => c + 1)
+      await Promise.all(children.map(c => softDeleteProject(c.id)))
+      setProjects(prev => prev.filter(p => p.id !== id && p.parent_id !== id))
+      setTrashCount(c => c + 1 + children.length)
       toast('휴지통으로 이동했어요', {
         action: {
           label: '되돌리기',
@@ -280,14 +282,25 @@ export default function GanttPage() {
   async function handleMoveProject(updates: { id: string; category_id: string; sort_order: number }[]) {
     const affected = projectsRef.current.filter(p => updates.some(u => u.id === p.id))
     if (affected.length > 0) pushUndo({ type: 'projects', prevList: affected })
+    // 부모가 카테고리를 이동하면 자식도 함께 이동
+    const withChildren = [...updates]
+    for (const u of updates) {
+      const proj = projectsRef.current.find(p => p.id === u.id)
+      if (proj && proj.category_id !== u.category_id) {
+        projectsRef.current.filter(p => p.parent_id === u.id).forEach(child => {
+          if (!withChildren.some(x => x.id === child.id))
+            withChildren.push({ id: child.id, category_id: u.category_id, sort_order: child.sort_order })
+        })
+      }
+    }
     // 옵티미스틱 반영 — 서버 응답 전 원위치로 튀는 현상 방지
     setProjects(prev => prev.map(p => {
-      const u = updates.find(u => u.id === p.id)
+      const u = withChildren.find(u => u.id === p.id)
       return u ? { ...p, category_id: u.category_id, sort_order: u.sort_order } : p
     }))
     try {
       const updated = await Promise.all(
-        updates.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
+        withChildren.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
       )
       setProjects(prev => prev.map(p => updated.find(u => u.id === p.id) ?? p))
     } catch (e) {
@@ -362,6 +375,7 @@ export default function GanttPage() {
               onUpdateCategory={handleUpdateCategory}
               onDeleteCategory={handleDeleteCategory}
               onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
+              onAddSubProject={(parentId, catId) => setDialog({ type: 'addProject', categoryId: catId, parentId })}
               onEditProject={project => setDialog({ type: 'editProject', project })}
               onDeleteProject={handleDeleteProject}
               onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
@@ -387,11 +401,17 @@ export default function GanttPage() {
         onSave={handleSaveProject}
         categories={categories}
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
+        defaultParentId={dialog?.type === 'addProject' ? dialog.parentId : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
         initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
         onDelete={id => { handleDeleteProject(id); setDialog(null) }}
         allTeams={[...new Set(projects.map(p => p.team).filter(Boolean) as string[])].sort()}
         allPMs={[...new Set(projects.map(p => p.pm).filter(Boolean) as string[])].sort()}
+        parentProjects={projects.filter(p => !p.parent_id && p.id !== (dialog?.type === 'editProject' ? dialog.project.id : ''))}
+        subProjects={dialog?.type === 'editProject' ? projects.filter(p => p.parent_id === dialog.project.id) : []}
+        onAddSubProject={dialog?.type === 'editProject' && !dialog.project.parent_id
+          ? () => setDialog({ type: 'addProject', categoryId: dialog.project.category_id, parentId: dialog.project.id })
+          : undefined}
       />
 
       <ShareDialog
