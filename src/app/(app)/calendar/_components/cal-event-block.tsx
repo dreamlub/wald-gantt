@@ -3,9 +3,10 @@
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { CalEvent } from '@/types'
+import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { GoogleIcon } from './event-block'
 import { SNAP_MIN, HOUR_H, START_H, END_H } from '../_constants'
-import { snapToGrid, clamp, pxToMinutes } from '../_utils'
+import { snapToGrid, clamp, pxToMinutes, fmtTime } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
 
 interface BlockProps {
@@ -86,61 +87,73 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
     window.addEventListener('mouseup', onUp)
   }
 
+  const endIso = new Date(new Date(event.scheduled_at).getTime() + event.duration_minutes * 60_000).toISOString()
+
   return (
-    <div
-      ref={blockRef}
-      draggable={!editing}
-      onDragStart={handleDragStart}
-      onMouseDown={handleMouseDown}
-      onMouseUp={handleMouseUp}
-      className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
-      style={{
-        top,
-        height: height - 2,
-        left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        backgroundColor: 'var(--color-ink-100)',
-        borderLeft: '3px solid var(--color-ink-300)',
-      }}
-    >
-      <div className="flex items-center gap-1 leading-tight pr-4">
-        <GoogleIcon />
-        {editing ? (
-          <input
-            ref={inputRef}
-            value={val}
-            autoFocus
-            onChange={e => setVal(e.target.value)}
-            onMouseDown={e => e.stopPropagation()}
-            onClick={e => e.stopPropagation()}
-            onKeyDown={e => {
-              if (e.key === 'Enter') commit()
-              if (e.key === 'Escape') { setVal(event.title); setEditing(false) }
+    <Tooltip>
+      <TooltipTrigger
+        render={
+          <div
+            ref={blockRef}
+            draggable={!editing}
+            onDragStart={handleDragStart}
+            onMouseDown={handleMouseDown}
+            onMouseUp={handleMouseUp}
+            className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
+            style={{
+              top,
+              height: height - 2,
+              left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+              backgroundColor: 'var(--color-ink-100)',
+              borderLeft: '3px solid var(--color-ink-300)',
             }}
-            onBlur={commit}
-            className="flex-1 min-w-0 text-2xs font-medium bg-white/80 rounded px-1 outline-none ring-1 ring-ink-300 text-foreground"
           />
-        ) : (
-          <p className="text-2xs font-medium text-foreground truncate flex-1">
-            {event.title}
-          </p>
-        )}
-      </div>
-
-      <button
-        onMouseDown={e => e.stopPropagation()}
-        onClick={e => { e.stopPropagation(); onDelete(event.id) }}
-        className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+        }
       >
-        <X size={10} />
-      </button>
+        <div className="flex items-center gap-1 leading-tight pr-4">
+          <GoogleIcon />
+          {editing ? (
+            <input
+              ref={inputRef}
+              value={val}
+              autoFocus
+              onChange={e => setVal(e.target.value)}
+              onMouseDown={e => e.stopPropagation()}
+              onClick={e => e.stopPropagation()}
+              onKeyDown={e => {
+                if (e.key === 'Enter') commit()
+                if (e.key === 'Escape') { setVal(event.title); setEditing(false) }
+              }}
+              onBlur={commit}
+              className="flex-1 min-w-0 text-2xs font-medium bg-white/80 rounded px-1 outline-none ring-1 ring-ink-300 text-foreground"
+            />
+          ) : (
+            <p className="text-2xs font-medium text-foreground truncate flex-1">
+              {event.title}
+            </p>
+          )}
+        </div>
 
-      {/* 리사이즈 핸들 */}
-      <div
-        onMouseDown={handleResizeMouseDown}
-        className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
-      />
-    </div>
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onDelete(event.id) }}
+          className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+        >
+          <X size={10} />
+        </button>
+
+        {/* 리사이즈 핸들 */}
+        <div
+          onMouseDown={handleResizeMouseDown}
+          className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
+        />
+      </TooltipTrigger>
+      <TooltipContent side="top">
+        <p className="font-medium">{event.title}</p>
+        <p className="text-xs text-muted-foreground">{fmtTime(event.scheduled_at)} – {fmtTime(endIso)}</p>
+      </TooltipContent>
+    </Tooltip>
   )
 }
 
