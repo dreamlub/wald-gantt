@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef, useEffect } from 'react'
+import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { X } from 'lucide-react'
 import type { CalEvent } from '@/types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -89,6 +89,27 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
 
   const endIso = new Date(new Date(event.scheduled_at).getTime() + event.duration_minutes * 60_000).toISOString()
 
+  // 편집 중에는 좁은 열 제약을 벗어나 열 전체 너비로 넓히고 위로 올려 입력하기 편하게 한다
+  const blockStyle: CSSProperties = editing
+    ? {
+        top,
+        left: 2,
+        right: 2,
+        minHeight: 30,
+        height: Math.max(height - 2, 30),
+        zIndex: 30,
+        backgroundColor: 'var(--color-ink-100)',
+        borderLeft: '3px solid var(--color-ink-300)',
+      }
+    : {
+        top,
+        height: height - 2,
+        left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+        backgroundColor: 'var(--color-ink-100)',
+        borderLeft: '3px solid var(--color-ink-300)',
+      }
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -100,14 +121,7 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
-            style={{
-              top,
-              height: height - 2,
-              left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-              backgroundColor: 'var(--color-ink-100)',
-              borderLeft: '3px solid var(--color-ink-300)',
-            }}
+            style={blockStyle}
           />
         }
       >
