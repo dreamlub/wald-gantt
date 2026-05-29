@@ -137,17 +137,6 @@ export async function POST(req: Request) {
         quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
       }
 
-      // 진단 로그 (수집 0건 원인 파악용) — Vercel 런타임 로그에서 확인
-      console.log('[import-outline]', JSON.stringify({
-        team: source.label,
-        collectionId: source.collection_id,
-        allDocsCount: allDocs.length,
-        weeklyParentCount: weeklyParentIds.size,
-        quarterDocsCount: quarterDocs.length,
-        quarterTitles: quarterDocs.map(d => d.title),
-        sampleTitles: allDocs.slice(0, 50).map(d => d.title),
-      }))
-
       let upserted = 0
       let errors = 0
 
