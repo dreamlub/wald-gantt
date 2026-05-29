@@ -45,6 +45,7 @@ function TooltipContent({
         alignOffset={alignOffset}
         side={side}
         sideOffset={sideOffset}
+        positionMethod="fixed"
         className="isolate z-tooltip"
         style={{ zIndex: 'var(--z-tooltip)' }}
       >
