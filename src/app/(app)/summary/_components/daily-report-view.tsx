@@ -118,8 +118,8 @@ function ActionGrid({ items, onOpenDetail, onCreateTask }: {
               onClick={e => {
                 e.stopPropagation()
                 onCreateTask(
-                  a.task_title?.trim() || a.title,
-                  a.task_memo?.trim() || `${a.summary}\n\n→ ${a.action}`,
+                  a.title,
+                  `${a.summary}\n\n→ ${a.action}`,
                 )
               }}
               className="absolute top-2.5 right-2.5 opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-1 text-sm px-2 py-1 rounded border border-border bg-card hover:bg-muted text-ink-500 hover:text-foreground shadow-sm"

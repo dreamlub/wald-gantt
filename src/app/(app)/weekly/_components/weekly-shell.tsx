@@ -5,7 +5,7 @@ import { CloudDownload, RefreshCw, Settings, BookOpen, ArrowLeft } from 'lucide-
 import { toast } from 'sonner'
 import { WeeklyWeekList, type WeekData } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
-import { WeeklyDashboard } from './weekly-dashboard'
+import { WeeklyDashboard, type WeeklyTab } from './weekly-dashboard'
 import { getWeeklyReports, getWeeklyInsight, analyzeWeekly } from '@/lib/weekly-service'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 
@@ -41,7 +41,7 @@ export function WeeklyShell() {
 
   // 분석 관련 상태
   const [showAnalysis, setShowAnalysis]   = useState(false)
-  const [showInsight, setShowInsight]     = useState(false)
+  const [tab, setTab]                     = useState<WeeklyTab>('insight')
   const [reports, setReports]             = useState<WeeklyReport[]>([])
   const [insight, setInsight]             = useState<WeeklyInsight | null>(null)
   const [dashLoading, setDashLoading]     = useState(false)
@@ -71,7 +71,11 @@ export function WeeklyShell() {
     }
   }, [selectedWeek])
 
-  useEffect(() => { void loadStatus() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    void loadStatus()
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   // ── 분석 데이터 로드 ─────────────────────────────────────────────
 
@@ -90,6 +94,7 @@ export function WeeklyShell() {
   }, [])
 
   useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
     if (showAnalysis && selectedWeek) loadAnalysis(selectedWeek)
   }, [showAnalysis, selectedWeek, loadAnalysis])
 
@@ -171,15 +176,6 @@ export function WeeklyShell() {
   const isCollectingAny    = collecting || collectingAll || autoAnalyzing
   const collectedWeekCount = data?.weeks.filter(w => w.teams.some(t => t.hasData)).length ?? 0
   const weekCount          = data?.weeks.length ?? 0
-
-  // 이전 주 시작일 (분석용)
-  const prevWeekStart = selectedWeek
-    ? (() => {
-        const d = new Date(selectedWeek + 'T00:00:00')
-        d.setDate(d.getDate() - 7)
-        return d.toISOString().slice(0, 10)
-      })()
-    : ''
 
   // ── 렌더 ─────────────────────────────────────────────────────────
 
@@ -268,7 +264,7 @@ export function WeeklyShell() {
           <>
             <div className="shrink-0 h-12 flex items-center px-4 border-b bg-card gap-3">
               <button
-                onClick={() => { setShowAnalysis(false); setShowInsight(false) }}
+                onClick={() => setShowAnalysis(false)}
                 className="flex items-center gap-1.5 text-xs text-ink-400 hover:text-foreground transition-colors"
               >
                 <ArrowLeft size={12} />
@@ -278,16 +274,13 @@ export function WeeklyShell() {
             <div className="flex-1 overflow-y-auto p-6 max-w-[1200px] mx-auto w-full">
               <WeeklyDashboard
                 weekStart={selectedWeek}
-                prevWeekStart={prevWeekStart}
                 reports={reports}
                 insight={insight}
                 reportsLoading={dashLoading}
-                showInsight={showInsight}
-                onCloseInsight={() => setShowInsight(false)}
+                tab={tab}
+                onTabChange={setTab}
                 onInsightUpdate={setInsight}
                 onRefresh={() => loadAnalysis(selectedWeek)}
-                showRaw={false}
-                onCloseRaw={() => {}}
               />
             </div>
           </>
@@ -298,7 +291,7 @@ export function WeeklyShell() {
             teamColors={TEAM_PALETTE}
             collecting={collecting}
             onCollect={handleCollectWeek}
-            onOpenAnalysis={() => { setShowAnalysis(true); setShowInsight(true) }}
+            onOpenAnalysis={() => { setShowAnalysis(true); setTab('insight') }}
             hasAnalysis={selectedWeekData.teams.some(t => t.hasData)}
           />
         )}
