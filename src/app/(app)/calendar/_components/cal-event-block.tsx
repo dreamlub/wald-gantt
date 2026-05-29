@@ -25,7 +25,6 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
   const blockRef = useRef<HTMLDivElement>(null)
   const clickStart = useRef<{ x: number; y: number } | null>(null)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
-  const [hovered, setHovered] = useState(false)
 
   useEffect(() => {
     const el = blockRef.current
@@ -33,9 +32,8 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
     const enter = () => {
       const rect = el.getBoundingClientRect()
       setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
-      setHovered(true)
     }
-    const leave = () => { setTooltipPos(null); setHovered(false) }
+    const leave = () => setTooltipPos(null)
     el.addEventListener('mouseenter', enter)
     el.addEventListener('mouseleave', leave)
     return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
@@ -93,19 +91,13 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
 
   const endIso = new Date(new Date(event.scheduled_at).getTime() + event.duration_minutes * 60_000).toISOString()
 
-  // 겹쳐서 좁아진 블록은 호버 시 칸 전체 너비로 펼쳐 읽기·클릭 가능하게 한다
-  const expanded = hovered && totalCols > 1
   const blockStyle: CSSProperties = {
     top,
     height: height - 2,
     backgroundColor: 'var(--color-ink-100)',
     borderLeft: '3px solid var(--color-ink-300)',
-    ...(expanded
-      ? { left: 2, right: 2, zIndex: 30 }
-      : {
-          left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-          width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        }),
+    left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+    width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
   }
 
   return (

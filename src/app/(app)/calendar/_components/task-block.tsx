@@ -31,7 +31,6 @@ export function TaskBlock({
   onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
-  const [hovered, setHovered] = useState(false)
   const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
@@ -47,16 +46,15 @@ export function TaskBlock({
     return () => clearTimeout(timer)
   }, [highlight, onHighlightClear])
 
-  /* ── 호버 상태 + 툴팁 위치 ── */
+  /* ── 호버 시 툴팁 위치 ── */
   useEffect(() => {
     const el = blockRef.current
     if (!el) return
     const enter = () => {
       const rect = el.getBoundingClientRect()
       setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
-      setHovered(true)
     }
-    const leave = () => { setTooltipPos(null); setHovered(false) }
+    const leave = () => setTooltipPos(null)
     el.addEventListener('mouseenter', enter)
     el.addEventListener('mouseleave', leave)
     return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
@@ -140,19 +138,13 @@ export function TaskBlock({
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
 
-  // 겹쳐서 좁아진 블록은 호버 시 칸 전체 너비로 펼쳐 읽기·클릭 가능하게 한다
-  const expanded = hovered && totalCols > 1
   const blockStyle: CSSProperties = {
     top,
     height: height - 2,
     backgroundColor: bg,
     borderLeft: `3px solid ${color}`,
-    ...(expanded
-      ? { left: 2, right: 2, zIndex: 30 }
-      : {
-          left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-          width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        }),
+    left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+    width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
   }
 
   return (
