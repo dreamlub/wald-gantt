@@ -3,7 +3,7 @@
 import { useState, useRef, useEffect } from 'react'
 import { X } from 'lucide-react'
 import type { CalEvent } from '@/types'
-import { fmtTime } from '../_utils'
+import { GoogleIcon } from './event-block'
 
 interface BlockProps {
   event: CalEvent
@@ -35,37 +35,39 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
 
   return (
     <div
-      className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 flex flex-col gap-0"
+      className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10"
       style={{
         top,
         height: height - 2,
         left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
         width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        backgroundColor: 'var(--color-lilac-100)',
-        borderLeft: '3px solid var(--color-lilac-500)',
+        backgroundColor: 'var(--color-ink-100)',
+        borderLeft: '3px solid var(--color-ink-300)',
       }}
       onClick={e => { e.stopPropagation(); if (!editing) setEditing(true) }}
     >
-      {editing ? (
-        <input
-          ref={inputRef}
-          value={val}
-          autoFocus
-          onChange={e => setVal(e.target.value)}
-          onClick={e => e.stopPropagation()}
-          onKeyDown={e => {
-            if (e.key === 'Enter') commit()
-            if (e.key === 'Escape') { setVal(event.title); setEditing(false) }
-          }}
-          onBlur={commit}
-          className="w-full text-2xs font-medium bg-white/80 rounded px-1 outline-none ring-1 ring-lilac-400 text-foreground"
-        />
-      ) : (
-        <p className="text-2xs font-medium truncate text-foreground leading-tight pr-4">
-          {event.title}
-        </p>
-      )}
-      <span className="text-4xs text-lilac-500 leading-none">{fmtTime(event.scheduled_at)}</span>
+      <div className="flex items-center gap-1 leading-tight pr-4">
+        <GoogleIcon />
+        {editing ? (
+          <input
+            ref={inputRef}
+            value={val}
+            autoFocus
+            onChange={e => setVal(e.target.value)}
+            onClick={e => e.stopPropagation()}
+            onKeyDown={e => {
+              if (e.key === 'Enter') commit()
+              if (e.key === 'Escape') { setVal(event.title); setEditing(false) }
+            }}
+            onBlur={commit}
+            className="flex-1 min-w-0 text-2xs font-medium bg-white/80 rounded px-1 outline-none ring-1 ring-ink-300 text-foreground"
+          />
+        ) : (
+          <p className="text-2xs font-medium text-foreground truncate flex-1">
+            {event.title}
+          </p>
+        )}
+      </div>
 
       <button
         onClick={e => { e.stopPropagation(); onDelete(event.id) }}
