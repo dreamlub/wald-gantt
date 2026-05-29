@@ -80,7 +80,7 @@ export function TasksSidebar({
       style={{ width: 'var(--sidebar-w)' }}
     >
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">Tasks</h1>
+        <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">할일 관리</h1>
       </div>
 
       <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">

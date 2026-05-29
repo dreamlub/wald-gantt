@@ -244,7 +244,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
       {/* 사이드바 */}
       <aside className="w-48 shrink-0 border-r bg-muted flex flex-col overflow-hidden">
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
-          <h2 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">Settings</h2>
+          <h2 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">설정</h2>
         </div>
         <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0">
           {NAV.map(({ key, label, icon: Icon }) => (

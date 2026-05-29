@@ -196,7 +196,7 @@ export default async function CommandCenterPage() {
             <Sparkles size={13} />
           </span>
           <div className="min-w-0">
-            <h1 className="text-sm font-semibold text-foreground uppercase tracking-wider">Command Center</h1>
+            <h1 className="text-sm font-semibold text-foreground uppercase tracking-wider">홈</h1>
             <p className="text-sm text-ink-400">{fmtDay(today)} 운영 브리핑</p>
           </div>
         </div>
