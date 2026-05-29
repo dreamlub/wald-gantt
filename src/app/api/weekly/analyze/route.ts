@@ -200,7 +200,9 @@ JSON 형식만 반환:
     try {
       message = await anthropic.messages.create({
         model: 'claude-haiku-4-5-20251001',
-        max_tokens: 8000,
+        // 브랜드가 많은 보고서(예: Biz Lead Weekly Board)는 추출 아이템이 많아
+        // 8000토큰에서 JSON 배열 중간이 잘려 파싱이 깨졌다. 상향.
+        max_tokens: 16000,
         messages: [{ role: 'user', content: userPrompt }],
       })
       break
@@ -214,6 +216,11 @@ JSON 형식만 반환:
     }
   }
   if (!message) throw new Error(`보고서 분석 실패 (${report.team}): API 재시도 초과`)
+
+  // 응답이 토큰 한계로 잘리면 JSON이 반드시 깨지므로, 혼란스러운 파싱 에러 대신 명확히 알린다
+  if (message.stop_reason === 'max_tokens') {
+    throw new Error(`보고서 분석 응답이 max_tokens(16000)로 잘렸습니다 (${report.team}). 보고 내용이 너무 길어 추출 아이템이 많습니다 — 보고서 분할이 필요합니다.`)
+  }
 
   const raw = (message.content[0] as { type: string; text: string }).text.trim()
   const jsonMatch = raw.match(/\{[\s\S]*\}/)
