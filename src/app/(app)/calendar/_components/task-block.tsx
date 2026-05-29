@@ -3,8 +3,8 @@
 import { useRef, useState, useEffect, type CSSProperties } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
+import { BlockTooltip } from './block-tooltip'
 import { SNAP_MIN, HOUR_H, START_H, END_H } from '../_constants'
 import { snapToGrid, clamp, pxToMinutes, buildIso, fmtTime, toMinutes } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
@@ -32,6 +32,7 @@ export function TaskBlock({
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
   const [hovered, setHovered] = useState(false)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
   const startHeight  = useRef(0)
@@ -46,12 +47,16 @@ export function TaskBlock({
     return () => clearTimeout(timer)
   }, [highlight, onHighlightClear])
 
-  /* ── 호버 상태 (툴팁 간섭 방지용 네이티브 리스너) ── */
+  /* ── 호버 상태 + 툴팁 위치 ── */
   useEffect(() => {
     const el = blockRef.current
     if (!el) return
-    const enter = () => setHovered(true)
-    const leave = () => setHovered(false)
+    const enter = () => {
+      const rect = el.getBoundingClientRect()
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
+      setHovered(true)
+    }
+    const leave = () => { setTooltipPos(null); setHovered(false) }
     el.addEventListener('mouseenter', enter)
     el.addEventListener('mouseleave', leave)
     return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
@@ -96,7 +101,7 @@ export function TaskBlock({
     const onMouseMove = (me: MouseEvent) => {
       isDragging.current = true
       const dy    = me.clientY - startY.current
-      const newPx = Math.max(startHeight.current + dy, HOUR_H / 4) // min 15min
+      const newPx = Math.max(startHeight.current + dy, HOUR_H / 4)
       const rawMin = pxToMinutes(newPx)
       const snapped = clamp(snapToGrid(rawMin), SNAP_MIN, (END_H - START_H) * 60)
       if (blockRef.current) {
@@ -151,21 +156,17 @@ export function TaskBlock({
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <div
-            ref={blockRef}
-            draggable
-            onDragStart={handleDragStart}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            className={`absolute rounded px-1.5 py-0.5 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0 ${
-              highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
-            }`}
-            style={blockStyle}
-          />
-        }
+    <>
+      <div
+        ref={blockRef}
+        draggable
+        onDragStart={handleDragStart}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        className={`absolute rounded px-1.5 py-0.5 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0 ${
+          highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
+        }`}
+        style={blockStyle}
       >
         {/* 1행: 체크 + 태스크명 */}
         <div className="flex items-center gap-1 leading-tight pr-5">
@@ -196,18 +197,21 @@ export function TaskBlock({
           onMouseDown={handleResizeMouseDown}
           className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
         />
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <p className="font-medium">{task.title}</p>
-        {task.scheduled_at && (
-          <p className="text-xs text-muted-foreground">
-            {fmtTime(task.scheduled_at)}
-            {task.duration_minutes
-              ? ` – ${fmtTime(buildIso(date, toMinutes(task.scheduled_at) + task.duration_minutes))}`
-              : ''}
-          </p>
-        )}
-      </TooltipContent>
-    </Tooltip>
+      </div>
+
+      {tooltipPos && (
+        <BlockTooltip x={tooltipPos.x} y={tooltipPos.y}>
+          <p className="font-medium">{task.title}</p>
+          {task.scheduled_at && (
+            <p className="opacity-70">
+              {fmtTime(task.scheduled_at)}
+              {task.duration_minutes
+                ? ` – ${fmtTime(buildIso(date, toMinutes(task.scheduled_at) + task.duration_minutes))}`
+                : ''}
+            </p>
+          )}
+        </BlockTooltip>
+      )}
+    </>
   )
 }

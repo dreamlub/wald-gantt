@@ -3,8 +3,8 @@
 import { useState, useRef, useEffect, type CSSProperties } from 'react'
 import { Pencil, X } from 'lucide-react'
 import type { CalEvent } from '@/types'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { GoogleIcon } from './event-block'
+import { BlockTooltip } from './block-tooltip'
 import { SNAP_MIN, HOUR_H, START_H, END_H } from '../_constants'
 import { snapToGrid, clamp, pxToMinutes, fmtTime } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
@@ -24,13 +24,18 @@ interface BlockProps {
 export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1, onResize, onDelete, onOpenEditor }: BlockProps) {
   const blockRef = useRef<HTMLDivElement>(null)
   const clickStart = useRef<{ x: number; y: number } | null>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
   const [hovered, setHovered] = useState(false)
 
   useEffect(() => {
     const el = blockRef.current
     if (!el) return
-    const enter = () => setHovered(true)
-    const leave = () => setHovered(false)
+    const enter = () => {
+      const rect = el.getBoundingClientRect()
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
+      setHovered(true)
+    }
+    const leave = () => { setTooltipPos(null); setHovered(false) }
     el.addEventListener('mouseenter', enter)
     el.addEventListener('mouseleave', leave)
     return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
@@ -104,19 +109,15 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
   }
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <div
-            ref={blockRef}
-            draggable
-            onDragStart={handleDragStart}
-            onMouseDown={handleMouseDown}
-            onMouseUp={handleMouseUp}
-            className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
-            style={blockStyle}
-          />
-        }
+    <>
+      <div
+        ref={blockRef}
+        draggable
+        onDragStart={handleDragStart}
+        onMouseDown={handleMouseDown}
+        onMouseUp={handleMouseUp}
+        className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
+        style={blockStyle}
       >
         <div className="flex items-center gap-1 leading-tight pr-9">
           <GoogleIcon />
@@ -150,12 +151,15 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
           onMouseDown={handleResizeMouseDown}
           className="absolute bottom-0 left-0 right-0 h-2 cursor-ns-resize opacity-0 group-hover:opacity-100"
         />
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <p className="font-medium">{event.title}</p>
-        <p className="text-xs text-muted-foreground">{fmtTime(event.scheduled_at)} – {fmtTime(endIso)}</p>
-      </TooltipContent>
-    </Tooltip>
+      </div>
+
+      {tooltipPos && (
+        <BlockTooltip x={tooltipPos.x} y={tooltipPos.y}>
+          <p className="font-medium">{event.title}</p>
+          <p className="opacity-70">{fmtTime(event.scheduled_at)} – {fmtTime(endIso)}</p>
+        </BlockTooltip>
+      )}
+    </>
   )
 }
 

@@ -1,7 +1,8 @@
 'use client'
 
+import { useRef, useState, useEffect } from 'react'
 import type { CalendarEvent } from '@/types'
-import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
+import { BlockTooltip } from './block-tooltip'
 import { fmtTime } from '../_utils'
 
 interface Props {
@@ -24,25 +25,38 @@ export function GoogleIcon({ size = 9 }: { size?: number }) {
 }
 
 export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: Props) {
+  const blockRef = useRef<HTMLDivElement>(null)
+  const [tooltipPos, setTooltipPos] = useState<{ x: number; y: number } | null>(null)
+
+  useEffect(() => {
+    const el = blockRef.current
+    if (!el) return
+    const enter = () => {
+      const rect = el.getBoundingClientRect()
+      setTooltipPos({ x: rect.left + rect.width / 2, y: rect.top })
+    }
+    const leave = () => setTooltipPos(null)
+    el.addEventListener('mouseenter', enter)
+    el.addEventListener('mouseleave', leave)
+    return () => { el.removeEventListener('mouseenter', enter); el.removeEventListener('mouseleave', leave) }
+  }, [])
+
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
 
   return (
-    <Tooltip>
-      <TooltipTrigger
-        render={
-          <div
-            className="absolute rounded px-1.5 py-0.5 overflow-hidden select-none z-10"
-            style={{
-              top,
-              height: height - 2,
-              left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-              backgroundColor: 'var(--color-ink-100)',
-              borderLeft: '3px solid var(--color-ink-300)',
-            }}
-          />
-        }
+    <>
+      <div
+        ref={blockRef}
+        className="absolute rounded px-1.5 py-0.5 overflow-hidden select-none z-10"
+        style={{
+          top,
+          height: height - 2,
+          left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+          width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+          backgroundColor: 'var(--color-ink-100)',
+          borderLeft: '3px solid var(--color-ink-300)',
+        }}
       >
         <div className="flex items-center gap-1 leading-tight">
           <GoogleIcon />
@@ -50,13 +64,15 @@ export function EventBlock({ event, top, height, colIndex = 0, totalCols = 1 }: 
             {event.title}
           </p>
         </div>
-      </TooltipTrigger>
-      <TooltipContent side="top">
-        <p className="font-medium">{event.title}</p>
-        <p className="text-xs text-muted-foreground">{fmtTime(event.start)} – {fmtTime(event.end)}</p>
-        {event.location && <p className="text-xs text-muted-foreground">{event.location}</p>}
-        {event.description && <p className="text-xs text-muted-foreground mt-0.5">{event.description}</p>}
-      </TooltipContent>
-    </Tooltip>
+      </div>
+
+      {tooltipPos && (
+        <BlockTooltip x={tooltipPos.x} y={tooltipPos.y}>
+          <p className="font-medium">{event.title}</p>
+          <p className="opacity-70">{fmtTime(event.start)} – {fmtTime(event.end)}</p>
+          {event.location && <p className="opacity-70">{event.location}</p>}
+        </BlockTooltip>
+      )}
+    </>
   )
 }
