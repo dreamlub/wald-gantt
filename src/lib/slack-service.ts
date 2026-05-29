@@ -21,11 +21,25 @@
  */
 
 import Anthropic from '@anthropic-ai/sdk'
+import type { ParsedMessage } from '@anthropic-ai/sdk'
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
+import { z } from 'zod'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { WebClient } from '@slack/web-api'
 
 // 모듈 레벨 singleton — env 미설정 시에도 import 오류 없게 null 허용
 const _defaultAnthropicKey = process.env.ANTHROPIC_API_KEY ?? ''
+
+// AI 분류 구조화 출력 스키마 (structured outputs로 강제)
+const ClassifySchema = z.object({
+  skip:     z.boolean(),
+  tags:     z.array(z.enum(['issue', 'decision', 'schedule', 'mention'])),
+  priority: z.enum(['high', 'medium', 'low']),
+  title:    z.string(),
+  body:     z.string(),
+  author:   z.string(),
+  brand:    z.string().nullable(),
+})
 
 // ── 타입 ─────────────────────────────────────────────────────────
 
@@ -78,26 +92,6 @@ export function buildSourceRef(channelId: string, ts: string, domain?: string): 
   if (!domain) return ''
   const pTs = ts.replace('.', '')
   return `https://${domain}.slack.com/archives/${channelId}/p${pTs}`
-}
-
-/** JSON 문자열 내부 리터럴 줄바꿈/탭 이스케이프 */
-function repairJson(raw: string): string {
-  let inString = false
-  let escape = false
-  let result = ''
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i]
-    if (escape) { result += ch; escape = false; continue }
-    if (ch === '\\') { escape = true; result += ch; continue }
-    if (ch === '"') { inString = !inString; result += ch; continue }
-    if (inString) {
-      if (ch === '\n') { result += '\\n'; continue }
-      if (ch === '\r') { result += '\\r'; continue }
-      if (ch === '\t') { result += '\\t'; continue }
-    }
-    result += ch
-  }
-  return result
 }
 
 export function delay(ms: number) {
@@ -318,12 +312,13 @@ ${fullText}
 
 {"skip":false,"tags":[],"priority":"medium","title":"30자 이내","body":"• 배경: 어떤 상황인지\\n• 경과: 어떻게 진행되었는지\\n• 조치/결과: 어떤 액션이 필요하거나 결론이 났는지\\n(해당 단계가 없으면 생략. 중요 키워드는 **볼드**로 표기)","author":"작성자 이름","brand":"본문에서 추정된 브랜드명 (미분류일 때만, 아니면 생략)"}`
 
-  let msg: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
+  let msg: ParsedMessage<z.infer<typeof ClassifySchema>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      msg = await anthropic.messages.create({
+      msg = await anthropic.messages.parse({
         model: 'claude-haiku-4-5-20251001',
         max_tokens: 512,
+        output_config: { format: zodOutputFormat(ClassifySchema) },
         messages: [{ role: 'user', content: prompt }],
       })
       break
@@ -335,27 +330,16 @@ ${fullText}
   }
   if (!msg) return null
 
-  const rawText = (msg.content[0] as { type: string; text: string }).text.trim()
-  console.log(`[classify] channel=${raw.channel} ts=${raw.ts} response=${rawText.slice(0, 200)}`)
-
-  const match = rawText.match(/\{[\s\S]*\}/)
-  if (!match) {
-    console.log(`[classify] JSON 파싱 실패 (no match): ${rawText.slice(0, 100)}`)
+  const parsed = msg.parsed_output
+  if (!parsed) {
+    console.log(`[classify] 구조화 출력 파싱 실패: stop_reason=${msg.stop_reason}`)
     return null
   }
 
-  let parsed: Record<string, unknown>
-  try {
-    parsed = JSON.parse(repairJson(match[0]))
-  } catch (e) {
-    console.log(`[classify] JSON.parse 실패: ${e}`)
-    return null
-  }
-
-  console.log(`[classify] skip=${parsed.skip} tags=${JSON.stringify(parsed.tags)} title=${parsed.title}`)
+  console.log(`[classify] channel=${raw.channel} ts=${raw.ts} skip=${parsed.skip} tags=${JSON.stringify(parsed.tags)} title=${parsed.title}`)
   if (parsed.skip === true) return null
 
-  const tags = Array.isArray(parsed.tags) ? parsed.tags as string[] : []
+  const tags: string[] = [...parsed.tags]
   const allText = raw.text + ' ' + raw.replies.map(r => r.text).join(' ')
   if (mentionUserId && allText.includes(`<@${mentionUserId}>`) && !tags.includes('mention')) {
     tags.push('mention')
@@ -363,12 +347,10 @@ ${fullText}
 
   return {
     tags,
-    priority: (['high', 'medium', 'low'].includes(parsed.priority as string)
-                ? parsed.priority as 'high' | 'medium' | 'low'
-                : 'medium'),
-    title:    typeof parsed.title === 'string' ? parsed.title.slice(0, 60) : '',
-    body:     typeof parsed.body  === 'string' ? parsed.body  : '',
-    author:   typeof parsed.author === 'string' ? parsed.author : '',
-    brand:    typeof parsed.brand === 'string' && parsed.brand ? parsed.brand : undefined,
+    priority: parsed.priority,
+    title:    parsed.title.slice(0, 60),
+    body:     parsed.body,
+    author:   parsed.author,
+    brand:    parsed.brand || undefined,
   }
 }

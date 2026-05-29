@@ -1,5 +1,7 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import type { ParsedMessage } from '@anthropic-ai/sdk'
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiKey } from '@/lib/workspace-api-keys'
@@ -7,7 +9,7 @@ import type { WeeklyReportSummary, WeeklyReportItem, WeeklyDiffSummary } from '@
 
 // AI 추출용 스키마 - change/prev 필드 없이 순수 추출만
 const ExtractedItemSchema = z.object({
-  type:      z.enum(['issue', 'decision', 'plan']).catch('plan'),
+  type:      z.enum(['issue', 'decision', 'plan']),
   title:     z.string(),
   detail:    z.string(),
   date:      z.string().nullable(),
@@ -28,30 +30,6 @@ const InsightNarrativeSchema = z.object({
 })
 
 // anthropic client는 요청마다 워크스페이스 키로 생성
-
-/** JSON 문자열 내부의 리터럴 줄바꿈/탭을 이스케이프 처리 */
-function repairJson(raw: string): string {
-  let inString = false
-  let escape = false
-  let result = ''
-  for (let i = 0; i < raw.length; i++) {
-    const ch = raw[i]
-    if (escape) {
-      result += ch
-      escape = false
-      continue
-    }
-    if (ch === '\\') { escape = true; result += ch; continue }
-    if (ch === '"') { inString = !inString; result += ch; continue }
-    if (inString) {
-      if (ch === '\n') { result += '\\n'; continue }
-      if (ch === '\r') { result += '\\r'; continue }
-      if (ch === '\t') { result += '\\t'; continue }
-    }
-    result += ch
-  }
-  return result
-}
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Promise<string> {
   const { data: { user } } = await sb.auth.getUser()
@@ -195,14 +173,15 @@ JSON 형식만 반환:
   "summary": "핵심 내용 2~3문장 요약"
 }`
 
-  let message: Awaited<ReturnType<typeof anthropic.messages.create>> | null = null
+  // Structured outputs로 스키마를 강제 → 정규식 추출·repairJson 불필요
+  let message: ParsedMessage<z.infer<typeof ExtractedReportSchema>> | null = null
   for (let attempt = 1; attempt <= 3; attempt++) {
     try {
-      message = await anthropic.messages.create({
+      message = await anthropic.messages.parse({
         model: 'claude-haiku-4-5-20251001',
-        // 브랜드가 많은 보고서(예: Biz Lead Weekly Board)는 추출 아이템이 많아
-        // 8000토큰에서 JSON 배열 중간이 잘려 파싱이 깨졌다. 상향.
+        // 브랜드가 많은 보고서(예: Biz Lead Weekly Board)는 추출 아이템이 많아 출력이 길다. 충분히 상향.
         max_tokens: 16000,
+        output_config: { format: zodOutputFormat(ExtractedReportSchema) },
         messages: [{ role: 'user', content: userPrompt }],
       })
       break
@@ -217,39 +196,23 @@ JSON 형식만 반환:
   }
   if (!message) throw new Error(`보고서 분석 실패 (${report.team}): API 재시도 초과`)
 
-  // 응답이 토큰 한계로 잘리면 JSON이 반드시 깨지므로, 혼란스러운 파싱 에러 대신 명확히 알린다
+  // structured outputs도 토큰 한계로 잘리면 parsed_output이 비므로 명확히 알린다
   if (message.stop_reason === 'max_tokens') {
     throw new Error(`보고서 분석 응답이 max_tokens(16000)로 잘렸습니다 (${report.team}). 보고 내용이 너무 길어 추출 아이템이 많습니다 — 보고서 분할이 필요합니다.`)
   }
 
-  const raw = (message.content[0] as { type: string; text: string }).text.trim()
-  const jsonMatch = raw.match(/\{[\s\S]*\}/)
-  if (!jsonMatch) throw new Error(`보고서 분석 실패 (${report.team}): JSON 응답 없음`)
-  const repaired = repairJson(jsonMatch[0])
-
-  let parsedJson: unknown
-  try {
-    parsedJson = JSON.parse(repaired)
-  } catch (e) {
-    console.error(`[analyze] JSON parse error (${report.team}):`, e)
-    console.error(`[analyze] stop_reason:`, message.stop_reason)
-    console.error(`[analyze] raw tail:`, raw.slice(-300))
-    throw new Error(`보고서 JSON 파싱 실패 (${report.team}): ${e instanceof Error ? e.message : String(e)}`)
-  }
-
-  const parsed = ExtractedReportSchema.safeParse(parsedJson)
-  if (!parsed.success) {
-    const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(' | ')
-    throw new Error(`보고서 형식 오류 (${report.team}): ${issues}`)
+  const data = message.parsed_output
+  if (!data) {
+    throw new Error(`보고서 분석 실패 (${report.team}): 구조화 출력 파싱 실패 (stop_reason=${message.stop_reason})`)
   }
 
   // 코드 기반 전주 비교
-  const enrichedItems = applyDiff(parsed.data.items, prevItems)
-  const droppedItems  = findDropped(parsed.data.items, prevItems)
+  const enrichedItems = applyDiff(data.items, prevItems)
+  const droppedItems  = findDropped(data.items, prevItems)
 
   const summaryData: WeeklyReportSummary = {
     items: enrichedItems,
-    summary: parsed.data.summary,
+    summary: data.summary,
     diff_summary: buildDiffSummary(enrichedItems, prevItems, droppedItems),
   }
 
@@ -404,23 +367,19 @@ JSON 형식만 반환:
   "changes": "전주 대비 주목할 변화 1~2문장."
 }`
 
-        const insightMsg = await anthropic.messages.create({
+        const insightMsg = await anthropic.messages.parse({
           model: 'claude-haiku-4-5-20251001',
           max_tokens: 1024,
+          output_config: { format: zodOutputFormat(InsightNarrativeSchema) },
           messages: [{ role: 'user', content: insightPrompt }],
         })
-
-        const insightRaw = (insightMsg.content[0] as { type: string; text: string }).text.trim()
-        const insightMatch = insightRaw.match(/\{[\s\S]*\}/)
-        if (!insightMatch) throw new Error('인사이트 JSON 응답 없음')
-
-        const insightParsed = InsightNarrativeSchema.safeParse(JSON.parse(repairJson(insightMatch[0])))
-        if (!insightParsed.success) throw new Error('인사이트 형식 오류')
+        const insight = insightMsg.parsed_output
+        if (!insight) throw new Error('인사이트 형식 오류 (구조화 출력 파싱 실패)')
 
         const content = {
-          headline: insightParsed.data.headline,
+          headline: insight.headline,
           stats,
-          changes: insightParsed.data.changes,
+          changes: insight.changes,
         }
 
         send('status', { message: '저장 중...' })

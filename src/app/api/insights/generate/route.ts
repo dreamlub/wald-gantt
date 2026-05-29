@@ -1,5 +1,6 @@
 import { NextRequest } from 'next/server'
 import Anthropic from '@anthropic-ai/sdk'
+import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiKey } from '@/lib/workspace-api-keys'
@@ -249,38 +250,22 @@ ${JSON.stringify(newItemsWithBrand, null, 2)}
 ${JSON_SCHEMA}`
         }
 
-        const message = await anthropic.messages.create({
+        // Structured outputs로 스키마 강제 → 정규식 추출·수동 이스케이프 불필요
+        const message = await anthropic.messages.parse({
           model: 'claude-sonnet-4-6',
           max_tokens: 16384,
           system: SYSTEM_PROMPT,
+          output_config: { format: zodOutputFormat(InsightContentSchema) },
           messages: [{ role: 'user', content: userPrompt }],
         })
 
         send('status', { message: '저장 중...' })
 
-        const raw = (message.content[0] as { type: string; text: string }).text.trim()
-        const jsonMatch = raw.match(/\{[\s\S]*\}/)
-        if (!jsonMatch) throw new Error('Claude did not return valid JSON')
-
-        // 문자열 내부의 리터럴 개행 문자 이스케이프 처리
-        const repaired = jsonMatch[0].replace(
-          /"((?:[^"\\]|\\.)*)"/g,
-          (_m, inner: string) => `"${inner.replace(/\n/g, '\\n').replace(/\r/g, '\\r').replace(/\t/g, '\\t')}"`
-        )
-
-        let jsonParsed: unknown
-        try {
-          jsonParsed = JSON.parse(repaired)
-        } catch (e) {
-          const msg = e instanceof Error ? e.message : String(e)
-          throw new Error(`JSON 파싱 실패 (응답이 잘렸을 수 있음): ${msg}`)
+        if (message.stop_reason === 'max_tokens') {
+          throw new Error('인사이트 응답이 max_tokens(16384)로 잘렸습니다. 수집 항목이 너무 많습니다.')
         }
-        const parsed = InsightContentSchema.safeParse(jsonParsed)
-        if (!parsed.success) {
-          const issues = parsed.error.issues.map(i => `${i.path.join('.')}: ${i.message}`).join(' | ')
-          throw new Error(`Claude 응답 형식 오류: ${issues}`)
-        }
-        const content = parsed.data
+        const content = message.parsed_output
+        if (!content) throw new Error('Claude 응답 형식 오류 (구조화 출력 파싱 실패)')
 
         // 브랜드명 → client_id 정규화 (name, name_en, keywords 모두 커버)
         const nameToId: Record<string, string> = {}
