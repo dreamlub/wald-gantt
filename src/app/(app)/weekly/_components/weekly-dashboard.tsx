@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { RefreshCw } from 'lucide-react'
+import { RefreshCw, FileText, ListChecks, Lightbulb } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import {
   type FilterKey,
@@ -13,28 +13,32 @@ import {
   FilterBar,
 } from './weekly-dashboard-parts'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
-import { WeeklyRawPanel } from './weekly-raw-panel'
+import { WeeklyRawView } from './weekly-raw-view'
 
-// ── WeeklyDashboard ───────────────────────────────────────────────
+// ── WeeklyDashboard — 원문 / 요약 / 인사이트 3탭 인라인 구조 ──
+
+export type WeeklyTab = 'raw' | 'summary' | 'insight'
 
 interface Props {
   weekStart: string
-  prevWeekStart: string
   reports: WeeklyReport[]
   insight: WeeklyInsight | null
   reportsLoading: boolean
-  showInsight: boolean
-  onCloseInsight: () => void
+  tab: WeeklyTab
+  onTabChange: (t: WeeklyTab) => void
   onInsightUpdate: (insight: WeeklyInsight) => void
   onRefresh: () => void
-  showRaw: boolean
-  onCloseRaw: () => void
 }
+
+const TABS: { key: WeeklyTab; label: string; icon: typeof FileText }[] = [
+  { key: 'raw',     label: '원문',     icon: FileText },
+  { key: 'summary', label: '요약',     icon: ListChecks },
+  { key: 'insight', label: '인사이트', icon: Lightbulb },
+]
 
 export function WeeklyDashboard({
   weekStart, reports, insight, reportsLoading,
-  showInsight, onCloseInsight, onInsightUpdate, onRefresh,
-  showRaw, onCloseRaw,
+  tab, onTabChange, onInsightUpdate, onRefresh,
 }: Props) {
   const [compareMode, setCompareMode] = useState(false)
   const [filter, setFilter]           = useState<FilterKey>('all')
@@ -42,7 +46,6 @@ export function WeeklyDashboard({
 
   const allItems = assembleItems(reports)
 
-  // type 탭 필터 먼저 적용
   const typeFiltered = typeFilter === 'all'
     ? allItems
     : allItems.filter(it => it.type === typeFilter)
@@ -65,39 +68,49 @@ export function WeeklyDashboard({
 
   const filtered = filter === 'all' ? typeFiltered : typeFiltered.filter(it => it.change === filter)
 
-  if (reportsLoading) {
-    return (
-      <div className="flex items-center justify-center py-16">
-        <RefreshCw size={16} className="animate-spin text-ink-400" />
-      </div>
-    )
-  }
-
   return (
     <>
-      {showInsight && (
+      {/* 탭 바 */}
+      <div className="flex items-center gap-1 border-b border-border mb-5">
+        {TABS.map(t => {
+          const Icon = t.icon
+          const active = tab === t.key
+          return (
+            <button
+              key={t.key}
+              onClick={() => onTabChange(t.key)}
+              className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
+                active
+                  ? 'border-foreground text-foreground'
+                  : 'border-transparent text-ink-400 hover:text-foreground'
+              }`}
+            >
+              <Icon size={13} />
+              {t.label}
+            </button>
+          )
+        })}
+      </div>
+
+      {reportsLoading ? (
+        <div className="flex items-center justify-center py-16">
+          <RefreshCw size={16} className="animate-spin text-ink-400" />
+        </div>
+      ) : tab === 'raw' ? (
+        <WeeklyRawView reports={reports} />
+      ) : tab === 'insight' ? (
         <AISummaryPanel
+          inline
           weekStart={weekStart}
           insight={insight}
           reports={reports}
           onInsightUpdate={onInsightUpdate}
           onRefresh={onRefresh}
-          onClose={onCloseInsight}
         />
-      )}
-
-      {showRaw && (
-        <WeeklyRawPanel
-          weekStart={weekStart}
-          reports={reports}
-          onClose={onCloseRaw}
-        />
-      )}
-
-      {reports.length === 0 ? (
+      ) : reports.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">
           <p className="text-sm text-muted-foreground">수집된 보고서가 없습니다</p>
-          <p className="text-sm text-ink-300">MCP를 통해 보고서를 수집한 후 분석하세요</p>
+          <p className="text-sm text-ink-300">원문을 수집한 후 분석하세요</p>
         </div>
       ) : (
         <>

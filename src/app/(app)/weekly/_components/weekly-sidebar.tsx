@@ -10,11 +10,19 @@ interface Props {
   weeks: string[]                                  // week_start 'YYYY-MM-DD' 내림차순
   byWeek: Map<string, Map<string, WeeklyReport>>   // week → teamLabel → report
   selectedIso: string
+  focusedTeam: string | null                       // 현재 선택된 팀(label) — 다크 하이라이트
   onSelect: (weekStart: string) => void            // 주차 선택 (전체 원본)
   onSelectTeam: (weekStart: string, teamLabel: string) => void  // 주차+팀 원본
   onCollectTeam: (team: WeeklyTeam) => void
   collectingTeamId: string | null
   collectDisabled: boolean
+}
+
+/** raw_content에서 항목(불릿) 수를 대략 집계 — 사이드바 'N 건' 표기용 */
+function countItems(report: WeeklyReport | undefined): number {
+  if (!report?.raw_content) return 0
+  const bullets = report.raw_content.split('\n').filter(l => /^\s*[-*•]\s+\S/.test(l)).length
+  return bullets
 }
 
 /** 'YYYY-MM-DD' → { wk: 'W22', label: '5월 4주', range: '5/25 – 5/31' } */
@@ -34,7 +42,7 @@ function weekMeta(iso: string): { wk: string; label: string; range: string } {
 }
 
 export function WeeklySidebar({
-  teams, weeks, byWeek, selectedIso, onSelect, onSelectTeam,
+  teams, weeks, byWeek, selectedIso, focusedTeam, onSelect, onSelectTeam,
   onCollectTeam, collectingTeamId, collectDisabled,
 }: Props) {
   const totalTeams = teams.length
@@ -84,18 +92,25 @@ export function WeeklySidebar({
                 <div className="px-3 pb-1 text-2xs text-ink-400">{meta.range}</div>
                 <div className="flex flex-col py-1">
                   {teams.map((t, ti) => {
-                    const submitted = teamMap.has(t.label)
+                    const report = teamMap.get(t.label)
+                    const submitted = !!report
+                    const active = isSelected && focusedTeam === t.label
+                    const n = countItems(report)
                     return (
                       <button
                         key={t.id}
                         onClick={() => submitted ? onSelectTeam(w, t.label) : undefined}
                         disabled={!submitted}
-                        className="flex items-center gap-2 px-3 py-1.5 text-left hover:bg-muted transition-colors disabled:hover:bg-transparent disabled:cursor-default"
+                        className={`flex items-center gap-2 px-3 py-1.5 text-left transition-colors disabled:cursor-default ${
+                          active
+                            ? 'bg-foreground text-background'
+                            : 'hover:bg-muted disabled:hover:bg-transparent'
+                        }`}
                       >
                         <span className="w-2 h-2 rounded-full shrink-0" style={{ background: teamColor(ti) }} />
-                        <span className="flex-1 text-sm text-foreground truncate">{t.label}</span>
+                        <span className={`flex-1 text-sm truncate ${active ? 'text-background font-medium' : 'text-foreground'}`}>{t.label}</span>
                         {submitted ? (
-                          <span className="text-2xs text-ink-400">제출됨</span>
+                          <span className={`text-2xs ${active ? 'text-background/70' : 'text-ink-400'}`}>{n > 0 ? `${n} 건` : '제출됨'}</span>
                         ) : (
                           <span className="text-2xs font-semibold text-status-late">미제출</span>
                         )}
