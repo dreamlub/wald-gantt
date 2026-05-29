@@ -153,12 +153,12 @@ export async function POST(req: NextRequest) {
         }
         const anthropic = new Anthropic({ apiKey: anthropicApiKey })
 
-        // 주 범위 계산 (월~일)
-        const monday = new Date(week_start + 'T00:00:00')
-        const sunday = new Date(monday)
-        sunday.setDate(monday.getDate() + 6)
-        sunday.setHours(23, 59, 59, 999)
-        const weekEnd = sunday.toISOString()
+        // 주 범위 계산 (월~일). occurred_at은 순수 UTC 저장이므로 경계는 KST(+09:00)로 명시.
+        const [wy, wm, wd] = week_start.split('-').map(Number)
+        const sundayDate = new Date(Date.UTC(wy, wm - 1, wd + 6))
+        const sundayStr = sundayDate.toISOString().slice(0, 10)
+        const weekStartBound = `${week_start}T00:00:00+09:00`
+        const weekEndBound = `${sundayStr}T23:59:59+09:00`
 
         // 기존 인사이트 조회
         const { data: existing } = await sb
@@ -174,8 +174,8 @@ export async function POST(req: NextRequest) {
           .select('id, client_id, tags, title, body, occurred_at, priority, author, channel')
           .eq('workspace_id', workspaceId)
           .is('deleted_at', null)
-          .gte('occurred_at', week_start + 'T00:00:00')
-          .lte('occurred_at', weekEnd)
+          .gte('occurred_at', weekStartBound)
+          .lte('occurred_at', weekEndBound)
           .order('occurred_at', { ascending: false })
 
         // occurred_at이 아닌 created_at 기준: 이미 지난 날짜로 늦게 INSERT된 항목도 포함

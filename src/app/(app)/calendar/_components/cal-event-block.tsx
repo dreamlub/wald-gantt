@@ -153,6 +153,13 @@ interface CreateProps {
 /** 빈 시간대 클릭 시 뜨는 제목 입력 (Enter 생성 / Esc·blur 취소) */
 export function EventCreateInput({ top, onSubmit, onCancel }: CreateProps) {
   const [val, setVal] = useState('')
+  // Enter 제출 → 인풋 언마운트 → blur 재발화로 onSubmit이 두 번 호출되는 중복 생성 방지
+  const doneRef = useRef(false)
+  const submit = (v: string) => {
+    if (doneRef.current) return
+    doneRef.current = true
+    onSubmit(v)
+  }
   return (
     <div
       className="absolute left-0 right-0 px-1 z-20"
@@ -165,10 +172,10 @@ export function EventCreateInput({ top, onSubmit, onCancel }: CreateProps) {
         placeholder="일정 제목…"
         onChange={e => setVal(e.target.value)}
         onKeyDown={e => {
-          if (e.key === 'Enter') onSubmit(val)
+          if (e.key === 'Enter') submit(val)
           if (e.key === 'Escape') onCancel()
         }}
-        onBlur={() => (val.trim() ? onSubmit(val) : onCancel())}
+        onBlur={() => (val.trim() ? submit(val) : onCancel())}
         className="w-full text-2xs font-medium rounded px-1.5 py-1 outline-none ring-2 ring-lilac-400 bg-card text-foreground shadow-sm"
       />
     </div>

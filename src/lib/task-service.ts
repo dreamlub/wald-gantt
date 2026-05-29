@@ -263,8 +263,9 @@ export async function bulkUpdateTaskStatus(ids: string[], status: TaskStatus): P
 // ── Time Blocking ──────────────────────────────────────────
 
 export async function getScheduledTasks(workspaceId: string, dateStr: string): Promise<GanttTask[]> {
-  const dayStart = `${dateStr}T00:00:00.000Z`
-  const dayEnd   = `${dateStr}T23:59:59.999Z`
+  // scheduled_at은 캘린더 전반에서 KST 기준 instant로 다루므로 경계도 KST(+09:00)로 명시
+  const dayStart = `${dateStr}T00:00:00+09:00`
+  const dayEnd   = `${dateStr}T23:59:59+09:00`
   const { data, error } = await db()
     .from('gantt_tasks')
     .select('*')
