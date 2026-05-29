@@ -108,8 +108,8 @@ export function WeeklyShell() {
     if (selectedIso) fetchDashData(selectedIso)
   }, [selectedIso, fetchDashData])
 
-  /** 전체 체인 AI 분류 — 수집 완료 후 자동 실행 */
-  const handleAutoAnalyze = useCallback(async (weekStart: string) => {
+  /** 선택 주차 AI 분석 — '분석' 버튼으로 수동 실행 */
+  const handleAnalyze = useCallback(async (weekStart: string) => {
     setAutoAnalyzing(true)
     setAutoAnalyzeProgress(5)
     setAutoAnalyzeStatus(null)
@@ -165,14 +165,14 @@ export function WeeklyShell() {
       const team = focusTeam ?? teams.find(t => t.id === selectedTeam)
       if (team) {
         if (focusTeam && focusTeam.id !== selectedTeam) setSelectedTeam(team.id)
+        // 수집만 수행 — 분석은 사용자가 '분석' 버튼으로 별도 실행 (슬랙 흐름과 동일)
         const freshWeeks = await fetchWeeks(team.label)
-        // 새로 수집된 데이터가 있으면 최신 주차 자동 분류
-        if (total > 0 && freshWeeks.length > 0) handleAutoAnalyze(freshWeeks[0]) // fire-and-forget
+        if (total > 0 && freshWeeks.length > 0) setSelectedIso(freshWeeks[0])
       }
     } catch {
       toast.error('수집 중 오류가 발생했습니다')
     }
-  }, [teams, selectedTeam, fetchWeeks, handleAutoAnalyze])
+  }, [teams, selectedTeam, fetchWeeks, setSelectedIso])
 
   const handleImportOutline = useCallback(async () => {
     setImporting(true)
@@ -197,11 +197,22 @@ export function WeeklyShell() {
             onClick={handleImportOutline}
             disabled={importing || autoAnalyzing}
             className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-            title="Outline 수집 후 AI 분류"
+            title="Outline 수집 (분석은 별도)"
           >
             {importing
               ? <RefreshCw size={14} className="animate-spin" />
               : <CloudDownload size={14} />
+            }
+          </button>
+          <button
+            onClick={() => selectedIso && handleAnalyze(selectedIso)}
+            disabled={!selectedIso || importing || autoAnalyzing}
+            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
+            title="선택한 주차 AI 분석"
+          >
+            {autoAnalyzing
+              ? <RefreshCw size={14} className="animate-spin" />
+              : <Sparkles size={14} />
             }
           </button>
         </div>

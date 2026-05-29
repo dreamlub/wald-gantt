@@ -74,6 +74,23 @@ function isQuarterDoc(title: string): boolean {
   return yearFirst.test(title) || quarterFirst.test(title)
 }
 
+/**
+ * 분기 문서 제목에서 정렬 키(연도*4 + 분기)를 추출. 추출 실패 시 -1.
+ * "DX기획1팀(2026.2Q)" → 2026*4+2 = 8106
+ */
+function quarterSortKey(title: string): number {
+  const year = title.match(/20\d{2}/)?.[0]
+  const quarter = title.match(/([1-4])\s*[Qq]|[Qq]\s*([1-4])|([1-4])\s*분기/)
+  if (!year || !quarter) return -1
+  const q = Number(quarter[1] ?? quarter[2] ?? quarter[3])
+  return Number(year) * 4 + q
+}
+
+// 수집할 최근 분기 문서 수 (현재 + 직전 분기). 분석 윈도우(8주)를 충분히 커버하며
+// 과거 전체 분기를 매번 재수집하던 비용을 줄인다.
+const RECENT_QUARTERS = 2
+
+
 export async function POST(req: Request) {
   try {
     // 특정 팀만 수집할 때 { collectionId } 전달 (없으면 전체 팀 수집)
@@ -136,6 +153,13 @@ export async function POST(req: Request) {
       if (quarterDocs.length === 0) {
         quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
       }
+
+      // 최근 분기 문서만 수집 — 제목의 연/분기 기준 내림차순 정렬 후 상위 N개.
+      // 과거 전체 분기를 매번 재수집하던 동작을 제한한다.
+      quarterDocs = quarterDocs
+        .slice()
+        .sort((a, b) => quarterSortKey(b.title) - quarterSortKey(a.title))
+        .slice(0, RECENT_QUARTERS)
 
       let upserted = 0
       let errors = 0
