@@ -97,7 +97,7 @@ export async function addTask(
 
 export async function updateTask(
   id: string,
-  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'priority' | 'sort_order' | 'recurrence_rule' | 'recurrence_interval' | 'series_id'>>,
+  fields: Partial<Pick<GanttTask, 'title' | 'status' | 'type' | 'assignee' | 'start_date' | 'due_date' | 'memo' | 'labels' | 'priority' | 'progress' | 'sort_order' | 'recurrence_rule' | 'recurrence_interval' | 'series_id'>>,
   projectIds?: string[]
 ): Promise<void> {
   const { error } = await db()

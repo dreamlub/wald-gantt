@@ -48,13 +48,14 @@ interface Props {
   onEditProject: (project: GanttProject) => void
   onDeleteProject: (id: string) => void
   onOpenMemo: (project: GanttProject) => void
-  onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
+  onUpdateProjectDates: (id: string, startMonth: string | null, endMonth: string) => Promise<void>
   onUpdateProjectName: (id: string, name: string) => Promise<void>
   onUpdateProjectStatus: (id: string, status: GanttStatus) => Promise<void>
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
   onMoveCategory?: (updates: { id: string; sort_order: number }[]) => Promise<void>
   onShare?: () => void
   onAddSubProject?: (parentId: string, catId: string) => void
+  onAddMilestone?: (catId: string) => void
   overdueFilter?: boolean
   startDelayedFilter?: boolean
   readOnly?: boolean
@@ -68,7 +69,7 @@ export function GanttChart({
   onOpenAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
-  onMoveProject, onMoveCategory, onShare, onAddSubProject,
+  onMoveProject, onMoveCategory, onShare, onAddSubProject, onAddMilestone,
   overdueFilter: externalOverdueFilter, startDelayedFilter: externalStartDelayedFilter,
   readOnly = false,
   hideToolbar = false,
@@ -173,6 +174,23 @@ export function GanttChart({
   }
 
   function barCols(p: GanttProject): { start: number; end: number } | null {
+    // 마일스톤: end_date만 사용해서 단일 컬럼 반환
+    if (p.is_milestone) {
+      if (!p.end_date) return null
+      if (viewMode === 'month') {
+        const col = dayOffset(viewStart, p.end_date, 'start')
+        if (col >= totalCols || col < 0) return null
+        return { start: Math.max(0, col), end: Math.max(0, col) + 1 }
+      } else if (viewMode === 'week') {
+        const col = dayOffsetInWeeks(weeks, p.end_date, 'start')
+        if (col >= totalCols || col < 0) return null
+        return { start: Math.max(0, col), end: Math.max(0, col) + 1 }
+      } else {
+        const ci = days.findIndex(d => d.key === p.end_date)
+        if (ci < 0 || ci >= totalCols) return null
+        return { start: ci, end: ci + 1 }
+      }
+    }
     if (!p.start_date || !p.end_date) return null
     if (viewMode === 'month') {
       const s = dayOffset(viewStart, p.start_date, 'start')
@@ -377,6 +395,7 @@ export function GanttChart({
                       onToggleCollapsed={toggleCollapsed}
                       parentIds={parentIds}
                       onAddSubProject={onAddSubProject}
+                      onAddMilestone={onAddMilestone}
                     />
                   ))}
                 </SortableContext>

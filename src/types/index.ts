@@ -70,6 +70,7 @@ export interface GanttTask {
   labels: string[] | null
   parent_id: string | null
   priority: Priority | null
+  progress: number
   sort_order: number
   created_at: string
   updated_at: string
@@ -121,6 +122,8 @@ export interface GanttProject {
   pm: string | null
   memo: string | null
   priority: Priority | null
+  progress: number
+  is_milestone: boolean
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -136,6 +139,11 @@ export interface WeeklyReportItem {
   assignee?: string | null
   task_type?: string | null
   status?: string | null
+  action_required?: boolean
+  task_title?: string | null
+  task_memo?: string | null
+  due_date?: string | null
+  estimated_minutes?: number | null
   // 비교 필드 (AI가 전주 대비 채움)
   prev_status?: string | null
   change?: 'new' | 'continued' | 'completed' | 'blocked' | 'dropped' | null

@@ -22,7 +22,7 @@ interface UseBarDragOptions {
   viewStart: string
   viewEnd: string
   totalCols: number
-  onUpdateProjectDates: (id: string, startMonth: string, endMonth: string) => Promise<void>
+  onUpdateProjectDates: (id: string, startMonth: string | null, endMonth: string) => Promise<void>
 }
 
 export function useBarDrag({
@@ -31,6 +31,71 @@ export function useBarDrag({
   const [barDrag, setBarDrag] = useState<BarDragState | null>(null)
 
   const makeDragHandlers = useCallback((p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => {
+    // ── 마일스톤 전용 드래그 ────────────────────────────────────
+    if (p.is_milestone) {
+      return (e: React.MouseEvent) => {
+        e.preventDefault(); e.stopPropagation()
+        if (!p.end_date) return
+
+        const cw = viewMode === 'week' ? WEEK_COL_WIDTH : viewMode === 'day' ? DAY_COL_WIDTH : COL_WIDTH
+        const ws = viewMode === 'week' ? buildWeekRange(viewStart, viewEnd) : []
+        const ds = viewMode === 'day'  ? buildDayRange(viewStart, viewEnd)  : ([] as DayInfo[])
+
+        const snapDays  = viewMode === 'month' ? 7 : 1
+        const pxPerSnap = viewMode === 'month' ? cw / AVG_DAYS_PER_MONTH * 7
+                        : viewMode === 'week'  ? cw / 7 : cw
+
+        const origEndDate = new Date(p.end_date + 'T00:00:00')
+        let origColEnd = ds.findIndex(d => d.key === p.end_date); if (origColEnd < 0) origColEnd = 0
+        const startX = e.clientX
+        let snapDelta = 0, dayDelta = 0
+
+        setBarDrag({ cursor: 'grabbing', tooltipText: '', x: 0, y: 0 })
+
+        const barEl = (e.currentTarget as HTMLElement).closest('[data-bar-id]') as HTMLElement | null
+
+        function shift(date: Date, d: number): Date { const r = new Date(date); r.setDate(r.getDate() + d); return r }
+        function fmt(d: Date): string { return `${d.getFullYear()}-${String(d.getMonth()+1).padStart(2,'0')}-${String(d.getDate()).padStart(2,'0')}` }
+
+        function onMouseMove(me: MouseEvent) {
+          const raw = me.clientX - startX
+          let ne = origEndDate
+          const HALF_DIAMOND = 7 // DIAMOND(14) / 2
+          if (viewMode === 'day') {
+            dayDelta = Math.round(raw / cw)
+            const col = Math.max(0, Math.min(origColEnd + dayDelta, totalCols - 1))
+            if (barEl) barEl.style.left = `${col * cw + cw / 2 - HALF_DIAMOND}px`
+            ne = shift(origEndDate, dayDelta)
+          } else {
+            snapDelta = Math.round(raw / pxPerSnap)
+            ne = shift(origEndDate, snapDelta * snapDays)
+            const newCol = viewMode === 'month'
+              ? dayOffset(viewStart, fmt(ne), 'start')
+              : dayOffsetInWeeks(ws, fmt(ne), 'start')
+            if (barEl) barEl.style.left = `${Math.max(0, newCol) * cw + cw / 2 - HALF_DIAMOND}px`
+          }
+          setBarDrag({ cursor: 'grabbing', tooltipText: fmt(ne), x: me.clientX, y: me.clientY })
+        }
+
+        async function onMouseUp() {
+          document.removeEventListener('mousemove', onMouseMove)
+          document.removeEventListener('mouseup', onMouseUp)
+          setBarDrag(null)
+          if (viewMode === 'day') {
+            const ne = shift(origEndDate, dayDelta)
+            if (fmt(ne) !== p.end_date) await onUpdateProjectDates(p.id, null, fmt(ne))
+          } else if (snapDelta !== 0) {
+            const ne = shift(origEndDate, snapDelta * snapDays)
+            await onUpdateProjectDates(p.id, null, fmt(ne))
+          }
+        }
+
+        document.addEventListener('mousemove', onMouseMove)
+        document.addEventListener('mouseup', onMouseUp)
+      }
+    }
+
+    // ── 일반 프로젝트 드래그 ────────────────────────────────────
     return (e: React.MouseEvent) => {
       e.preventDefault(); e.stopPropagation()
       if (!p.start_date || !p.end_date) return

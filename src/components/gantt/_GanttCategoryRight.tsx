@@ -70,15 +70,62 @@ export function GanttCategoryRight({
       <div className="border-b" style={{ height: CAT_ROW_H, backgroundColor: 'var(--muted)' }} />
 
       {catProjs.map(project => {
-        const cols      = barCols(project)
-        const isBacklog = project.status === 'backlog'
-        const isChild   = !!project.parent_id
+        const cols        = barCols(project)
+        const isMilestone = project.is_milestone
+        const isBacklog   = !isMilestone && project.status === 'backlog'
+        const isChild     = !!project.parent_id
 
         const BAR_H      = isChild ? 14 : 20
         const curTop     = (PROJ_ROW_H - BAR_H) / 2
         const barWidth   = (cols ? cols.end - cols.start : 0) * colW - 8
         const dateText   = (project.start_date && project.end_date) ? formatBarDate(project.start_date, project.end_date) : ''
         const dateFitsInside = dateText.length > 0 && barWidth >= dateText.length * 5.5 + 14
+
+        // 마일스톤: cols.start 컬럼 중앙에 다이아몬드 마커
+        if (isMilestone) {
+          const DIAMOND = 14
+          return (
+            <div
+              key={project.id}
+              className="relative border-b"
+              style={{ height: PROJ_ROW_H }}
+            >
+              {cols && (
+                <div
+                  data-bar-id={project.id}
+                  className="absolute"
+                  style={{
+                    top: (PROJ_ROW_H - DIAMOND) / 2,
+                    left: cols.start * colW + colW / 2 - DIAMOND / 2,
+                    width: DIAMOND,
+                    height: DIAMOND,
+                    cursor: readOnly ? 'default' : 'grab',
+                  }}
+                  onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
+                >
+                  {/* 다이아몬드 도형 */}
+                  <div
+                    className="absolute inset-0 pointer-events-none"
+                    style={{
+                      backgroundColor: barColor,
+                      transform: 'rotate(45deg)',
+                      borderRadius: 2,
+                    }}
+                  />
+                  {/* 날짜 레이블 */}
+                  {project.end_date && (
+                    <span
+                      className="absolute text-3xs whitespace-nowrap text-muted-foreground pointer-events-none tabular-nums"
+                      style={{ left: DIAMOND + 8, top: (DIAMOND - 10) / 2 }}
+                    >
+                      {project.end_date.slice(5).replace('-', '/')}
+                    </span>
+                  )}
+                </div>
+              )}
+            </div>
+          )
+        }
 
         return (
           <div
@@ -106,7 +153,7 @@ export function GanttCategoryRight({
                     left: cols.start * colW + 4,
                     width: barWidth,
                     height: BAR_H,
-                    backgroundColor: barColor + barOpacity(project.priority),
+                    backgroundColor: barColor + 'aa',
                     border: `1.5px solid ${barColor}`,
                     paddingLeft: 5,
                     paddingRight: 4,
@@ -114,16 +161,22 @@ export function GanttCategoryRight({
                   }}
                   onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
                 >
+                  {project.progress > 0 && (
+                    <div
+                      className="absolute inset-0 pointer-events-none"
+                      style={{ width: `${project.progress}%`, backgroundColor: barColor, opacity: 0.75 }}
+                    />
+                  )}
                   {!readOnly && (
                     <div
-                      className="absolute left-0 top-0 bottom-0 w-2 rounded-l cursor-ew-resize"
+                      className="absolute left-0 top-0 bottom-0 w-2 rounded-l cursor-ew-resize z-10"
                       onMouseDown={e => { e.stopPropagation(); makeDragHandlers(project, 'resize-left')(e) }}
                     />
                   )}
                   {dateFitsInside && (
                     <span
-                      className="text-3xs font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
-                      style={{ color: barTextColor, textShadow: barTextShadow }}
+                      className="relative z-10 text-3xs font-medium tabular-nums whitespace-nowrap leading-none pointer-events-none select-none"
+                      style={{ color: barTextColor, textShadow: isLightColor(barColor) ? '0 0 3px rgba(255,255,255,0.8)' : '0 0 3px rgba(0,0,0,0.5)' }}
                     >
                       {dateText}
                     </span>

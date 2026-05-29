@@ -21,11 +21,16 @@ export type WeeklyTab = 'raw' | 'summary' | 'insight'
 
 interface Props {
   weekStart: string
+  prevWeekStart?: string
   reports: WeeklyReport[]
   insight: WeeklyInsight | null
   reportsLoading: boolean
-  tab: WeeklyTab
-  onTabChange: (t: WeeklyTab) => void
+  tab?: WeeklyTab
+  onTabChange?: (t: WeeklyTab) => void
+  showInsight?: boolean
+  onCloseInsight?: () => void
+  showRaw?: boolean
+  onCloseRaw?: () => void
   onInsightUpdate: (insight: WeeklyInsight) => void
   onRefresh: () => void
 }
@@ -78,7 +83,7 @@ export function WeeklyDashboard({
           return (
             <button
               key={t.key}
-              onClick={() => onTabChange(t.key)}
+              onClick={() => onTabChange?.(t.key)}
               className={`flex items-center gap-1.5 px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
                 active
                   ? 'border-foreground text-foreground'

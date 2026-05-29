@@ -1,9 +1,13 @@
 'use client'
 
+import { useRef } from 'react'
 import { format } from 'date-fns'
 import { ArrowUpRight, Pin, PinOff, Trash2 } from 'lucide-react'
+import { useSortable } from '@dnd-kit/sortable'
+import { CSS } from '@dnd-kit/utilities'
 import type { Note } from '@/types'
 import { NOTE_COLORS, ColorPicker } from './note-color-picker'
+import { NoteMarkdown, parseCheckboxStats } from './note-markdown'
 
 interface Props {
   note: Note
@@ -28,26 +32,84 @@ function Highlight({ text, query }: { text: string; query: string }) {
   )
 }
 
-export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: Props) {
+// 드래그 오버레이 전용 — useSortable 없이 카드 외형만 렌더링
+export function NoteCardOverlay({ note }: { note: Note }) {
   const bg     = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
   const date   = format(new Date(note.updated_at), 'M/d')
   const isLong = note.content.length > 300
+  return (
+    <div className={`rounded-2xl border border-border/60 p-4 shadow-2xl cursor-grabbing select-none ${bg}`}>
+      {note.title && (
+        <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">{note.title}</p>
+      )}
+      <div style={isLong ? {
+        maxHeight: '10rem', overflow: 'hidden',
+        maskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
+        WebkitMaskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
+      } : undefined}>
+        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words min-h-[2rem]">
+          {note.content || <em className="text-ink-300 not-italic">빈 메모</em>}
+        </p>
+      </div>
+      {(note.links?.length ?? 0) > 0 && (
+        <div className="flex items-center gap-1 mt-2 text-2xs text-lilac-500 dark:text-lilac-400">
+          <ArrowUpRight size={10} />
+          <span>{note.links.length}개 연결됨</span>
+        </div>
+      )}
+      <div className="flex items-center gap-1 mt-3 pt-2 border-t border-black/5 dark:border-white/5">
+        <span className="text-2xs text-ink-400 tabular-nums">{date}</span>
+      </div>
+    </div>
+  )
+}
+
+export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: Props) {
+  const {
+    attributes, listeners,
+    setNodeRef, transform, transition,
+    isDragging,
+  } = useSortable({ id: note.id })
+
+  const style = {
+    transform: CSS.Translate.toString(transform),
+    transition,
+    // 드래그 중엔 완전 투명 — DragOverlay 클론이 대신 보임
+    opacity: isDragging ? 0 : 1,
+  }
+
+  const bg        = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  const date      = format(new Date(note.updated_at), 'M/d')
+  const isLong    = note.content.length > 300
+  const checkboxes = note.content ? parseCheckboxStats(note.content) : null
+
+  const pointerStart = useRef<{ x: number; y: number } | null>(null)
 
   return (
     <div
-      onClick={() => onOpen(note.id)}
-      className={`group relative rounded-2xl border border-border/60 p-4 transition-shadow hover:shadow-md cursor-pointer select-none ${bg}`}
+      ref={setNodeRef}
+      style={style}
+      {...attributes}
+      {...listeners}
+      onMouseDown={e => { pointerStart.current = { x: e.clientX, y: e.clientY } }}
+      onClick={e => {
+        if (pointerStart.current) {
+          const dx = e.clientX - pointerStart.current.x
+          const dy = e.clientY - pointerStart.current.y
+          if (Math.sqrt(dx * dx + dy * dy) > 5) return
+        }
+        onOpen(note.id)
+      }}
+      className={`group relative rounded-2xl border border-border/60 p-4 transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing select-none break-inside-avoid mb-4 ${bg}`}
     >
-      {/* 제목 */}
       {note.title && (
         <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">
           <Highlight text={note.title} query={highlight} />
         </p>
       )}
 
-      {/* 본문 — 길면 mask-image 페이드 (배경색 독립적) */}
       <div
-        className="relative"
+        className="relative min-h-[2rem]"
         style={isLong ? {
           maxHeight: '10rem',
           overflow: 'hidden',
@@ -55,15 +117,19 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
           WebkitMaskImage: 'linear-gradient(to bottom, black 55%, transparent 100%)',
         } : undefined}
       >
-        <p className="text-sm text-foreground leading-relaxed whitespace-pre-wrap break-words min-h-[2rem]">
-          {note.content
-            ? <Highlight text={note.content} query={highlight} />
-            : <em className="text-ink-300 not-italic">빈 메모</em>
-          }
-        </p>
+        {note.content
+          ? <NoteMarkdown content={note.content} />
+          : <em className="text-sm text-ink-300 not-italic">빈 메모</em>
+        }
       </div>
 
-      {/* 연결 배지 */}
+      {checkboxes && checkboxes.total > 0 && (
+        <div className="flex items-center gap-1 mt-2 text-2xs text-ink-400">
+          <span className="font-medium text-foreground">{checkboxes.checked}</span>
+          <span>/ {checkboxes.total} 완료</span>
+        </div>
+      )}
+
       {(note.links?.length ?? 0) > 0 && (
         <div className="flex items-center gap-1 mt-2 text-2xs text-lilac-500 dark:text-lilac-400">
           <ArrowUpRight size={10} />
@@ -71,8 +137,8 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
         </div>
       )}
 
-      {/* 하단 툴바: 색상·액션은 hover, 날짜는 항상 표시 */}
       <div
+        onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
         className="flex items-center gap-1 mt-3 pt-2 border-t border-black/5 dark:border-white/5"
       >

@@ -290,7 +290,13 @@ export function ActionDetailDrawer({
       {onCreateTask && (
         <DrawerFooter>
           <button
-            onClick={() => { onCreateTask(item?.title ?? '', `${item?.summary ?? ''}\n\n→ ${item?.action ?? ''}`); onClose() }}
+            onClick={() => {
+              onCreateTask(
+                item?.task_title?.trim() || item?.title || '',
+                item?.task_memo?.trim() || `${item?.summary ?? ''}\n\n→ ${item?.action ?? ''}`,
+              )
+              onClose()
+            }}
             className="flex items-center gap-1.5 text-sm font-medium px-4 py-2 rounded-lg bg-foreground text-background hover:opacity-90 transition-opacity"
           >
             <Plus size={13} />

@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { toast } from 'sonner'
-import type { CalendarEvent, GanttTask, TaskStatus, Priority, TaskType } from '@/types'
+import type { CalendarEvent, GanttTask, TaskStatus, Priority, TaskType, RecurrenceRule } from '@/types'
 import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
   getTasks, updateTaskSchedule, updateTask,
@@ -115,7 +115,7 @@ export function useCalendarData() {
 
   const handleDrawerSave = useCallback(async (
     task: GanttTask,
-    fields: { title: string; status: TaskStatus; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority },
+    fields: { title: string; status: TaskStatus; assignee: string | null; start_date: string | null; due_date: string | null; memo: string | null; labels: string[]; priority: Priority; recurrence_rule: RecurrenceRule | null; recurrence_interval: number | null },
     projectIds: string[]
   ) => {
     await updateTask(task.id, fields, projectIds)

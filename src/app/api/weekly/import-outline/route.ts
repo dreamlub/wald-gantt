@@ -93,11 +93,24 @@ function quarterSortKey(title: string): number {
 const RECENT_QUARTERS = 2
 
 
+/** 'YYYY-MM-DD' 문자열에서 6일 후 날짜 반환 (주 말일 = 일요일) */
+function weekEndOf(weekStart: string): string {
+  const d = new Date(weekStart + 'T00:00:00')
+  d.setDate(d.getDate() + 6)
+  const y = d.getFullYear()
+  const m = String(d.getMonth() + 1).padStart(2, '0')
+  const day = String(d.getDate()).padStart(2, '0')
+  return `${y}-${m}-${day}`
+}
+
 export async function POST(req: Request) {
   try {
-    // 특정 팀만 수집할 때 { collectionId } 전달 (없으면 전체 팀 수집)
-    const body = await req.json().catch(() => ({})) as { collectionId?: unknown }
+    // collectionId: 특정 팀만 수집 (없으면 전체 팀)
+    // weekStart: 특정 주차만 수집 (YYYY-MM-DD, 월요일 기준, 없으면 전체 주차)
+    const body = await req.json().catch(() => ({})) as { collectionId?: unknown; weekStart?: unknown }
     const onlyCollectionId = typeof body.collectionId === 'string' ? body.collectionId : null
+    const filterWeekStart  = typeof body.weekStart === 'string' ? body.weekStart : null
+    const filterWeekEnd    = filterWeekStart ? weekEndOf(filterWeekStart) : null
 
     const sb = await createClient()
     const { data: { user } } = await sb.auth.getUser()
@@ -177,8 +190,11 @@ export async function POST(req: Request) {
           continue
         }
 
-        // 4. ## YYYY.MM.DD 섹션 파싱 → upsert
-        const sections = parseWeeklySections(text)
+        // 4. ## YYYY.MM.DD 섹션 파싱 → (필터링 후) upsert
+        const allSections = parseWeeklySections(text)
+        const sections = filterWeekStart && filterWeekEnd
+          ? allSections.filter(s => s.weekStart >= filterWeekStart && s.weekStart <= filterWeekEnd)
+          : allSections
         for (const section of sections) {
           const { error } = await sb.from('weekly_reports').upsert(
             {

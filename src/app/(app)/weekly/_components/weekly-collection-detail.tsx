@@ -62,7 +62,7 @@ export function WeeklyCollectionDetail({
           <span className="text-sm text-ink-400">{fmtRange(week.weekStart, week.weekEnd)}</span>
           {week.isCurrent && (
             <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-status-future/15 text-status-future">
-              전행 중
+              진행 중
             </span>
           )}
           {!week.isCurrent && allDone && (

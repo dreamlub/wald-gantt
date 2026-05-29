@@ -9,6 +9,41 @@
 
 ---
 
+## 최근 변경 (2026-05-30) — 마일스톤 기능 구현
+
+### 목적
+간트 차트에서 단일 날짜 기반 이정표(마일스톤) 지원
+
+### 변경 내용
+
+**DB** — migration `add_is_milestone_to_gantt_projects`
+- `gantt_projects.is_milestone boolean NOT NULL DEFAULT false` 추가
+
+**`types/index.ts`** — `GanttProject.is_milestone: boolean` 추가
+
+**`gantt-service.ts`** — `addProject` fields에 `is_milestone?: boolean` 추가
+
+**`ProjectFormDialog.tsx`**
+- "마일스톤" 토글 버튼 추가 (서브프로젝트 폼 제외)
+- 마일스톤 ON: 날짜 하나만 입력, 상태/시작일/팀/PM 숨김
+- 타이틀 "마일스톤 추가 / 마일스톤 수정" 분기
+
+**`_GanttCategoryLeft.tsx`**
+- 마일스톤 행: 상태 점 대신 ◆ 다이아몬드 아이콘, 날짜(MM/DD) 표시
+- 카테고리 하단에 "마일스톤" 추가 버튼 추가
+
+**`_GanttCategoryRight.tsx`**
+- 마일스톤은 바 대신 회전된 정사각형(◆) 마커를 해당 날짜 컬럼에 렌더링
+
+**`GanttChart.tsx`** — `onAddMilestone` prop 추가 및 전달
+
+**`projects/page.tsx`**
+- `DialogState`에 `isMilestone?: boolean` 추가
+- `onAddMilestone` → `setDialog({ type: 'addProject', isMilestone: true })`
+- `handleSaveProject`에 `is_milestone` 필드 추가
+
+---
+
 ## 최근 변경 (2026-05-30) — Priority 좌측 컬러 스트라이프
 
 ### 목적

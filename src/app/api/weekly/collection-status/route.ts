@@ -2,26 +2,36 @@ import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 import { kstToday } from '@/lib/kst'
 
+/** Date → 'YYYY-MM-DD' (로컬 기준, KST 환경에서 toISOString() 쓰면 하루 밀림) */
+function ymd(d: Date): string {
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function getMondayOf(dateStr: string): string {
   const d = new Date(dateStr + 'T00:00:00')
   const day = d.getDay()
   const diff = day === 0 ? -6 : 1 - day
   d.setDate(d.getDate() + diff)
-  return d.toISOString().slice(0, 10)
+  return ymd(d)
 }
 
-function getRecentMondays(currentMonday: string, count: number): string[] {
-  return Array.from({ length: count }, (_, i) => {
-    const d = new Date(currentMonday + 'T00:00:00')
-    d.setDate(d.getDate() - i * 7)
-    return d.toISOString().slice(0, 10)
-  })
+/** currentMonday 부터 oldestMonday 까지 월요일 목록을 내림차순으로 반환 */
+function getMondaysBetween(currentMonday: string, oldestMonday: string): string[] {
+  const result: string[] = []
+  const cur = new Date(currentMonday + 'T00:00:00')
+  const old = new Date(oldestMonday + 'T00:00:00')
+  const d = new Date(cur)
+  while (d >= old) {
+    result.push(ymd(d))
+    d.setDate(d.getDate() - 7)
+  }
+  return result
 }
 
 function weekEndOf(weekStart: string): string {
   const d = new Date(weekStart + 'T00:00:00')
   d.setDate(d.getDate() + 6)
-  return d.toISOString().slice(0, 10)
+  return ymd(d)
 }
 
 function countItems(rawContent: string | null): number {
@@ -50,22 +60,31 @@ export async function GET() {
     .eq('workspace_id', member.workspace_id)
     .order('sort_order')
 
-  const today      = kstToday()
-  const curMonday  = getMondayOf(today)
-  const mondays    = getRecentMondays(curMonday, 8)
-  const oldestWeek = mondays[mondays.length - 1]
+  const today     = kstToday()
+  const curMonday = getMondayOf(today)
 
+  // DB에 저장된 모든 주차 조회 (가장 오래된 주차 파악용)
   const { data: reports } = await sb
     .from('weekly_reports')
     .select('team, week_start, raw_content')
     .eq('workspace_id', member.workspace_id)
-    .gte('week_start', oldestWeek)
+    .order('week_start', { ascending: true })
 
-  // week_start → team → itemCount
+  // 가장 오래된 week_start 기준으로 목록 범위 결정 (없으면 현재 주만)
+  const allWeekStarts = (reports ?? []).map(r => r.week_start as string)
+  const oldestWeek    = allWeekStarts.length > 0 ? allWeekStarts[0] : curMonday
+  // 가장 오래된 주의 월요일을 기준점으로 정렬
+  const oldestMonday  = getMondayOf(oldestWeek)
+
+  const mondays = getMondaysBetween(curMonday, oldestMonday)
+
+  // week_start(비-월요일일 수 있음) → 해당 주 월요일로 정규화 후 매핑
   const reportMap = new Map<string, Map<string, number>>()
   for (const r of (reports ?? [])) {
-    if (!reportMap.has(r.week_start)) reportMap.set(r.week_start, new Map())
-    reportMap.get(r.week_start)!.set(r.team, countItems(r.raw_content))
+    const monday = getMondayOf(r.week_start)   // 어떤 요일이든 해당 주 월요일로
+    if (!reportMap.has(monday)) reportMap.set(monday, new Map())
+    const prev = reportMap.get(monday)!.get(r.team) ?? 0
+    reportMap.get(monday)!.set(r.team, prev + countItems(r.raw_content))
   }
 
   const teamList = teams ?? []

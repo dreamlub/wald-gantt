@@ -7,13 +7,18 @@ import { kstDayStart, kstDayEnd, addDaysYMD } from '@/lib/kst'
 import { getApiKey } from '@/lib/workspace-api-keys'
 
 const ActionItemSchema = z.object({
-  id:            z.string(),
-  severity:      z.enum(['urgent', 'watch', 'info']),
-  title:         z.string(),
-  brand:         z.string(),
-  related_count: z.number(),
-  summary:       z.string(),
-  action:        z.string(),
+  id:                z.string(),
+  severity:          z.enum(['urgent', 'watch', 'info']),
+  title:             z.string(),
+  brand:             z.string(),
+  related_count:     z.number(),
+  summary:           z.string(),
+  action:            z.string(),
+  task_candidate:    z.boolean(),
+  task_title:        z.string().nullable(),
+  task_memo:         z.string().nullable(),
+  due_date:          z.string().nullable(),
+  estimated_minutes: z.number().nullable(),
 })
 
 const UpcomingItemSchema = z.object({
@@ -89,6 +94,11 @@ author가 외부([브랜드명] prefix)이고, tags에 in_progress가 있으며,
 - upcoming은 title 또는 body에 구체적인 날짜가 언급된 항목만
 - related_count는 해당 action_item과 관련된 원본 메시지 수
 - brand 필드에는 아래 제공되는 클라이언트 목록의 정확한 name 값을 그대로 사용
+- action_items는 "실행 가능한 다음 행동"만 포함한다. 단순 참고·완료 보고·이미 결정된 공지는 decisions/upcoming으로 보내고 action_items에 넣지 않는다.
+- task_candidate는 실제 태스크로 만들 가치가 있으면 true, 모니터링/참고 수준이면 false.
+- task_candidate=true이면 task_title과 task_memo를 반드시 채운다. task_title은 바로 태스크 제목으로 쓸 수 있게 동사형으로 작성한다.
+- due_date는 원문에 명시된 마감·회의·배포일이 있거나 24시간 내 대응이 필요한 urgent일 때만 YYYY-MM-DD로 채운다. 근거가 없으면 null.
+- estimated_minutes는 15, 30, 60, 90, 120 중 하나로 추정한다. 회의/확인/답변은 30, 장애 분석/기획 검토는 60 이상을 기본값으로 둔다.
 - 설명이나 마크다운 코드블록 없이 순수 JSON만 반환`
 
 const JSON_SCHEMA = `{
@@ -101,7 +111,12 @@ const JSON_SCHEMA = `{
       "brand": "클라이언트 name",
       "related_count": 1,
       "summary": "배경·현상 중심 2~3문장",
-      "action": "액션 필드 우선 사용. 없으면 현상에서 도출."
+      "action": "액션 필드 우선 사용. 없으면 현상에서 도출.",
+      "task_candidate": true,
+      "task_title": "바로 태스크로 생성할 40자 이내 제목 또는 null",
+      "task_memo": "배경/근거/필요 조치를 포함한 태스크 메모 또는 null",
+      "due_date": "YYYY-MM-DD 또는 null",
+      "estimated_minutes": 15|30|60|90|120|null
     }
   ],
   "upcoming": [
@@ -232,6 +247,7 @@ ${JSON.stringify(newItemsWithBrand, null, 2)}
 - 신규 done 항목과 연관된 기존 action_items → decisions로 이동하거나 제거
 - pending에서 내부 응답이 확인된 항목 제거
 - 신규 이슈·결정·일정 추가
+- action_items별 task_candidate/task_title/task_memo/due_date/estimated_minutes를 재판단
 - headline은 주 전체를 반영해 재작성
 - 기존 upcoming 중 이미 지난 날짜 항목 제거
 

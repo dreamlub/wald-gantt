@@ -10,14 +10,19 @@ import type { WeeklyReportSummary, WeeklyReportItem, WeeklyDiffSummary } from '@
 
 // AI 추출용 스키마 - change/prev 필드 없이 순수 추출만
 const ExtractedItemSchema = z.object({
-  type:      z.enum(['issue', 'decision', 'plan']),
-  title:     z.string(),
-  detail:    z.string(),
-  date:      z.string().nullable(),
-  brand:     z.string().nullable(),
-  assignee:  z.string().nullable(),
-  task_type: z.string().nullable(),
-  status:    z.string().nullable(),
+  type:              z.enum(['issue', 'decision', 'plan']),
+  title:             z.string(),
+  detail:            z.string(),
+  date:              z.string().nullable(),
+  brand:             z.string().nullable(),
+  assignee:          z.string().nullable(),
+  task_type:         z.string().nullable(),
+  status:            z.string().nullable(),
+  action_required:   z.boolean(),
+  task_title:        z.string().nullable(),
+  task_memo:         z.string().nullable(),
+  due_date:          z.string().nullable(),
+  estimated_minutes: z.number().nullable(),
 })
 
 const ExtractedReportSchema = z.object({
@@ -151,6 +156,19 @@ async function analyzeReport(
 
   const userPrompt = `다음 주간 보고서에서 이슈, 결정사항, 계획 아이템을 추출하세요.
 
+목표는 "주간 보고를 읽고 실제 실행 태스크 후보를 안정적으로 뽑는 것"입니다.
+단순 공유·완료 보고·이미 확정된 결정은 action_required=false로 두고, 담당자가 실제로 확인/작성/협의/개발/회신/모니터링해야 하는 항목만 action_required=true로 판단하세요.
+
+action_required=true 기준:
+- 아직 완료되지 않은 이슈, 검토, 외부협의, 회신 대기, 개발/기획 예정
+- 일정이 임박했거나 담당자가 명시된 follow-up
+- 장애/CS/브랜드 요청처럼 후속 조치가 필요한 항목
+
+action_required=false 기준:
+- 완료 보고, 단순 현황 공유, 참고용 시장조사
+- 이미 결정만 기록하면 되는 사항
+- 태스크가 아니라 일정 캘린더 항목으로만 관리할 내용
+
 === 보고서 (${weekStart}) ===
 [팀: ${report.team}, 작성자: ${report.author ?? '미상'}]
 ${report.raw_content}
@@ -166,7 +184,12 @@ JSON 형식만 반환:
       "brand": "관련 브랜드명 또는 null",
       "assignee": "담당자/팀원명 또는 null",
       "task_type": "기획|개발|디자인|마케팅|운영|검토|외부협의|이슈|기타 중 하나 또는 null",
-      "status": "in_progress|completed|blocked|pending 중 하나 또는 null"
+      "status": "in_progress|completed|blocked|pending 중 하나 또는 null",
+      "action_required": true,
+      "task_title": "action_required=true일 때 바로 태스크로 만들 40자 이내 제목, 아니면 null",
+      "task_memo": "action_required=true일 때 배경/근거/필요 조치를 담은 메모, 아니면 null",
+      "due_date": "명시된 마감/미팅/배포일이 있으면 YYYY-MM-DD, 아니면 null",
+      "estimated_minutes": 15|30|60|90|120|null
     }
   ],
   "summary": "핵심 내용 2~3문장 요약"

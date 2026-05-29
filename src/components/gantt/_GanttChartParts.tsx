@@ -1,7 +1,7 @@
 'use client'
 
 import { DragOverlay } from '@dnd-kit/core'
-import { Undo2, Redo2, GripVertical } from 'lucide-react'
+import { Diamond, Undo2, Redo2, GripVertical } from 'lucide-react'
 import type { GanttCategory, GanttProject } from '@/types'
 import { CAT_ROW_H, PROJ_ROW_H, STATUS_META } from './_GanttRows'
 
@@ -106,13 +106,17 @@ export function GanttDragOverlay({ activeCat, activeProj, leftWidth }: GanttDrag
             style={{ height: PROJ_ROW_H, width: leftWidth - 4, opacity: 0.95 }}
           >
             <GripVertical size={13} className="text-ink-400 shrink-0" />
-            <span
-              className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
-              style={{ backgroundColor: sm.dot }}
-              aria-label={sm.label}
-            >
-              {sm.abbr}
-            </span>
+            {activeProj.is_milestone ? (
+              <Diamond size={13} className="shrink-0 text-lilac-500" fill="currentColor" />
+            ) : (
+              <span
+                className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
+                style={{ backgroundColor: sm.dot }}
+                aria-label={sm.label}
+              >
+                {sm.abbr}
+              </span>
+            )}
             <span className="text-xs font-medium text-foreground truncate flex-1">
               {activeProj.name}
             </span>

@@ -22,7 +22,7 @@ import { useConfirm } from '@/hooks/use-confirm'
 import { useUndoRedo } from '@/hooks/use-undo-redo'
 
 type DialogState =
-  | { type: 'addProject'; categoryId: string; parentId?: string | null }
+  | { type: 'addProject'; categoryId: string; parentId?: string | null; isMilestone?: boolean }
   | { type: 'editProject'; project: GanttProject; initialTab?: 'info' | 'memo' | 'history' }
   | { type: 'share' }
   | null
@@ -190,6 +190,8 @@ export default function GanttPage() {
     pm: string | null
     memo: string | null
     priority: Priority
+    progress: number
+    is_milestone: boolean
   }) {
     if (!workspace || !selectedBoardId) return
     try {
@@ -205,6 +207,8 @@ export default function GanttPage() {
           pm: fields.pm,
           memo: fields.memo,
           priority: fields.priority,
+          progress: fields.progress,
+          is_milestone: fields.is_milestone,
         })
         setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
       } else {
@@ -217,6 +221,8 @@ export default function GanttPage() {
           pm: fields.pm,
           memo: fields.memo,
           priority: fields.priority,
+          progress: fields.progress,
+          is_milestone: fields.is_milestone,
         })
         setProjects(prev => [...prev, created])
       }
@@ -252,7 +258,7 @@ export default function GanttPage() {
     setTrashCount(c => Math.max(0, c - 1))
   }
 
-  async function handleUpdateProjectDates(id: string, startDate: string, endDate: string) {
+  async function handleUpdateProjectDates(id: string, startDate: string | null, endDate: string) {
     const prev = projectsRef.current.find(p => p.id === id)
     if (prev) pushUndo({ type: 'project', prev })
     try {
@@ -376,6 +382,7 @@ export default function GanttPage() {
               onDeleteCategory={handleDeleteCategory}
               onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
               onAddSubProject={(parentId, catId) => setDialog({ type: 'addProject', categoryId: catId, parentId })}
+              onAddMilestone={catId => setDialog({ type: 'addProject', categoryId: catId, isMilestone: true })}
               onEditProject={project => setDialog({ type: 'editProject', project })}
               onDeleteProject={handleDeleteProject}
               onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
@@ -402,6 +409,7 @@ export default function GanttPage() {
         categories={categories}
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         defaultParentId={dialog?.type === 'addProject' ? dialog.parentId : undefined}
+        defaultIsMilestone={dialog?.type === 'addProject' ? dialog.isMilestone : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
         initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
         onDelete={id => { handleDeleteProject(id); setDialog(null) }}

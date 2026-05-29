@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, Plus, X, Clock } from 'lucide-react'
+import { ChevronDown, Diamond, Plus, X, Clock } from 'lucide-react'
 import { getProjectHistory } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistoryEntry } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
@@ -94,6 +94,8 @@ interface Props {
     pm: string | null
     memo: string | null
     priority: Priority
+    progress: number
+    is_milestone: boolean
   }) => Promise<void>
   categories: GanttCategory[]
   defaultCategoryId?: string
@@ -105,6 +107,7 @@ interface Props {
   initialName?: string
   initialMemo?: string
   defaultParentId?: string | null
+  defaultIsMilestone?: boolean
   parentProjects?: GanttProject[]
   subProjects?: GanttProject[]
   onAddSubProject?: () => void
@@ -113,7 +116,7 @@ interface Props {
 }
 
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, defaultParentId, parentProjects, subProjects, onAddSubProject, noPortal = false }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, defaultParentId, defaultIsMilestone, parentProjects, subProjects, onAddSubProject, noPortal = false }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -124,6 +127,8 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const [memo, setMemo]             = useState('')
   const [priority, setPriority]     = useState<Priority>(2)
   const [parentId, setParentId]     = useState<string | null>(null)
+  const [isMilestone, setIsMilestone] = useState(false)
+  const [progress, setProgress]     = useState<number>(0)
   const [loading, setLoading]       = useState(false)
   const [tab, setTab]               = useState<DialogTab>('info')
   const nameRef = useRef<HTMLInputElement>(null)
@@ -154,7 +159,9 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setPm(editProject.pm ?? '')
       setMemo(editProject.memo ?? '')
       setPriority(editProject.priority ?? 0)
+      setProgress(editProject.progress ?? 0)
       setParentId(editProject.parent_id ?? null)
+      setIsMilestone(editProject.is_milestone ?? false)
     } else {
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
 
@@ -163,6 +170,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
 
       setTeam(''); setPm(''); setMemo(initialMemo ?? '')
       setParentId(defaultParentId ?? null)
+      setIsMilestone(defaultIsMilestone ?? false)
     }
     /* eslint-enable react-hooks/set-state-in-effect */
   }, [editProject, open, defaultCategoryId, defaultParentId, categories, initialName, initialMemo])
@@ -178,15 +186,17 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
     try {
       await onSave({
         categoryId,
-        parentId,
+        parentId: isMilestone ? null : parentId,
         name: name.trim(),
-        status,
-        start_date: toDateStr(startDate),
+        status: isMilestone ? 'to-do' : status,
+        start_date: isMilestone ? null : toDateStr(startDate),
         end_date: toDateStr(endDate),
-        team: team.trim() || null,
-        pm: pm.trim() || null,
+        team: isMilestone ? null : (team.trim() || null),
+        pm: isMilestone ? null : (pm.trim() || null),
         memo: memo.trim() || null,
-        priority,
+        priority: isMilestone ? 0 : priority,
+        progress: isMilestone ? 0 : progress,
+        is_milestone: isMilestone,
       })
       onClose()
     } finally {
@@ -200,7 +210,10 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
             <h2 className="text-base font-semibold text-foreground flex-1">
-              {editProject ? '프로젝트 수정' : defaultParentId != null ? '서브프로젝트 추가' : '프로젝트 추가'}
+              {editProject
+                ? (isMilestone ? '마일스톤 수정' : '프로젝트 수정')
+                : defaultParentId != null ? '서브프로젝트 추가'
+                : isMilestone ? '마일스톤 추가' : '프로젝트 추가'}
             </h2>
             <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
               <X size={16} />
@@ -258,6 +271,22 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             onKeyDown={e => e.key === 'Enter' && handleSave()}
           />
 
+          {/* 마일스톤 토글 (서브프로젝트가 아닐 때만) */}
+          {!defaultParentId && !(editProject?.parent_id) && (
+            <button
+              type="button"
+              onClick={() => setIsMilestone(v => !v)}
+              className={`flex items-center gap-1.5 text-sm px-2.5 py-1 rounded border transition-colors self-start ${
+                isMilestone
+                  ? 'border-lilac-400 text-lilac-600 bg-lilac-50 dark:bg-lilac-950/30 font-medium'
+                  : 'border-border text-muted-foreground hover:border-ink-300'
+              }`}
+            >
+              <Diamond size={12} />
+              마일스톤
+            </button>
+          )}
+
           {/* 카테고리 + 상태 */}
           <div className="flex gap-3">
             <div className="flex-1">
@@ -276,79 +305,96 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               </div>
             </div>
 
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
-              <div className="relative mt-1.5">
-                <select
-                  value={status}
-                  onChange={e => setStatus(e.target.value as GanttStatus)}
-                  className="w-full text-sm border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
-                >
-                  {STATUSES.map(s => (
-                    <option key={s.value} value={s.value}>{s.label}</option>
-                  ))}
-                </select>
-                <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
-              </div>
-            </div>
-          </div>
-
-          {/* 시작일 / 종료일 */}
-          <div className="flex flex-col gap-1.5">
-            <div className="flex gap-3">
-              <div className="flex-1 min-w-0">
-                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
-                <div className="mt-1.5">
-                  <DatePickerButton
-                    value={startDate}
-                    onChange={setStartDate}
-                    placeholder="MM/DD 또는 YYYY.MM.DD"
-                    disabledDates={endDate ? d => d > endDate : undefined}
-                  />
+            {!isMilestone && (
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">상태</label>
+                <div className="relative mt-1.5">
+                  <select
+                    value={status}
+                    onChange={e => setStatus(e.target.value as GanttStatus)}
+                    className="w-full text-sm border border-border rounded px-2 py-1.5 outline-none focus:border-lilac-300 appearance-none bg-card text-foreground"
+                  >
+                    {STATUSES.map(s => (
+                      <option key={s.value} value={s.value}>{s.label}</option>
+                    ))}
+                  </select>
+                  <ChevronDown size={11} className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground pointer-events-none" />
                 </div>
               </div>
-              <div className="flex-1 min-w-0">
-                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
-                <div className="mt-1.5">
-                  <DatePickerButton
-                    value={endDate}
-                    onChange={setEndDate}
-                    placeholder="MM/DD 또는 YYYY.MM.DD"
-                    disabledDates={startDate ? d => d < startDate : undefined}
-                  />
-                </div>
-              </div>
-            </div>
-            {dateError && (
-              <p className="text-xs text-status-late">{dateError}</p>
             )}
           </div>
 
-          {/* 담당팀 / PM */}
-          <div className="flex gap-3">
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
-              <AutocompleteInput
-                name="project-team"
-                className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
-                placeholder="예: 개발팀"
-                value={team}
-                onChange={setTeam}
-                suggestions={allTeams.filter(Boolean)}
-              />
+          {/* 날짜: 마일스톤은 날짜 하나, 일반은 시작일/종료일 */}
+          {isMilestone ? (
+            <div>
+              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">날짜</label>
+              <div className="mt-1.5">
+                <DatePickerButton
+                  value={endDate}
+                  onChange={setEndDate}
+                  placeholder="MM/DD 또는 YYYY.MM.DD"
+                />
+              </div>
             </div>
-            <div className="flex-1">
-              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
-              <AutocompleteInput
-                name="project-pm"
-                className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
-                placeholder="예: 홍길동"
-                value={pm}
-                onChange={setPm}
-                suggestions={allPMs.filter(Boolean)}
-              />
+          ) : (
+            <div className="flex flex-col gap-1.5">
+              <div className="flex gap-3">
+                <div className="flex-1 min-w-0">
+                  <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">시작일</label>
+                  <div className="mt-1.5">
+                    <DatePickerButton
+                      value={startDate}
+                      onChange={setStartDate}
+                      placeholder="MM/DD 또는 YYYY.MM.DD"
+                      disabledDates={endDate ? d => d > endDate : undefined}
+                    />
+                  </div>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">종료일</label>
+                  <div className="mt-1.5">
+                    <DatePickerButton
+                      value={endDate}
+                      onChange={setEndDate}
+                      placeholder="MM/DD 또는 YYYY.MM.DD"
+                      disabledDates={startDate ? d => d < startDate : undefined}
+                    />
+                  </div>
+                </div>
+              </div>
+              {dateError && (
+                <p className="text-xs text-status-late">{dateError}</p>
+              )}
             </div>
-          </div>
+          )}
+
+          {/* 담당팀 / PM (마일스톤에서는 숨김) */}
+          {!isMilestone && (
+            <div className="flex gap-3">
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">담당팀</label>
+                <AutocompleteInput
+                  name="project-team"
+                  className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
+                  placeholder="예: 개발팀"
+                  value={team}
+                  onChange={setTeam}
+                  suggestions={allTeams.filter(Boolean)}
+                />
+              </div>
+              <div className="flex-1">
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">PM</label>
+                <AutocompleteInput
+                  name="project-pm"
+                  className="mt-1.5 w-full text-sm border border-border rounded px-2.5 py-1.5 outline-none focus:border-lilac-300 placeholder:text-ink-300 text-foreground"
+                  placeholder="예: 홍길동"
+                  value={pm}
+                  onChange={setPm}
+                  suggestions={allPMs.filter(Boolean)}
+                />
+              </div>
+            </div>
+          )}
 
           {/* 상위 프로젝트 — 서브프로젝트 신규 추가 시 읽기 전용 표시 */}
           {!editProject && defaultParentId != null && parentProjects && (
@@ -433,6 +479,25 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               })}
             </div>
           </div>
+
+          {/* 진행률 */}
+          {!isMilestone && (
+            <div>
+              <div className="flex items-center justify-between mb-1.5">
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">진행률</label>
+                <span className="text-sm font-medium text-foreground tabular-nums">{progress}%</span>
+              </div>
+              <input
+                type="range"
+                min={0}
+                max={100}
+                step={5}
+                value={progress}
+                onChange={e => setProgress(Number(e.target.value))}
+                className="w-full accent-lilac-500 h-1.5 rounded-full cursor-pointer"
+              />
+            </div>
+          )}
 
         </form>
         ) : tab === 'memo' ? (

@@ -210,7 +210,7 @@ export async function addProject(
   workspaceId: string,
   categoryId: string,
   parentId: string | null,
-  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null; memo?: string | null; priority?: Priority | null }
+  fields: { name: string; status: string; start_date: string | null; end_date: string | null; team?: string | null; pm?: string | null; memo?: string | null; priority?: Priority | null; progress?: number; is_milestone?: boolean }
 ): Promise<GanttProject> {
   const { data: existing } = await db()
     .from('gantt_projects')

@@ -14,16 +14,22 @@ export type UpsertWeeklyReportInput = {
   summary?: Record<string, unknown> | null
 }
 
-// 해당 주 전체 리포트 조회 (week_start 기준)
+// 해당 주 전체 리포트 조회
+// weekStart는 월요일 기준이지만 DB의 week_start는 Outline 원문 날짜(비-월요일 가능)이므로
+// Mon~Sun 범위로 조회한다
 export async function getWeeklyReports(
   weekStart: string,
   sb?: Sb,
 ): Promise<WeeklyReport[]> {
   const client = sb ?? createBrowserClient()
+  const d = new Date(weekStart + 'T00:00:00')
+  d.setDate(d.getDate() + 6)
+  const weekEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const { data, error } = await client
     .from('weekly_reports')
     .select('*')
-    .eq('week_start', weekStart)
+    .gte('week_start', weekStart)
+    .lte('week_start', weekEnd)
     .order('source', { ascending: true })
     .order('team',   { ascending: true })
   if (error) throw error

@@ -38,11 +38,9 @@ function isoWeekNum(isoDate: string): number {
 
 function weekOfMonth(isoDate: string): { month: number; week: number } {
   const d = new Date(isoDate + 'T00:00:00')
-  let count = 0
-  for (let day = 1; day <= d.getDate(); day++) {
-    if (new Date(d.getFullYear(), d.getMonth(), day).getDay() === 1) count++
-  }
-  return { month: d.getMonth() + 1, week: count }
+  // Math.ceil(date/7) — 1~7일=1주, 8~14일=2주, ...
+  // 첫날이 월요일이 아닌 경우에도 "0주" 가 나오지 않음
+  return { month: d.getMonth() + 1, week: Math.ceil(d.getDate() / 7) }
 }
 
 function fmtRange(start: string, end: string): string {
@@ -84,7 +82,7 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, teamColors }: Pr
                 </span>
                 {week.isCurrent && (
                   <span className="shrink-0 text-2xs font-semibold px-1.5 py-px rounded-full bg-status-future/15 text-status-future">
-                    전행 중
+                    진행 중
                   </span>
                 )}
               </div>
@@ -95,9 +93,8 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, teamColors }: Pr
               {fmtRange(week.weekStart, week.weekEnd)}
             </div>
 
-            {/* 팀 상태 */}
-            {week.isCurrent ? (
-              /* 현재 주: 팀별 행 */
+            {/* 팀 상태 — 선택된 주차 또는 현재 주는 팀명 행, 나머지는 컬러 바 */}
+            {isSelected || week.isCurrent ? (
               <div className="flex flex-col gap-0.5">
                 {week.teams.map((team, i) => (
                   <div key={team.id} className="flex items-center justify-between">

@@ -7,6 +7,11 @@ export interface ActionItem {
   related_count: number
   summary: string
   action: string
+  task_candidate?: boolean
+  task_title?: string | null
+  task_memo?: string | null
+  due_date?: string | null
+  estimated_minutes?: number | null
 }
 
 export interface UpcomingItem {

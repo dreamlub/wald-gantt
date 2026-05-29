@@ -1,32 +1,38 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { LayoutGrid, List, Pin, Search, X } from 'lucide-react'
+import { Pin, Search, X } from 'lucide-react'
+import { NOTE_COLORS } from './_components/note-color-picker'
 import {
-  DndContext, closestCenter, PointerSensor, useSensor, useSensors,
-  type DragEndEvent,
+  DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors,
+  type DragEndEvent, type DragStartEvent,
 } from '@dnd-kit/core'
-import { SortableContext, arrayMove, verticalListSortingStrategy } from '@dnd-kit/sortable'
+import { SortableContext, arrayMove, rectSortingStrategy } from '@dnd-kit/sortable'
 import { toast } from 'sonner'
 import type { Note, NoteColor } from '@/types'
 import { getNotes, createNote, updateNote, deleteNote } from '@/lib/note-service'
-import { NoteCard }       from './_components/note-card'
+import { NoteCard, NoteCardOverlay } from './_components/note-card'
 import { NoteCreateBar }  from './_components/note-create-bar'
 import { NoteEditModal }  from './_components/note-edit-modal'
-import { NoteListItem }   from './_components/note-list-item'
-
-type ViewMode = 'grid' | 'list'
 
 export default function NotesPage() {
-  const [notes,       setNotes]       = useState<Note[]>([])
-  const [loading,     setLoading]     = useState(true)
-  const [viewMode,    setViewMode]    = useState<ViewMode>(() =>
-    (typeof window !== 'undefined' ? localStorage.getItem('notes-view') as ViewMode : null) ?? 'grid'
-  )
-  const [searchQuery, setSearchQuery] = useState('')
-  const [selectedId,  setSelectedId]  = useState<string | null>(null)
-  const [searchOpen,  setSearchOpen]  = useState(false)
-  const pinReqRef = useRef(0) // 핀 토글 재조회 latest-wins 가드
+  const [notes,        setNotes]        = useState<Note[]>([])
+  const [loading,      setLoading]      = useState(true)
+  const [searchQuery,  setSearchQuery]  = useState('')
+  const [selectedId,   setSelectedId]   = useState<string | null>(null)
+  const [searchOpen,   setSearchOpen]   = useState(false)
+  const [colorFilter,  setColorFilter]  = useState<Set<NoteColor>>(new Set())
+  const [activeId,     setActiveId]     = useState<string | null>(null)
+  const pinReqRef = useRef(0)
+
+  function toggleColorFilter(color: NoteColor) {
+    setColorFilter(prev => {
+      const next = new Set(prev)
+      if (next.has(color)) next.delete(color)
+      else next.add(color)
+      return next
+    })
+  }
 
   const load = useCallback(async () => {
     try { setNotes(await getNotes()) }
@@ -36,15 +42,8 @@ export default function NotesPage() {
 
   useEffect(() => { void (async () => { await load() })() }, [load])
 
-  function changeView(v: ViewMode) {
-    setViewMode(v)
-    localStorage.setItem('notes-view', v)
-  }
-
   async function handleCreate(params: { title: string; content: string; color: NoteColor }) {
     try {
-      // 새 메모는 목록 맨 위에 보이도록 최소 sort_order - 10 부여
-      // (getNotes 정렬: pinned DESC, sort_order ASC → 가장 작은 값이 위) — 옵티미스틱 [note,...prev]와 일치
       const minOrder = notes.filter(n => !n.pinned).reduce((m, n) => Math.min(m, n.sort_order), 0)
       const note = await createNote({ ...params, sort_order: minOrder - 10 })
       setNotes(prev => [note, ...prev])
@@ -56,7 +55,6 @@ export default function NotesPage() {
     try {
       await updateNote(id, patch)
       if ('pinned' in patch) {
-        // 연속 핀 토글 시 getNotes 응답이 도착 순서대로 덮어써 stale 상태가 되는 race 방지 (latest-wins)
         const seq = ++pinReqRef.current
         const fresh = await getNotes()
         if (seq === pinReqRef.current) setNotes(fresh)
@@ -93,15 +91,18 @@ export default function NotesPage() {
     })
   }
 
-  // ── 드래그 정렬 (list 뷰에서만 활성) ─────────────────────────
+  // ── 드래그 정렬 ───────────────────────────────────────────────
   const sensors = useSensors(useSensor(PointerSensor, { activationConstraint: { distance: 5 } }))
 
+  function handleDragStart(event: DragStartEvent) {
+    setActiveId(event.active.id as string)
+  }
+
   async function handleDragEnd(event: DragEndEvent) {
+    setActiveId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
-    // 검색 필터가 켜진 동안에는 부분집합만 보이므로 정렬을 막는다
-    // (필터된 부분집합에 sort_order를 부여하면 숨겨진 메모들의 전역 순서가 오염됨)
-    if (searchQuery) return
+    if (searchQuery || colorFilter.size > 0) return
 
     const activeNote = notes.find(n => n.id === active.id)
     const overNote   = notes.find(n => n.id === over.id)
@@ -125,16 +126,17 @@ export default function NotesPage() {
 
   // ── 필터 ─────────────────────────────────────────────────────
   const q        = searchQuery.toLowerCase()
-  const filtered = q
-    ? notes.filter(n => n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
-    : notes
+  const filtered = notes
+    .filter(n => !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
+    .filter(n => colorFilter.size === 0 || colorFilter.has(n.color))
 
   const pinnedNotes  = filtered.filter(n =>  n.pinned)
   const regularNotes = filtered.filter(n => !n.pinned)
   const selectedNote = selectedId ? notes.find(n => n.id === selectedId) ?? null : null
+  const activeNote   = activeId   ? notes.find(n => n.id === activeId)   ?? null : null
 
   const sharedProps = {
-    viewMode, onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId, highlight: q,
+    onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId, highlight: q,
   }
 
   return (
@@ -143,7 +145,10 @@ export default function NotesPage() {
       <div className="h-12 border-b bg-card flex items-center px-4 gap-2 shrink-0">
         <span className="text-sm font-semibold text-foreground">메모장</span>
         <span className="text-xs text-ink-400 tabular-nums">
-          {loading ? '' : `${notes.length}개`}
+          {loading ? '' : colorFilter.size > 0
+            ? `${filtered.length}/${notes.length}개`
+            : `${notes.length}개`
+          }
         </span>
 
         {/* 검색 */}
@@ -177,30 +182,36 @@ export default function NotesPage() {
           )}
         </div>
 
-        <div className="flex-1" />
-
-        {/* 뷰 토글 */}
-        <div className="flex items-center border border-border rounded-lg overflow-hidden">
-          <button
-            onClick={() => changeView('grid')}
-            title="그리드 뷰"
-            className={`p-1.5 transition-colors ${viewMode === 'grid' ? 'bg-muted text-foreground' : 'text-ink-400 hover:text-foreground hover:bg-muted/50'}`}
-          >
-            <LayoutGrid size={14} />
-          </button>
-          <button
-            onClick={() => changeView('list')}
-            title="리스트 뷰"
-            className={`p-1.5 transition-colors ${viewMode === 'list' ? 'bg-muted text-foreground' : 'text-ink-400 hover:text-foreground hover:bg-muted/50'}`}
-          >
-            <List size={14} />
-          </button>
+        {/* 색상 필터 */}
+        <div className="flex items-center gap-0.5 ml-1">
+          {(Object.entries(NOTE_COLORS) as [NoteColor, (typeof NOTE_COLORS)[NoteColor]][]).map(([key, c]) => (
+            <button
+              key={key}
+              title={`${c.label}만 보기`}
+              onClick={() => toggleColorFilter(key)}
+              className={`w-3.5 h-3.5 rounded-full border-2 transition-all hover:scale-110 ${c.dot} ${
+                colorFilter.has(key)
+                  ? 'border-foreground scale-110'
+                  : 'border-transparent opacity-40 hover:opacity-80'
+              }`}
+            />
+          ))}
+          {colorFilter.size > 0 && (
+            <button
+              onClick={() => setColorFilter(new Set())}
+              className="ml-0.5 p-0.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
+              title="필터 초기화"
+            >
+              <X size={10} />
+            </button>
+          )}
         </div>
+
+        <div className="flex-1" />
       </div>
 
       {/* 스크롤 영역 */}
       <div className="flex-1 overflow-y-auto px-6 py-6">
-        {/* 빠른 입력 */}
         {!searchQuery && (
           <div className="mb-8">
             <NoteCreateBar onCreate={handleCreate} />
@@ -218,7 +229,13 @@ export default function NotesPage() {
             {!searchQuery && <p className="text-sm text-ink-300">위 입력란을 클릭해 첫 메모를 만들어 보세요</p>}
           </div>
         ) : (
-          <DndContext sensors={sensors} collisionDetection={closestCenter} onDragEnd={handleDragEnd}>
+          <DndContext
+            sensors={sensors}
+            collisionDetection={closestCenter}
+            onDragStart={handleDragStart}
+            onDragEnd={handleDragEnd}
+            onDragCancel={() => setActiveId(null)}
+          >
             {pinnedNotes.length > 0 && (
               <section className="mb-6">
                 <div className="flex items-center gap-1.5 mb-3">
@@ -236,11 +253,13 @@ export default function NotesPage() {
                 <NoteCollection notes={regularNotes} {...sharedProps} />
               </section>
             )}
+            <DragOverlay>
+              {activeNote && <NoteCardOverlay note={activeNote} />}
+            </DragOverlay>
           </DndContext>
         )}
       </div>
 
-      {/* 전체화면 편집 모달 */}
       {selectedNote && (
         <NoteEditModal
           note={selectedNote}
@@ -255,41 +274,25 @@ export default function NotesPage() {
 
 // ── NoteCollection ────────────────────────────────────────────
 interface CollectionProps {
-  notes:     Note[]
-  viewMode:  ViewMode
-  onUpdate:  (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
-  onDelete:  (id: string) => void
-  onOpen:    (id: string) => void
+  notes:    Note[]
+  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
+  onDelete: (id: string) => void
+  onOpen:   (id: string) => void
   highlight: string
 }
 
-function NoteCollection({ notes, viewMode, onUpdate, onDelete, onOpen, highlight }: CollectionProps) {
-  if (viewMode === 'list') {
-    return (
-      <SortableContext items={notes.map(n => n.id)} strategy={verticalListSortingStrategy}>
-        <div className="flex flex-col gap-1.5">
-          {notes.map(note => (
-            <NoteListItem
-              key={note.id} note={note}
-              onUpdate={onUpdate} onDelete={onDelete} onOpen={onOpen}
-              highlight={highlight}
-            />
-          ))}
-        </div>
-      </SortableContext>
-    )
-  }
+function NoteCollection({ notes, onUpdate, onDelete, onOpen, highlight }: CollectionProps) {
   return (
-    <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4 space-y-4">
-      {notes.map(note => (
-        <div key={note.id} className="break-inside-avoid">
+    <SortableContext items={notes.map(n => n.id)} strategy={rectSortingStrategy}>
+      <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
+        {notes.map(note => (
           <NoteCard
-            note={note}
+            key={note.id} note={note}
             onUpdate={onUpdate} onDelete={onDelete} onOpen={onOpen}
             highlight={highlight}
           />
-        </div>
-      ))}
-    </div>
+        ))}
+      </div>
+    </SortableContext>
   )
 }

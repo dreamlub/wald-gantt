@@ -1,7 +1,7 @@
 'use client'
 
 import { SortableContext, verticalListSortingStrategy } from '@dnd-kit/sortable'
-import { ChevronDown, ChevronRight, GripVertical, Palette, Plus, StickyNote, Trash2 } from 'lucide-react'
+import { ChevronDown, ChevronRight, Diamond, GripVertical, Palette, Plus, StickyNote, Trash2 } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@/components/ui/popover'
 import type { GanttCategory, GanttProject } from '@/types'
 import { PRIORITY_META } from '@/app/(app)/tasks/_constants'
@@ -35,6 +35,7 @@ interface GanttCategoryLeftProps {
   onToggleCollapsed: (id: string) => void
   parentIds: Set<string>
   onAddSubProject?: (parentId: string, catId: string) => void
+  onAddMilestone?: (catId: string) => void
 }
 
 function ProjectRow({
@@ -61,7 +62,8 @@ function ProjectRow({
   listeners: ReturnType<typeof import('@dnd-kit/sortable').useSortable>['listeners']
   isDragging: boolean
 }) {
-  const isBacklog  = project.status === 'backlog'
+  const isMilestone = project.is_milestone
+  const isBacklog  = !isMilestone && project.status === 'backlog'
   const sm         = STATUS_META[project.status]
   const isCollapsed = collapsedParents.has(project.id)
   const indent     = isChild ? (readOnly ? 28 : 44) : 0
@@ -90,17 +92,21 @@ function ProjectRow({
           </button>
         )}
 
-        {/* 상태 점 */}
-        <button
-          type="button"
-          onClick={readOnly ? undefined : () => onCycleStatus(project)}
-          aria-label={sm.label}
-          title={sm.label}
-          className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
-          style={{ backgroundColor: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
-        >
-          {sm.abbr}
-        </button>
+        {/* 마일스톤 다이아몬드 or 상태 점 */}
+        {isMilestone ? (
+          <Diamond size={13} className="shrink-0 text-lilac-500" fill="currentColor" />
+        ) : (
+          <button
+            type="button"
+            onClick={readOnly ? undefined : () => onCycleStatus(project)}
+            aria-label={sm.label}
+            title={sm.label}
+            className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
+            style={{ backgroundColor: sm.dot, cursor: readOnly ? 'default' : 'pointer' }}
+          >
+            {sm.abbr}
+          </button>
+        )}
 
         <span
           className="text-sm truncate min-w-0 cursor-pointer text-foreground"
@@ -125,11 +131,11 @@ function ProjectRow({
           )
         )}
 
-        {isProjectOverdue(project, todayStr) ? (
+        {!isMilestone && isProjectOverdue(project, todayStr) ? (
           <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-late/10 text-status-late font-medium border border-status-late/15 whitespace-nowrap">
             지연 {daysBetween(project.end_date!, todayStr)}일
           </span>
-        ) : isStartDelayed(project, todayStr) ? (
+        ) : !isMilestone && isStartDelayed(project, todayStr) ? (
           <span className="shrink-0 text-xs px-1.5 py-0.5 rounded bg-status-warn/10 text-status-warn font-medium border border-status-warn/15 whitespace-nowrap">
             시작 지연 {daysBetween(project.start_date!, todayStr)}일
           </span>
@@ -185,7 +191,7 @@ export function GanttCategoryLeft({
   editCatId, editCatVal, onEditCatValChange, onCommitEditCat, onCancelEditCat, onStartEditCat,
   onDeleteCategory, onUpdateCategory, onAddProject, onDeleteProject, onEditProject,
   onOpenMemo, onSetMemoHover, onCycleStatus, todayStr,
-  collapsedParents, onToggleCollapsed, parentIds, onAddSubProject,
+  collapsedParents, onToggleCollapsed, parentIds, onAddSubProject, onAddMilestone,
 }: GanttCategoryLeftProps) {
   const parents  = catProjs.filter(p => !p.parent_id)
   const childMap = new Map<string, GanttProject[]>()
@@ -320,13 +326,21 @@ export function GanttCategoryLeft({
           </SortableContext>
 
           {!readOnly && (
-            <div className="border-b border-border" style={{ height: PROJ_ROW_H }}>
+            <div className="border-b border-border flex" style={{ height: PROJ_ROW_H }}>
               <button
                 onClick={() => onAddProject(cat.id)}
-                className="h-full flex items-center gap-0.5 pl-3 text-sm text-ink-300 hover:text-muted-foreground"
+                className="h-full flex items-center gap-0.5 pl-3 pr-3 text-sm text-ink-300 hover:text-muted-foreground"
               >
                 <Plus size={10} /> 프로젝트
               </button>
+              {onAddMilestone && (
+                <button
+                  onClick={() => onAddMilestone(cat.id)}
+                  className="h-full flex items-center gap-0.5 pr-3 text-sm text-ink-300 hover:text-muted-foreground"
+                >
+                  <Diamond size={10} /> 마일스톤
+                </button>
+              )}
             </div>
           )}
         </div>
