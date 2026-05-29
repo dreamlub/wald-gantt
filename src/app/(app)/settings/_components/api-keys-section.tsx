@@ -14,17 +14,21 @@ interface ApiKeyInfo {
 }
 
 const PLACEHOLDERS: Record<string, string> = {
-  anthropic:    'sk-ant-api03-...',
-  slack_user:   'xoxp-...',
-  outline:      'ol_api_...',
-  slack_domain: 'my-company',
+  anthropic:            'sk-ant-api03-...',
+  slack_user:           'xoxp-...',
+  outline:              'ol_api_...',
+  slack_domain:         'my-company',
+  google_client_id:     '123456789-abc....apps.googleusercontent.com',
+  google_client_secret: 'GOCSPX-...',
 }
 
 const DESCRIPTIONS: Record<string, string> = {
-  anthropic:    'AI 일일·주간 분석에 사용됩니다',
-  slack_user:   'Slack 채널 메시지 수집에 사용됩니다',
-  outline:      'Outline 문서 불러오기에 사용됩니다',
-  slack_domain: '메시지 원본 링크 생성에 사용됩니다 (예: my-company → my-company.slack.com)',
+  anthropic:            'AI 일일·주간 분석에 사용됩니다',
+  slack_user:           'Slack 채널 메시지 수집에 사용됩니다',
+  outline:              'Outline 문서 불러오기에 사용됩니다',
+  slack_domain:         '메시지 원본 링크 생성에 사용됩니다 (예: my-company → my-company.slack.com)',
+  google_client_id:     'Google Cloud Console › OAuth 2.0 클라이언트 ID (환경변수보다 우선 적용)',
+  google_client_secret: 'Google Cloud Console › OAuth 2.0 클라이언트 Secret',
 }
 
 function KeyRow({ info, onSaved, onDeleted }: {

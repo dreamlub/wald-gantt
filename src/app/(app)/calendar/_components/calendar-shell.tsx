@@ -2,6 +2,7 @@
 
 import { useState, useEffect, useMemo, useRef } from 'react'
 import { useRouter, useSearchParams } from 'next/navigation'
+import { toast } from 'sonner'
 import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
   CalendarDays, Plus, X, Check,
@@ -69,6 +70,24 @@ export function CalendarShell() {
   const isCurrentWeek = weekStart === getSundayOf(today)
 
   const handleConnectGoogle = () => { window.location.href = '/api/calendar/auth' }
+
+  /* ── Google OAuth 콜백 에러 처리 ── */
+  useEffect(() => {
+    const err    = searchParams.get('gcal_error')
+    const reason = searchParams.get('reason') ?? ''
+    if (!err) return
+    const msg =
+      err === 'denied'        ? 'Google 캘린더 연동을 취소했습니다.' :
+      err === 'invalid_state' ? 'OAuth 상태 불일치 — 다시 시도해 주세요. (쿠키/브라우저 문제일 수 있습니다.)' :
+      err === 'token_exchange'? `Google 토큰 교환 실패${reason ? ` (${reason})` : ''} — 설정 > 연동에서 Client ID/Secret을 확인해 주세요.` :
+      err === 'no_creds'      ? 'Google OAuth 자격증명 미설정 — 설정 > 연동 > API 키에서 Client ID/Secret을 입력해 주세요.' :
+      err === 'db'            ? 'Google 토큰 저장 실패 (DB 오류)' :
+                               `Google 연동 오류: ${err}`
+    toast.error(msg, { duration: 10000 })
+    // URL에서 파라미터 제거
+    router.replace('/calendar', { scroll: false })
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   /* ── 주 범위 레이블 ── */
   const weekStartObj = parseISO(weekStart)
