@@ -1,7 +1,7 @@
 'use client'
 
-import { useState, useRef, useEffect, type CSSProperties } from 'react'
-import { X } from 'lucide-react'
+import { useState, useRef } from 'react'
+import { Pencil, X } from 'lucide-react'
 import type { CalEvent } from '@/types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import { GoogleIcon } from './event-block'
@@ -17,28 +17,16 @@ interface BlockProps {
   totalCols?: number
   onResize: (id: string, durationMinutes: number) => void
   onDelete: (id: string) => void
-  onEditTitle: (id: string, title: string) => void
+  onOpenEditor: (event: CalEvent) => void
 }
 
-/** 캘린더 전용 이벤트 블록 (구글 이벤트와 동일한 ink 스타일, 이동·리사이즈·제목수정·삭제) */
-export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1, onResize, onDelete, onEditTitle }: BlockProps) {
-  const [editing, setEditing] = useState(false)
-  const [val, setVal] = useState(event.title)
-  const inputRef = useRef<HTMLInputElement>(null)
+/** 캘린더 전용 이벤트 블록 (구글 이벤트와 동일한 ink 스타일, 이동·리사이즈·편집드로어·삭제) */
+export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1, onResize, onDelete, onOpenEditor }: BlockProps) {
   const blockRef = useRef<HTMLDivElement>(null)
   const clickStart = useRef<{ x: number; y: number } | null>(null)
 
-  useEffect(() => { if (editing) inputRef.current?.select() }, [editing])
-
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
-
-  const commit = () => {
-    setEditing(false)
-    const t = val.trim()
-    if (t && t !== event.title) onEditTitle(event.id, t)
-    else setVal(event.title)
-  }
 
   /* ── 이동 드래그 ── */
   const handleDragStart = (e: React.DragEvent) => {
@@ -51,13 +39,13 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
     e.dataTransfer.effectAllowed = 'move'
   }
 
-  /* ── 클릭 vs 드래그 구분 → 클릭이면 제목 편집 ── */
+  /* ── 클릭 vs 드래그 구분 → 클릭이면 편집 드로어 열기 ── */
   const handleMouseDown = (e: React.MouseEvent) => { clickStart.current = { x: e.clientX, y: e.clientY } }
   const handleMouseUp = (e: React.MouseEvent) => {
     if (!clickStart.current) return
     const dx = Math.abs(e.clientX - clickStart.current.x)
     const dy = Math.abs(e.clientY - clickStart.current.y)
-    if (dx < 4 && dy < 4 && !editing) setEditing(true)
+    if (dx < 4 && dy < 4) onOpenEditor(event)
     clickStart.current = null
   }
 
@@ -89,69 +77,50 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
 
   const endIso = new Date(new Date(event.scheduled_at).getTime() + event.duration_minutes * 60_000).toISOString()
 
-  // 편집 중에는 좁은 열 제약을 벗어나 열 전체 너비로 넓히고 위로 올려 입력하기 편하게 한다
-  const blockStyle: CSSProperties = editing
-    ? {
-        top,
-        left: 2,
-        right: 2,
-        minHeight: 30,
-        height: Math.max(height - 2, 30),
-        zIndex: 30,
-        backgroundColor: 'var(--color-ink-100)',
-        borderLeft: '3px solid var(--color-ink-300)',
-      }
-    : {
-        top,
-        height: height - 2,
-        left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-        width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-        backgroundColor: 'var(--color-ink-100)',
-        borderLeft: '3px solid var(--color-ink-300)',
-      }
-
   return (
     <Tooltip>
       <TooltipTrigger
         render={
           <div
             ref={blockRef}
-            draggable={!editing}
+            draggable
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
             className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
-            style={blockStyle}
+            style={{
+              top,
+              height: height - 2,
+              left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+              backgroundColor: 'var(--color-ink-100)',
+              borderLeft: '3px solid var(--color-ink-300)',
+            }}
           />
         }
       >
-        <div className="flex items-center gap-1 leading-tight pr-4">
+        <div className="flex items-center gap-1 leading-tight pr-9">
           <GoogleIcon />
-          {editing ? (
-            <input
-              ref={inputRef}
-              value={val}
-              autoFocus
-              onChange={e => setVal(e.target.value)}
-              onMouseDown={e => e.stopPropagation()}
-              onClick={e => e.stopPropagation()}
-              onKeyDown={e => {
-                if (e.key === 'Enter') commit()
-                if (e.key === 'Escape') { setVal(event.title); setEditing(false) }
-              }}
-              onBlur={commit}
-              className="flex-1 min-w-0 text-2xs font-medium bg-white/80 rounded px-1 outline-none ring-1 ring-ink-300 text-foreground"
-            />
-          ) : (
-            <p className="text-2xs font-medium text-foreground truncate flex-1">
-              {event.title}
-            </p>
-          )}
+          <p className="text-2xs font-medium text-foreground truncate flex-1">
+            {event.title}
+          </p>
         </div>
 
+        {/* 편집 드로어 열기 */}
+        <button
+          onMouseDown={e => e.stopPropagation()}
+          onClick={e => { e.stopPropagation(); onOpenEditor(event) }}
+          title="편집"
+          className="absolute top-0.5 right-4 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
+        >
+          <Pencil size={10} />
+        </button>
+
+        {/* 삭제 */}
         <button
           onMouseDown={e => e.stopPropagation()}
           onClick={e => { e.stopPropagation(); onDelete(event.id) }}
+          title="삭제"
           className="absolute top-0.5 right-0.5 opacity-0 group-hover:opacity-100 transition-opacity p-0.5 rounded hover:bg-black/10"
         >
           <X size={10} />

@@ -34,10 +34,10 @@ interface DayColumnProps {
   onEventMove: (id: string, scheduledAt: string) => void
   onEventResize: (id: string, durationMinutes: number) => void
   onDeleteEvent: (id: string) => void
-  onEditEvent: (id: string, title: string) => void
+  onOpenEditor: (event: CalEvent) => void
 }
 
-function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, creatingMinutes, onEmptyClick, onCreateSubmit, onCreateCancel, onEventMove, onEventResize, onDeleteEvent, onEditEvent }: DayColumnProps) {
+function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, creatingMinutes, onEmptyClick, onCreateSubmit, onCreateCancel, onEventMove, onEventResize, onDeleteEvent, onOpenEditor }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -234,7 +234,7 @@ function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, h
           totalCols={totalCols}
           onResize={onEventResize}
           onDelete={onDeleteEvent}
-          onEditTitle={onEditEvent}
+          onOpenEditor={onOpenEditor}
         />
       ))}
 
@@ -266,10 +266,10 @@ interface Props {
   onEventMove: (id: string, scheduledAt: string) => void
   onEventResize: (id: string, durationMinutes: number) => void
   onDeleteEvent: (id: string) => void
-  onEditEvent: (id: string, title: string) => void
+  onOpenEditor: (event: CalEvent) => void
 }
 
-export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, onCreateEvent, onEventMove, onEventResize, onDeleteEvent, onEditEvent }: Props) {
+export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, onCreateEvent, onEventMove, onEventResize, onDeleteEvent, onOpenEditor }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   const [creating, setCreating] = useState<{ date: string; minutes: number } | null>(null)
 
@@ -329,7 +329,7 @@ export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onH
           onEventMove={onEventMove}
           onEventResize={onEventResize}
           onDeleteEvent={onDeleteEvent}
-          onEditEvent={onEditEvent}
+          onOpenEditor={onOpenEditor}
         />
       ))}
     </div>

@@ -19,6 +19,7 @@ import {
 import { useCalendarData } from '../_hooks/use-calendar-data'
 import { useCalendarEvents } from '../_hooks/use-calendar-events'
 import { TimeGrid } from './time-grid'
+import { EventEditDrawer } from './event-edit-drawer'
 import { TaskPanel } from './task-panel'
 import { DeadlineRow } from './deadline-row'
 import { GoogleIcon } from './event-block'
@@ -57,6 +58,10 @@ export function CalendarShell() {
     events: calEvents, loadEvents: loadCalEvents,
     createEvent, updateEvent, deleteEvent,
   } = useCalendarEvents(workspaceId)
+
+  // 편집 중인 이벤트는 id로만 보관 → calEvents 갱신(길이 변경 등)이 드로어에 즉시 반영
+  const [editingEventId, setEditingEventId] = useState<string | null>(null)
+  const editingEvent = calEvents.find(e => e.id === editingEventId) ?? null
 
   /* ── 주 네비게이션 ── */
   const goWeek  = (delta: number) => setWeekStart(s => toDateStr(addDays(parseISO(s), delta * 7)))
@@ -359,7 +364,7 @@ export function CalendarShell() {
             onEventMove={(id, scheduledAt) => updateEvent(id, { scheduledAt })}
             onEventResize={(id, durationMinutes) => updateEvent(id, { durationMinutes })}
             onDeleteEvent={deleteEvent}
-            onEditEvent={(id, title) => updateEvent(id, { title })}
+            onOpenEditor={(ev) => setEditingEventId(ev.id)}
           />
         </div>
 
@@ -389,6 +394,13 @@ export function CalendarShell() {
       onSearchProjects={handleSearchProjects}
       assigneeSuggestions={assigneeSuggestions}
       labelSuggestions={allLabels}
+    />
+
+    <EventEditDrawer
+      event={editingEvent}
+      onClose={() => setEditingEventId(null)}
+      onUpdate={updateEvent}
+      onDelete={(id) => { deleteEvent(id); setEditingEventId(null) }}
     />
     </>
   )
