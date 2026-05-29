@@ -77,7 +77,6 @@ export interface GanttTask {
   archived_at: string | null
   scheduled_at: string | null   // ISO 8601, time blocking 시작 시각
   duration_minutes: number | null
-  google_event_id: string | null // 연결된 구글 캘린더 이벤트 ID (앱→구글 동기화)
   // 반복 설정
   recurrence_rule: RecurrenceRule | null
   recurrence_interval: number | null  // N일/N주/N개월마다
@@ -95,6 +94,16 @@ export interface CalendarEvent {
   isAllDay: boolean
   location: string | null
   description: string | null
+}
+
+// 캘린더 전용 이벤트 (할일과 분리, 빈 시간대 클릭으로 생성 → 구글 동기화)
+export interface CalEvent {
+  id: string
+  workspace_id: string
+  title: string
+  scheduled_at: string         // ISO 8601 시작 시각
+  duration_minutes: number
+  google_event_id: string | null
 }
 
 export interface GanttProject {

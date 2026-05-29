@@ -17,6 +17,7 @@ import {
   isAllDayScheduled,
 } from '../_utils'
 import { useCalendarData } from '../_hooks/use-calendar-data'
+import { useCalendarEvents } from '../_hooks/use-calendar-events'
 import { TimeGrid } from './time-grid'
 import { TaskPanel } from './task-panel'
 import { DeadlineRow } from './deadline-row'
@@ -43,7 +44,7 @@ export function CalendarShell() {
   const highlightHandled = useRef(false)
 
   const {
-    tasks, events, loadingEvents, calendarError,
+    tasks, events, loadingEvents, calendarError, workspaceId,
     loadEvents,
     handleDrop, handleMove, handleResize, handleUnschedule, handleDropAllDay, handleStatusChange,
     drawerTask, setDrawerTask,
@@ -51,6 +52,11 @@ export function CalendarShell() {
     formOpen, setFormOpen, handleFormSave, handleSearchProjects,
     assigneeSuggestions, allLabels,
   } = useCalendarData()
+
+  const {
+    events: calEvents, loadEvents: loadCalEvents,
+    createEvent, updateEvent, deleteEvent,
+  } = useCalendarEvents(workspaceId)
 
   /* ── 주 네비게이션 ── */
   const goWeek  = (delta: number) => setWeekStart(s => toDateStr(addDays(parseISO(s), delta * 7)))
@@ -91,6 +97,11 @@ export function CalendarShell() {
   useEffect(() => {
     loadEvents(weekStart, weekEnd)
   }, [weekStart, weekEnd, loadEvents])
+
+  /* ── 캘린더 전용 이벤트 로드 (주 변경 시) ── */
+  useEffect(() => {
+    loadCalEvents(weekStart, weekEnd)
+  }, [weekStart, weekEnd, loadCalEvents])
 
   /* ── highlight 파라미터 처리 ── */
   useEffect(() => {
@@ -336,6 +347,7 @@ export function CalendarShell() {
             dates={weekDates}
             events={events}
             tasks={timedTasks}
+            calEvents={calEvents}
             highlightTaskId={highlightTaskId}
             onHighlightClear={() => setHighlightTaskId(null)}
             onDrop={handleDrop}
@@ -344,6 +356,9 @@ export function CalendarShell() {
             onUnschedule={handleUnschedule}
             onStatusChange={handleStatusChange}
             onTaskClick={setDrawerTask}
+            onCreateEvent={createEvent}
+            onDeleteEvent={deleteEvent}
+            onEditEvent={(id, title) => updateEvent(id, { title })}
           />
         </div>
 

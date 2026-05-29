@@ -1,7 +1,7 @@
 ﻿'use client'
 
 import { useRef, useCallback, useState, useMemo } from 'react'
-import type { CalendarEvent, GanttTask } from '@/types'
+import type { CalendarEvent, GanttTask, CalEvent } from '@/types'
 import { HOUR_H, START_H, END_H, TOTAL_H, SNAP_MIN, DRAG_OVER_BG } from '../_constants'
 import {
   toMinutes, localDateStr, buildIso, snapToGrid, minutesToPx,
@@ -9,6 +9,7 @@ import {
 } from '../_utils'
 import { TaskBlock } from './task-block'
 import { EventBlock } from './event-block'
+import { CalEventBlock, EventCreateInput } from './cal-event-block'
 import { getActiveDragOffsetY } from './drag-state'
 
 interface DayColumnProps {
@@ -16,6 +17,7 @@ interface DayColumnProps {
   isToday: boolean
   events: CalendarEvent[]
   tasks: GanttTask[]
+  calEvents: CalEvent[]
   getMinutesFromY: (clientY: number) => number
   highlightTaskId?: string | null
   onHighlightClear?: () => void
@@ -25,9 +27,15 @@ interface DayColumnProps {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
+  creatingMinutes: number | null
+  onEmptyClick: (minutes: number) => void
+  onCreateSubmit: (title: string) => void
+  onCreateCancel: () => void
+  onDeleteEvent: (id: string) => void
+  onEditEvent: (id: string, title: string) => void
 }
 
-function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: DayColumnProps) {
+function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, creatingMinutes, onEmptyClick, onCreateSubmit, onCreateCancel, onDeleteEvent, onEditEvent }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -70,11 +78,13 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
     const allBlocks = [
       ...timedEvents.map(e => ({ startMin: toMinutes(e.start), endMin: toMinutes(e.end) })),
       ...scheduledTasks.map(t => ({ startMin: toMinutes(t.scheduled_at!), endMin: toMinutes(t.scheduled_at!) + (t.duration_minutes ?? 30) })),
+      ...calEvents.map(e => ({ startMin: toMinutes(e.scheduled_at), endMin: toMinutes(e.scheduled_at) + e.duration_minutes })),
     ]
 
     const layout      = calcLayout(allBlocks)
     const eventLayout = layout.slice(0, timedEvents.length)
-    const taskLayout  = layout.slice(timedEvents.length)
+    const taskLayout  = layout.slice(timedEvents.length, timedEvents.length + scheduledTasks.length)
+    const calLayout   = layout.slice(timedEvents.length + scheduledTasks.length)
 
     const eventBlocks = timedEvents.map((event, i) => {
       const startMin = toMinutes(event.start)
@@ -98,8 +108,18 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
       }
     })
 
-    return { eventBlocks, taskBlocks }
-  }, [events, tasks])
+    const calEventBlocks = calEvents.map((ev, i) => {
+      const startMin = toMinutes(ev.scheduled_at)
+      return {
+        calEvent: ev,
+        top:    minutesToPx(startMin - START_H * 60),
+        height: Math.max(minutesToPx(ev.duration_minutes), 20),
+        ...calLayout[i],
+      }
+    })
+
+    return { eventBlocks, taskBlocks, calEventBlocks }
+  }, [events, tasks, calEvents])
 
   return (
     <div
@@ -109,6 +129,12 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
       onDragLeave={handleDragLeave}
       onDrop={handleDrop}
     >
+      {/* 빈 시간대 클릭 → 이벤트 생성 (블록보다 아래 레이어) */}
+      <div
+        className="absolute inset-0 cursor-pointer"
+        onClick={e => onEmptyClick(getMinutesFromY(e.clientY))}
+      />
+
       {/* 시간 가이드 라인 */}
       {hours.map(h => (
         <div
@@ -187,6 +213,27 @@ function DayColumn({ date, isToday, events, tasks, getMinutesFromY, highlightTas
           onClick={() => onTaskClick(task)}
         />
       ))}
+
+      {layoutData.calEventBlocks.map(({ calEvent, top, height, colIndex, totalCols }) => (
+        <CalEventBlock
+          key={calEvent.id}
+          event={calEvent}
+          top={top}
+          height={height}
+          colIndex={colIndex}
+          totalCols={totalCols}
+          onDelete={onDeleteEvent}
+          onEditTitle={onEditEvent}
+        />
+      ))}
+
+      {creatingMinutes !== null && (
+        <EventCreateInput
+          top={minutesToPx(creatingMinutes - START_H * 60)}
+          onSubmit={onCreateSubmit}
+          onCancel={onCreateCancel}
+        />
+      )}
     </div>
   )
 }
@@ -195,6 +242,7 @@ interface Props {
   dates: string[]
   events: CalendarEvent[]
   tasks: GanttTask[]
+  calEvents: CalEvent[]
   highlightTaskId?: string | null
   onHighlightClear?: () => void
   onDrop: (taskId: string, scheduledAt: string, durationMinutes: number) => void
@@ -203,10 +251,14 @@ interface Props {
   onUnschedule: (taskId: string) => void
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
+  onCreateEvent: (scheduledAt: string, durationMinutes: number, title: string) => void
+  onDeleteEvent: (id: string) => void
+  onEditEvent: (id: string, title: string) => void
 }
 
-export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick }: Props) {
+export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, onCreateEvent, onDeleteEvent, onEditEvent }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
+  const [creating, setCreating] = useState<{ date: string; minutes: number } | null>(null)
 
   const getMinutesFromY = useCallback((clientY: number): number => {
     if (!gridRef.current) return START_H * 60
@@ -243,6 +295,7 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
           isToday={date === today}
           events={events.filter(e => localDateStr(e.start) === date)}
           tasks={tasks.filter(t => !!t.scheduled_at && localDateStr(t.scheduled_at) === date)}
+          calEvents={calEvents.filter(e => localDateStr(e.scheduled_at) === date)}
           getMinutesFromY={getMinutesFromY}
           highlightTaskId={highlightTaskId}
           onHighlightClear={onHighlightClear}
@@ -252,6 +305,16 @@ export function TimeGrid({ dates, events, tasks, highlightTaskId, onHighlightCle
           onUnschedule={onUnschedule}
           onStatusChange={onStatusChange}
           onTaskClick={onTaskClick}
+          creatingMinutes={creating?.date === date ? creating.minutes : null}
+          onEmptyClick={minutes => setCreating({ date, minutes })}
+          onCreateSubmit={title => {
+            const t = title.trim()
+            if (t) onCreateEvent(buildIso(date, creating!.minutes), 60, t)
+            setCreating(null)
+          }}
+          onCreateCancel={() => setCreating(null)}
+          onDeleteEvent={onDeleteEvent}
+          onEditEvent={onEditEvent}
         />
       ))}
     </div>

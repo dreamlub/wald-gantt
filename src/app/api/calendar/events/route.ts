@@ -57,6 +57,10 @@ export async function GET(req: NextRequest) {
   if (!res.ok) {
     const body = await res.text()
     const googleError = parseGoogleApiError(body)
+    // 토큰 무효화/권한 취소(401) → 재연결 유도 (UI에 'Google 연결' 버튼 노출)
+    if (res.status === 401) {
+      return NextResponse.json({ error: 'TOKEN_EXPIRED' }, { status: 403 })
+    }
     if (googleError.reason === 'SERVICE_DISABLED' || googleError.reason === 'accessNotConfigured') {
       return NextResponse.json({
         error: 'GOOGLE_API_DISABLED',
@@ -90,63 +94,112 @@ export async function GET(req: NextRequest) {
   return NextResponse.json({ events })
 }
 
-/** 태스크 시간 배치 → 구글 이벤트 생성/수정 (upsert) */
+const EVENT_SELECT = 'id, workspace_id, title, scheduled_at, duration_minutes, google_event_id'
+
+async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Promise<string | null> {
+  const { data: { user } } = await sb.auth.getUser()
+  if (!user) return null
+  const { data: member } = await sb
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', user.id)
+    .single()
+  return member?.workspace_id ?? null
+}
+
+/** 캘린더 이벤트 생성 → DB 저장 + 구글 이벤트 생성 */
 export async function POST(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { taskId } = await req.json() as { taskId?: string }
-  if (!taskId) return NextResponse.json({ error: 'taskId required' }, { status: 400 })
+  const { title, scheduledAt, durationMinutes } = await req.json() as {
+    title?: string; scheduledAt?: string; durationMinutes?: number
+  }
+  if (!scheduledAt) return NextResponse.json({ error: 'scheduledAt required' }, { status: 400 })
 
-  const { data: task } = await supabase
-    .from('gantt_tasks')
-    .select('title, scheduled_at, duration_minutes, google_event_id')
-    .eq('id', taskId)
+  const workspaceId = await getWorkspaceId(supabase)
+  if (!workspaceId) return NextResponse.json({ error: 'No workspace' }, { status: 403 })
+
+  const safeTitle = (title ?? '').trim() || '(제목 없음)'
+  const dur = durationMinutes && durationMinutes > 0 ? durationMinutes : 60
+
+  // 1) DB 행 생성
+  const { data: row, error } = await supabase
+    .from('calendar_events')
+    .insert({ workspace_id: workspaceId, title: safeTitle, scheduled_at: scheduledAt, duration_minutes: dur })
+    .select(EVENT_SELECT)
     .single()
-  if (!task) return NextResponse.json({ error: 'Task not found' }, { status: 404 })
-  if (!task.scheduled_at) return NextResponse.json({ ok: true, skipped: true })
+  if (error || !row) return NextResponse.json({ error: 'DB_ERROR' }, { status: 500 })
 
+  // 2) 구글 이벤트 생성 (연동 시에만, 실패해도 DB 행은 유지)
   const tk = await getValidAccessToken(supabase, user.id)
-  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
-
-  const title = task.title || '(제목 없음)'
-  const times = buildEventTimes(task.scheduled_at, task.duration_minutes)
-
-  // 기존 연결이 있으면 수정, 실패 시(삭제됨 등) 새로 생성
-  if (task.google_event_id) {
-    const ok = await gcalPatch(tk.token, task.google_event_id, title, times)
-    if (ok) return NextResponse.json({ ok: true, googleEventId: task.google_event_id })
+  if (!('error' in tk)) {
+    const gid = await gcalInsert(tk.token, row.id, safeTitle, buildEventTimes(scheduledAt, dur))
+    if (gid) {
+      await supabase.from('calendar_events').update({ google_event_id: gid }).eq('id', row.id)
+      row.google_event_id = gid
+    }
   }
 
-  const newId = await gcalInsert(tk.token, taskId, title, times)
-  if (!newId) return NextResponse.json({ error: 'GOOGLE_API_ERROR' }, { status: 502 })
-
-  await supabase.from('gantt_tasks').update({ google_event_id: newId }).eq('id', taskId)
-  return NextResponse.json({ ok: true, googleEventId: newId })
+  return NextResponse.json({ event: row })
 }
 
-/** 배치 해제/삭제 → 연결된 구글 이벤트 삭제 */
+/** 캘린더 이벤트 수정 (이동/리사이즈/제목) → DB + 구글 PATCH */
+export async function PATCH(req: NextRequest) {
+  const supabase = await createClient()
+  const { data: { user } } = await supabase.auth.getUser()
+  if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
+
+  const { id, title, scheduledAt, durationMinutes } = await req.json() as {
+    id?: string; title?: string; scheduledAt?: string; durationMinutes?: number
+  }
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
+
+  const patch: Record<string, unknown> = { updated_at: new Date().toISOString() }
+  if (title !== undefined)           patch.title = title.trim() || '(제목 없음)'
+  if (scheduledAt !== undefined)     patch.scheduled_at = scheduledAt
+  if (durationMinutes !== undefined) patch.duration_minutes = durationMinutes
+
+  const { data: row, error } = await supabase
+    .from('calendar_events')
+    .update(patch)
+    .eq('id', id)
+    .select(EVENT_SELECT)
+    .single()
+  if (error || !row) return NextResponse.json({ error: 'DB_ERROR' }, { status: 500 })
+
+  if (row.google_event_id) {
+    const tk = await getValidAccessToken(supabase, user.id)
+    if (!('error' in tk)) {
+      await gcalPatch(tk.token, row.google_event_id, row.title, buildEventTimes(row.scheduled_at, row.duration_minutes))
+    }
+  }
+
+  return NextResponse.json({ event: row })
+}
+
+/** 캘린더 이벤트 삭제 → DB + 구글 DELETE */
 export async function DELETE(req: NextRequest) {
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.json({ error: 'Unauthorized' }, { status: 401 })
 
-  const { taskId } = await req.json() as { taskId?: string }
-  if (!taskId) return NextResponse.json({ error: 'taskId required' }, { status: 400 })
+  const { id } = await req.json() as { id?: string }
+  if (!id) return NextResponse.json({ error: 'id required' }, { status: 400 })
 
-  const { data: task } = await supabase
-    .from('gantt_tasks')
+  const { data: row } = await supabase
+    .from('calendar_events')
     .select('google_event_id')
-    .eq('id', taskId)
+    .eq('id', id)
     .single()
-  if (!task?.google_event_id) return NextResponse.json({ ok: true, skipped: true })
 
-  const tk = await getValidAccessToken(supabase, user.id)
-  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
+  if (row?.google_event_id) {
+    const tk = await getValidAccessToken(supabase, user.id)
+    if (!('error' in tk)) await gcalDelete(tk.token, row.google_event_id)
+  }
 
-  await gcalDelete(tk.token, task.google_event_id)
-  await supabase.from('gantt_tasks').update({ google_event_id: null }).eq('id', taskId)
+  await supabase.from('calendar_events').delete().eq('id', id)
   return NextResponse.json({ ok: true })
 }
 
