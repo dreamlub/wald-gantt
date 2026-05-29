@@ -4,6 +4,7 @@ import {
   formatYearMonth, MONTH_LABELS, monthOffset,
 } from '@/lib/gantt-utils'
 import type { WeekInfo, DayInfo } from '@/lib/gantt-utils'
+import { kstToday } from '@/lib/kst'
 import { COL_WIDTH, WEEK_COL_WIDTH, DAY_COL_WIDTH, type ViewMode } from './_GanttConstants'
 
 export function useGanttViewData(viewMode: ViewMode, viewStart: string, viewEnd: string) {
@@ -59,10 +60,10 @@ export function useGanttViewData(viewMode: ViewMode, viewStart: string, viewEnd:
     return positions
   }, [viewMode, months, monthGroups, days, colW])
 
-  // KST 기준 오늘
-  const _today   = new Date()
-  const todayStr = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}-${String(_today.getDate()).padStart(2, '0')}`
-  const todayYM  = `${_today.getFullYear()}-${String(_today.getMonth() + 1).padStart(2, '0')}`
+  // KST 기준 오늘 (로캘 무관하게 KST 날짜로 고정 후 그 날짜를 로컬 자정으로 앵커링)
+  const todayStr = kstToday()
+  const todayYM  = todayStr.slice(0, 7)
+  const _today   = new Date(`${todayStr}T00:00:00`)
 
   let todayX: number | null = null
   if (viewMode === 'month') {

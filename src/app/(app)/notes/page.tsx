@@ -1,6 +1,6 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { LayoutGrid, List, Pin, Search, X } from 'lucide-react'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -26,6 +26,7 @@ export default function NotesPage() {
   const [searchQuery, setSearchQuery] = useState('')
   const [selectedId,  setSelectedId]  = useState<string | null>(null)
   const [searchOpen,  setSearchOpen]  = useState(false)
+  const pinReqRef = useRef(0) // 핀 토글 재조회 latest-wins 가드
 
   const load = useCallback(async () => {
     try { setNotes(await getNotes()) }
@@ -54,7 +55,12 @@ export default function NotesPage() {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n))
     try {
       await updateNote(id, patch)
-      if ('pinned' in patch) setNotes(await getNotes())
+      if ('pinned' in patch) {
+        // 연속 핀 토글 시 getNotes 응답이 도착 순서대로 덮어써 stale 상태가 되는 race 방지 (latest-wins)
+        const seq = ++pinReqRef.current
+        const fresh = await getNotes()
+        if (seq === pinReqRef.current) setNotes(fresh)
+      }
     } catch { toast.error('메모 수정에 실패했습니다.'); load() }
   }
 
@@ -79,6 +85,7 @@ export default function NotesPage() {
           clearTimeout(timer)
           setNotes(prev => [...prev, deleted].sort((a, b) => {
             if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
+            if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
             return new Date(b.created_at).getTime() - new Date(a.created_at).getTime()
           }))
         },

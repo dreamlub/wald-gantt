@@ -34,6 +34,13 @@ export async function PATCH(
       if (key in body) updates[key] = body[key]
     }
 
+    // 유효한 필드가 없으면 빈 update({}) 대신 조기 반환
+    if (Object.keys(updates).length === 0) {
+      return new Response(JSON.stringify({ error: '수정할 필드가 없습니다' }), {
+        status: 400, headers: { 'Content-Type': 'application/json' },
+      })
+    }
+
     const { error } = await sb
       .from('client_history')
       .update(updates)

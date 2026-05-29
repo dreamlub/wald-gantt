@@ -161,13 +161,14 @@ export async function POST(req: NextRequest) {
           const allParentTs = [...parents.map(p => p.ts), ...orphanParents.map(o => o.ts)]
           const { data: existingRows } = allParentTs.length > 0
             ? await sb.from('slack_raw_messages')
-                .select('channel, parent_ts, raw_json')
+                .select('channel_id, parent_ts, raw_json')
                 .eq('workspace_id', workspaceId)
                 .in('parent_ts', allParentTs)
             : { data: [] }
 
+          // channel_id 기준 키 (저장된 channel은 resolved 이름이라 DM에서 조회 키와 불일치)
           const existingMap = new Map<string, RawJson>(
-            (existingRows ?? []).map(e => [`${e.channel}:${e.parent_ts}`, e.raw_json as RawJson])
+            (existingRows ?? []).map(e => [`${e.channel_id}:${e.parent_ts}`, e.raw_json as RawJson])
           )
 
           const rawMessages: Array<{ channel: string; channel_id: string; parent_ts: string; raw_json: RawJson }> = []
@@ -193,7 +194,7 @@ export async function POST(req: NextRequest) {
                 }
                 await delay(200)
               } catch {
-                const existing = existingMap.get(`${m.channel.name}:${m.ts}`)
+                const existing = existingMap.get(`${m.channel.id}:${m.ts}`)
                 replies = existing?.replies ?? []
               }
             }
@@ -244,7 +245,7 @@ export async function POST(req: NextRequest) {
                 },
               })
             } catch {
-              const existing = existingMap.get(`${op.channelName}:${op.ts}`)
+              const existing = existingMap.get(`${op.channelId}:${op.ts}`)
               if (existing) {
                 rawMessages.push({
                   channel: op.channelName, channel_id: op.channelId, parent_ts: op.ts,

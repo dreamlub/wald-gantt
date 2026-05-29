@@ -45,6 +45,7 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
   }
 
   async function handleCreateTask() {
+    if (linking) return // 링크 생성/해제 상호 배제 (lost-update 방지)
     const t = taskTitle.trim() || title.trim() || '(제목 없음)'
     setLinking(true)
     try {
@@ -76,12 +77,16 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
   }
 
   async function handleRemoveLink(linkId: string) {
+    if (linking) return // 링크 생성/해제 동시 실행 시 stale links 덮어쓰기(lost-update) 방지
+    setLinking(true)
     const updated = links.filter(l => l.id !== linkId)
     try {
       await updateNote(note.id, { links: updated })
       onUpdate(note.id, { links: updated })
     } catch {
       toast.error('링크 해제에 실패했습니다.')
+    } finally {
+      setLinking(false)
     }
   }
 

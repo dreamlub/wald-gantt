@@ -67,7 +67,8 @@ export async function GET(req: NextRequest) {
         message: googleError.message ?? 'Google Calendar API is disabled.',
       }, { status: res.status })
     }
-    return NextResponse.json({ error: 'GOOGLE_API_ERROR', detail: body }, { status: res.status })
+    console.error('[calendar/events] Google API error:', res.status, body)
+    return NextResponse.json({ error: 'GOOGLE_API_ERROR' }, { status: res.status })
   }
 
   const json = await res.json() as { items?: Record<string, unknown>[] }
