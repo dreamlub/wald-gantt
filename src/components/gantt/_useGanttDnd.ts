@@ -35,7 +35,7 @@ export function useGanttDnd({
       const initial: Record<string, string[]> = {}
       for (const cat of sortedCats) {
         initial[cat.id] = projects
-          .filter(p => p.category_id === cat.id)
+          .filter(p => p.category_id === cat.id && !p.parent_id)
           .sort((a, b) => a.sort_order - b.sort_order)
           .map(p => p.id)
       }

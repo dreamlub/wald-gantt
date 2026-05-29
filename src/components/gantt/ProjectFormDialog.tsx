@@ -1,11 +1,12 @@
 ﻿'use client'
 
 import { useState, useEffect, useRef } from 'react'
-import { ChevronDown, X, Clock } from 'lucide-react'
+import { ChevronDown, Plus, X, Clock } from 'lucide-react'
 import { getProjectHistory } from '@/lib/gantt-service'
 import type { GanttCategory, GanttProject, GanttStatus, Priority, ProjectHistoryEntry } from '@/types'
 import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars } from '@/app/(app)/tasks/_constants'
 import { toDate, toDateStr, formatHistValue, formatHistDate } from '@/lib/gantt-utils'
+import { STATUS_META } from './_GanttRows'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { DatePickerButton } from '@/components/ui/date-picker-button'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
@@ -103,12 +104,16 @@ interface Props {
   allPMs?: string[]
   initialName?: string
   initialMemo?: string
+  defaultParentId?: string | null
+  parentProjects?: GanttProject[]
+  subProjects?: GanttProject[]
+  onAddSubProject?: () => void
   /** true: 포털 없이 인라인 렌더링 */
   noPortal?: boolean
 }
 
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, noPortal = false }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, defaultParentId, parentProjects, subProjects, onAddSubProject, noPortal = false }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -118,6 +123,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const [pm, setPm]                 = useState('')
   const [memo, setMemo]             = useState('')
   const [priority, setPriority]     = useState<Priority>(2)
+  const [parentId, setParentId]     = useState<string | null>(null)
   const [loading, setLoading]       = useState(false)
   const [tab, setTab]               = useState<DialogTab>('info')
   const nameRef = useRef<HTMLInputElement>(null)
@@ -148,6 +154,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setPm(editProject.pm ?? '')
       setMemo(editProject.memo ?? '')
       setPriority(editProject.priority ?? 0)
+      setParentId(editProject.parent_id ?? null)
     } else {
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
 
@@ -155,9 +162,10 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setStartDate(undefined); setEndDate(undefined)
 
       setTeam(''); setPm(''); setMemo(initialMemo ?? '')
+      setParentId(defaultParentId ?? null)
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [editProject, open, defaultCategoryId, categories, initialName, initialMemo])
+  }, [editProject, open, defaultCategoryId, defaultParentId, categories, initialName, initialMemo])
 
   const dateError = startDate && endDate && startDate > endDate
     ? '종료일은 시작일 이후여야 합니다.' : null
@@ -170,7 +178,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
     try {
       await onSave({
         categoryId,
-        parentId: editProject?.parent_id ?? null,
+        parentId,
         name: name.trim(),
         status,
         start_date: toDateStr(startDate),
@@ -191,8 +199,8 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
         {/* Header */}
         <DrawerHeader>
           <div className="flex items-center px-5 h-12 gap-1">
-            <h2 className="text-sm font-semibold text-foreground flex-1">
-              {editProject ? '프로젝트 수정' : '프로젝트 추가'}
+            <h2 className="text-base font-semibold text-foreground flex-1">
+              {editProject ? '프로젝트 수정' : defaultParentId != null ? '서브프로젝트 추가' : '프로젝트 추가'}
             </h2>
             <button onClick={onClose} className="p-1 text-muted-foreground hover:text-foreground rounded">
               <X size={16} />
@@ -341,6 +349,64 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
               />
             </div>
           </div>
+
+          {/* 상위 프로젝트 — 서브프로젝트 신규 추가 시 읽기 전용 표시 */}
+          {!editProject && defaultParentId != null && parentProjects && (
+            <div>
+              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">상위 프로젝트</label>
+              <p className="mt-1.5 text-sm text-foreground px-2 py-1.5 border border-border rounded bg-muted">
+                {parentProjects.find(p => p.id === defaultParentId)?.name ?? '—'}
+              </p>
+            </div>
+          )}
+          {/* 수정 시: 상위가 있으면 읽기 전용으로 표시 */}
+          {editProject && editProject.parent_id && parentProjects && (
+            <div>
+              <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">상위 프로젝트</label>
+              <p className="mt-1.5 text-sm text-foreground px-2 py-1.5 border border-border rounded bg-muted">
+                {parentProjects.find(p => p.id === editProject.parent_id)?.name ?? '—'}
+              </p>
+            </div>
+          )}
+          {/* 수정 시: 연결된 서브프로젝트 목록 */}
+          {editProject && !editProject.parent_id && (subProjects?.length ?? 0) >= 0 && (
+            <div>
+              <div className="flex items-center justify-between">
+                <label className="text-sm font-semibold text-muted-foreground uppercase tracking-wider">
+                  서브프로젝트 {subProjects && subProjects.length > 0 ? `(${subProjects.length})` : ''}
+                </label>
+                {onAddSubProject && (
+                  <button
+                    type="button"
+                    onClick={onAddSubProject}
+                    className="flex items-center gap-0.5 text-xs text-muted-foreground hover:text-foreground transition-colors"
+                  >
+                    <Plus size={11} /> 추가
+                  </button>
+                )}
+              </div>
+              {subProjects && subProjects.length > 0 ? (
+                <ul className="mt-1.5 flex flex-col gap-1">
+                  {subProjects.map(s => {
+                    const sm = STATUS_META[s.status]
+                    return (
+                      <li key={s.id} className="flex items-center gap-2 px-2 py-1.5 border border-border rounded bg-muted text-sm">
+                        <span
+                          className="shrink-0 w-3 h-3 rounded-full"
+                          style={{ backgroundColor: sm.dot }}
+                          title={sm.label}
+                        />
+                        <span className="truncate text-foreground">{s.name}</span>
+                        <span className="shrink-0 text-xs text-muted-foreground ml-auto">{sm.label}</span>
+                      </li>
+                    )
+                  })}
+                </ul>
+              ) : (
+                <p className="mt-1.5 text-xs text-ink-300">서브프로젝트가 없습니다</p>
+              )}
+            </div>
+          )}
 
           {/* 우선순위 */}
           <div>

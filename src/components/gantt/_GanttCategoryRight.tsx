@@ -72,8 +72,9 @@ export function GanttCategoryRight({
       {catProjs.map(project => {
         const cols      = barCols(project)
         const isBacklog = project.status === 'backlog'
+        const isChild   = !!project.parent_id
 
-        const BAR_H      = 20
+        const BAR_H      = isChild ? 14 : 20
         const curTop     = (PROJ_ROW_H - BAR_H) / 2
         const barWidth   = (cols ? cols.end - cols.start : 0) * colW - 8
         const dateText   = (project.start_date && project.end_date) ? formatBarDate(project.start_date, project.end_date) : ''

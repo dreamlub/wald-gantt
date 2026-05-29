@@ -54,6 +54,7 @@ interface Props {
   onMoveProject: (updates: { id: string; category_id: string; sort_order: number }[]) => Promise<void>
   onMoveCategory?: (updates: { id: string; sort_order: number }[]) => Promise<void>
   onShare?: () => void
+  onAddSubProject?: (parentId: string, catId: string) => void
   overdueFilter?: boolean
   startDelayedFilter?: boolean
   readOnly?: boolean
@@ -67,7 +68,7 @@ export function GanttChart({
   onOpenAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
-  onMoveProject, onMoveCategory, onShare,
+  onMoveProject, onMoveCategory, onShare, onAddSubProject,
   overdueFilter: externalOverdueFilter, startDelayedFilter: externalStartDelayedFilter,
   readOnly = false,
   hideToolbar = false,
@@ -87,6 +88,16 @@ export function GanttChart({
   const startDelayedFilter = externalStartDelayedFilter ?? internalStartDelayedFilter
   const [searchQuery, setSearchQuery]       = useState('')
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
+  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set())
+  function toggleCollapsed(id: string) {
+    setCollapsedParents(prev => {
+      const next = new Set(prev)
+      if (next.has(id)) next.delete(id)
+      else next.add(id)
+      return next
+    })
+  }
+  const parentIds = new Set(projects.filter(p => p.parent_id).map(p => p.parent_id!))
 
   const sensors = useDndSensors()
 
@@ -152,6 +163,13 @@ export function GanttChart({
       return [...base].sort((a, b) => a.sort_order - b.sort_order)
     }
     return base
+  }
+
+  function orderedProjectsOf(catId: string): GanttProject[] {
+    const top = projectsOf(catId).filter(p => !p.parent_id)
+    return top.flatMap(p =>
+      collapsedParents.has(p.id) ? [p] : [p, ...projects.filter(c => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order)]
+    )
   }
 
   function barCols(p: GanttProject): { start: number; end: number } | null {
@@ -338,7 +356,7 @@ export function GanttChart({
                     <GanttCategoryLeft
                       key={cat.id}
                       cat={cat}
-                      catProjs={projectsOf(cat.id)}
+                      catProjs={orderedProjectsOf(cat.id)}
                       readOnly={readOnly}
                       editCatId={editCatId}
                       editCatVal={editCatVal}
@@ -355,6 +373,10 @@ export function GanttChart({
                       onSetMemoHover={setMemoHover}
                       onCycleStatus={cycleStatus}
                       todayStr={todayStr}
+                      collapsedParents={collapsedParents}
+                      onToggleCollapsed={toggleCollapsed}
+                      parentIds={parentIds}
+                      onAddSubProject={onAddSubProject}
                     />
                   ))}
                 </SortableContext>
@@ -422,7 +444,7 @@ export function GanttChart({
                 <GanttCategoryRight
                   key={cat.id}
                   cat={cat}
-                  catProjs={projectsOf(cat.id)}
+                  catProjs={orderedProjectsOf(cat.id)}
                   readOnly={readOnly}
                   colW={colW}
                   barCols={barCols}

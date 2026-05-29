@@ -166,6 +166,9 @@ function KeyRow({ info, onSaved, onDeleted }: {
   )
 }
 
+// 별도 섹션에서 관리하는 키는 여기서 제외
+const EXCLUDED_FROM_API_SECTION = new Set(['slack_reminder_channel'])
+
 export function ApiKeysSection() {
   const [keys, setKeys]       = useState<ApiKeyInfo[]>([])
   const [loading, setLoading] = useState(true)
@@ -175,7 +178,7 @@ export function ApiKeysSection() {
     try {
       const res = await fetch('/api/settings/api-keys')
       const data = await res.json()
-      if (Array.isArray(data)) setKeys(data)
+      if (Array.isArray(data)) setKeys(data.filter((k: ApiKeyInfo) => !EXCLUDED_FROM_API_SECTION.has(k.name)))
     } catch {
       toast.error('API 키 조회 실패')
     } finally {

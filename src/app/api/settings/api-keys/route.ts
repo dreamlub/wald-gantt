@@ -1,19 +1,20 @@
 import { NextRequest, NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
 
-const ALLOWED_KEYS = ['anthropic', 'slack_user', 'outline', 'slack_domain', 'google_client_id', 'google_client_secret'] as const
+const ALLOWED_KEYS = ['anthropic', 'slack_user', 'outline', 'slack_domain', 'google_client_id', 'google_client_secret', 'slack_reminder_channel'] as const
 type KeyName = typeof ALLOWED_KEYS[number]
 
 /** 화면에 마스킹 표시할 항목 */
 const SECRET_KEYS = new Set<KeyName>(['anthropic', 'slack_user', 'outline', 'google_client_secret'])
 
 const KEY_LABELS: Record<KeyName, string> = {
-  anthropic:           'Anthropic API Key',
-  slack_user:          'Slack User Token',
-  outline:             'Outline API 토큰',
-  slack_domain:        'Slack 워크스페이스 도메인',
-  google_client_id:    'Google OAuth Client ID',
-  google_client_secret:'Google OAuth Client Secret',
+  anthropic:              'Anthropic API Key',
+  slack_user:             'Slack User Token',
+  outline:                'Outline API 토큰',
+  slack_domain:           'Slack 워크스페이스 도메인',
+  google_client_id:       'Google OAuth Client ID',
+  google_client_secret:   'Google OAuth Client Secret',
+  slack_reminder_channel: 'Slack 리마인더 채널 ID',
 }
 
 async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Promise<string> {

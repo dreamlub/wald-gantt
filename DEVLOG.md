@@ -9,6 +9,71 @@
 
 ---
 
+## 최근 변경 (2026-05-30) — Priority 좌측 컬러 스트라이프
+
+### 목적
+프로젝트 행에서 우선순위를 직관적으로 시각화 (기존: 바 투명도에만 반영, 시인성 낮음)
+
+### 변경 내용
+
+**`_GanttCategoryLeft.tsx`**
+- `PRIORITY_META` import 추가
+- `ProjectRow` 내부: priority > 0인 행에 절대위치 3px 좌측 컬러 스트라이프 추가
+  ```tsx
+  {(project.priority ?? 0) > 0 && (
+    <div className="absolute left-0 top-0 bottom-0 w-[3px]"
+         style={{ backgroundColor: PRIORITY_META[project.priority!].color }} />
+  )}
+  ```
+- 카테고리 헤더 stripe(3px, cat.color)와 동일한 방식, 개별 프로젝트 행에 priority 색상 적용
+
+---
+
+## 최근 변경 (2026-05-29) — 서브프로젝트 기능 구현
+
+### 목적
+Gantt 프로젝트의 계층 구조 지원 (parent_id 필드가 DB/타입에 존재했으나 UI가 전혀 없었음)
+
+### 변경 내용
+
+**`_useGanttDnd.ts`**
+- DnD liveItems 초기화 시 자식 프로젝트(parent_id 있는 것) 제외 → 부모만 드래그 가능
+
+**`GanttChart.tsx`**
+- `collapsedParents` 상태 + `toggleCollapsed` 함수 추가
+- `parentIds` Set 계산 (자식이 있는 프로젝트 ID 집합)
+- `orderedProjectsOf()` 함수 추가: 부모 → 자식 순으로 인터리브된 정렬 목록 반환, 접힌 부모는 자식 생략
+- `onAddSubProject` prop 추가 및 GanttCategoryLeft에 전달
+
+**`_GanttCategoryLeft.tsx`** (전체 재작성)
+- `ProjectRow` 내부 컴포넌트 분리 (부모/자식 공용)
+- 자식 있는 부모: ChevronDown/Right 토글 버튼 표시
+- 자식 행: 20px 들여쓰기, 드래그 핸들 없음
+- 부모 행 호버 시 "+" 버튼으로 서브프로젝트 추가
+- SortableContext에 부모 ID만 포함 (자식은 드래그 불가)
+
+**`ProjectFormDialog.tsx`**
+- `parentId` 상태, `defaultParentId`/`parentProjects` props 추가
+- "상위 프로젝트" select 드롭다운 추가 (parentProjects 있을 때만 표시)
+
+**`projects/page.tsx`**
+- DialogState에 `parentId` 필드 추가
+- `addProject` 호출 시 `fields.parentId` 실제 전달
+- `handleDeleteProject`: 부모 삭제 시 자식도 cascade soft-delete
+- `handleMoveProject`: 부모가 카테고리 이동 시 자식도 함께 이동
+- `onAddSubProject` 핸들러 + ProjectFormDialog에 `parentProjects` 전달
+
+### 동작 방식
+```
+Board > Category
+  ▼ 부모 프로젝트     [+서브] [삭제] [메모]   ← 접기/펼치기 토글
+      ▸ 서브프로젝트                           ← 들여쓰기, 드래그 불가
+      ▸ 서브프로젝트
+  — 단독 프로젝트     [삭제] [메모]
+```
+
+---
+
 ## 최근 변경 (2026-05-29) — 메모 → 태스크 연결 기능
 
 ### 목적

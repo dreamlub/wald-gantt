@@ -14,6 +14,7 @@ import type { Client } from '../../summary/_lib/types'
 import { ChannelMappingSection } from './channel-mapping-section'
 import { BrandAliasSection } from './brand-alias-section'
 import { ApiKeysSection } from './api-keys-section'
+import { SlackReminderSection } from './slack-reminder-section'
 import { SortableWeeklyRow } from './weekly-source-row'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
@@ -94,12 +95,39 @@ interface Props {
   workspaceId: string
 }
 
-export function SettingsShell({ userEmail, clients, calendarConnected, initialWeeklySources, workspaceId }: Props) {
+export function SettingsShell({ userEmail, clients, calendarConnected: initialCalendarConnected, initialWeeklySources, workspaceId }: Props) {
   const searchParams = useSearchParams()
   const initialSection = (searchParams.get('section') as Section | null) ?? 'account'
   const [section, setSection] = useState<Section>(initialSection)
   const { theme, setTheme } = useTheme()
   const router = useRouter()
+
+  // calendarConnected를 클라이언트 state로 관리 (OAuth 콜백 후 즉시 반영)
+  const [calendarConnected, setCalendarConnected] = useState(initialCalendarConnected)
+
+  // Google 캘린더 OAuth 콜백 결과 처리
+  useEffect(() => {
+    const connected = searchParams.get('gcal_connected')
+    const gcalError = searchParams.get('gcal_error')
+    if (connected === '1') {
+      queueMicrotask(() => {
+        setCalendarConnected(true)
+        toast.success('Google 캘린더가 연동됐습니다.')
+        window.history.replaceState(null, '', '/settings?section=integrations')
+      })
+    } else if (gcalError) {
+      const msg =
+        gcalError === 'denied'        ? '연동이 취소됐습니다.' :
+        gcalError === 'token_exchange' ? '토큰 교환에 실패했습니다. Client ID/Secret을 확인해 주세요.' :
+        gcalError === 'no_creds'      ? 'Google 자격증명이 설정되지 않았습니다.' :
+        `연동 실패 (${gcalError})`
+      queueMicrotask(() => {
+        toast.error(msg)
+        window.history.replaceState(null, '', '/settings?section=integrations')
+      })
+    }
+  // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [])
 
   const [weeklySources, setWeeklySources] = useState<WeeklySource[]>(initialWeeklySources)
   const [weeklyForm, setWeeklyForm] = useState({ label: '', collection_id: '' })
@@ -139,12 +167,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
     router.push('/login')
   }
 
-  const handleCalendarConnect = () => { window.location.href = '/api/calendar/auth' }
+  const handleCalendarConnect = () => {
+    window.location.href = '/api/calendar/auth?return_to=/settings?section=integrations'
+  }
   const handleCalendarDisconnect = async () => {
     try {
       await fetch('/api/calendar/disconnect', { method: 'POST' })
+      setCalendarConnected(false)
       toast.success('Google 캘린더 연동을 해제했습니다.')
-      router.refresh()
     } catch {
       toast.error('연동 해제에 실패했습니다.')
     }
@@ -290,6 +320,10 @@ export function SettingsShell({ userEmail, clients, calendarConnected, initialWe
                     </button>
                   )}
                 </div>
+              </SettingCard>
+
+              <SettingCard title="Slack 리마인더">
+                <SlackReminderSection />
               </SettingCard>
 
               <SettingCard title="API 키">

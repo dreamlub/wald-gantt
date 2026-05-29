@@ -13,8 +13,16 @@ export async function GET(req: NextRequest) {
   if (!creds) return NextResponse.json({ error: 'Google 자격증명이 설정되지 않았습니다. 설정 > 연동에서 Client ID / Secret을 입력해 주세요.' }, { status: 400 })
 
   const state       = crypto.randomBytes(16).toString('hex')
+  const returnTo    = req.nextUrl.searchParams.get('return_to') ?? '/calendar'
   const cookieStore = await cookies()
   cookieStore.set('gcal_state', state, {
+    httpOnly: true,
+    secure: process.env.NODE_ENV === 'production',
+    sameSite: 'lax',
+    maxAge: 600,
+    path: '/',
+  })
+  cookieStore.set('gcal_return_to', returnTo, {
     httpOnly: true,
     secure: process.env.NODE_ENV === 'production',
     sameSite: 'lax',

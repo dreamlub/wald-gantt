@@ -1,13 +1,11 @@
 import { describe, expect, it } from 'vitest'
-import { getReminderConfig, groupReminderTasks, type Task } from './route'
+import { buildReminderSettings, getReminderConfig, groupReminderTasks, type Task } from './route'
 
 const BASE_ENV = {
   CRON_SECRET: 'secret',
-  REMINDER_WORKSPACE_ID: 'workspace',
-  SLACK_REMINDER_CHANNEL_ID: 'channel',
   SLACK_BOT_TOKEN: 'bot',
   NEXT_PUBLIC_SUPABASE_URL: 'https://example.supabase.co',
-  NEXT_PUBLIC_SUPABASE_ANON_KEY: 'anon',
+  SUPABASE_SERVICE_ROLE_KEY: 'service-role',
 }
 
 describe('slack reminder config', () => {
@@ -16,9 +14,9 @@ describe('slack reminder config', () => {
     expect(result).toEqual({ ok: false, error: 'CRON_SECRET 미설정', status: 500 })
   })
 
-  it('requires workspace and channel env vars', () => {
-    const result = getReminderConfig({ ...BASE_ENV, REMINDER_WORKSPACE_ID: undefined })
-    expect(result).toEqual({ ok: false, error: 'REMINDER_WORKSPACE_ID 또는 SLACK_REMINDER_CHANNEL_ID 미설정', status: 500 })
+  it('requires Supabase service role credentials', () => {
+    const result = getReminderConfig({ ...BASE_ENV, SUPABASE_SERVICE_ROLE_KEY: undefined })
+    expect(result).toEqual({ ok: false, error: 'Supabase 환경변수 미설정', status: 500 })
   })
 
   it('uses the user token before bot token when both exist', () => {
@@ -43,5 +41,25 @@ describe('groupReminderTasks', () => {
     expect(groups.overdue.map(t => t.id)).toEqual(['old'])
     expect(groups.dueToday.map(t => t.id)).toEqual(['today'])
     expect(groups.dueTomorrow.map(t => t.id)).toEqual(['tomorrow'])
+  })
+})
+
+describe('buildReminderSettings', () => {
+  const rows = [
+    { workspace_id: 'ws1', key_name: 'slack_reminder_channel', key_value: 'C1' },
+    { workspace_id: 'ws1', key_name: 'slack_user', key_value: 'xoxp-db' },
+    { workspace_id: 'ws2', key_name: 'slack_user', key_value: 'xoxp-no-channel' },
+  ]
+
+  it('builds per-workspace settings and ignores workspaces without a channel', () => {
+    expect(buildReminderSettings(rows, null)).toEqual([
+      { workspace_id: 'ws1', channel_id: 'C1', slack_token: 'xoxp-db' },
+    ])
+  })
+
+  it('prefers the environment Slack token over workspace api keys', () => {
+    expect(buildReminderSettings(rows, 'xoxb-env')).toEqual([
+      { workspace_id: 'ws1', channel_id: 'C1', slack_token: 'xoxb-env' },
+    ])
   })
 })

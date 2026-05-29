@@ -12,21 +12,27 @@ export async function GET(req: NextRequest) {
 
   const cookieStore  = await cookies()
   const savedState   = cookieStore.get('gcal_state')?.value
+  const returnTo     = cookieStore.get('gcal_return_to')?.value ?? '/calendar'
   cookieStore.delete('gcal_state')
+  cookieStore.delete('gcal_return_to')
+
+  const redirectBase = `${origin}${returnTo.startsWith('/') ? returnTo : '/calendar'}`
 
   if (errorParam) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=denied`)
+    return NextResponse.redirect(`${redirectBase}${redirectBase.includes('?') ? '&' : '?'}gcal_error=denied`)
   }
   if (!code || !savedState || state !== savedState) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=invalid_state`)
+    return NextResponse.redirect(`${redirectBase}${redirectBase.includes('?') ? '&' : '?'}gcal_error=invalid_state`)
   }
 
   const supabase = await createClient()
   const { data: { user } } = await supabase.auth.getUser()
   if (!user) return NextResponse.redirect(`${origin}/login`)
 
+  const sep = (url: string) => url.includes('?') ? '&' : '?'
+
   const creds = await getGoogleCreds(supabase)
-  if (!creds) return NextResponse.redirect(`${origin}/calendar?gcal_error=no_creds`)
+  if (!creds) return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=no_creds`)
 
   // auth 단계와 동일한 redirect_uri 사용 (GOOGLE_REDIRECT_URI 우선)
   const redirectUri = process.env.GOOGLE_REDIRECT_URI ?? `${origin}/api/calendar/callback`
@@ -48,7 +54,7 @@ export async function GET(req: NextRequest) {
     const errBody = await tokenRes.text()
     console.error('[gcal callback] token exchange failed', tokenRes.status, errBody)
     const reason = (() => { try { return (JSON.parse(errBody) as { error?: string }).error ?? 'unknown' } catch { return 'unknown' } })()
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=token_exchange&reason=${encodeURIComponent(reason)}`)
+    return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=token_exchange&reason=${encodeURIComponent(reason)}`)
   }
 
   const token     = await tokenRes.json() as {
@@ -67,8 +73,8 @@ export async function GET(req: NextRequest) {
   })
 
   if (error) {
-    return NextResponse.redirect(`${origin}/calendar?gcal_error=db`)
+    return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_error=db`)
   }
 
-  return NextResponse.redirect(`${origin}/calendar`)
+  return NextResponse.redirect(`${redirectBase}${sep(redirectBase)}gcal_connected=1`)
 }

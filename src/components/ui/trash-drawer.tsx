@@ -88,7 +88,7 @@ export function TrashDrawer<T extends { id: string }>({
       <Drawer open={open} onClose={onClose} width={320} panelClass="border-l shadow-xl">
         <div className="h-12 flex items-center gap-2.5 px-4 border-b shrink-0">
           <Trash2 size={14} className="text-muted-foreground shrink-0" />
-          <span className="text-sm font-semibold text-foreground flex-1">휴지통</span>
+          <span className="text-base font-semibold text-foreground flex-1">휴지통</span>
           {deleted.length > 0 && (
             <button
               onClick={handleEmptyTrash}
