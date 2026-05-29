@@ -169,10 +169,17 @@ export async function PATCH(req: NextRequest) {
     .single()
   if (error || !row) return NextResponse.json({ error: 'DB_ERROR' }, { status: 500 })
 
-  if (row.google_event_id) {
-    const tk = await getValidAccessToken(supabase, user.id)
-    if (!('error' in tk)) {
+  const tk = await getValidAccessToken(supabase, user.id)
+  if (!('error' in tk)) {
+    if (row.google_event_id) {
       await gcalPatch(tk.token, row.google_event_id, row.title, buildEventTimes(row.scheduled_at, row.duration_minutes))
+    } else {
+      // 생성 시 구글 동기화에 실패했거나 그 후 연동한 행 → 토큰이 있으면 지연 백필
+      const gid = await gcalInsert(tk.token, row.id, row.title, buildEventTimes(row.scheduled_at, row.duration_minutes))
+      if (gid) {
+        await supabase.from('calendar_events').update({ google_event_id: gid }).eq('id', row.id)
+        row.google_event_id = gid
+      }
     }
   }
 

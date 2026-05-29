@@ -23,6 +23,17 @@ export async function POST(req: NextRequest) {
     const sb = await createClient()
     const workspaceId = await getWorkspaceId(sb)
 
+    // 리포트가 없는 날짜에 대해 토큰을 발급하면 열었을 때 죽은 링크가 되므로 사전 확인
+    const { data: report } = await sb
+      .from('daily_reports')
+      .select('id')
+      .eq('workspace_id', workspaceId)
+      .eq('report_date', date)
+      .maybeSingle()
+    if (!report) {
+      return NextResponse.json({ error: '해당 날짜의 데일리 리포트가 없습니다.' }, { status: 404 })
+    }
+
     const { data: token, error } = await sb.rpc('upsert_daily_report_share', {
       p_date: date,
       p_workspace_id: workspaceId,

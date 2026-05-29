@@ -42,8 +42,10 @@ export default function NotesPage() {
 
   async function handleCreate(params: { title: string; content: string; color: NoteColor }) {
     try {
-      const maxOrder = notes.filter(n => !n.pinned).reduce((m, n) => Math.max(m, n.sort_order), -1)
-      const note = await createNote({ ...params, sort_order: maxOrder + 10 })
+      // 새 메모는 목록 맨 위에 보이도록 최소 sort_order - 10 부여
+      // (getNotes 정렬: pinned DESC, sort_order ASC → 가장 작은 값이 위) — 옵티미스틱 [note,...prev]와 일치
+      const minOrder = notes.filter(n => !n.pinned).reduce((m, n) => Math.min(m, n.sort_order), 0)
+      const note = await createNote({ ...params, sort_order: minOrder - 10 })
       setNotes(prev => [note, ...prev])
     } catch { toast.error('메모 생성에 실패했습니다.') }
   }

@@ -195,7 +195,8 @@ export async function POST(req: NextRequest) {
 
         send('result', {
           date, classified,
-          skipped: skipped + totalNoise + totalAiSkip + totalError,
+          // skipped(=null 반환 수)는 이미 noise+aiSkip+error 합과 동일 → 중복 합산 제거
+          skipped,
           message: `완료 — raw ${rawRows.length}건, 처리 ${totalProcessed}건, 분류 ${classified}건${detail ? `, 제외(${detail})` : ''}`,
         })
       } catch (err) {

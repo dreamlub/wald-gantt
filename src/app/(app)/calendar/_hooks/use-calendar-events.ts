@@ -54,7 +54,10 @@ export function useCalendarEvents(workspaceId: string | null) {
         headers: { 'Content-Type': 'application/json' },
         body:    JSON.stringify({ id, ...fields }),
       })
-      if (!res.ok) toast.error('일정 수정 실패')
+      if (!res.ok) { toast.error('일정 수정 실패'); return }
+      // 서버가 정규화한 값(빈 제목 → '(제목 없음)' 등)으로 로컬 상태 정합화
+      const { event } = await res.json() as { event: CalEvent }
+      setEvents(prev => prev.map(e => e.id === id ? event : e))
     } catch { toast.error('일정 수정 실패') }
   }, [])
 

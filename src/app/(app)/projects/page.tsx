@@ -49,9 +49,11 @@ export default function GanttPage() {
   const [newCatName, setNewCatName]           = useState('')
   const [newCatColor, setNewCatColor]         = useState(CAT_COLORS[0])
 
-  const { undoCount, redoCount, pushUndo, resetStacks, handleUndo, handleRedo, projectsRef } = useUndoRedo({
+  const { undoCount, redoCount, pushUndo, resetStacks, handleUndo, handleRedo, projectsRef, categoriesRef } = useUndoRedo({
     projects,
+    categories,
     onProjectsChange: setProjects,
+    onCategoriesChange: setCategories,
   })
 
   const errMsg = (e: unknown) => e instanceof Error ? e.message : '오류가 발생했습니다.'
@@ -278,21 +280,39 @@ export default function GanttPage() {
   async function handleMoveProject(updates: { id: string; category_id: string; sort_order: number }[]) {
     const affected = projectsRef.current.filter(p => updates.some(u => u.id === p.id))
     if (affected.length > 0) pushUndo({ type: 'projects', prevList: affected })
+    // 옵티미스틱 반영 — 서버 응답 전 원위치로 튀는 현상 방지
+    setProjects(prev => prev.map(p => {
+      const u = updates.find(u => u.id === p.id)
+      return u ? { ...p, category_id: u.category_id, sort_order: u.sort_order } : p
+    }))
     try {
       const updated = await Promise.all(
         updates.map(u => updateProject(u.id, { category_id: u.category_id, sort_order: u.sort_order }))
       )
       setProjects(prev => prev.map(p => updated.find(u => u.id === p.id) ?? p))
-    } catch (e) { toast.error(errMsg(e)) }
+    } catch (e) {
+      toast.error(errMsg(e))
+      setProjects(prev => prev.map(p => affected.find(a => a.id === p.id) ?? p)) // 롤백
+    }
   }
 
   async function handleMoveCategory(updates: { id: string; sort_order: number }[]) {
+    const affected = categoriesRef.current.filter(c => updates.some(u => u.id === c.id))
+    if (affected.length > 0) pushUndo({ type: 'categories', prevList: affected })
+    // 옵티미스틱 반영 + 실패 시 롤백 (프로젝트 이동과 동일)
+    setCategories(prev => prev.map(c => {
+      const u = updates.find(u => u.id === c.id)
+      return u ? { ...c, sort_order: u.sort_order } : c
+    }))
     try {
       const updated = await Promise.all(
         updates.map(u => updateCategory(u.id, { sort_order: u.sort_order }))
       )
       setCategories(prev => prev.map(c => updated.find(u => u.id === c.id) ?? c))
-    } catch (e) { toast.error(errMsg(e)) }
+    } catch (e) {
+      toast.error(errMsg(e))
+      setCategories(prev => prev.map(c => affected.find(a => a.id === c.id) ?? c)) // 롤백
+    }
   }
 
   const selectedBoard = boards.find(b => b.id === selectedBoardId)
