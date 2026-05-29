@@ -9,6 +9,41 @@
 
 ---
 
+## 최근 변경 (2026-05-30) — 프로젝트 진척률(%) 기능
+
+### 목적
+프로젝트 간트에서 진척률을 수동으로 입력하고 바에 시각적으로 표시
+
+### 변경 내용
+
+**DB**
+- `gantt_tasks.progress smallint NOT NULL DEFAULT 0 CHECK (0~100)` 추가
+- `gantt_projects.progress smallint NOT NULL DEFAULT 0 CHECK (0~100)` 추가
+
+**`types/index.ts`**
+- `GanttTask.progress: number` 추가
+- `GanttProject.progress: number` 추가
+
+**`gantt-service.ts`** — `addProject` fields에 `progress?: number` 추가
+
+**`task-service.ts`** — `updateTask` Pick 타입에 `'progress'` 추가
+
+**`ProjectFormDialog.tsx`**
+- `progress` state 추가, editProject 동기화
+- 우선순위 아래 슬라이더 UI (0~100, step 5) 추가
+- 마일스톤은 progress 강제 0
+- `onSave` fields 타입에 `progress: number` 추가
+
+**`projects/page.tsx`** — `handleSaveProject`에 `progress` 필드 추가 (신규·수정 모두)
+
+**`_GanttCategoryRight.tsx`**
+- 우선순위 기반 투명도(`barOpacity`) 제거 → 고정 배경 `barColor + 'aa'`(67%)
+- 진척률 fill: `absolute inset-0`, 100% opacity로 배경과 명확한 대비
+- 텍스트 `z-10`으로 fill 위에 표시, 흑/백 shadow 강화
+- 바 우측 메타 영역에 `{progress}%` 숫자 표시 (카테고리 색상, bold)
+
+---
+
 ## 최근 변경 (2026-05-30) — 마일스톤 기능 구현
 
 ### 목적
