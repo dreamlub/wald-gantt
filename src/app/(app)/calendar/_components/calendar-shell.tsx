@@ -357,6 +357,8 @@ export function CalendarShell() {
             onStatusChange={handleStatusChange}
             onTaskClick={setDrawerTask}
             onCreateEvent={createEvent}
+            onEventMove={(id, scheduledAt) => updateEvent(id, { scheduledAt })}
+            onEventResize={(id, durationMinutes) => updateEvent(id, { durationMinutes })}
             onDeleteEvent={deleteEvent}
             onEditEvent={(id, title) => updateEvent(id, { title })}
           />

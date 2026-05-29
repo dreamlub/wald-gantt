@@ -31,11 +31,13 @@ interface DayColumnProps {
   onEmptyClick: (minutes: number) => void
   onCreateSubmit: (title: string) => void
   onCreateCancel: () => void
+  onEventMove: (id: string, scheduledAt: string) => void
+  onEventResize: (id: string, durationMinutes: number) => void
   onDeleteEvent: (id: string) => void
   onEditEvent: (id: string, title: string) => void
 }
 
-function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, creatingMinutes, onEmptyClick, onCreateSubmit, onCreateCancel, onDeleteEvent, onEditEvent }: DayColumnProps) {
+function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, creatingMinutes, onEmptyClick, onCreateSubmit, onCreateCancel, onEventMove, onEventResize, onDeleteEvent, onEditEvent }: DayColumnProps) {
   const [dragOver, setDragOver]       = useState(false)
   const [snapMinutes, setSnapMinutes] = useState<number | null>(null)
 
@@ -56,8 +58,16 @@ function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, h
     e.preventDefault()
     setDragOver(false)
     setSnapMinutes(null)
-    const taskId  = e.dataTransfer.getData('taskId')
     const offsetY = Number(e.dataTransfer.getData('offsetY') || '0')
+
+    // 캘린더 이벤트 이동
+    const calId = e.dataTransfer.getData('calEventId')
+    if (calId) {
+      onEventMove(calId, buildIso(date, getMinutesFromY(e.clientY - offsetY)))
+      return
+    }
+
+    const taskId  = e.dataTransfer.getData('taskId')
     const source  = e.dataTransfer.getData('source')
     if (!taskId) return
     const minutes = getMinutesFromY(e.clientY - offsetY)
@@ -222,6 +232,7 @@ function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, h
           height={height}
           colIndex={colIndex}
           totalCols={totalCols}
+          onResize={onEventResize}
           onDelete={onDeleteEvent}
           onEditTitle={onEditEvent}
         />
@@ -252,11 +263,13 @@ interface Props {
   onStatusChange: (taskId: string, status: string) => void
   onTaskClick: (task: GanttTask) => void
   onCreateEvent: (scheduledAt: string, durationMinutes: number, title: string) => void
+  onEventMove: (id: string, scheduledAt: string) => void
+  onEventResize: (id: string, durationMinutes: number) => void
   onDeleteEvent: (id: string) => void
   onEditEvent: (id: string, title: string) => void
 }
 
-export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, onCreateEvent, onDeleteEvent, onEditEvent }: Props) {
+export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onHighlightClear, onDrop, onMove, onResize, onUnschedule, onStatusChange, onTaskClick, onCreateEvent, onEventMove, onEventResize, onDeleteEvent, onEditEvent }: Props) {
   const gridRef = useRef<HTMLDivElement>(null)
   const [creating, setCreating] = useState<{ date: string; minutes: number } | null>(null)
 
@@ -313,6 +326,8 @@ export function TimeGrid({ dates, events, tasks, calEvents, highlightTaskId, onH
             setCreating(null)
           }}
           onCreateCancel={() => setCreating(null)}
+          onEventMove={onEventMove}
+          onEventResize={onEventResize}
           onDeleteEvent={onDeleteEvent}
           onEditEvent={onEditEvent}
         />
