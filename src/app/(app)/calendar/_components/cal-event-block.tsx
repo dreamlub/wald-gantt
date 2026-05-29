@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useRef } from 'react'
+import { useState, useRef, type CSSProperties } from 'react'
 import { Pencil, X } from 'lucide-react'
 import type { CalEvent } from '@/types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -24,6 +24,7 @@ interface BlockProps {
 export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1, onResize, onDelete, onOpenEditor }: BlockProps) {
   const blockRef = useRef<HTMLDivElement>(null)
   const clickStart = useRef<{ x: number; y: number } | null>(null)
+  const [hovered, setHovered] = useState(false)
 
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
@@ -77,6 +78,21 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
 
   const endIso = new Date(new Date(event.scheduled_at).getTime() + event.duration_minutes * 60_000).toISOString()
 
+  // 겹쳐서 좁아진 블록은 호버 시 칸 전체 너비로 펼쳐 읽기·클릭 가능하게 한다
+  const expanded = hovered && totalCols > 1
+  const blockStyle: CSSProperties = {
+    top,
+    height: height - 2,
+    backgroundColor: 'var(--color-ink-100)',
+    borderLeft: '3px solid var(--color-ink-300)',
+    ...(expanded
+      ? { left: 2, right: 2, zIndex: 30 }
+      : {
+          left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+          width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+        }),
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -87,15 +103,10 @@ export function CalEventBlock({ event, top, height, colIndex = 0, totalCols = 1,
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             className="absolute rounded px-1.5 py-0.5 overflow-hidden group z-10 cursor-grab active:cursor-grabbing"
-            style={{
-              top,
-              height: height - 2,
-              left:  `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-              backgroundColor: 'var(--color-ink-100)',
-              borderLeft: '3px solid var(--color-ink-300)',
-            }}
+            style={blockStyle}
           />
         }
       >

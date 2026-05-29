@@ -1,6 +1,6 @@
 'use client'
 
-import { useRef, useState, useEffect } from 'react'
+import { useRef, useState, useEffect, type CSSProperties } from 'react'
 import { X, Check } from 'lucide-react'
 import type { GanttTask } from '@/types'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
@@ -31,6 +31,7 @@ export function TaskBlock({
   onResize, onUnschedule, onStatusChange, onClick,
 }: Props) {
   const [prevStatus, setPrevStatus] = useState<string | null>(null)
+  const [hovered, setHovered] = useState(false)
   const dragOffsetY  = useRef(0)
   const startY       = useRef(0)
   const startHeight  = useRef(0)
@@ -123,6 +124,21 @@ export function TaskBlock({
   const leftPct  = (colIndex / totalCols) * 100
   const widthPct = (1 / totalCols) * 100
 
+  // 겹쳐서 좁아진 블록은 호버 시 칸 전체 너비로 펼쳐 읽기·클릭 가능하게 한다
+  const expanded = hovered && totalCols > 1
+  const blockStyle: CSSProperties = {
+    top,
+    height: height - 2,
+    backgroundColor: bg,
+    borderLeft: `3px solid ${color}`,
+    ...(expanded
+      ? { left: 2, right: 2, zIndex: 30 }
+      : {
+          left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
+          width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
+        }),
+  }
+
   return (
     <Tooltip>
       <TooltipTrigger
@@ -133,17 +149,12 @@ export function TaskBlock({
             onDragStart={handleDragStart}
             onMouseDown={handleMouseDown}
             onMouseUp={handleMouseUp}
+            onMouseEnter={() => setHovered(true)}
+            onMouseLeave={() => setHovered(false)}
             className={`absolute rounded px-1.5 py-0.5 overflow-hidden cursor-grab active:cursor-grabbing group z-10 flex flex-col gap-0 ${
               highlight ? 'ring-2 ring-lilac-400 animate-pulse' : ''
             }`}
-            style={{
-              top,
-              height: height - 2,
-              left: `calc(${leftPct}% + ${colIndex > 0 ? 1 : 0}px)`,
-              width: `calc(${widthPct}% - ${colIndex === totalCols - 1 ? 4 : 2}px)`,
-              backgroundColor: bg,
-              borderLeft: `3px solid ${color}`,
-            }}
+            style={blockStyle}
           />
         }
       >
