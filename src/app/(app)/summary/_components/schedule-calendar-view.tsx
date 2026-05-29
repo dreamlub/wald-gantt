@@ -17,6 +17,20 @@ interface UpcomingEvent {
   fuzzy: boolean
 }
 
+// 제목 정규화: 소문자 + 공백·특수문자 제거 후 앞 12자
+// → 같은 일정이 "A미팅", "A미팅 확정", "A 미팅" 등으로 조금씩 달라도 같은 키로 묶임
+function normalizeTitle(title: string): string {
+  return title.toLowerCase().replace(/[\s\-_·,.!?~()\[\]「」『』【】]/g, '').slice(0, 12)
+}
+
+// 날짜 정규화: M/D or M월D일 → "M/D" 통일
+// → "6/3", "6월 3일", "6/3(화)" 모두 같은 키
+function normalizeDateKey(dateStr: string): string {
+  const md = dateStr.match(/(\d{1,2})[\/월](\d{1,2})/)
+  if (md) return `${parseInt(md[1])}/${parseInt(md[2])}`
+  return dateStr.trim().slice(0, 8)
+}
+
 // M/D → 연도 추론: 현재 연도 기준, 이미 3개월 이상 지난 월이면 다음 연도로 간주
 function parseEventDate(dateStr: string): { start: Date | null; end: Date | null; fuzzy: boolean } {
   const now = new Date()
@@ -92,13 +106,14 @@ export function ScheduleCalendarView() {
 
       if (!data) { setLoading(false); return }
 
-      // 중복 제거: title + brand + date 기준, 최신 리포트 우선
+      // 중복 제거: brand + 정규화 날짜 + 정규화 제목(앞 12자) 기준, 최신 리포트 우선
+      // → 같은 일정이 여러 날의 리포트에 조금씩 다른 표현으로 등장해도 1건만 유지
       const seen = new Map<string, UpcomingEvent>()
       for (const row of data) {
         const upcoming: Array<{ title: string; brand: string; priority: string; date: string }> =
           (row.content as Record<string, unknown>)?.upcoming as typeof upcoming ?? []
         for (const item of upcoming) {
-          const key = `${item.title}|${item.brand}|${item.date}`
+          const key = `${item.brand}|${normalizeDateKey(item.date)}|${normalizeTitle(item.title)}`
           if (!seen.has(key)) {
             const { start, end, fuzzy } = parseEventDate(item.date)
             seen.set(key, {
