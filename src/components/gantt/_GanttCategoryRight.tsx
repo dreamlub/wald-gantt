@@ -164,7 +164,7 @@ export function GanttCategoryRight({
                   {project.progress > 0 && (
                     <div
                       className="absolute inset-0 pointer-events-none"
-                      style={{ width: `${project.progress}%`, backgroundColor: barColor, opacity: 0.75 }}
+                      style={{ width: `${project.progress}%`, backgroundColor: barColor }}
                     />
                   )}
                   {!readOnly && (
@@ -189,7 +189,7 @@ export function GanttCategoryRight({
                   )}
                 </div>
 
-                {((!dateFitsInside && dateText) || project.team || project.pm) && (
+                {((!dateFitsInside && dateText) || project.team || project.pm || project.progress > 0) && (
                   <div
                     data-bar-meta-id={project.id}
                     className="absolute flex items-center gap-3 pointer-events-none"
@@ -202,6 +202,11 @@ export function GanttCategoryRight({
                     {!dateFitsInside && dateText && (
                       <span className="text-3xs font-medium tabular-nums whitespace-nowrap text-muted-foreground">
                         {dateText}
+                      </span>
+                    )}
+                    {project.progress > 0 && (
+                      <span className="text-3xs font-bold tabular-nums whitespace-nowrap" style={{ color: barColor }}>
+                        {project.progress}%
                       </span>
                     )}
                     {project.team && (
