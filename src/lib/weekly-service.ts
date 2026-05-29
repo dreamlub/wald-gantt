@@ -98,7 +98,7 @@ export async function analyzeWeekly(
       if (!eventData) continue
 
       const data = JSON.parse(eventData) as Record<string, unknown>
-      if (eventType === 'status') {
+      if (eventType === 'status' || eventType === 'warning') {
         onStatus?.(data.message as string)
       } else if (eventType === 'result') {
         return data as unknown as WeeklyInsight

@@ -255,11 +255,22 @@ export async function POST(req: NextRequest) {
 
         send('status', { message: '주간 보고서 조회 중...' })
 
-        // 요청 주차 이하의 모든 보고서를 오래된 순으로 가져옴
+        // 분석 윈도우: 목표 주차 + 전주 비교에 필요한 직전 주차들만.
+        // 전체 과거를 매번 재분석하면 데이터 누적 시 Claude 호출 수·지연이 무한정 증가하므로
+        // 최근 ANALYZE_WEEKS_WINDOW 주로 제한한다 (전주 diff 정확성은 윈도우 내에서 보장).
+        const ANALYZE_WEEKS_WINDOW = 8
+        const windowStart = (() => {
+          let d = week_start
+          for (let i = 0; i < ANALYZE_WEEKS_WINDOW; i++) d = subtractWeek(d)
+          return d
+        })()
+
+        // 윈도우 범위의 보고서를 오래된 순으로 가져옴
         const { data: allReports, error: fetchErr } = await sb
           .from('weekly_reports')
           .select('*')
           .eq('workspace_id', workspaceId)
+          .gte('week_start', windowStart)
           .lte('week_start', week_start)
           .order('week_start', { ascending: true })
 
@@ -287,6 +298,7 @@ export async function POST(req: NextRequest) {
 
         let targetWeekSummaries: WeeklyReportSummary[] = []
         let targetWeekReports: DbReport[] = []
+        const failedReports: string[] = []   // 실패한 "주차/팀" 누적 → 사용자에게 경고
 
         // 순서대로 분석
         for (const wk of weeksToAnalyze) {
@@ -305,8 +317,17 @@ export async function POST(req: NextRequest) {
 
             send('status', { message: `${wk} 분석 중... (${i + 1}/${reports.length}: ${report.team})` })
 
-            const summaryData = await analyzeReport(sb, report, prevItems, wk, anthropic)
-            currTeamMap.set(report.team, summaryData)
+            // 한 팀의 분석이 실패해도(과부하·잘림·형식오류) 전체를 죽이지 않고 스킵.
+            // 기존 DB summary가 있으면 fallback으로 사용해 전주 비교 체인을 유지한다.
+            try {
+              const summaryData = await analyzeReport(sb, report, prevItems, wk, anthropic)
+              currTeamMap.set(report.team, summaryData)
+            } catch (e) {
+              console.error(`[weekly/analyze] 팀 분석 실패 — ${wk}/${report.team}:`, e)
+              failedReports.push(`${wk}/${report.team}`)
+              const cached = report.summary as WeeklyReportSummary | null
+              if (cached?.items) currTeamMap.set(report.team, cached)
+            }
           }
 
           summaryCache.set(wk, currTeamMap)
@@ -395,6 +416,13 @@ JSON 형식만 반환:
           .single()
 
         if (upsertErr) throw upsertErr
+
+        // 일부 팀 분석이 실패했다면 결과는 내보내되 경고로 함께 알린다
+        if (failedReports.length > 0) {
+          send('warning', {
+            message: `일부 보고서 분석에 실패해 제외되었습니다 (${failedReports.length}건): ${failedReports.join(', ')}`,
+          })
+        }
         send('result', upserted)
       } catch (err) {
         console.error('[weekly/analyze]', err)
