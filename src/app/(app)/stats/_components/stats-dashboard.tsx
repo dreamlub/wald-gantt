@@ -62,7 +62,7 @@ export function StatsDashboard() {
         {/* 헤더 + 기간 선택 */}
         <div className="flex items-center justify-between mb-5">
           <div>
-            <h2 className="text-lg font-bold text-foreground">통계 대시보드</h2>
+            <h2 className="text-lg font-bold text-foreground">메시지 분석</h2>
             <p className="text-sm text-ink-400 mt-0.5">
               {data.range.from && `${data.range.from} ~ ${data.range.to}`} · 분류 메시지 기준 (KST)
             </p>

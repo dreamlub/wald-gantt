@@ -261,6 +261,59 @@ export function TopList({ items, empty }: { items: { name: string; count: number
   )
 }
 
+// ── 랭킹 리스트 (이름 + 막대 + 주값 + 부가 라벨) ──────────────
+export function RankList({
+  items, color, unit = '', empty,
+}: {
+  items: { name: string; value: number; sub?: string }[]
+  color: string
+  unit?: string
+  empty: string
+}) {
+  const max = Math.max(1, ...items.map(i => i.value))
+  if (items.length === 0) return <div className="bg-card border border-border rounded-lg px-4 py-6 text-center text-sm text-ink-400">{empty}</div>
+  return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      {items.map((it, i) => (
+        <div key={it.name + i} className={`flex items-center gap-3 px-3.5 py-2 text-sm ${i < items.length - 1 ? 'border-b border-border' : ''}`}>
+          <span className="text-ink-700 truncate min-w-30 max-w-45">{it.name}</span>
+          <div className="flex-1 h-1.5 bg-muted rounded-xs overflow-hidden">
+            <div className="h-full rounded-xs" style={{ width: `${(it.value / max) * 100}%`, background: color }} />
+          </div>
+          {it.sub && <span className="text-ink-300 text-xs tabular-nums shrink-0">{it.sub}</span>}
+          <span className="text-ink-500 font-medium min-w-11 text-right tabular-nums shrink-0">{it.value}{unit}</span>
+        </div>
+      ))}
+    </div>
+  )
+}
+
+// ── 마감 임박·초과 리스트 ─────────────────────────────────────
+export function DeadlineList({
+  items, empty,
+}: {
+  items: { name: string; endDate: string; daysLeft: number; overdue: boolean }[]
+  empty: string
+}) {
+  if (items.length === 0) return <div className="bg-card border border-border rounded-lg px-4 py-6 text-center text-sm text-ink-400">{empty}</div>
+  return (
+    <div className="bg-card border border-border rounded-lg overflow-hidden">
+      {items.map((it, i) => {
+        const label = it.daysLeft < 0 ? `${-it.daysLeft}일 초과` : it.daysLeft === 0 ? '오늘' : `${it.daysLeft}일 남음`
+        const color = it.overdue ? 'var(--color-status-late)' : it.daysLeft <= 3 ? 'var(--color-status-warn)' : 'var(--color-status-future)'
+        return (
+          <div key={it.name + i} className={`flex items-center gap-3 px-3.5 py-2 text-sm ${i < items.length - 1 ? 'border-b border-border' : ''}`}>
+            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+            <span className="flex-1 text-ink-700 truncate">{it.name}</span>
+            <span className="text-ink-300 text-xs tabular-nums shrink-0">{it.endDate.slice(5)}</span>
+            <span className="font-medium tabular-nums shrink-0 min-w-16 text-right" style={{ color }}>{label}</span>
+          </div>
+        )
+      })}
+    </div>
+  )
+}
+
 function Dot({ c }: { c: string }) {
   return <span className="inline-block w-1.5 h-1.5 rounded-full align-middle mr-0.5" style={{ background: c }} />
 }
