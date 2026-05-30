@@ -68,13 +68,23 @@ const ExitEmptyTaskItem = Extension.create({
 })
 
 interface Props {
-  content:     string
-  onChange:    (markdown: string) => void
+  content:      string
+  onChange:     (markdown: string) => void
   placeholder?: string
-  autoFocus?:  boolean
+  autoFocus?:   boolean
+  /** Ctrl+Enter 를 가로채 저장 동작 실행 (HardBreak 기본 동작 억제) */
+  onCtrlEnter?: () => void
+  /** 에디터 최소 높이 Tailwind 클래스 (기본 'min-h-[12rem]') */
+  minHeightClass?: string
 }
 
-export function NoteEditor({ content, onChange, placeholder = '메모 작성...', autoFocus }: Props) {
+export function NoteEditor({
+  content, onChange,
+  placeholder = '메모 작성...',
+  autoFocus,
+  onCtrlEnter,
+  minHeightClass = 'min-h-[12rem]',
+}: Props) {
   const editor = useEditor({
     extensions: [
       StarterKit,
@@ -88,9 +98,18 @@ export function NoteEditor({ content, onChange, placeholder = '메모 작성...'
     content,
     autofocus: autoFocus ? 'end' : false,
     editorProps: {
+      handleKeyDown: onCtrlEnter
+        ? (_view, event) => {
+            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+              onCtrlEnter()
+              return true // HardBreak 기본 동작 억제
+            }
+            return false
+          }
+        : undefined,
       attributes: {
         class: [
-          'outline-none min-h-[12rem] text-sm text-foreground leading-relaxed',
+          `outline-none ${minHeightClass} text-sm text-foreground leading-relaxed`,
           '[&_ul]:list-disc [&_ul]:pl-5 [&_ul]:my-1',
           '[&_ol]:list-decimal [&_ol]:pl-5 [&_ol]:my-1',
           '[&_li]:leading-relaxed [&_li_p]:my-0',

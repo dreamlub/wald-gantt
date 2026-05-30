@@ -5,6 +5,7 @@ import { Plus } from 'lucide-react'
 import type { NoteColor } from '@/types'
 import { ColorPicker } from './note-color-picker'
 import { NOTE_COLORS } from './note-color-picker'
+import { NoteEditor } from './note-editor'
 
 interface Props {
   onCreate: (params: { title: string; content: string; color: NoteColor }) => void
@@ -16,7 +17,6 @@ export function NoteCreateBar({ onCreate }: Props) {
   const [content, setContent] = useState('')
   const [color,   setColor]   = useState<NoteColor>('default')
   const containerRef = useRef<HTMLDivElement>(null)
-  const contentRef   = useRef<HTMLTextAreaElement>(null)
 
   useEffect(() => {
     if (!open) return
@@ -39,8 +39,12 @@ export function NoteCreateBar({ onCreate }: Props) {
   }
 
   function handleKeyDown(e: React.KeyboardEvent) {
-    if (e.key === 'Escape') { setOpen(false); setTitle(''); setContent(''); setColor('default') }
-    if (e.key === 'Enter' && (e.ctrlKey || e.metaKey)) commit()
+    if (e.key === 'Escape') {
+      setOpen(false)
+      setTitle('')
+      setContent('')
+      setColor('default')
+    }
   }
 
   const bg = NOTE_COLORS[color].bg
@@ -48,7 +52,7 @@ export function NoteCreateBar({ onCreate }: Props) {
   if (!open) {
     return (
       <div
-        onClick={() => { setOpen(true); setTimeout(() => contentRef.current?.focus(), 50) }}
+        onClick={() => setOpen(true)}
         className="w-full flex items-center gap-3 px-4 py-3 rounded-2xl border border-border bg-card shadow-sm cursor-text hover:shadow-md transition-shadow"
       >
         <Plus size={16} className="text-ink-300 shrink-0" />
@@ -67,16 +71,17 @@ export function NoteCreateBar({ onCreate }: Props) {
         autoFocus
         value={title}
         onChange={e => setTitle(e.target.value)}
+        onKeyDown={e => { if (e.key === 'Enter') e.preventDefault() }}
         placeholder="제목"
         className="w-full bg-transparent text-sm font-semibold text-foreground placeholder:text-ink-300 outline-none mb-2"
       />
-      <textarea
-        ref={contentRef}
-        value={content}
-        onChange={e => setContent(e.target.value)}
+      <NoteEditor
+        content={content}
+        onChange={setContent}
         placeholder="메모 작성... (Ctrl+Enter 저장, Esc 취소)"
-        rows={3}
-        className="w-full resize-none bg-transparent text-sm text-foreground placeholder:text-ink-300 outline-none leading-relaxed"
+        autoFocus={false}
+        onCtrlEnter={commit}
+        minHeightClass="min-h-[5rem]"
       />
       <div className="flex items-center gap-2 mt-3 pt-2 border-t border-black/5">
         <ColorPicker value={color} onChange={setColor} />
