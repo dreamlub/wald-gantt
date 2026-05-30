@@ -17,6 +17,14 @@ interface UpcomingEvent {
   fuzzy: boolean
 }
 
+// 브랜드명 정규화: 괄호 수식어·커피/카페 접미사 제거
+// → "매머드" = "매머드커피", "발트" = "발트(내부)"
+function normalizeBrand(brand: string): string {
+  let b = brand.trim().replace(/\s*\([^)]*\)\s*$/, '').trim()
+  const stripped = b.replace(/(?:커피|카페|coffee|cafe)$/i, '').trim()
+  return stripped.length >= 2 ? stripped : b
+}
+
 // 제목 정규화: 소문자 + 공백·특수문자 제거 후 앞 6자
 // → "A미팅", "A미팅 확정", "A 미팅 준비" 등 조금씩 다른 표현을 같은 키로 묶음
 function normalizeTitle(title: string): string {
@@ -117,7 +125,7 @@ export function ScheduleCalendarView() {
         const upcoming: Array<{ title: string; brand: string; priority: string; date: string }> =
           (row.content as Record<string, unknown>)?.upcoming as typeof upcoming ?? []
         for (const item of upcoming) {
-          const key = `${item.brand}|${normalizeDateKey(item.date)}|${normalizeTitle(item.title)}`
+          const key = `${normalizeBrand(item.brand)}|${normalizeDateKey(item.date)}|${normalizeTitle(item.title)}`
           if (!seen.has(key)) {
             const { start, end, fuzzy } = parseEventDate(item.date)
             seen.set(key, {
