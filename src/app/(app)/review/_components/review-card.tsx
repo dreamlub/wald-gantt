@@ -19,7 +19,7 @@ interface Project {
 interface Props {
   candidate: ReviewCandidate
   projects: Project[]
-  onAction: (id: string, status: ReviewStatus, task?: TaskDraft) => void
+  onAction: (id: string, status: ReviewStatus, task?: TaskDraft) => Promise<void>
   readonly?: boolean
 }
 
@@ -62,13 +62,17 @@ export function ReviewCard({ candidate, projects, onAction, readonly = false }: 
   async function handleCreate() {
     if (!draftTitle.trim()) return
     setSubmitting(true)
-    onAction(candidate.id, 'created', {
-      title: draftTitle.trim(),
-      memo: draftMemo.trim() || null,
-      due_date: draftDueDate || null,
-      priority: toPriorityNum(candidate.priority),
-      project_ids: selectedProjects.length > 0 ? selectedProjects : undefined,
-    })
+    try {
+      await onAction(candidate.id, 'created', {
+        title: draftTitle.trim(),
+        memo: draftMemo.trim() || null,
+        due_date: draftDueDate || null,
+        priority: toPriorityNum(candidate.priority),
+        project_ids: selectedProjects.length > 0 ? selectedProjects : undefined,
+      })
+    } finally {
+      setSubmitting(false)
+    }
   }
 
   return (

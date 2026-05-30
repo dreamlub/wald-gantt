@@ -18,6 +18,7 @@ type ActionItem = {
   estimated_minutes?: number | null
 }
 
+// status를 제외한 upsert 행 — 신규는 DB 기본값 'pending', 기존 pending은 내용만 갱신
 interface CandidateRow {
   workspace_id: string
   source: ReviewSource
@@ -30,7 +31,6 @@ interface CandidateRow {
   due_date: string | null
   estimated_minutes: number | null
   evidence_count: number
-  status: 'pending'
 }
 
 function severityToPriority(severity: string): ReviewPriority {
@@ -81,7 +81,6 @@ export async function POST() {
         due_date: null,
         estimated_minutes: null,
         evidence_count: 1,
-        status: 'pending' as const,
       }))
 
     // ── 2. daily_report 후보 ───────────────────────────────────────────
@@ -115,7 +114,6 @@ export async function POST() {
           due_date: item.due_date ?? null,
           estimated_minutes: item.estimated_minutes ?? null,
           evidence_count: item.related_count ?? 1,
-          status: 'pending' as const,
         })
       }
     }
@@ -125,11 +123,13 @@ export async function POST() {
       return NextResponse.json({ inserted: 0 })
     }
 
+    // ignoreDuplicates: false — 기존 행도 title/memo/due_date 등 갱신
+    // status는 upsert 행에 포함하지 않아 기존 created/snoozed/ignored는 보존됨
     const { error: upsertErr } = await sb
       .from('review_candidates')
       .upsert(rows, {
         onConflict: 'workspace_id,source,source_id',
-        ignoreDuplicates: true,
+        ignoreDuplicates: false,
       })
 
     if (upsertErr) {

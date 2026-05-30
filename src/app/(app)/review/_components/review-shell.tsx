@@ -43,9 +43,12 @@ export function ReviewShell() {
   useEffect(() => {
     async function loadProjects() {
       const sb = createClient()
+      const { data: { user } } = await sb.auth.getUser()
+      if (!user) return
       const { data: member } = await sb
         .from('workspace_members')
         .select('workspace_id')
+        .eq('user_id', user.id)
         .single()
       if (!member) return
       const { data } = await sb

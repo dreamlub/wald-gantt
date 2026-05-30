@@ -15,6 +15,8 @@ interface PatchBody {
   task?: TaskBody
 }
 
+const ALLOWED_STATUSES = new Set<PatchBody['status']>(['created', 'snoozed', 'ignored'])
+
 export async function PATCH(
   req: NextRequest,
   context: { params: Promise<{ id: string }> }
@@ -22,6 +24,10 @@ export async function PATCH(
   try {
     const { id } = await context.params
     const body = (await req.json()) as PatchBody
+
+    if (!ALLOWED_STATUSES.has(body.status)) {
+      return NextResponse.json({ error: '지원하지 않는 상태입니다' }, { status: 400 })
+    }
 
     const sb = await createClient()
     const { data: { user }, error: authErr } = await sb.auth.getUser()
@@ -60,6 +66,26 @@ export async function PATCH(
       if (!body.task) {
         return NextResponse.json({ error: 'task 정보가 필요합니다' }, { status: 400 })
       }
+      const title = body.task.title.trim()
+      if (!title) {
+        return NextResponse.json({ error: 'task 제목이 필요합니다' }, { status: 400 })
+      }
+
+      const projectIds = [...new Set(body.task.project_ids ?? [])]
+      if (projectIds.length > 0) {
+        const { data: ownedProjects, error: projectErr } = await sb
+          .from('gantt_projects')
+          .select('id')
+          .eq('workspace_id', workspaceId)
+          .in('id', projectIds)
+
+        if (projectErr) {
+          return NextResponse.json({ error: projectErr.message }, { status: 500 })
+        }
+        if ((ownedProjects ?? []).length !== projectIds.length) {
+          return NextResponse.json({ error: '연결할 수 없는 프로젝트가 포함되어 있습니다' }, { status: 400 })
+        }
+      }
 
       // 1. sort_order 계산
       const { data: existing } = await sb
@@ -77,7 +103,7 @@ export async function PATCH(
         .insert({
           workspace_id: workspaceId,
           sort_order,
-          title: body.task.title,
+          title,
           status: 'to-do',
           type: 'task',
           memo: body.task.memo,
@@ -94,10 +120,10 @@ export async function PATCH(
       }
 
       // 3. project_ids 연결
-      if (body.task.project_ids && body.task.project_ids.length > 0) {
+      if (projectIds.length > 0) {
         const { error: linkErr } = await sb
           .from('gantt_task_projects')
-          .insert(body.task.project_ids.map(project_id => ({ task_id: task.id, project_id })))
+          .insert(projectIds.map(project_id => ({ task_id: task.id, project_id })))
         if (linkErr) {
           // 연결 실패는 롤백 불가이므로 태스크를 삭제하고 에러 반환
           await sb.from('gantt_tasks').delete().eq('id', task.id)
@@ -105,19 +131,23 @@ export async function PATCH(
         }
       }
 
-      // 4. review_candidates 상태 업데이트
+      // 4. review_candidates 상태 업데이트 — status=pending 조건으로 동시 요청 중복 방지
       const { data: updated, error: updateErr } = await sb
         .from('review_candidates')
         .update({ status: 'created', task_id: task.id, reviewed_at: now })
         .eq('id', id)
         .eq('workspace_id', workspaceId)
+        .eq('status', 'pending')   // 이미 처리된 경우 0건 반환 → 롤백
         .select('id')
 
       if (updateErr || !updated || updated.length === 0) {
-        // 상태 업데이트 실패 시 태스크 롤백
+        // 상태 업데이트 실패(동시 요청 포함) 시 태스크 롤백
         await sb.from('gantt_task_projects').delete().eq('task_id', task.id)
         await sb.from('gantt_tasks').delete().eq('id', task.id)
-        return NextResponse.json({ error: updateErr?.message ?? '후보 상태 업데이트 실패' }, { status: 500 })
+        return NextResponse.json(
+          { error: updateErr?.message ?? '이미 처리된 후보이거나 업데이트 실패' },
+          { status: updateErr ? 500 : 409 }
+        )
       }
 
       return NextResponse.json({ ok: true, task_id: task.id })
@@ -129,10 +159,14 @@ export async function PATCH(
       .update({ status: body.status, reviewed_at: now })
       .eq('id', id)
       .eq('workspace_id', workspaceId)
+      .eq('status', 'pending')
       .select('id')
 
     if (updateErr || !updated || updated.length === 0) {
-      return NextResponse.json({ error: updateErr?.message ?? '업데이트 실패' }, { status: 500 })
+      return NextResponse.json(
+        { error: updateErr?.message ?? '이미 처리된 후보이거나 업데이트 실패' },
+        { status: updateErr ? 500 : 409 }
+      )
     }
 
     return NextResponse.json({ ok: true })

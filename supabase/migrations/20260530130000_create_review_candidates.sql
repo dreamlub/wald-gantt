@@ -32,4 +32,7 @@ CREATE POLICY "workspace members can access review_candidates"
   ON review_candidates FOR ALL
   USING (workspace_id IN (
     SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
+  ))
+  WITH CHECK (workspace_id IN (
+    SELECT workspace_id FROM workspace_members WHERE user_id = auth.uid()
   ));
