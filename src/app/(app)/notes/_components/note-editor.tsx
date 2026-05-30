@@ -1,6 +1,6 @@
 'use client'
 
-import { useEffect } from 'react'
+import { useEffect, useRef } from 'react'
 import { useEditor, EditorContent, Extension } from '@tiptap/react'
 import { TextSelection } from '@tiptap/pm/state'
 import StarterKit from '@tiptap/starter-kit'
@@ -10,47 +10,9 @@ import { Placeholder } from '@tiptap/extension-placeholder'
 import { Markdown } from 'tiptap-markdown'
 import type { Editor } from '@tiptap/react'
 
-// tiptap-markdown 스토리지 타입 (공식 타입 선언 미제공)
 type MdStorage = { getMarkdown: () => string }
 const mdStorage = (editor: Editor) =>
   (editor.storage as unknown as { markdown: MdStorage }).markdown
-
-// tiptap-markdown 의 `- [ ] ` 입력 규칙이 커서를 잘못 배치하는 버그 우회:
-// 스페이스 키를 먼저 가로채 직접 taskItem 노드를 만들고 커서를 내부에 배치한다.
-const TaskListSpaceFix = Extension.create({
-  name: 'taskListSpaceFix',
-  priority: 9999,
-  addKeyboardShortcuts() {
-    return {
-      ' ': ({ editor }) => {
-        const { state, view } = editor
-        const { $from } = state.selection
-
-        if ($from.parent.type.name !== 'paragraph') return false
-
-        const textBefore = $from.parent.textContent.slice(0, $from.parentOffset)
-        if (!/^[-*] \[[ x]\]$/.test(textBefore)) return false
-
-        const checked  = textBefore.includes('[x]')
-        const { schema } = state
-        const from = $from.before($from.depth)
-        const to   = $from.after($from.depth)
-
-        const taskNode = schema.nodes.taskList.create(null, [
-          schema.nodes.taskItem.create({ checked }, [
-            schema.nodes.paragraph.create(),
-          ]),
-        ])
-
-        const tr = state.tr.replaceWith(from, to, taskNode)
-        // taskList(1) → taskItem(1) → paragraph(1) → 커서 위치
-        tr.setSelection(TextSelection.create(tr.doc, from + 3))
-        view.dispatch(tr)
-        return true
-      },
-    }
-  },
-})
 
 // 빈 체크박스에서 Enter → 리스트 탈출
 const ExitEmptyTaskItem = Extension.create({
@@ -68,13 +30,11 @@ const ExitEmptyTaskItem = Extension.create({
 })
 
 interface Props {
-  content:      string
-  onChange:     (markdown: string) => void
-  placeholder?: string
-  autoFocus?:   boolean
-  /** Ctrl+Enter 를 가로채 저장 동작 실행 (HardBreak 기본 동작 억제) */
-  onCtrlEnter?: () => void
-  /** 에디터 최소 높이 Tailwind 클래스 (기본 'min-h-[12rem]') */
+  content:        string
+  onChange:       (markdown: string) => void
+  placeholder?:   string
+  autoFocus?:     boolean
+  onCtrlEnter?:   () => void
   minHeightClass?: string
 }
 
@@ -85,28 +45,88 @@ export function NoteEditor({
   onCtrlEnter,
   minHeightClass = 'min-h-[12rem]',
 }: Props) {
+  // editor 인스턴스를 handleTextInput 클로저에서 참조하기 위한 ref
+  const editorRef = useRef<Editor | null>(null)
+
   const editor = useEditor({
     extensions: [
       StarterKit,
       TaskList,
       TaskItem.configure({ nested: true }),
-      TaskListSpaceFix,
       ExitEmptyTaskItem,
       Markdown.configure({ transformPastedText: true }),
       Placeholder.configure({ placeholder }),
     ],
     content,
     autofocus: autoFocus ? 'end' : false,
+    onCreate({ editor }) { editorRef.current = editor },
+    onUpdate({ editor }) {
+      editorRef.current = editor
+      onChange(mdStorage(editor).getMarkdown())
+    },
     editorProps: {
-      handleKeyDown: onCtrlEnter
-        ? (_view, event) => {
-            if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
-              onCtrlEnter()
-              return true // HardBreak 기본 동작 억제
-            }
+      handleKeyDown(_view, event) {
+        if ((event.ctrlKey || event.metaKey) && event.key === 'Enter') {
+          onCtrlEnter?.()
+          return !!onCtrlEnter
+        }
+        return false
+      },
+      // ── handleTextInput: input rule 보다 먼저 실행 ─────────────────
+      // true 반환 시 텍스트 삽입·input rule 모두 취소됨
+      handleTextInput(view, from, _to, text) {
+        if (text !== ' ') return false
+
+        const { state }  = view
+        const { $from }  = state.selection
+        const { schema } = state
+
+        if ($from.parent.type.name !== 'paragraph') return false
+
+        const paraStart  = $from.start($from.depth)
+        const textBefore = state.doc.textBetween(paraStart, from)
+
+        // ── Case A: bulletList > listItem > paragraph, text = `[ ]` ──
+        // tiptap-markdown 이 TaskItem 기본 input rule 을 억제하므로 직접 처리.
+        // delete "[ ]" → toggleList 로 bullet→task 변환 (editor 명령어 사용)
+        const grandParent = $from.node($from.depth - 1)
+        if (grandParent?.type.name === 'listItem' && /^\[[ xX]\]$/.test(textBefore)) {
+          // 1) "[ ]" 텍스트 삭제
+          view.dispatch(state.tr.delete(paraStart, from))
+          // 2) bullet list → task list 변환 (editor 내부가 자동으로 포지션 처리)
+          editorRef.current?.chain()
+            .focus()
+            .toggleList('taskList', 'taskItem')
+            .run()
+          return true
+        }
+
+        // ── Case B: paragraph 에서 직접 `- [ ]` 입력 ─────────────────
+        if (!/^[-*] \[[ x]\]$/.test(textBefore)) return false
+
+        const checked  = textBefore.includes('[x]')
+        const paraFrom = $from.before($from.depth)
+        const paraTo   = $from.after($from.depth)
+
+        const taskNode = schema.nodes.taskList.create(null, [
+          schema.nodes.taskItem.create({ checked }, [
+            schema.nodes.paragraph.create(),
+          ]),
+        ])
+
+        const tr = state.tr.replaceWith(paraFrom, paraTo, taskNode)
+        // tr.doc 에서 새로 만든 taskItem 위치를 실제로 찾아 커서 배치
+        let cursorPos = paraFrom + 3
+        tr.doc.nodesBetween(paraFrom, tr.doc.content.size, (node, pos) => {
+          if (node.type.name === 'taskItem') {
+            cursorPos = pos + 2  // taskItem 열기(1) + paragraph 열기(1)
             return false
           }
-        : undefined,
+        })
+        tr.setSelection(TextSelection.create(tr.doc, cursorPos))
+        view.dispatch(tr)
+        return true
+      },
       attributes: {
         class: [
           `outline-none ${minHeightClass} text-sm text-foreground leading-relaxed`,
@@ -126,9 +146,6 @@ export function NoteEditor({
           '[&_p]:my-0.5 [&_p:first-child]:mt-0 [&_p:last-child]:mb-0',
         ].join(' '),
       },
-    },
-    onUpdate: ({ editor }) => {
-      onChange(mdStorage(editor).getMarkdown())
     },
   })
 

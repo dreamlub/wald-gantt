@@ -131,18 +131,42 @@ function parseTable(raw: string): ParsedSection | null {
   if (sepIdx >= lines.length || !/^\|[\s|:\-]+\|/.test(lines[sepIdx].trim())) return null
 
   // 데이터 행 수집
+  // Outline은 셀 내용을 같은 줄(| author | content |) 또는
+  // 다음 줄부터 시작(| author | \ncontent... |)하는 멀티라인 형식을 사용.
+  // 후자는 cells.length === 1 로 감지 → 다음 비파이프 줄들을 내용으로 수집.
   const rows: { author: string; content: string }[] = []
   let i = sepIdx + 1
   while (i < lines.length && /^\|/.test(lines[i].trim())) {
-    // | 로 split, 앞뒤 빈 조각 제거
     const parts = lines[i].split('|')
     const cells = parts.slice(1, parts.length - 1).map(c => c.trim())
+
     if (cells.length >= 2) {
+      // 일반 행: | author | content |
       const author  = cells[0]
       const content = cells.slice(1).join('|').replace(/<br\s*\/?>/gi, '\n').trim()
+      if (author) rows.push({ author, content })
+      i++
+    } else if (cells.length === 1 && cells[0]) {
+      // Outline 멀티라인 셀: 내용이 다음 줄부터 시작
+      const author = cells[0]
+      i++
+      const contentLines: string[] = []
+      while (i < lines.length && !/^\s*\|/.test(lines[i])) {
+        const ln = lines[i]
+        if (ln.trimEnd().endsWith('|')) {
+          // 셀 닫힘: 끝의 | 를 제거하고 포함 후 중단
+          contentLines.push(ln.replace(/\s*\|$/, ''))
+          i++
+          break
+        }
+        contentLines.push(ln)
+        i++
+      }
+      const content = contentLines.join('\n').replace(/<br\s*\/?>/gi, '\n').trim()
       rows.push({ author, content })
+    } else {
+      i++
     }
-    i++
   }
 
   if (rows.length === 0) return null

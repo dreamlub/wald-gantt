@@ -37,11 +37,11 @@ function flattenTree(nodes: OutlineTreeNode[] | undefined, parentId: string | nu
   return out
 }
 
-/** ## YYYY-MM-DD 또는 ## YYYY.MM.DD 섹션 단위로 분리 */
+/** # / ## / ### + YYYY-MM-DD 또는 YYYY.MM.DD 섹션 단위로 분리 */
 function parseWeeklySections(text: string): { weekStart: string; content: string }[] {
   const sections: { weekStart: string; content: string }[] = []
-  // 하이픈(실제 형식) · 점(레거시) 둘 다 허용하되 구분자는 필수 (YYYY-MM-DD 형태만)
-  const regex = /^## (\d{4}[-.]\d{2}[-.]\d{2})/gm
+  // H1~H3 모두 허용, 하이픈·점 둘 다 허용
+  const regex = /^#{1,3} (\d{4}[-.]\d{2}[-.]\d{2})/gm
   const matches: { index: number; weekStart: string }[] = []
 
   let m: RegExpExecArray | null
@@ -65,23 +65,67 @@ function parseWeeklySections(text: string): { weekStart: string; content: string
 
 /**
  * 문서 제목이 분기 문서인지 판별.
- * 실제 Outline 제목 형식: "DX기획1팀(2026.2Q)", "기획1팀 주간회의(2025.4Q)"
- * 그 외 "2026 Q1", "Q2 2026", "2026년 2분기" 등도 허용 (연/분기 사이 . - 공백 년 구분자 모두 허용)
+ * 지원 형식:
+ *   4자리 연도: "DX기획1팀(2026.2Q)", "기획1팀 주간회의(2025.4Q)", "2026 Q1", "2026년 2분기"
+ *   2자리 축약: "핵심고객지원팀 26_2Q", "26 Q2"
+ *   구분자: . - _ 공백 년 (없어도 됨)
  */
 function isQuarterDoc(title: string): boolean {
-  // 연도 → 분기: "2026.2Q", "2026 Q2", "2026년 2분기"
-  const yearFirst    = /20\d{2}\s*[.\-\s년]?\s*(?:[1-4]\s*[Qq]|[Qq]\s*[1-4]|[1-4]\s*분기)/
-  // 분기 → 연도: "Q2 2026", "2Q 2026"
-  const quarterFirst = /(?:[1-4]\s*[Qq]|[Qq]\s*[1-4])\s*[.\-\s]?\s*20\d{2}/
+  // 연도(4자리 또는 2자리 축약) → 분기
+  const yearFirst    = /(?:20)?\d{2}\s*[._\-\s년]?\s*(?:[1-4]\s*[Qq]|[Qq]\s*[1-4]|[1-4]\s*분기)/
+  // 분기 → 연도
+  const quarterFirst = /(?:[1-4]\s*[Qq]|[Qq]\s*[1-4])\s*[._\-\s]?\s*(?:20)?\d{2}/
   return yearFirst.test(title) || quarterFirst.test(title)
+}
+
+/**
+ * 분기 문서 제목에서 연도(4자리)를 추출. 실패 시 null.
+ * "2026.2Q" → 2026 / "26_2Q" → 2026
+ */
+function extractYearFromQuarterTitle(title: string): number | null {
+  const full = title.match(/20\d{2}/)?.[0]
+  if (full) return Number(full)
+  const m = title.match(/(\d{2,4})\s*[._\-\s년]?\s*[1-4]\s*[Qq]/)
+  if (m) {
+    const raw = m[1]
+    return raw.length === 2 ? 2000 + Number(raw) : Number(raw)
+  }
+  return null
+}
+
+/**
+ * 하위 문서 제목에서 weekStart('YYYY-MM-DD') 추출.
+ * - "2026-05-26..." → "2026-05-26"
+ * - "5-26주간보고" + fallbackYear=2026 → "2026-05-26"
+ * 추출 실패 시 null.
+ */
+function extractWeekStartFromChildTitle(childTitle: string, fallbackYear: number | null): string | null {
+  const t = childTitle.trim().replace(/\./g, '-')
+  const full = t.match(/^(\d{4}-\d{2}-\d{2})/)
+  if (full) return full[1]
+  if (fallbackYear) {
+    const short = t.match(/^(\d{1,2})-(\d{1,2})/)
+    if (short) {
+      const mm = short[1].padStart(2, '0')
+      const dd = short[2].padStart(2, '0')
+      return `${fallbackYear}-${mm}-${dd}`
+    }
+  }
+  return null
 }
 
 /**
  * 분기 문서 제목에서 정렬 키(연도*4 + 분기)를 추출. 추출 실패 시 -1.
  * "DX기획1팀(2026.2Q)" → 2026*4+2 = 8106
+ * "핵심고객지원팀 26_2Q" → 2026*4+2 = 8106
  */
 function quarterSortKey(title: string): number {
-  const year = title.match(/20\d{2}/)?.[0]
+  // 연도: "연도_구분자_분기" 패턴에서 추출 (4자리 우선, 없으면 2자리)
+  const m = title.match(/(\d{2,4})\s*[._\-\s년]?\s*[1-4]\s*[Qq]/)
+  const yearRaw = m?.[1] ?? title.match(/20\d{2}/)?.[0]
+  const year = yearRaw
+    ? (yearRaw.length === 2 ? `20${yearRaw}` : yearRaw)
+    : null
   const quarter = title.match(/([1-4])\s*[Qq]|[Qq]\s*([1-4])|([1-4])\s*분기/)
   if (!year || !quarter) return -1
   const q = Number(quarter[1] ?? quarter[2] ?? quarter[3])
@@ -190,8 +234,52 @@ export async function POST(req: Request) {
           continue
         }
 
-        // 4. ## YYYY.MM.DD 섹션 파싱 → (필터링 후) upsert
+        // 4. ## YYYY.MM.DD 섹션 파싱 → 없으면 하위 문서를 주차별 문서로 간주
         const allSections = parseWeeklySections(text)
+
+        if (allSections.length === 0) {
+          // 하위 문서 방식: 분기 문서 아래 하위 문서에서 주차 데이터 수집
+          // A) 날짜 추출 가능 제목 (YYYY-MM-DD, M-DD 등) → 문서 전체가 주차 보고서
+          // B) 날짜 추출 불가 ("주간회의" 등) → 내부 ## YYYY-MM-DD 섹션 파싱
+          const fallbackYear = extractYearFromQuarterTitle(qDoc.title)
+          const childDocs = allDocs.filter(d => d.parentDocumentId === qDoc.id)
+          for (const child of childDocs) {
+            const weekStart = extractWeekStartFromChildTitle(child.title, fallbackYear)
+            if (weekStart) {
+              // A) 날짜 제목 → 문서 전체를 해당 주차 보고서로 저장
+              if (filterWeekStart && filterWeekEnd && (weekStart < filterWeekStart || weekStart > filterWeekEnd)) continue
+              try {
+                const childRes = await outlinePost('documents.info', { id: child.id }, outlineToken)
+                const childText: string = childRes.data?.text ?? ''
+                if (!childText) continue
+                const { error } = await sb.from('weekly_reports').upsert(
+                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, summary: null, updated_at: new Date().toISOString() },
+                  { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
+                )
+                if (error) errors++; else upserted++
+              } catch { errors++ }
+            } else {
+              // B) "주간회의" 등 → 내부 ## YYYY-MM-DD 섹션 파싱
+              try {
+                const childRes = await outlinePost('documents.info', { id: child.id }, outlineToken)
+                const childText: string = childRes.data?.text ?? ''
+                const childSections = parseWeeklySections(childText)
+                const filtered = filterWeekStart && filterWeekEnd
+                  ? childSections.filter(s => s.weekStart >= filterWeekStart && s.weekStart <= filterWeekEnd)
+                  : childSections
+                for (const section of filtered) {
+                  const { error } = await sb.from('weekly_reports').upsert(
+                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, summary: null, updated_at: new Date().toISOString() },
+                    { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
+                  )
+                  if (error) errors++; else upserted++
+                }
+              } catch { errors++ }
+            }
+          }
+          continue
+        }
+
         const sections = filterWeekStart && filterWeekEnd
           ? allSections.filter(s => s.weekStart >= filterWeekStart && s.weekStart <= filterWeekEnd)
           : allSections
