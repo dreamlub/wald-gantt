@@ -195,6 +195,10 @@ export async function POST() {
             const result = await classifyMessage(updatedRj, brandName, anthropicKey ?? undefined, mentionUserId ?? undefined)
             if (!result) { skipped++; await delay(80); continue }
 
+            // dedup 키 = (workspace_id, source_id). source_id(=Slack ts)는 raw 메시지와 1:1이며
+            // 전체 unique 인덱스(client_history_workspace_source_unique)가 뒷받침한다.
+            // raw_message_id는 부분 unique(WHERE deleted_at IS NULL)라 ON CONFLICT 추론 대상이 될 수 없어
+            // 키로 쓰지 않는다 — 대신 그 부분 인덱스가 "raw당 1행"을 별도 보장한다. reclassify_apply RPC도 동일 키.
             await sb.from('client_history').upsert(
               {
                 workspace_id: workspaceId,

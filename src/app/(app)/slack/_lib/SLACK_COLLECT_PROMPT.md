@@ -38,14 +38,11 @@
 * `source_ref`에 슬랙 메시지 단위 URL 생성
 * `type` 컬럼: `'slack'` 고정
 
-### Step 5. in_progress 건 스레드 재확인
+### Step 5. 스레드 새 답글 반영
 
-* DB에서 `tags @> ARRAY['in_progress']` 이고 `done` 없는 건 조회
-* 각 건의 `source_id`(ts)와 `channel`로 `slack_read_thread` 호출
-* 수집 기간 이후 새 답글이 있으면 내용 반영:
-  * 완료 표현 확인 시 → `tags`에 `done` 추가, `in_progress` 제거, body 업데이트
-  * 새 진행 내용 있으면 → body 업데이트
+* 기존 저장 건의 스레드를 다시 읽어 수집 기간 이후 새 답글이 있으면 body 업데이트
 * 변경 없으면 SKIP
+* (프로그램 경로로는 `/api/slack/update-threads`가 담당)
 
 ---
 
@@ -76,9 +73,9 @@
 | **issue** | 버그/오류/장애/CS접수/문제 발생. "안 됨", "오류", "확인 부탁" |
 | **decision** | 정책/계약/방향이 확정·결정된 사항. 검토/협의 중은 제외 |
 | **mention** | `@최정규` 멘션 포함 (Slack User ID: `U09H44MEK5Z`) |
-| **in_progress** | 미해결 이슈/검토/협의/확인 중인 사안 |
-| **done** | 명시적 완료 표현 ("완료", "끝났음", "처리됨") |
 | **schedule** | 미팅/회의/배포 일정이 확정된 경우 |
+
+> 분류 태그는 4종(`issue` / `decision` / `mention` / `schedule`)뿐입니다. 과거 `in_progress` / `done` 태그는 폐지됐고, 이슈 진행/완료 상태는 타임라인 이슈(`open`/`closed`)에서 관리합니다.
 
 ---
 
@@ -181,7 +178,7 @@ client_history (
      ③ 없으면 외부 키워드 매칭
      ④ 없으면 미분류(기본값)
    ① 매칭 성공 후 해당 채널이 clients.channels에 없으면 자동 추가
-   태그(다중): issue / decision / mention / in_progress / done / schedule
+   태그(다중): issue / decision / mention / schedule
    중요도: high / medium / low
    작성자: 이름만 표기
    occurred_at: 슬랙 메시지의 Unix timestamp를 UTC ISO 문자열로 변환해 저장 (`toISOString()` 기준)
@@ -189,8 +186,7 @@ client_history (
 5. source_id = 슬랙 ts 그대로, source_ref = 메시지 단위 URL
 6. type = 'slack'
 7. client_history INSERT (source_id 중복 SKIP)
-8. in_progress 건 스레드 재확인 및 태그/body 업데이트
-9. 결과: 채널 수, 저장 건수, 태그 분포, 제외 사유
+8. 결과: 채널 수, 저장 건수, 태그 분포, 제외 사유
 ```
 
 ---
@@ -208,8 +204,6 @@ client_history (
 - 이슈: N건
 - 의사결정: N건
 - 멘션: N건
-- 진행중: N건
-- 완료: N건
 - 일정: N건
 
 중요도 분포:

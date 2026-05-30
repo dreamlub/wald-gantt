@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-05-31 — 태그 체계 문서 정합 (코덱스 #1, in_progress/done 잔재 제거)
+
+코드(`ClassifySchema` enum·`TAG_KEYS`)는 이미 4종(issue/decision/mention/schedule)인데 표준 프롬프트 문서에만 구 `in_progress`/`done` 잔재가 남아 혼선 → 문서를 코드에 정합.
+
+- `SLACK_COLLECT_PROMPT.md`: 태그표 2행 삭제, 실행 프롬프트 태그 목록·단계 정리, 보고 포맷의 진행중/완료 라인 제거, Step 5(in_progress 키 기반 재확인)를 "스레드 새 답글 반영"으로 일반화(+update-threads 참조). 4종 한정 명시 노트 추가.
+- 결정 근거: 진행/완료 라이프사이클은 per-message 태그가 아니라 타임라인 이슈(`issues.status` open/closed)에서 관리. 복원이 아니라 폐지로 확정.
+- 이 .md는 어디서도 import되지 않는 참고 문서라 런타임 영향 없음. 메모리 SOP도 4종으로 동기화.
+
+**코덱스 #2(저장 키) 조사 결론 — 변경 안 함이 정답**: `update-threads` upsert를 raw_message_id 중심으로 바꾸자는 제안은 실제로는 부적합. `raw_message_id` unique는 부분 인덱스(`WHERE deleted_at IS NULL`)뿐이라 `ON CONFLICT (raw_message_id)` 추론 불가(런타임 에러), 전체 unique로 바꾸면 soft-delete 후 재수집이 깨짐. 현재 `(workspace_id, source_id)` 키가 전체 unique 인덱스로 받쳐지는 올바른 선택이고, raw_message_id 부분 인덱스가 "raw당 1행"을 별도 보장. reclassify_apply RPC도 동일 키라 두 경로 일관. → 키는 유지하고 `update-threads`에 결정 근거 주석만 추가(잘못된 재수정 방지).
+
+---
+
 ## 2026-05-31 — AI 분류 결과 저장 전 의미 검증기 (코덱스 #7)
 
 분류 결과를 client_history에 저장하기 직전의 품질 게이트를 `validateClassification` 순수 함수로 분리·보강.
