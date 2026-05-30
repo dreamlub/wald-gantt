@@ -106,10 +106,10 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
   }
 
   return (
-    <div className="pb-1 px-2">
+    <div className="pb-1">
         <GroupTitle>캘린더</GroupTitle>
 
-        <div className="flex items-center mb-1">
+        <div className="flex items-center mb-1 px-2">
           <button onClick={prevMonth}
             className="w-6 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors">
             <ChevronLeft size={12} />
@@ -126,7 +126,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
           </button>
         </div>
 
-        <div className="grid grid-cols-7 mb-0.5">
+        <div className="grid grid-cols-7 mb-0.5 px-2">
           {DAY_HEADERS.map((d, i) => (
             <div
               key={d}
@@ -139,7 +139,7 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
           ))}
         </div>
 
-        <div className="grid grid-cols-7 gap-y-1">
+        <div className="grid grid-cols-7 gap-y-1 px-2">
         {cells.map((d, i) => {
           const dow      = d.getDay()
           const inMonth  = d.getMonth() === calMonth
@@ -259,7 +259,7 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
 
   const presets = (showToday
     ? [['today', '오늘'], ['yesterday', '어제'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
-    : [['yesterday', '어제'], ['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
+    : [['week', '최근 1주'], ['month', '이번 달'], ['lastmonth', '지난 달'], ['all', '전체']]
   ) as readonly (readonly [string, string])[]
 
   function activePreset(): string | null {

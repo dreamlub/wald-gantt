@@ -168,11 +168,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
     const loaded = (data ?? []) as WeeklyBrandSummary[]
     setRows(loaded)
     setLoading(false)
-
-    const counts: Record<string, number> = {}
-    for (const r of loaded) counts[r.brand_name] = (counts[r.brand_name] ?? 0) + 1
-    onBrandsLoaded?.(counts)
-  }, [onBrandsLoaded])
+  }, [])
 
   useEffect(() => { fetchSummaries() }, [fetchSummaries])
 
@@ -199,6 +195,13 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
   useEffect(() => {
     onCountChange?.(rows.length, filtered.length)
   }, [rows.length, filtered.length, onCountChange])
+
+  useEffect(() => {
+    if (!onBrandsLoaded) return
+    const counts: Record<string, number> = {}
+    for (const r of filtered) counts[r.brand_name] = (counts[r.brand_name] ?? 0) + 1
+    onBrandsLoaded(counts)
+  }, [filtered, onBrandsLoaded])
 
   const weekGroups = useMemo(() => groupByWeek(filtered), [filtered])
 
