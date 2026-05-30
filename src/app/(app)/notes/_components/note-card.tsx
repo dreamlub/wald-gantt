@@ -148,28 +148,33 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
       <div
         onPointerDown={e => e.stopPropagation()}
         onClick={e => e.stopPropagation()}
-        className="flex items-center gap-1 mt-3 pt-2 border-t border-black/5 dark:border-white/5"
+        className="mt-3 pt-2 border-t border-black/5 dark:border-white/5 space-y-1.5"
       >
+        {/* 색상 팔레트 — 호버 시, 자동 개행 */}
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <ColorPicker value={note.color} onChange={color => onUpdate(note.id, { color })} />
         </div>
-        <div className="flex-1" />
-        <span className="text-2xs text-ink-400 tabular-nums">{date}</span>
-        <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
-          <button
-            onClick={() => onUpdate(note.id, { pinned: !note.pinned })}
-            title={note.pinned ? '고정 해제' : '상단 고정'}
-            className="p-1.5 rounded-full text-ink-400 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          >
-            {note.pinned ? <PinOff size={13} /> : <Pin size={13} />}
-          </button>
-          <button
-            onClick={() => onDelete(note.id)}
-            title="삭제"
-            className="p-1.5 rounded-full text-ink-400 hover:text-status-late hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
-          >
-            <Trash2 size={13} />
-          </button>
+
+        {/* 핀·삭제(좌, 호버) + 일시(우, 상시) */}
+        <div className="flex items-center">
+          <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
+            <button
+              onClick={() => onUpdate(note.id, { pinned: !note.pinned })}
+              title={note.pinned ? '고정 해제' : '상단 고정'}
+              className="p-1 rounded-full text-ink-400 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              {note.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+            </button>
+            <button
+              onClick={() => onDelete(note.id)}
+              title="삭제"
+              className="p-1 rounded-full text-ink-400 hover:text-status-late hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              <Trash2 size={12} />
+            </button>
+          </div>
+          <div className="flex-1" />
+          <span className="text-2xs text-ink-400 tabular-nums">{date}</span>
         </div>
       </div>
     </div>

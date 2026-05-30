@@ -14,7 +14,7 @@ interface Props {
 }
 
 export function NoteTrashCard({ note, onRestore, onPermanentDelete }: Props) {
-  const bg      = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  const bg      = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.yellow.bg
   const deleted = note.deleted_at ? format(new Date(note.deleted_at), 'M월 d일 삭제', { locale: ko }) : ''
   const isLong  = note.content.length > 200
 
