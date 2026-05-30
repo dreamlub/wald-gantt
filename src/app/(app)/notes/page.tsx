@@ -28,6 +28,7 @@ export default function NotesPage() {
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [colorFilter,  setColorFilter]  = useState<Set<NoteColor>>(new Set())
   const [quickFilter,  setQuickFilter]  = useState<NoteQuickFilter>('all')
+  const [trashOpen,    setTrashOpen]    = useState(false)
   const [activeId,     setActiveId]     = useState<string | null>(null)
   const pinReqRef = useRef(0)
 
@@ -174,11 +175,11 @@ export default function NotesPage() {
   const selectedNote = selectedId ? notes.find(n => n.id === selectedId) ?? null : null
   const activeNote   = activeId   ? notes.find(n => n.id === activeId)   ?? null : null
 
+  const isTrash = quickFilter === 'trash'
+
   const sharedProps = {
     onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId, highlight: q,
   }
-
-  const isTrash = quickFilter === 'trash'
 
   return (
     <div className="flex-1 flex overflow-hidden">
@@ -196,67 +197,50 @@ export default function NotesPage() {
         onColorFilterChange={toggleColorFilter}
         onColorFilterClear={() => setColorFilter(new Set())}
         trashCount={trashNotes.length}
+        onTrashOpen={() => setTrashOpen(true)}
       />
 
       {/* 메인 영역 */}
       <div className="flex-1 flex flex-col overflow-hidden bg-background">
         {/* 상단 바 */}
         <div className="h-12 border-b bg-card flex items-center px-4 gap-2 shrink-0">
-          {isTrash ? (
-            <>
-              <span className="text-sm font-semibold text-foreground">휴지통</span>
-              <span className="text-xs text-ink-400">{trashNotes.length}개</span>
-              <div className="flex-1" />
-              {trashNotes.length > 0 && (
-                <button
-                  onClick={handleEmptyTrash}
-                  className="text-xs px-3 py-1.5 rounded-lg text-status-late hover:bg-status-late/10 transition-colors"
-                >
-                  휴지통 비우기
-                </button>
-              )}
-            </>
-          ) : (
-            <>
-              <span className="text-sm font-semibold text-foreground">
-                {loading ? '' : colorFilter.size > 0 || quickFilter !== 'all'
-                  ? `${filtered.length}/${notes.length}개`
-                  : `${notes.length}개`
-                }
-              </span>
+          <span className="text-sm font-semibold text-foreground">
+            {loading ? '' : colorFilter.size > 0 || quickFilter !== 'all'
+              ? `${filtered.length}/${notes.length}개`
+              : `${notes.length}개`
+            }
+          </span>
 
-              <div className="flex items-center gap-1">
-                {searchOpen || searchQuery ? (
-                  <div className="relative flex items-center">
-                    <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
-                    <input
-                      autoFocus={searchOpen}
-                      type="text"
-                      value={searchQuery}
-                      onChange={e => setSearchQuery(e.target.value)}
-                      onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
-                      placeholder="검색"
-                      className="text-sm pl-6 pr-6 py-1 border rounded-lg w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
-                    />
-                    {searchQuery && (
-                      <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1.5 text-ink-300 hover:text-foreground">
-                        <X size={11} />
-                      </button>
-                    )}
-                  </div>
-                ) : (
-                  <button
-                    onClick={() => setSearchOpen(true)}
-                    className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
-                    title="검색"
-                  >
-                    <Search size={14} />
+          <div className="flex items-center gap-1">
+            {searchOpen || searchQuery ? (
+              <div className="relative flex items-center">
+                <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
+                <input
+                  autoFocus={searchOpen}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
+                  placeholder="검색"
+                  className="text-sm pl-6 pr-6 py-1 border rounded-lg w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
+                />
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1.5 text-ink-300 hover:text-foreground">
+                    <X size={11} />
                   </button>
                 )}
               </div>
-              <div className="flex-1" />
-            </>
-          )}
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
+                title="검색"
+              >
+                <Search size={14} />
+              </button>
+            )}
+          </div>
+          <div className="flex-1" />
         </div>
 
         {/* 스크롤 영역 */}
