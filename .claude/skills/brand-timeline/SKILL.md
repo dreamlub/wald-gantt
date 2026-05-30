@@ -364,6 +364,38 @@ WHERE f.brand_name = '{{브랜드명}}'
 
 ---
 
+## Step 6. 자동 검증 게이트 (생성 직후 필수 — 에이전트 편차 방지)
+
+타임라인 생성/업데이트 직후 아래 쿼리를 **반드시 실행**하고 합격선 미달이면 재작업한다. "잘 판단했겠지"로 넘기지 말 것 — 이 게이트가 에이전트 간 품질 편차의 안전장치다. (실패 사례: 어떤 에이전트는 weekly 메타만 보고 관계를 0개로 만들고, 어떤 에이전트는 본문을 읽어 관계를 채움 → 게이트로 강제 통일)
+
+```sql
+SELECT
+  (SELECT COUNT(*) FROM issues WHERE brand_name='{{브랜드}}' AND parent_issue_id IS NULL) AS 부모노드,
+  (SELECT COUNT(*) FROM issue_relations r JOIN issues i ON i.id=r.from_issue_id WHERE i.brand_name='{{브랜드}}') AS 관계수,
+  (SELECT COUNT(*) FROM client_history WHERE brand_name='{{브랜드}}' AND deleted_at IS NULL AND issue_id IS NULL) AS evidence_미연결,
+  (SELECT COUNT(*) FROM client_history WHERE brand_name='{{브랜드}}' AND deleted_at IS NULL) AS evidence_전체;
+```
+
+**합격선 (미달 시 재작업):**
+- `evidence_미연결 / evidence_전체` ≤ 약 10% — 대부분 메시지가 노드에 연결돼야 함 (Step 4 누락 점검)
+- `관계수 ≥ 1` — 단일 단순 브랜드가 아니면(전환·운영장애 등 다주제) 관계 0은 **거의 항상 누락**. 0이면 아래 트리거를 다시 확인.
+
+**주제 연속성 트리거 (반드시 확인):**
+같은 주제 키워드를 가진 부모 노드가 2개 이상이면, 그들 사이에 관계가 있는지 점검한다.
+
+```sql
+-- 같은 키워드(AppFit/구독/오픈/POS/결제 등 브랜드 핵심 주제)로 흩어진 부모 노드
+SELECT type, title, first_seen::date FROM issues
+WHERE brand_name='{{브랜드}}' AND parent_issue_id IS NULL
+  AND title ILIKE '%{{핵심키워드}}%'
+ORDER BY first_seen;
+```
+→ **2건 이상인데 그들 사이 `issue_relations`가 없으면 연결 누락이다.** `parent_thread_ids`가 null이어도, weekly·client_history **본문**에서 단계적 연속(기획→개발→Kick-off→오픈 등)이나 인과가 확인되면 시간순 `continues`/`causes`를 반드시 INSERT한다.
+
+> ⚠️ **관계는 weekly `thread_id`/`parent_thread_ids` 메타데이터가 아니라 본문 인과로 판단한다.** 메타가 비어 있어도 본문에서 흐름이 보이면 관계를 만든다. weekly 리스트는 출발점일 뿐, 관계 도출은 본문(summary + client_history)을 직접 읽어 한다.
+
+---
+
 ## 참고
 
 - Supabase project_id: `eytonzxeogdfeuvxtuwh`
