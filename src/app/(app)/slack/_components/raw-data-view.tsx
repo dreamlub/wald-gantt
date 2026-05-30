@@ -33,14 +33,14 @@ export function RawDataView() {
     setLoading(true)
     const sb = createClient()
     const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const { data: member } = await sb
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', user.id)
       .single()
-    if (!member) return
+    if (!member) { setLoading(false); return }
 
     const [rawRes, histRes] = await Promise.all([
       sb.rpc('get_raw_message_stats',  { p_workspace_id: member.workspace_id }),

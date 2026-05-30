@@ -7,7 +7,7 @@ import { CalendarDays, Clock, CheckSquare, ChevronRight, Link2, Check } from 'lu
 import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
 import { PriorityCallout } from './priority-callout'
-import { BodyBullets, SEV_TO_PRIORITY } from './action-detail-drawer'
+import { BodyBullets, SEV_TO_PRIORITY } from './daily-report-helpers'
 import { brandColor } from '@/lib/history-service'
 
 interface DailyReportData {
@@ -22,7 +22,6 @@ interface Props {
   filterBrands: Set<string>
   filterTags: Set<Tag>
   filterPriorities: Set<Priority>
-  onCreateTask?: (title: string, memo: string) => void
   hideShare?: boolean
 }
 

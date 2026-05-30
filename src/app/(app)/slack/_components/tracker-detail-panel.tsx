@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useState } from 'react'
-import { CalendarDays, GitBranch, Link2, MessageSquareText } from 'lucide-react'
+import { CalendarDays, CheckCircle2, GitBranch, Link2, Loader2, MessageSquareText, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brandColor } from '@/lib/history-service'
-import type { HistoryItem } from '@/types/index'
+import type { HistoryItem } from '../_lib/types'
 import {
   type TrackerIssueRow, type Relation,
   TYPE_META, STATUS_META, REL_META, nodeStatus, ageTxt, toBullets, cleanText,
@@ -43,18 +43,24 @@ function DetailEmpty() {
 }
 
 export function IssueDetailPanel({
-  issue, relations, evidenceCount, titleOf, onSelect,
+  issue, relations, evidenceCount, childCount, titleOf, onSelect, onStatusChange,
 }: {
   issue: TrackerIssueRow | null
   relations: Relation[]
   evidenceCount: number
+  childCount: number
   titleOf: (id: string) => string
   onSelect: (id: string) => void
+  onStatusChange: (id: string, newStatus: 'open' | 'closed', includeChildren: boolean) => Promise<void>
 }) {
   const [messages, setMessages] = useState<HistoryItem[]>([])
   const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null)
+  const [updating, setUpdating] = useState(false)
+  const [confirmOpen, setConfirmOpen] = useState(false)
 
+  /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
+    setConfirmOpen(false)
     if (!issue) { setMessages([]); setExpandedMsgId(null); return }
     setExpandedMsgId(null)
     fetch(`/api/history?issue_id=${issue.id}&limit=50`)
@@ -62,11 +68,31 @@ export function IssueDetailPanel({
       .then(({ items }: { items: HistoryItem[] }) => setMessages(items ?? []))
       .catch(() => setMessages([]))
   }, [issue?.id])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   if (!issue) return <DetailEmpty />
 
   const st = nodeStatus(issue)
   const status = STATUS_META[st]
+  const isClosed = issue.status === 'closed'
+  const issueId = issue.id
+
+  async function handleCloseClick() {
+    if (!isClosed && childCount > 0) {
+      setConfirmOpen(true)
+      return
+    }
+    setUpdating(true)
+    try { await onStatusChange(issueId, isClosed ? 'open' : 'closed', false) }
+    finally { setUpdating(false) }
+  }
+
+  async function handleConfirm(includeChildren: boolean) {
+    setConfirmOpen(false)
+    setUpdating(true)
+    try { await onStatusChange(issueId, 'closed', includeChildren) }
+    finally { setUpdating(false) }
+  }
 
   return (
     <div className="h-full overflow-y-auto px-5 py-5">
@@ -94,6 +120,54 @@ export function IssueDetailPanel({
           </span>
         </div>
         <h2 className="text-lg font-bold leading-snug text-foreground">{issue.title}</h2>
+
+        {/* 상태 토글 버튼 */}
+        <div className="mt-3">
+          {!confirmOpen ? (
+            <button
+              onClick={handleCloseClick}
+              disabled={updating}
+              aria-label={isClosed ? '이슈 다시 열기' : '이슈 해결 완료'}
+              className={cn(
+                'inline-flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-lg border transition-colors',
+                isClosed
+                  ? 'border-ink-200 text-ink-400 hover:bg-ink-50'
+                  : 'border-ink-200 text-ink-600 hover:bg-ink-50 hover:border-ink-300',
+                updating && 'opacity-50 pointer-events-none',
+              )}
+            >
+              {updating
+                ? <Loader2 size={12} className="animate-spin" />
+                : isClosed
+                  ? <RotateCcw size={12} />
+                  : <CheckCircle2 size={12} />
+              }
+              {isClosed ? '다시 열기' : '해결 완료'}
+            </button>
+          ) : (
+            <div className="flex items-center gap-2 flex-wrap">
+              <span className="text-xs text-muted-foreground">자식 이슈 {childCount}건도 함께 닫을까요?</span>
+              <button
+                onClick={() => handleConfirm(true)}
+                className="text-xs font-medium px-2.5 py-1 rounded-md border border-ink-300 text-ink-600 hover:bg-ink-50 transition-colors"
+              >
+                {childCount}건 포함
+              </button>
+              <button
+                onClick={() => handleConfirm(false)}
+                className="text-xs font-medium px-2.5 py-1 rounded-md border border-ink-200 text-ink-400 hover:bg-ink-50 transition-colors"
+              >
+                부모만
+              </button>
+              <button
+                onClick={() => setConfirmOpen(false)}
+                className="text-xs text-ink-300 hover:text-ink-500 transition-colors"
+              >
+                취소
+              </button>
+            </div>
+          )}
+        </div>
       </div>
 
       {/* 메트릭 */}

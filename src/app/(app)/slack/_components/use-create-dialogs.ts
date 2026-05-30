@@ -8,7 +8,6 @@ export function useCreateDialogs() {
   const [createTaskOpen,    setCreateTaskOpen]    = useState(false)
   const [createProjectOpen, setCreateProjectOpen] = useState(false)
   const [createSource,      setCreateSource]      = useState<HistoryItem | null>(null)
-  const [createTaskPreset,  setCreateTaskPreset]  = useState<{ title: string; memo: string } | null>(null)
   const [workspaceId,       setWorkspaceId]       = useState<string | null>(null)
   const [allCategories,     setAllCategories]     = useState<GanttCategory[]>([])
 
@@ -25,12 +24,6 @@ export function useCreateDialogs() {
     setCreateTaskOpen(true)
   }
 
-  async function handleCreateTaskFromAction(title: string, memo: string) {
-    setCreateTaskPreset({ title, memo })
-    await loadWorkspace()
-    setCreateTaskOpen(true)
-  }
-
   async function handleOpenCreateProject(item: HistoryItem) {
     setCreateSource(item)
     const wsId = await loadWorkspace()
@@ -40,7 +33,7 @@ export function useCreateDialogs() {
     setCreateProjectOpen(true)
   }
 
-  function closeTask() { setCreateTaskOpen(false); setCreateSource(null); setCreateTaskPreset(null) }
+  function closeTask() { setCreateTaskOpen(false); setCreateSource(null) }
   function closeProject() { setCreateProjectOpen(false); setCreateSource(null) }
 
   async function saveTask(fields: Parameters<typeof addTask>[1], projectIds: string[]) {
@@ -69,8 +62,8 @@ export function useCreateDialogs() {
     workspaceId,
     allCategories,
     createTaskOpen, createProjectOpen,
-    createSource, createTaskPreset,
-    handleOpenCreateTask, handleCreateTaskFromAction, handleOpenCreateProject,
+    createSource,
+    handleOpenCreateTask, handleOpenCreateProject,
     closeTask, closeProject, saveTask, saveProject,
     onSearchProjects: (q: string) => workspaceId ? searchProjects(workspaceId, q) : Promise.resolve([]),
   }

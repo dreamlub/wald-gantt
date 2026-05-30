@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-05-31 — 타임라인 이슈 완료 처리 Part 1 + 데일리 리포트 드로어 제거
+
+### 타임라인 이슈 완료 처리 (Part 1 — 수동 토글)
+- `api/issues/[id]/route.ts` (신규) — `PATCH`. `status` open↔closed, `includeChildren` 옵션으로 자식 일괄 변경. 워크스페이스 스코프 검증.
+- `tracker-detail-panel.tsx` — 이슈 제목 아래 "해결 완료 / 다시 열기" 버튼. 부모에 open 자식 있으면 "N건 포함 / 부모만 / 취소" 인라인 confirm. 처리 중 스피너·disabled.
+- `timeline-tracker.tsx` — `handleStatusChange`: 낙관적 갱신 → PATCH → 서버 응답 동기화(실패 시 롤백). `selectedChildCount` 계산.
+
+### 데일리 리포트 드로어 죽은 코드 제거
+- `action-detail-drawer.tsx`(309줄) 삭제 — V2 리포트 전환으로 드로어 미사용.
+- `daily-report-helpers.tsx`(신규) — 드로어에서 살아있던 `BodyBullets`·`SEV_TO_PRIORITY`만 추출.
+- 끊긴 `onCreateTask` 배선 전체 제거: `daily-report-view-v2.tsx`·`daily-report-view.tsx`·`slack-shell.tsx`·`use-create-dialogs.ts`(`handleCreateTaskFromAction`·`createTaskPreset`).
+- `daily-report-view.tsx` 선재 `set-state-in-effect` lint은 `eslint-disable-next-line`으로 정리.
+
+## 2026-05-31 — 슬랙 기능 죽은 코드 정리 (1차)
+
+슬랙 메시지 분석 기능 전수 분석 후, **호출처·UI 진입점이 0건으로 확인된** 죽은 코드를 삭제. (심각도 판단 전 도달 가능성부터 grep 확인 — false-positive 방지)
+
+- 삭제 파일 6건:
+  - `api/insights/generate/route.ts` + `lib/insight-service.ts` — `getInsight`/`generateInsight` 호출처 0. 빈 `client_id` 컬럼(3186행 중 6행만 채워짐) 의존이라 어차피 브랜드 귀속 깨진 상태. `insights` 테이블은 데이터라 보존(코드만 제거).
+  - `api/slack/migrate-user-names/route.ts`, `api/slack/remap-history/route.ts` — 콘솔 일회성 유틸, UI 호출 0 + PostgREST 1000행 캡 위반.
+  - `slack/_components/_sidebar-controls.tsx` — import 0 (전부 `sidebar-date-panels.tsx`로 대체됨).
+  - `slack/_components/slack-text.tsx` — import 0.
+- `slack/_lib/types.ts`: 사용처 사라진 `Insight` 인터페이스 제거(`InsightContent` 등 content 타입은 데일리/캘린더가 사용 가능성 있어 유지). `WeeklyInsight`(types/index)는 별개 타입이라 무관.
+- 검증: `tsc --noEmit` src 에러 0 (`.next/types` 생성물의 삭제 라우트 참조 3건은 dev 재빌드 시 자동 해소).
+
+### 2차 (병렬 작업 완료 후 이어서)
+- `slack/_components/detail-drawer.tsx`(HistoryDetailDrawer, 396줄) 삭제. `setActiveItem`이 새 항목을 넣는 진입점이 0건이라 drawer는 열릴 수 없는 도달 불가 코드였음(편집·저장·답글 fetch 전부 사장).
+- `slack-shell.tsx` 배선 해제: drawer import·`activeItem` state·`handleSaveItem`·렌더 블록 제거. 연쇄 미사용 정리(`HistoryEditDraft` import, `useTransition`/`startTransition`, `initialClients` 구조분해).
+- 검증: `tsc` src 에러 0, `eslint slack-shell.tsx` 0.
+
 ## 2026-05-31 — 슬랙 타임라인 트래커 좌측 패널 재설계
 
 `/slack?view=timeline`의 좌측 계층 패널을 카드형 → **프로젝트 관리식 컴팩트 계층 리스트**로 전환.

@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { CalendarDays, Loader2, SlidersHorizontal } from 'lucide-react'
+import { CalendarDays, Loader2, SlidersHorizontal, Network } from 'lucide-react'
 import {
   type TrackerIssueRow, type Relation, type TypeFilter,
   TYPE_META, TYPE_KEYS, nodeStatus,
 } from './_tracker-shared'
 import { NodeRow, ClusterGroup } from './tracker-node-row'
 import { IssueDetailPanel } from './tracker-detail-panel'
+import { RelationMap } from './tracker-relation-map'
 
 interface Props { brandFilter?: string }
 
@@ -18,6 +19,7 @@ export function TimelineTracker({ brandFilter }: Props) {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(new Set())
   const [showClosed, setShowClosed] = useState(false)
+  const [showMap, setShowMap] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // 이슈 + 관계 로드 (좌·우 공유)
@@ -78,8 +80,9 @@ export function TimelineTracker({ brandFilter }: Props) {
       .filter(r => parentIds.has(r.id))
       .sort((a, b) => rank(a) - rank(b))
       .map(root => ({ root, children: (childMap.get(root.id) ?? []).sort((a, b) => rank(a) - rank(b)) }))
+    // 부모가 없거나, 부모가 현재 필터에서 빠져 보이지 않으면(고아 승격) standalone 으로
     const standalones = rows
-      .filter(r => !r.parent_issue_id && !parentIds.has(r.id))
+      .filter(r => !parentIds.has(r.id) && (!r.parent_issue_id || !byId.has(r.parent_issue_id)))
       .sort((a, b) => rank(a) - rank(b))
     return { trees, standalones }
   }, [issues, typeFilter, showClosed])
@@ -92,6 +95,45 @@ export function TimelineTracker({ brandFilter }: Props) {
     const [, mm, dd] = latest.slice(0, 10).split('-')
     return `${Number(mm)}월 ${Number(dd)}일 기준 작성`
   }, [issues])
+
+  // 선택 이슈의 open 자식 수 (부모 닫기 confirm용)
+  const selectedChildCount = useMemo(
+    () => selectedId ? issues.filter(r => r.parent_issue_id === selectedId && r.status === 'open').length : 0,
+    [issues, selectedId],
+  )
+
+  // 낙관적 갱신 + API 호출
+  const handleStatusChange = useCallback(async (
+    id: string,
+    newStatus: 'open' | 'closed',
+    includeChildren: boolean,
+  ) => {
+    // optimistic
+    setIssues(prev => prev.map(r => {
+      if (r.id === id) return { ...r, status: newStatus }
+      if (includeChildren && r.parent_issue_id === id) return { ...r, status: newStatus }
+      return r
+    }))
+    try {
+      const res = await fetch(`/api/issues/${id}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ status: newStatus, includeChildren }),
+      })
+      if (!res.ok) throw new Error('API error')
+      const { updated } = await res.json() as { updated: TrackerIssueRow[] }
+      const map = new Map(updated.map(u => [u.id, u]))
+      setIssues(prev => prev.map(r => (map.has(r.id) ? map.get(r.id)! : r)))
+    } catch {
+      // 낙관적 업데이트 되돌리기
+      const revert = newStatus === 'open' ? 'closed' : 'open'
+      setIssues(prev => prev.map(r => {
+        if (r.id === id) return { ...r, status: revert }
+        if (includeChildren && r.parent_issue_id === id) return { ...r, status: revert }
+        return r
+      }))
+    }
+  }, [])
 
   const selectedRels = selectedId
     ? relations.filter(r => r.from_issue_id === selectedId || r.to_issue_id === selectedId)
@@ -143,16 +185,34 @@ export function TimelineTracker({ brandFilter }: Props) {
             <SlidersHorizontal size={10} />
             해결 포함
           </button>
+          <button
+            onClick={() => setShowMap(v => !v)}
+            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+              showMap
+                ? 'bg-ink-100 text-ink-600 border-ink-300'
+                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
+            }`}
+          >
+            <Network size={10} />
+            관계도 {showMap ? '▲' : '▽'}
+          </button>
         </div>
       </div>
 
+      {/* 관계도 (접이식, 전체 폭) */}
+      {showMap && (
+        <RelationMap
+          issues={issues}
+          relations={relations}
+          selectedId={selectedId}
+          onSelect={toggleSelect}
+        />
+      )}
+
       {/* 좌우 2단 — 좌측은 계층, 우측은 선택 상세 */}
       <div className="flex-1 flex min-h-0">
-        {/* 좌: 이슈 하이어라키 */}
-        <div
-          className="shrink-0 border-r border-ink-100 flex flex-col min-h-0"
-          style={{ width: 'var(--tracker-list-w, 460px)' }}
-        >
+        {/* 좌: 이슈 하이어라키 (비율 2 : 우측 3) */}
+        <div className="flex-[2] min-w-0 border-r border-ink-100 flex flex-col min-h-0">
           <div className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="h-full flex items-center justify-center">
@@ -160,7 +220,10 @@ export function TimelineTracker({ brandFilter }: Props) {
               </div>
             ) : trees.length === 0 && standalones.length === 0 ? (
               <div className="h-full flex items-center justify-center text-2xs text-ink-300">
-                {typeFilter === 'issue' ? '이슈' : typeFilter === 'project' ? '프로젝트' : '결정'}가 없습니다.
+                {typeFilter.size === 1
+                  ? `${typeFilter.has('issue') ? '이슈' : typeFilter.has('project') ? '프로젝트' : '결정'}가 없습니다.`
+                  : '항목이 없습니다.'
+                }
               </div>
             ) : (
               <div className="pb-4">
@@ -188,15 +251,17 @@ export function TimelineTracker({ brandFilter }: Props) {
           </div>
         </div>
 
-        {/* 우: 선택 상세 — 흰 배경 위에 테두리 카드로 분리 */}
-        <div className="flex-1 min-w-0 bg-white p-4">
+        {/* 우: 선택 상세 — 흰 배경 위에 테두리 카드로 분리 (비율 3) */}
+        <div className="flex-[3] min-w-0 bg-white p-4">
           <div className="h-full rounded-lg border bg-card shadow-sm overflow-hidden">
             <IssueDetailPanel
               issue={selectedIssue}
               relations={selectedRels}
               evidenceCount={selectedId ? evidenceCounts[selectedId] ?? 0 : 0}
+              childCount={selectedChildCount}
               titleOf={titleOf}
               onSelect={setSelectedId}
+              onStatusChange={handleStatusChange}
             />
           </div>
         </div>

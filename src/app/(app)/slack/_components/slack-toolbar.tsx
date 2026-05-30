@@ -62,6 +62,7 @@ export function SummaryToolbar({
         })}
       </nav>
 
+      {view === 'dailylist' && (
       <div ref={searchRef} className="relative flex items-center ml-auto mr-3">
         {searchOpen || searchQuery ? (
           <div className="relative flex items-center">
@@ -94,6 +95,7 @@ export function SummaryToolbar({
           </button>
         )}
       </div>
+      )}
     </div>
   )
 }

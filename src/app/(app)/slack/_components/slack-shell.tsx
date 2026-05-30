@@ -1,9 +1,9 @@
 'use client'
 
-import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useReducer } from 'react'
+import { useMemo, useState, useEffect, useRef, useCallback, useReducer } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
-import type { Client, HistoryItem, Tag, Priority, HistoryEditDraft } from '../_lib/types'
+import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
 import { TagFilterBadge, PriorityFilterBadge } from './badges'
 import { SummarySidebar } from './slack-sidebar'
@@ -16,7 +16,6 @@ import { DailyReportView } from './daily-report-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { TimelineBrandPanel } from './timeline-brand-panel'
 import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
-import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
 import {
   PAGE_INIT, pageReducer,
@@ -50,11 +49,10 @@ function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
   return { from: '', to: '' }
 }
 
-export function SummaryShell({ initialClients, initialHistory }: Props) {
+export function SummaryShell({ initialHistory }: Props) {
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
-  const [, startTransition] = useTransition()
 
   // URL → 초기 state. 날짜가 URL에 둘 다 없으면 현재 탭 기본값으로 lazy 초기화.
   const initialView = parseView(searchParams.get('view'))
@@ -74,9 +72,9 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   const [authorKey,    setAuthorKey]    = useState<string | 'all'>(searchParams.get('author') ?? 'all')
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
-  const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
   const [timelineStats,     setTimelineStats]     = useState<BrandTimelineStat[]>([])
   const handleTimelineStatsLoaded = useCallback((stats: BrandTimelineStat[]) => setTimelineStats(stats), [])
+  const timelineAutoSelectedRef = useRef(false)
   const [weeklyCount,       setWeeklyCount]       = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [weeklyBrandCounts, setWeeklyBrandCounts] = useState<Record<string, number>>({})
@@ -180,22 +178,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
 
   const dialogs = useCreateDialogs()
 
-  async function handleSaveItem(id: string, updates: Partial<HistoryEditDraft>) {
-    const res = await fetch(`/api/history/${id}`, {
-      method: 'PATCH',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(updates),
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => '')
-      let msg = `저장 실패 (${res.status})`
-      try { msg = JSON.parse(text).error ?? msg } catch { /* non-JSON */ }
-      throw new Error(msg)
-    }
-    setActiveItem(prev => prev?.id === id ? { ...prev, ...updates } as HistoryItem : prev)
-    startTransition(() => router.refresh())
-  }
-
   // state → URL 동기화
   useEffect(() => {
     const p = new URLSearchParams()
@@ -211,6 +193,22 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
     const qs = p.toString()
     router.replace(qs ? `${pathname}?${qs}` : pathname, { scroll: false })
   }, [view, dateFrom, dateTo, weekStart, brandId, selectedTags, priorityKey, authorKey, searchQuery, pathname, router])
+
+  // timeline 첫 진입 시 brandId='all'이면 가장 활발한(이슈 보유) 브랜드를 자동 선택 → 빈 화면 방지.
+  // ref 가드로 1회만 — 이후 사용자가 'all'로 되돌리면 안내 상태를 그대로 존중.
+  /* eslint-disable react-hooks/set-state-in-effect */
+  useEffect(() => {
+    if (view !== 'timeline' || brandId !== 'all' || timelineAutoSelectedRef.current) return
+    if (timelineStats.length === 0) return
+    const best = [...timelineStats]
+      .filter(s => s.issue_count > 0)
+      .sort((a, b) => b.issue_count - a.issue_count)[0]
+    if (best) {
+      timelineAutoSelectedRef.current = true
+      setBrandId(best.brand_name)
+    }
+  }, [view, brandId, timelineStats])
+  /* eslint-enable react-hooks/set-state-in-effect */
 
   useEffect(() => { if (searchOpen) searchInputRef.current?.focus() }, [searchOpen])
   useEffect(() => {
@@ -317,7 +315,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
               filterBrands={dailyBrands}
               filterTags={dailyTags}
               filterPriorities={dailyPriorities}
-              onCreateTask={dialogs.handleCreateTaskFromAction}
             />
           ) : (
             <>
@@ -396,23 +393,12 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
         </div>
       </div>
 
-      {/* 상세 drawer */}
-      <HistoryDetailDrawer
-        open={!!activeItem}
-        item={activeItem}
-        clients={initialClients}
-        onClose={() => setActiveItem(null)}
-        onCreateTask={dialogs.handleOpenCreateTask}
-        onCreateProject={dialogs.handleOpenCreateProject}
-        onSaveItem={handleSaveItem}
-      />
-
       {/* 태스크 생성 다이얼로그 */}
       <TaskFormDialog
         open={dialogs.createTaskOpen}
         onClose={dialogs.closeTask}
-        initialTitle={dialogs.createSource?.title ?? dialogs.createTaskPreset?.title ?? ''}
-        initialMemo={dialogs.createSource?.body ?? dialogs.createTaskPreset?.memo ?? ''}
+        initialTitle={dialogs.createSource?.title ?? ''}
+        initialMemo={dialogs.createSource?.body ?? ''}
         onSearchProjects={dialogs.onSearchProjects}
         onSave={dialogs.saveTask}
       />

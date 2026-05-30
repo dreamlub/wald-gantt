@@ -89,7 +89,7 @@ export async function POST(req: NextRequest) {
           let searchRetries = 0
           let lastPages = 1
           let lastTotal = 0
-          while (page <= 10) {
+          while (page <= 30) {
             let result
             try {
               result = await slack.search.messages({
@@ -119,10 +119,10 @@ export async function POST(req: NextRequest) {
             await delay(1000)
           }
 
-          // Slack 검색은 최대 10페이지(1,000건)만 반환 — 초과분은 조용히 누락되므로 경고
-          if (lastPages > 10) {
+          // 검색 페이지네이션 상한(30p=3,000건) 도달 — 초과분은 누락되므로 경고
+          if (lastPages > 30) {
             truncatedDays.push({ date, total: lastTotal })
-            send('status', { message: `⚠️ [${date}] 검색 ${lastTotal}건 중 1,000건 상한 도달 — 약 ${lastTotal - 1000}건 누락 가능 (${lastPages}p)` })
+            send('status', { message: `⚠️ [${date}] 검색 ${lastTotal}건 중 3,000건 상한 도달 — 약 ${lastTotal - 3000}건 누락 가능 (${lastPages}p)` })
           }
 
           const cleanMatches = allMatches.filter(m =>

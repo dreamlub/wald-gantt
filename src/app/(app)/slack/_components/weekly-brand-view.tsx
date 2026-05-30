@@ -151,14 +151,14 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
     setLoading(true)
     const sb = createClient()
     const { data: { user } } = await sb.auth.getUser()
-    if (!user) return
+    if (!user) { setLoading(false); return }
 
     const { data: member } = await sb
       .from('workspace_members')
       .select('workspace_id')
       .eq('user_id', user.id)
       .single()
-    if (!member) return
+    if (!member) { setLoading(false); return }
 
     const { data, error } = await sb
       .from('weekly_brand_summaries')
@@ -167,7 +167,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
       .order('week_start', { ascending: false })
       .limit(10000)
 
-    if (error) return
+    if (error) { setLoading(false); return }
     const loaded = (data ?? []) as WeeklyBrandSummary[]
     setRows(loaded)
     setLoading(false)

@@ -13,7 +13,6 @@ interface Props {
   filterBrands: Set<string>
   filterTags: Set<Tag>
   filterPriorities: Set<Priority>
-  onCreateTask?: (title: string, memo: string) => void
 }
 
 interface DailyReport {
@@ -24,7 +23,7 @@ interface DailyReport {
   report_date?: string
 }
 
-export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities, onCreateTask }: Props) {
+export function DailyReportView({ selectedDate, filterBrands, filterTags, filterPriorities }: Props) {
   const [report, setReport] = useState<DailyReport | null>(null)
   const [loading, setLoading] = useState(true)
   const [effectiveDate, setEffectiveDate] = useState(selectedDate)
@@ -62,9 +61,8 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
     setLoading(false)
   }, [selectedDate])
 
-  useEffect(() => {
-    fetchReport()
-  }, [fetchReport])
+  /* eslint-disable-next-line react-hooks/set-state-in-effect */
+  useEffect(() => { fetchReport() }, [fetchReport])
 
   const dateLabel = useMemo(() => {
     try { return format(new Date(effectiveDate + 'T00:00:00'), 'yyyy년 M월 d일 (eee)', { locale: ko }) }
@@ -111,7 +109,6 @@ export function DailyReportView({ selectedDate, filterBrands, filterTags, filter
         filterBrands={filterBrands}
         filterTags={filterTags}
         filterPriorities={filterPriorities}
-        onCreateTask={onCreateTask}
       />
     </>
   )

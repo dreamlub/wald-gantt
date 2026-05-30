@@ -42,17 +42,6 @@ export interface InsightContent {
   decisions: DecisionItem[]
 }
 
-export interface Insight {
-  id: string
-  workspace_id: string
-  week_start: string
-  content: InsightContent
-  analyzed_at: string
-  source_count: number
-  created_at: string
-  updated_at: string
-}
-
 // 신규 태그 시스템 (단일 type → 다중 tags)
 export type Tag =
   | 'issue'        // 🔴 이슈
