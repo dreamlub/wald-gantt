@@ -140,7 +140,7 @@ export function WeeklyContentTabs({
 
         {/* ── 수집 현황 ── */}
         {activeTab === 'status' && (
-          <div className="px-6 py-5 space-y-2 max-w-[800px]">
+          <div className="px-6 py-5 space-y-2">
             {!allDone && (
               <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 mb-4 flex items-center justify-between gap-4">
                 <p className="text-sm text-amber-800 dark:text-amber-200">
@@ -172,7 +172,7 @@ export function WeeklyContentTabs({
                   <div className="flex items-center gap-1.5 shrink-0">
                     <FileText size={12} className="text-ink-400" />
                     <span className="text-xs text-ink-400">
-                      제출됨{team.itemCount > 0 ? ` · ${team.itemCount}건` : ''}
+                      제출됨
                     </span>
                   </div>
                 ) : (
@@ -214,7 +214,7 @@ export function WeeklyContentTabs({
                 })}
               </div>
             )}
-            <div className="p-6 max-w-[900px] mx-auto w-full">
+            <div className="p-6 w-full">
               {reportsLoading
                 ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
                 : <WeeklyRawView reports={visibleReports} />
@@ -225,7 +225,7 @@ export function WeeklyContentTabs({
 
         {/* ── 요약 ── */}
         {activeTab === 'summary' && (
-          <div className="p-6 max-w-[1100px] mx-auto w-full">
+          <div className="p-6 w-full">
             {reportsLoading
               ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
               : <WeeklyDashboard

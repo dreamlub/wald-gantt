@@ -140,7 +140,7 @@ export function AISummaryPanel({
 
   // 인라인 모드 — 탭 콘텐츠로 본문에 직접 렌더
   if (inline) {
-    return <div className="max-w-[760px]">{body}</div>
+    return <div className="w-full">{body}</div>
   }
 
   // 오버레이 모드 (레거시)
