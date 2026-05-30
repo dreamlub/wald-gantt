@@ -1,5 +1,5 @@
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { updateProject, updateCategory } from '@/lib/gantt-service'
+import { updateProject, updateCategory, type ProjectUpdateFields } from '@/lib/gantt-service'
 import type { GanttProject, GanttCategory } from '@/types'
 
 type UndoEntry =
@@ -8,6 +8,24 @@ type UndoEntry =
   | { type: 'categories'; prevList: GanttCategory[] }
 
 const MAX_UNDO = 20
+
+export function projectUndoUpdate(p: GanttProject): ProjectUpdateFields {
+  return {
+    category_id: p.category_id,
+    parent_id: p.parent_id,
+    name: p.name,
+    status: p.status,
+    start_date: p.start_date,
+    end_date: p.end_date,
+    sort_order: p.sort_order,
+    team: p.team,
+    pm: p.pm,
+    memo: p.memo,
+    priority: p.priority,
+    progress: p.progress,
+    is_milestone: p.is_milestone,
+  }
+}
 
 interface Params {
   projects: GanttProject[]
@@ -31,24 +49,20 @@ export function useUndoRedo({ projects, categories, onProjectsChange, onCategori
   useEffect(() => { projectsRef.current = projects }, [projects])
   useEffect(() => { categoriesRef.current = categories }, [categories])
 
-  function pushUndo(entry: UndoEntry) {
+  const pushUndo = useCallback((entry: UndoEntry) => {
     setUndoStack(prev => [...prev.slice(-(MAX_UNDO - 1)), entry])
     setRedoStack([])
-  }
+  }, [])
 
-  function resetStacks() {
+  const resetStacks = useCallback(() => {
     setUndoStack([])
     setRedoStack([])
-  }
+  }, [])
 
   const applyEntry = useCallback(async (entry: UndoEntry) => {
     if (entry.type === 'project') {
       const p = entry.prev
-      const restored = await updateProject(p.id, {
-        name: p.name, status: p.status,
-        start_date: p.start_date, end_date: p.end_date,
-        category_id: p.category_id, team: p.team, pm: p.pm,
-      })
+      const restored = await updateProject(p.id, projectUndoUpdate(p))
       onProjectsChange(prev => prev.map(x => x.id === restored.id ? restored : x))
     } else if (entry.type === 'projects') {
       const restored = await Promise.all(

@@ -10,7 +10,6 @@ import {
 import { useDndSensors } from '@/lib/dnd-utils'
 import { Plus } from 'lucide-react'
 import { GanttToolbar } from './GanttToolbar'
-import { dayOffset, dayOffsetInWeeks } from '@/lib/gantt-utils'
 import type { GanttCategory, GanttProject, GanttStatus } from '@/types'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
 import { MemoTooltip } from '@/components/MemoTooltip'
@@ -29,6 +28,11 @@ import { useBarDrag, colIndexToDate } from './_useBarDrag'
 import { useGanttScroll } from './_useGanttScroll'
 import { useGanttViewData } from './_useGanttViewData'
 import { GanttTimelineHeader } from './_GanttTimelineHeader'
+import {
+  orderedProjectsForCategory,
+  projectBarCols,
+  type GanttSortMode,
+} from './_gantt-view-logic'
 
 interface Props {
   categories: GanttCategory[]
@@ -79,8 +83,8 @@ export function GanttChart({
   const changeViewMode = (v: ViewMode) => { localStorage.setItem('wald.gantt.viewMode', v); setViewMode(v) }
   const [editCatId, setEditCatId]           = useState<string | null>(null)
   const [editCatVal, setEditCatVal]         = useState('')
-  const [sortMode, setSortMode]           = useState<'default' | 'start-asc' | 'end-desc' | 'priority-desc'>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.sortMode') as 'default' | 'start-asc' | 'end-desc' | 'priority-desc' : null) ?? 'default')
-  const changeSortMode = (v: 'default' | 'start-asc' | 'end-desc' | 'priority-desc') => { localStorage.setItem('wald.gantt.sortMode', v); setSortMode(v) }
+  const [sortMode, setSortMode]           = useState<GanttSortMode>(() => (typeof window !== 'undefined' ? localStorage.getItem('wald.gantt.sortMode') as GanttSortMode : null) ?? 'default')
+  const changeSortMode = (v: GanttSortMode) => { localStorage.setItem('wald.gantt.sortMode', v); setSortMode(v) }
   const [excludedTeams, setExcludedTeams] = useState<Set<string>>(new Set())
   const [excludedPMs, setExcludedPMs]     = useState<Set<string>>(new Set())
   const [internalOverdueFilter, setInternalOverdueFilter] = useState(false)
@@ -134,100 +138,26 @@ export function GanttChart({
     ? liveCats.map(id => categories.find(c => c.id === id)!).filter(Boolean)
     : defaultSortedCats
 
-  const projectsOf = (catId: string): GanttProject[] => {
-    let base: GanttProject[]
-    if (sortMode === 'default' && liveItems) {
-      const ids = liveItems[catId] ?? []
-      const projMap = new Map(projects.map(p => [p.id, p]))
-      base = ids.map(id => projMap.get(id)).filter((p): p is GanttProject => !!p)
-    } else {
-      base = projects.filter(p => p.category_id === catId)
-    }
-    // 필터링은 orderedProjectsOf()에서 부모-자식 트리를 인지해 적용한다.
-    if (!liveItems) {
-      if (sortMode === 'start-asc')
-        return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
-      if (sortMode === 'end-desc')
-        return [...base].sort((a, b) => (a.end_date ?? '') > (b.end_date ?? '') ? -1 : 1)
-      if (sortMode === 'priority-desc')
-        return [...base].sort((a, b) => (b.priority ?? 0) - (a.priority ?? 0))
-      return [...base].sort((a, b) => a.sort_order - b.sort_order)
-    }
-    return base
-  }
-
-  const hasActiveFilter =
-    searchQuery.trim() !== '' || excludedTeams.size > 0 || excludedPMs.size > 0 || overdueFilter || startDelayedFilter
-
-  const matchesFilters = (p: GanttProject): boolean => {
-    if (searchQuery.trim() && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
-    if (excludedTeams.size > 0 && excludedTeams.has(p.team || '')) return false
-    if (excludedPMs.size > 0 && excludedPMs.has(p.pm || '')) return false
-    if (overdueFilter || startDelayedFilter) {
-      const ok =
-        (overdueFilter && isProjectOverdue(p, todayStr)) ||
-        (startDelayedFilter && isStartDelayed(p, todayStr) && !isProjectOverdue(p, todayStr))
-      if (!ok) return false
-    }
-    return true
-  }
-
   function orderedProjectsOf(catId: string): GanttProject[] {
-    const childrenOf = (pid: string) =>
-      projects.filter(c => c.parent_id === pid).sort((a, b) => a.sort_order - b.sort_order)
-    const tops = projectsOf(catId).filter(p => !p.parent_id)
-
-    return tops.flatMap(top => {
-      const kids = childrenOf(top.id)
-      if (!hasActiveFilter)
-        return collapsedParents.has(top.id) ? [top] : [top, ...kids]
-
-      // 필터 활성: 부모가 걸리면 서브트리 전체, 자식만 걸리면 부모(맥락)+걸린 자식만.
-      const topMatches  = matchesFilters(top)
-      const matchedKids = kids.filter(matchesFilters)
-      if (!topMatches && matchedKids.length === 0) return []
-      if (collapsedParents.has(top.id)) return [top]
-      return [top, ...(topMatches ? kids : matchedKids)]
+    return orderedProjectsForCategory({
+      catId,
+      projects,
+      liveItems,
+      sortMode,
+      collapsedParents,
+      filters: {
+        searchQuery,
+        excludedTeams,
+        excludedPMs,
+        overdueFilter,
+        startDelayedFilter,
+        todayStr,
+      },
     })
   }
 
   function barCols(p: GanttProject): { start: number; end: number } | null {
-    // 마일스톤: end_date만 사용해서 단일 컬럼 반환
-    if (p.is_milestone) {
-      if (!p.end_date) return null
-      if (viewMode === 'month') {
-        const col = dayOffset(viewStart, p.end_date, 'start')
-        if (col >= totalCols || col < 0) return null
-        return { start: Math.max(0, col), end: Math.max(0, col) + 1 }
-      } else if (viewMode === 'week') {
-        const col = dayOffsetInWeeks(weeks, p.end_date, 'start')
-        if (col >= totalCols || col < 0) return null
-        return { start: Math.max(0, col), end: Math.max(0, col) + 1 }
-      } else {
-        const ci = days.findIndex(d => d.key === p.end_date)
-        if (ci < 0 || ci >= totalCols) return null
-        return { start: ci, end: ci + 1 }
-      }
-    }
-    if (!p.start_date || !p.end_date) return null
-    if (viewMode === 'month') {
-      const s = dayOffset(viewStart, p.start_date, 'start')
-      const e = dayOffset(viewStart, p.end_date, 'end')
-      if (s >= totalCols || e <= 0) return null
-      return { start: Math.max(0, s), end: Math.min(totalCols, e) }
-    } else if (viewMode === 'week') {
-      const s = dayOffsetInWeeks(weeks, p.start_date, 'start')
-      const e = dayOffsetInWeeks(weeks, p.end_date, 'end')
-      if (s >= totalCols || e <= 0) return null
-      return { start: Math.max(0, s), end: Math.min(totalCols, e) }
-    } else {
-      const si = days.findIndex(d => d.key === p.start_date)
-      const ei = days.findIndex(d => d.key === p.end_date)
-      const s = si >= 0 ? si : 0
-      const e = ei >= 0 ? ei + 1 : days.length
-      if (s >= totalCols || e <= 0) return null
-      return { start: Math.max(0, s), end: Math.min(totalCols, e) }
-    }
+    return projectBarCols({ project: p, viewMode, viewStart, weeks, days, totalCols })
   }
 
   function handleBarCreate(projectId: string, colIndex: number) {

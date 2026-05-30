@@ -164,7 +164,6 @@ export function ReviewShell() {
           className="text-sm px-2 py-1 border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-lilac-300"
         >
           <option value="all">전체 소스</option>
-          <option value="history">Slack</option>
           <option value="daily_report">Daily</option>
           <option value="weekly">Weekly</option>
         </select>

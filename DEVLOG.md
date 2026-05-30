@@ -2,6 +2,77 @@
 
 ---
 
+## 2026-05-30 — Review Inbox history(Slack) 소스 제거
+
+### 배경
+동일 사건이 Slack→Daily→Weekly 파이프라인을 거치며 3번 중복 올라오는 구조.
+Daily가 Slack을 이미 요약하므로 `history` 소스는 잉여.
+
+### 변경
+- `populate/route.ts`: client_history 수집 블록 전체 제거
+- `types/index.ts`: `ReviewSource`에서 `'history'` 제거
+- `review-card.tsx`: Slack 배지 제거
+- `review-shell.tsx`: 소스 필터에서 Slack 옵션 제거
+
+### 남은 소스
+| source | 원천 | 배지 |
+|--------|------|------|
+| `daily_report` | daily_reports | Daily |
+| `weekly` | weekly_reports | Weekly |
+
+---
+
+## 2026-05-30 — classify 스킬 3단계 타임라인 품질 수정 + brand-timeline 분석 가능 기준 정립
+
+### 문제
+`weekly_brand_summaries.parent_thread_ids`가 전 브랜드 거의 NULL.
+원인: classify 스킬 3단계가 "인과·재발 판단 시 추가 조회"를 선택적으로 처리해 AI가 건너뜀.
+결과: 이월은 잘 되지만 인과/분기/재발 체인이 전혀 형성되지 않음.
+
+### 수정 (`.claude/skills/classify/SKILL.md`)
+- 작업 순서 명시: ① 데일리 수집 → ② 브랜드 목록 확정 → **③ 브랜드별 전체 타임라인 히스토리 조회 (필수, 예외 없음)** → ④ 카드 유형 판단 → INSERT
+- "신규" 판단 기준 강화: ③ 조회 결과 관련 thread 없음을 확인한 경우에만 신규 처리 (가정 금지)
+- "이전 2주만 참조" → "전체 히스토리 조회 후 판단"으로 전환
+- "추가 조회" 선택 → "카드 작성 전 필수 조회"로 강제
+
+### brand-timeline 분석 가능 기준 확정
+| 모드 | 조건 |
+|------|------|
+| incremental | issues 1건+ AND 신규 client_history 1건+ |
+| initial_ready | weekly 4주+ AND 동일 thread_id 2주+ 반복 1건+ AND daily 20건+ |
+| insufficient | 미달 |
+
+- `parent_thread_ids` 유무 → `thread_id 반복 등장` 기준으로 변경 (체인 형성 여부 더 정확히 반영)
+- 매머드커피(322건/20주), 도쿄플라츠(201건/17주): weekly 품질 문제로 parent_thread_ids=NULL이었으나 thread_id 연속성은 충분 → initial_ready 재분류
+
+---
+
+## 2026-05-30 — brand-timeline 스킬 incremental/initial/rebuild 3모드로 개정
+
+### 배경
+운영 모델 확정: 실시간 파이프라인 없음. 사용자가 주기적으로 MCP로 brand-timeline 스킬 직접 실행.
+기존 스킬은 "초회 시딩" 전제로 작성되어 주기 실행 시 위험 요소 존재.
+
+### 문제점 (기존 스킬)
+- Step 1에 "기존 이슈가 있으면 삭제 여부 확인" — issues.id/parent_issue_id/client_history.issue_id 연결 파괴 위험
+- client_history를 항상 LIMIT 600 전체 조회 — 데이터 누적 시 비용 증가 + 이전 판단 흔들림
+- 기존 이슈 last_seen 갱신, body 보강, 증거 메시지 연결 흐름 없음
+
+### 개정 내용 (`.claude/skills/brand-timeline/SKILL.md`)
+
+| 모드 | 용도 | 기존 이슈 |
+|------|------|----------|
+| **incremental** (기본값) | 주기 실행 | 삭제 금지, 신규 메시지만 조회, 기존 이슈 매칭/업데이트 |
+| **initial** | 최초 생성 | 이슈 없음 확인 후 전체 이력 분석 |
+| **rebuild** | 품질 재구성 | 사용자 명시 확인 후만 삭제 허용 |
+
+- incremental: `last_processed_at` 쿼리로 기준점 산출 → 신규 메시지만 조회
+- 신규 메시지 판단 3분류: 후속 증거 / 파생 이슈 / 신규 이슈
+- 30일+ 조용한 open 이슈 → 사용자 알림 (자동 closed 전환 없음)
+- `/api/issues/seed` API는 initial 전용 — 주기 실행 사용 금지 명시
+
+---
+
 ## 최근 변경 (2026-05-30) — 타임라인 브랜드 목록 전체 표시 + Supabase row limit 전수 수정
 
 ### 신규
@@ -45,6 +116,78 @@ Supabase PostgREST가 단일 쿼리당 기본 최대 1000행을 반환하는 제
 | 항목 | 내용 | 우선순위 |
 |---|---|---|
 | autoArchiveTasks 성능 | `load()` 호출마다 archive 쿼리 실행 → 하루 1회로 제한 필요 (페이지 진입 시에만 또는 별도 cron) | 낮음 |
+
+---
+
+## 설계 결정 (2026-05-30) — Timeline 화면 와이어프레임 확정
+
+와이어프레임: `~/Desktop/issue_tracker_list_forest_combined.html` (List+Forest 통합). 난립 뷰(issue-tree-view/issue-graph-view/timeline-v2-view 등) 대체 최종형.
+
+### 레이아웃 (와이어프레임 원안의 좌우 반전)
+- **좌 = 원본 슬랙 메시지(evidence trail)** — 우측 노드 클릭 시 연결된 client_history 원문 타임라인 표시. evidence를 주 패널로 상시 노출.
+- **우 = 이슈 노드 관계망(포레스트 트리)** — 트리가 이슈 목록 겸 관계도 단독 담당.
+- 필터바(활성/주의/해결 · 이슈/프로젝트/결정)는 우측 트리 기준. 노드 미선택 시 첫 노드 자동선택.
+
+### 스키마/로직 결정
+- **issue_relations 테이블 신설** — parent_issue_id 트리(원인→결과·실선)와 별개로 다대다 연관(점선)·재발·블로킹 표현. (확정: 연관까지 포함)
+- **상태 3색 = 파생 계산** — status(open/closed) × last_seen 경과. 활성(빨강)/주의(노랑·open이나 조용)/해결(회색). status 컬럼 변경 불필요.
+- **계층 3~4단계** — umbrella > 루트이슈 > 자식 > 손자. seed가 umbrella까지 생성하도록 개편 전제(현 seed는 parent 미생성).
+
+### 구현 계획 확정 (2026-05-30, 검토 반영)
+관계 데이터 모델이 성패를 좌우 → Phase 3(스킬)을 UI보다 먼저. 진행 순서:
+1. **issue_relations 마이그레이션** — from→to 방향 고정("from이 to에 영향"). enum: `causes`/`blocks`/`recurs_as`/`continues`/`related`. (`caused_by` 등 역방향 이름 폐기). parent_issue_id=계층(실선), issue_relations=비계층(점선).
+2. **GET /api/issues 확장** — relations 조인 + evidence_count 집계(단일 group-by, N+1 회피). select('*')→명시 컬럼. **원문은 목록 API에 미포함**(첫 로딩 경량 유지).
+3. **GET /api/issues/[id]/evidence 신규** — client_history 원문 타임라인, .limit(200).
+4. **brand-timeline 스킬 개편** — initial/incremental/rebuild 구조에서 parent_issue_id 필수 연결 + issue_relations INSERT 규칙 + umbrella 생성 규칙.
+5. **timeline-tracker.tsx 신규 UI** — 좌 evidence-panel / 우 issue-forest(수평 포레스트, 실선 parent + 점선 relation). 기존 issue-tree-view는 그룹핑 로직 참고용. 상태 3색 CSS 변수화.
+6. **기존 뷰 정리** — 맨 마지막. timeline-view/timeline-v2-view/issue-graph-view는 비교 기준으로 당분간 보존.
+
+> 계획 승인됨. Phase 1 착수.
+
+---
+
+## 전반 코드 리뷰 백로그 (2026-05-30)
+
+4개 영역(데이터/서비스·프론트엔드·아키텍처/보안·Slack 파이프라인) 병렬 리뷰 결과. 전반적으로 견고하나 아래 항목 미해결.
+
+### 🔴 보안 / 데이터 손실 (즉시)
+
+| 항목 | 내용 | 위치 |
+|---|---|---|
+| `.env.local` 시크릿 로테이트 | ANTHROPIC_API_KEY / SLACK_USER_TOKEN / GOOGLE_CLIENT_SECRET / OUTLINE_API_TOKEN / DEV_PASSWORD 평문 저장. git 커밋 이력엔 없음(확인 완료)이나 리뷰 중 노출 → 5개 재발급 권장 | `.env.local` |
+| Prompt Injection | Slack 원문이 sanitize 없이 분류 프롬프트에 직접 삽입. 외부 참여자가 priority/brand 조작 가능, weekly task_title→gantt_task로 전파. 원문을 XML 델리미터로 감싸고 "델리미터 안은 데이터" 시스템 지시 추가 | `slack-service.ts:281`, `weekly/analyze/route.ts:210` |
+| client_history upsert 키 불일치 | history는 `onConflict: workspace_id,source_id(=ts)`, raw는 channel 포함. 동일 ts 다채널 시 분류 덮어쓰기 + raw_message_id 오염 | `reclassify/route.ts:177`, `update-threads/route.ts:216` |
+
+### 🟡 정합성 / 성능 (중기)
+
+| 항목 | 내용 | 위치 |
+|---|---|---|
+| autoArchiveTasks 일 1회 가드 | (위 백로그와 동일) localStorage 마지막 실행일 가드로 해결 | `use-tasks-data.ts:31` |
+| 비원자적 다중 쓰기 | updateTask의 task_projects delete→insert 중간 실패 시 연결 소실. soft delete/restore 부모-자식 별도 UPDATE. → `review/candidates/[id]/route.ts`의 보상 트랜잭션+조건부 UPDATE 패턴을 표준화 | `task-service.ts:131,154`, `gantt-service.ts:246` |
+| SSE 라우트 타임아웃 무방비 | weekly/analyze 매번 전체 주차 체인 재분석, 수백 건 시 Vercel 함수 타임아웃→부분 커밋. 529만 재시도, 429(rate limit)/500/503 즉시 throw | `collect-raw`, `reclassify`, `update-threads`, `weekly/analyze` |
+| DB baseline 스키마 부재 | migrations에 증분 18개만, gantt_tasks 등 핵심 테이블 생성 마이그레이션 없음 → db reset 재현 불가. `supabase db dump`로 baseline 추출 | `supabase/migrations/` |
+| remap-history N+1 | 매핑별 루프 안 raw 조회 후 500개 청크 UPDATE 반복 | `remap-history/route.ts:34-63` |
+| review/populate JS 필터 | client_history 60일치 전부 받아 JS에서 priority/tags 필터 → `.or()` DB 위임 | `review/populate/route.ts:85` |
+| Slack reply rate limit 누락 | search.messages만 백오프, conversations.replies/users.list는 429 시 조용히 빈 배열 | `collect-raw/route.ts`, `slack-service.ts:219` |
+| 분류 max_tokens 잘림 누락 | classifyMessage가 잘림(stop_reason)을 "노이즈 skip"과 동일 취급해 영구 누락. max_tokens:512 | `slack-service.ts:331` |
+| calendar Google 동기화 실패 무시 | PATCH/DELETE에서 Google API 결과 boolean 확인 안 함 | `calendar/events/route.ts:165,199` |
+
+### 🟢 품질 / 정리
+
+| 항목 | 내용 | 위치 |
+|---|---|---|
+| 중복 코드 통합 | `reorderWithSubs`(list-view 복붙), `isLightColor`(2곳), MemoTooltip(gantt-view 인라인 복붙) | `list-view.tsx:94`, `gantt-utils.ts:9`+`tasks/_utils.ts:33`, `gantt-view.tsx:374` |
+| 하드코딩 hex | slack issue-tree/graph/logic-tree 뷰, `_GanttRows.tsx:15` 팔레트 → CSS 변수화 (다크모드 대비) | `slack/_components/issue-*.tsx`, `_GanttRows.tsx` |
+| calendar-shell highlight effect 중복 | 동일 searchParams 소비하는 effect 2개 경쟁 (router.replace 레이스) | `calendar-shell.tsx:98,130` |
+| 메모이제이션 부재 | list/kanban 파생 데이터 매 렌더 재계산, 행 컴포넌트 React.memo 미적용 | `list-view.tsx`, `kanban-view.tsx` |
+| 메모 아이콘/툴팁 톤 불일치 | StickyNote 색상·크기가 뷰마다 제각각, 툴팁 폰트(text-2xs vs text-xs) | task-row/list/kanban/gantt-view |
+| 500줄 룰 위반 | ProjectFormDialog(539), GanttChart(530), weekly/analyze(512), settings-shell(503) | — |
+| `.single()` vs `.maybeSingle()` | sort_order/insight 조회에서 error 무시하는 `.single()` 다수 → `.maybeSingle()` 통일 | `task-service.ts:104`, `gantt-service.ts:31` |
+| select('*') 통일 | task/gantt/note/weekly 서비스 다수 `*` → history-service처럼 컬럼 명시 | 다수 |
+| 분류 로직 이중 구현 드리프트 | `slack-service.ts`(messages.parse+zod) vs `classify-raw.mjs`(수동 파싱) 프롬프트/파싱 불일치 | `slack-service.ts:272`, `classify-raw.mjs:85` |
+| 운영용 라우트 노출 | import-dx1 GET→POST 전환, 일회성 마이그레이션 라우트 정리 | `weekly/import-dx1`, `slack/migrate-*` |
+
+> 전체 RLS 감사 권장: `daily_report_shares`에서 발견된 "RLS/grant 누락" 패턴이 baseline 테이블에도 있는지 Supabase advisor로 확인.
 
 ---
 

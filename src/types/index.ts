@@ -236,7 +236,7 @@ export interface Note {
 
 // ── Review Inbox ──────────────────────────────────────────────────────
 
-export type ReviewSource = 'history' | 'daily_report' | 'weekly'
+export type ReviewSource = 'daily_report' | 'weekly'
 export type ReviewStatus = 'pending' | 'created' | 'snoozed' | 'ignored'
 export type ReviewPriority = 'high' | 'medium' | 'low'
 

@@ -3,6 +3,23 @@ import type { GanttBoard, GanttCategory, GanttProject, Priority, ProjectHistoryE
 
 const db = () => createClient()
 
+export type ProjectUpdateFields = Partial<Pick<
+  GanttProject,
+  | 'category_id'
+  | 'parent_id'
+  | 'name'
+  | 'status'
+  | 'start_date'
+  | 'end_date'
+  | 'sort_order'
+  | 'team'
+  | 'pm'
+  | 'memo'
+  | 'priority'
+  | 'progress'
+  | 'is_milestone'
+>>
+
 // ── Workspace ──────────────────────────────────────────────
 
 export async function getOrCreateWorkspace(): Promise<Workspace> {
@@ -232,7 +249,7 @@ export async function addProject(
   return data
 }
 
-export async function updateProject(id: string, updates: Partial<GanttProject>): Promise<GanttProject> {
+export async function updateProject(id: string, updates: ProjectUpdateFields): Promise<GanttProject> {
   const { data, error } = await db()
     .from('gantt_projects')
     .update({ ...updates, updated_at: new Date().toISOString() })

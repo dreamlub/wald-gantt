@@ -74,33 +74,7 @@ export async function POST() {
     const workspaceId = member.workspace_id
     const since60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
 
-    // ── 1. client_history 후보 ──────────────────────────────────────────
-    // 60일 × 일평균 50건 = 3,000건 상한 가정. high/issue 필터는 JS에서 하므로 넉넉하게 설정
-    const { data: histories } = await sb
-      .from('client_history')
-      .select('id, title, body, brand_name, priority, occurred_at, tags')
-      .eq('workspace_id', workspaceId)
-      .is('deleted_at', null)
-      .gte('occurred_at', since60)
-      .limit(5000)
-
-    const historyRows: CandidateRow[] = (histories ?? [])
-      .filter(h => h.priority === 'high' || (Array.isArray(h.tags) && h.tags.includes('issue')))
-      .map(h => ({
-        workspace_id: workspaceId,
-        source: 'history' as ReviewSource,
-        source_id: String(h.id),
-        source_date: new Date(h.occurred_at).toLocaleDateString('sv-SE', { timeZone: 'Asia/Seoul' }),
-        title: h.title,
-        memo: h.body ?? null,
-        brand: h.brand_name ?? null,
-        priority: (h.priority as ReviewPriority) ?? null,
-        due_date: null,
-        estimated_minutes: null,
-        evidence_count: 1,
-      }))
-
-    // ── 2. daily_report 후보 ───────────────────────────────────────────
+    // ── 1. daily_report 후보 ───────────────────────────────────────────
     const { data: reports } = await sb
       .from('daily_reports')
       .select('report_date, content')
@@ -136,7 +110,7 @@ export async function POST() {
       }
     }
 
-    // ── 3. weekly_report 후보 ──────────────────────────────────────────
+    // ── 2. weekly_report 후보 ──────────────────────────────────────────
     const { data: weeklyReports } = await sb
       .from('weekly_reports')
       .select('id, week_start, team, summary')
@@ -167,7 +141,7 @@ export async function POST() {
       })
     }
 
-    const rows = [...historyRows, ...reportRows, ...weeklyRows]
+    const rows = [...reportRows, ...weeklyRows]
     if (rows.length === 0) {
       return NextResponse.json({ inserted: 0 })
     }

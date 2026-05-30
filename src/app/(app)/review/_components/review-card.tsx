@@ -24,7 +24,6 @@ interface Props {
 }
 
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
-  history:      { label: 'Slack',   className: 'bg-sky-100 text-sky-700 dark:bg-sky-900/30 dark:text-sky-400' },
   daily_report: { label: 'Daily',   className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
   weekly:       { label: 'Weekly',  className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
 }
