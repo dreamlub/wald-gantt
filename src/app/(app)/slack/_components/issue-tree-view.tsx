@@ -48,10 +48,10 @@ function nodeStatus(row: IssueRow): NodeStatus {
 }
 
 const S = {
-  color:  { active: '#ef4444', quiet: '#f97316', dormant: '#9ca3af', closed: '#10b981' },
+  color:  { active: '#e53e3e', quiet: '#c05621', dormant: '#718096', closed: '#276749' },
   bg:     { active: '#ffffff', quiet: '#ffffff', dormant: '#ffffff', closed: '#ffffff' },
-  border: { active: '#fecaca', quiet: '#fed7aa', dormant: '#e5e7eb', closed: '#a7f3d0' },
-  badge:  { active: '#fee2e2', quiet: '#ffedd5', dormant: '#f3f4f6', closed: '#d1fae5' },
+  border: { active: '#e2e8f0', quiet: '#e2e8f0', dormant: '#e2e8f0', closed: '#e2e8f0' },
+  badge:  { active: '#fff5f5', quiet: '#fffaf0', dormant: '#f7fafc', closed: '#f0fff4' },
   label:  { active: '활성', quiet: '조용함', dormant: '소멸', closed: '완료' },
 } as const
 

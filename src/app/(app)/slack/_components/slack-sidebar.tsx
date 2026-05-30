@@ -1,6 +1,6 @@
 'use client'
 
-import { useState, useMemo } from 'react'
+import { useState, useMemo, useEffect } from 'react'
 import { Check, Search } from 'lucide-react'
 
 import type { Tag, HistoryItem, Priority } from '../_lib/types'
@@ -171,8 +171,6 @@ export function SummarySidebar({
     return (
       <TimelineSidebar
         history={history}
-        dateFrom={dateFrom} dateTo={dateTo}
-        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
         brandId={brandId} onBrandChange={onBrandChange}
       />
     )
@@ -316,29 +314,30 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
 }
 
 // ── Timeline 사이드바 ───────────────────────────────────────
-function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateToChange, brandId, onBrandChange }: {
-  history: HistoryItem[]
-  dateFrom: string; dateTo: string
-  onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
+function TimelineSidebar({ brandId, onBrandChange }: {
   brandId: string | 'all'; onBrandChange: (b: string | 'all') => void
 }) {
-  const timelineBrandCounts: Record<string, number> = {}
-  for (const h of history) {
-    const ymd = kstDate(h.occurred_at)
-    if (dateFrom && ymd < dateFrom) continue
-    if (dateTo && ymd > dateTo) continue
-    const b = h.brand_name ?? '미분류'
-    timelineBrandCounts[b] = (timelineBrandCounts[b] ?? 0) + 1
-  }
-  const timelineTotal = Object.values(timelineBrandCounts).reduce((a, b) => a + b, 0)
+  const [brandCounts, setBrandCounts] = useState<Record<string, number>>({})
+
+  useEffect(() => {
+    fetch('/api/issues')
+      .then(r => r.json())
+      .then(({ issues }: { issues: { brand_name: string; status: string }[] }) => {
+        const counts: Record<string, number> = {}
+        for (const issue of issues ?? []) {
+          const b = issue.brand_name ?? '미분류'
+          counts[b] = (counts[b] ?? 0) + 1
+        }
+        setBrandCounts(counts)
+      })
+      .catch(() => {})
+  }, [])
+
+  const total = Object.values(brandCounts).reduce((a, b) => a + b, 0)
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      <DateRangePanel
-        dateFrom={dateFrom} dateTo={dateTo}
-        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-      />
-      <div className="mt-3">
+      <div className="mt-1">
         <GroupTitle>브랜드</GroupTitle>
         <button
           onClick={() => onBrandChange('all')}
@@ -347,9 +346,9 @@ function TimelineSidebar({ history, dateFrom, dateTo, onDateFromChange, onDateTo
           <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
           <span className="flex-1 truncate text-left">전체</span>
           {brandId === 'all' && <Check size={12} className="shrink-0" />}
-          <span className="text-sm text-ink-400">{timelineTotal}</span>
+          <span className="text-sm text-ink-400">{total}</span>
         </button>
-        {Object.entries(timelineBrandCounts)
+        {Object.entries(brandCounts)
           .sort((a, b) => b[1] - a[1])
           .map(([name, cnt]) => {
             const active = brandId === name
