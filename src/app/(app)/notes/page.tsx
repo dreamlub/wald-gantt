@@ -272,7 +272,10 @@ export default function NotesPage() {
       {/* 휴지통 드로어 */}
       <NoteTrashDrawer
         open={trashOpen}
-        onClose={() => setTrashOpen(false)}
+        onClose={() => {
+          setTrashOpen(false)
+          getTrashedNotes().then(setTrashNotes).catch(() => {})
+        }}
         onRestore={handleRestore}
       />
 
