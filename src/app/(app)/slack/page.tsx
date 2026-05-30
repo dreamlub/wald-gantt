@@ -12,7 +12,7 @@ function firstParam(value: string | string[] | undefined): string | undefined {
 }
 
 function needsInitialHistory(view: string | undefined): boolean {
-  return view === 'summary' || view === 'dailyreport' || view === 'timeline'
+  return view === 'dailyreport' || view === 'timeline'
 }
 
 export default async function SummaryPage({ searchParams }: { searchParams: SummarySearchParams }) {

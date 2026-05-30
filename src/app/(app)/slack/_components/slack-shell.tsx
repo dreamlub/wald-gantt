@@ -4,13 +4,12 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
 import type { Client, HistoryItem, Tag, Priority, HistoryEditDraft } from '../_lib/types'
-import { TAG_META, PRIORITY_META, TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
+import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
 import { TagFilterBadge, PriorityFilterBadge } from './badges'
 import { SummarySidebar } from './slack-sidebar'
 import { type PriorityKey, getCurrentWeekStart } from './_sidebar-utils'
 import { SummaryToolbar } from './slack-toolbar'
 import { DailyListView } from './daily-list-view'
-import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
@@ -24,7 +23,6 @@ import {
   parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
 } from './slack-shell-state'
-import { filterHistoryItems } from '@/lib/history-query-utils'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import { useCreateDialogs } from './use-create-dialogs'
@@ -239,10 +237,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
     })
   }
 
-  const filtered = useMemo(() => filterHistoryItems(initialHistory, {
-    dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery,
-  }), [initialHistory, dateFrom, dateTo, selectedTags, brandId, priorityKey, authorKey, searchQuery])
-
   return (
     <div className="flex flex-1 overflow-hidden">
 
@@ -328,68 +322,51 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
           ) : (
             <>
               {/* 필터 바 — 스크롤 밖 고정 */}
-              {view !== 'summary' && (
-                <div className="shrink-0 px-4 bg-card border-b border-ink-150">
-                  <div className="h-10 flex items-center gap-2 text-sm text-ink-400">
-                    {/* 좌측: 건수 + 활성 필터 칩 */}
-                    <span className="shrink-0">
-                      {view === 'dailylist'
-                        ? <>전체 <b className="text-foreground font-semibold">{dailyTotalCount}</b>건{dailyTotalCount !== pg.total && <> 중 <b className="text-foreground font-semibold">{pg.total}</b>건</>}</>
-                        : view === 'weeklylist'
-                          ? <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
-                          : <>전체 {initialHistory.length}건 중 <b className="text-foreground font-semibold">{filtered.length}건</b> 표시</>
-                      }
-                    </span>
-                    {brandId !== 'all' && (
-                      <FilterChip onClear={() => setBrandId('all')}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: brandColor(brandId) }} />
-                        브랜드: {brandId}
-                      </FilterChip>
-                    )}
-                    {authorKey !== 'all' && (
-                      <FilterChip onClear={() => setAuthorKey('all')}>
-                        작성자: {authorKey}
-                      </FilterChip>
-                    )}
-                    {view !== 'dailylist' && view !== 'weeklylist' && priorityKey !== 'all' && (
-                      <FilterChip onClear={() => setPriorityKey('all')}>
-                        중요도: {PRIORITY_META[priorityKey as Priority].label}
-                      </FilterChip>
-                    )}
-                    {view !== 'dailylist' && view !== 'weeklylist' && [...selectedTags].map(t => (
-                      <FilterChip key={t} onClear={() => toggleTag(t)}>
-                        <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
-                        {TAG_META[t].label}
-                      </FilterChip>
-                    ))}
+              <div className="shrink-0 px-4 bg-card border-b border-ink-150">
+                <div className="h-10 flex items-center gap-2 text-sm text-ink-400">
+                  {/* 좌측: 건수 + 활성 필터 칩 */}
+                  <span className="shrink-0">
+                    {view === 'dailylist'
+                      ? <>전체 <b className="text-foreground font-semibold">{dailyTotalCount}</b>건{dailyTotalCount !== pg.total && <> 중 <b className="text-foreground font-semibold">{pg.total}</b>건</>}</>
+                      : <>전체 <b className="text-foreground font-semibold">{weeklyCount.total}</b>건 중 <b className="text-foreground font-semibold">{weeklyCount.filtered}</b>건</>
+                    }
+                  </span>
+                  {brandId !== 'all' && (
+                    <FilterChip onClear={() => setBrandId('all')}>
+                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: brandColor(brandId) }} />
+                      브랜드: {brandId}
+                    </FilterChip>
+                  )}
+                  {authorKey !== 'all' && (
+                    <FilterChip onClear={() => setAuthorKey('all')}>
+                      작성자: {authorKey}
+                    </FilterChip>
+                  )}
 
-                    {/* 우측: dailylist·weeklylist 공용 태그/중요도 토글 */}
-                    {(view === 'dailylist' || view === 'weeklylist') && (
-                      <div className="ml-auto flex items-center gap-1 shrink-0">
-                        {TAG_KEYS.map(t => (
-                          <TagFilterBadge
-                            key={t}
-                            tag={t}
-                            active={selectedTags.has(t)}
-                            onClick={() => toggleTag(t)}
-                            dimmed={selectedTags.size > 0 && !selectedTags.has(t)}
-                          />
-                        ))}
-                        <span className="w-px h-3.5 bg-ink-200 mx-0.5 shrink-0" />
-                        {PRIORITY_KEYS.map(p => (
-                          <PriorityFilterBadge
-                            key={p}
-                            priority={p}
-                            active={priorityKey === p}
-                            onClick={() => setPriorityKey(priorityKey === p ? 'all' : p)}
-                            dimmed={priorityKey !== 'all' && priorityKey !== p}
-                          />
-                        ))}
-                      </div>
-                    )}
+                  {/* 우측: dailylist·weeklylist 공용 태그/중요도 토글 */}
+                  <div className="ml-auto flex items-center gap-1 shrink-0">
+                    {TAG_KEYS.map(t => (
+                      <TagFilterBadge
+                        key={t}
+                        tag={t}
+                        active={selectedTags.has(t)}
+                        onClick={() => toggleTag(t)}
+                        dimmed={selectedTags.size > 0 && !selectedTags.has(t)}
+                      />
+                    ))}
+                    <span className="w-px h-3.5 bg-ink-200 mx-0.5 shrink-0" />
+                    {PRIORITY_KEYS.map(p => (
+                      <PriorityFilterBadge
+                        key={p}
+                        priority={p}
+                        active={priorityKey === p}
+                        onClick={() => setPriorityKey(priorityKey === p ? 'all' : p)}
+                        dimmed={priorityKey !== 'all' && priorityKey !== p}
+                      />
+                    ))}
                   </div>
                 </div>
-              )}
+              </div>
 
               {view === 'dailylist' && (
                 <DailyListView
@@ -413,13 +390,6 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   selectedTags={selectedTags}
                   priorityKey={priorityKey}
                 />
-              )}
-              {view === 'summary' && (
-                <div data-scrolltop className="flex-1 overflow-y-auto">
-                  <div className="px-6 pb-5">
-                    <StatsView items={filtered} />
-                  </div>
-                </div>
               )}
             </>
           )}

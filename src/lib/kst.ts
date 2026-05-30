@@ -33,6 +33,13 @@ export function kstYear(): number {
   return Number(kstToday().slice(0, 4))
 }
 
+/** instant → KST 기준 시(0–23). 고정 +9h 오프셋이 아니라 IANA 타임존 기준. */
+export function kstHour(instant: Date | string = new Date()): number {
+  const d = typeof instant === 'string' ? new Date(instant) : instant
+  const h = new Intl.DateTimeFormat('en-GB', { timeZone: KST_TZ, hour: '2-digit', hour12: false }).format(d)
+  return Number(h) % 24
+}
+
 /** instant → KST 날짜 구성요소 {ymd, year, month(1-12), day, dow(0=일)} */
 export function kstParts(instant: Date | string = new Date()): {
   ymd: string
