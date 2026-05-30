@@ -4,7 +4,7 @@ import { LayoutList, Pin, Trash2 } from 'lucide-react'
 import { NOTE_COLORS } from './note-color-picker'
 import type { NoteColor } from '@/types'
 
-export type NoteQuickFilter = 'all' | 'pinned' | 'trash'
+export type NoteQuickFilter = 'all' | 'pinned'
 
 interface Props {
   quickFilter:          NoteQuickFilter

@@ -16,7 +16,7 @@ import {
 import { NoteCard, NoteCardOverlay }  from './_components/note-card'
 import { NoteCreateBar }              from './_components/note-create-bar'
 import { NoteEditModal }              from './_components/note-edit-modal'
-import { NoteTrashCard }              from './_components/note-trash-card'
+import { NoteTrashDrawer }            from './_components/note-trash-drawer'
 import { NotesSidebar, type NoteQuickFilter } from './_components/notes-sidebar'
 
 export default function NotesPage() {
@@ -175,8 +175,6 @@ export default function NotesPage() {
   const selectedNote = selectedId ? notes.find(n => n.id === selectedId) ?? null : null
   const activeNote   = activeId   ? notes.find(n => n.id === activeId)   ?? null : null
 
-  const isTrash = quickFilter === 'trash'
-
   const sharedProps = {
     onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId, highlight: q,
   }
@@ -245,76 +243,60 @@ export default function NotesPage() {
 
         {/* 스크롤 영역 */}
         <div className="flex-1 overflow-y-auto px-6 py-6">
-          {/* ── 휴지통 뷰 ───────────────────────────────── */}
-          {isTrash ? (
-            loading ? (
-              <div className="flex items-center justify-center py-20 text-sm text-ink-300">로딩 중...</div>
-            ) : trashNotes.length === 0 ? (
-              <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
-                <span className="text-3xl">🗑️</span>
-                <p className="text-sm font-medium text-muted-foreground">휴지통이 비어있습니다</p>
-              </div>
-            ) : (
-              <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
-                {trashNotes.map(note => (
-                  <NoteTrashCard
-                    key={note.id}
-                    note={note}
-                    onRestore={handleRestore}
-                    onPermanentDelete={handlePermanentDelete}
-                  />
-                ))}
-              </div>
-            )
-          ) : (
-            /* ── 일반 메모 뷰 ──────────────────────────── */
-            <>
-              {!searchQuery && quickFilter !== 'pinned' && (
-                <div className="mb-8">
-                  <NoteCreateBar onCreate={handleCreate} />
-                </div>
-              )}
+          {!searchQuery && quickFilter !== 'pinned' && (
+            <div className="mb-8">
+              <NoteCreateBar onCreate={handleCreate} />
+            </div>
+          )}
 
-              {loading ? (
-                <div className="flex items-center justify-center py-20 text-sm text-ink-300">로딩 중...</div>
-              ) : filtered.length === 0 ? (
-                <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
-                  <span className="text-3xl">{searchQuery ? '🔍' : '📝'}</span>
-                  <p className="text-sm font-medium text-muted-foreground">
-                    {searchQuery ? `"${searchQuery}" 검색 결과 없음` : '메모가 없습니다'}
-                  </p>
-                  {!searchQuery && <p className="text-sm text-ink-300">위 입력란을 클릭해 첫 메모를 만들어 보세요</p>}
-                </div>
-              ) : (
-                <DndContext
-                  sensors={sensors}
-                  collisionDetection={closestCenter}
-                  onDragStart={handleDragStart}
-                  onDragEnd={handleDragEnd}
-                  onDragCancel={() => setActiveId(null)}
-                >
-                  {pinnedNotes.length > 0 && (
-                    <section className="mb-6">
-                      <NoteCollection notes={pinnedNotes} {...sharedProps} />
-                    </section>
-                  )}
-                  {regularNotes.length > 0 && (
-                    <section>
-                      {pinnedNotes.length > 0 && quickFilter !== 'pinned' && (
-                        <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider block mb-3">기타</span>
-                      )}
-                      <NoteCollection notes={regularNotes} {...sharedProps} />
-                    </section>
-                  )}
-                  <DragOverlay>
-                    {activeNote && <NoteCardOverlay note={activeNote} />}
-                  </DragOverlay>
-                </DndContext>
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-sm text-ink-300">로딩 중...</div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
+              <span className="text-3xl">{searchQuery ? '🔍' : '📝'}</span>
+              <p className="text-sm font-medium text-muted-foreground">
+                {searchQuery ? `"${searchQuery}" 검색 결과 없음` : '메모가 없습니다'}
+              </p>
+              {!searchQuery && <p className="text-sm text-ink-300">위 입력란을 클릭해 첫 메모를 만들어 보세요</p>}
+            </div>
+          ) : (
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => setActiveId(null)}
+            >
+              {pinnedNotes.length > 0 && (
+                <section className="mb-6">
+                  <NoteCollection notes={pinnedNotes} {...sharedProps} />
+                </section>
               )}
-            </>
+              {regularNotes.length > 0 && (
+                <section>
+                  {pinnedNotes.length > 0 && quickFilter !== 'pinned' && (
+                    <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider block mb-3">기타</span>
+                  )}
+                  <NoteCollection notes={regularNotes} {...sharedProps} />
+                </section>
+              )}
+              <DragOverlay>
+                {activeNote && <NoteCardOverlay note={activeNote} />}
+              </DragOverlay>
+            </DndContext>
           )}
         </div>
       </div>
+
+      {/* 휴지통 드로어 */}
+      <NoteTrashDrawer
+        open={trashOpen}
+        trashNotes={trashNotes}
+        onClose={() => setTrashOpen(false)}
+        onRestore={handleRestore}
+        onPermanentDelete={handlePermanentDelete}
+        onEmptyTrash={handleEmptyTrash}
+      />
 
       {selectedNote && (
         <NoteEditModal
