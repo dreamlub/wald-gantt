@@ -4,8 +4,8 @@ import Link from 'next/link'
 import { usePathname, useRouter } from 'next/navigation'
 import { useSyncExternalStore } from 'react'
 import {
-  BarChart2, BarChart3, CheckSquare, FileText, Clock, Settings, LogOut,
-  BookOpen, CalendarDays, Sparkles, PanelLeftClose, PanelLeftOpen, Inbox,
+  GanttChartSquare, BarChart3, CheckSquare, FileText, MessageSquare, Settings, LogOut,
+  BookOpen, CalendarDays, Home, PanelLeftClose, PanelLeftOpen, Inbox,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -25,11 +25,11 @@ interface NavItem {
 
 /* ── 메뉴 정의 ── */
 const navItems: NavItem[] = [
-  { href: '/',         icon: Sparkles,     label: '홈',           short: '홈' },
-  { href: '/projects', icon: BarChart2,    label: '프로젝트 관리', short: '프로젝트' },
-  { href: '/tasks',    icon: CheckSquare,  label: '할일 관리',    short: '할일' },
-  { href: '/calendar', icon: CalendarDays, label: '업무시간 관리', short: '업무시간' },
-  { href: '/slack',    icon: Clock,        label: '슬랙메시지 분석', short: '슬랙' },
+  { href: '/',         icon: Home,              label: '홈',           short: '홈' },
+  { href: '/projects', icon: GanttChartSquare,  label: '프로젝트 관리', short: '프로젝트' },
+  { href: '/tasks',    icon: CheckSquare,       label: '할일 관리',    short: '할일' },
+  { href: '/calendar', icon: CalendarDays,      label: '업무시간 관리', short: '업무시간' },
+  { href: '/slack',    icon: MessageSquare,     label: '슬랙메시지 분석', short: '슬랙' },
   { href: '/stats',    icon: BarChart3,    label: '통계',         short: '통계' },
   { href: '/review',  icon: Inbox,        label: 'Review',          short: 'Review' },
   { href: '/weekly',   icon: FileText,     label: '주간보고 분석', short: '주간보고' },
