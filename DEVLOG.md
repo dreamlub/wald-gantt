@@ -2,6 +2,21 @@
 
 ---
 
+## 2026-05-31 — 슬랙 기능 사용자 버그 4건 수정
+
+전수 분석에서 "도달 가능 확정"된 실사용 버그 4건 수정.
+
+1. **로딩 스피너 영구 고착** — `raw-data-view.tsx`·`weekly-brand-view.tsx`의 user/member(/error) early-return이 `setLoading(false)` 누락 → 인증·멤버십 실패 시 "로딩 중…" 무한. 각 return에 `setLoading(false)` 추가.
+2. **collect-raw 검색 1,000건 자체 상한** — `while (page <= 10)`은 Slack 하드리밋이 아닌 자체 상한(경고 코드 `lastPages > 10`이 증거)이라 바쁜 날 누락. 30p(3,000건)로 상향 + 경고 임계 동기화. `page >= lastPages` 자연 종료라 일반 날 영향 없음.
+3. **타임라인 타입 필터 시 자식 노드 누락** — `timeline-tracker.tsx` 트리 구성에서 부모가 필터로 빠지면 자식이 트리·standalone 양쪽에서 탈락. standalone 조건을 `!parentIds.has(r.id) && (!parent_issue_id || !byId.has(parent))`로 바꿔 고아 승격.
+4. **검색창이 dailylist에서만 동작** — 전 탭에 보이지만 `searchQuery`는 dailylist `fetchPage`에만 연결. `slack-toolbar.tsx`에서 검색 UI를 `view === 'dailylist'`일 때만 렌더.
+
+부수: `weekly-brand-view.tsx`의 기존 `react-hooks/set-state-in-effect` 린트 부채를 raw-data-view와 동일한 `eslint-disable-next-line` 패턴으로 정리.
+
+검증: `tsc --noEmit` src 0 · `eslint`(5파일) 0 · dev 서버 `✓ Compiled` + `/slack`·`/api/issues` 200 확인. (preview 직접 UI 확인은 미인증 리다이렉트로 불가)
+
+---
+
 ## 2026-05-31 — 타임라인 이슈 완료 처리 Part 1 + 데일리 리포트 드로어 제거
 
 ### 타임라인 이슈 완료 처리 (Part 1 — 수동 토글)

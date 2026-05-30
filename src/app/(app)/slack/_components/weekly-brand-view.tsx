@@ -173,7 +173,10 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
     setLoading(false)
   }, [])
 
-  useEffect(() => { fetchSummaries() }, [fetchSummaries])
+  useEffect(() => {
+    // eslint-disable-next-line react-hooks/set-state-in-effect
+    fetchSummaries()
+  }, [fetchSummaries])
 
   // 날짜만 필터한 결과 → 사이드바 브랜드 카운트 기준 (브랜드/태그/중요도 선택해도 목록 유지)
   const dateFiltered = useMemo(() => {
