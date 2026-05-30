@@ -2,6 +2,57 @@
 
 ---
 
+## 2026-05-31 — 할일 관리 품질 개선 + 홈 Today 실행 큐 강화
+
+다른 AI의 코드 리뷰를 기반으로 할일 관리 버그·취약점 수정, 통계용 아카이브 분리, UI 개선, 홈 화면 실행 큐 강화. (커밋 `6620596`)
+
+### 1. inbox 상태 제거
+
+`TaskStatus`에서 `'inbox'` 제거. `_constants.tsx`(ABBR·COLOR·BG_COLOR·LABEL), `list-view.tsx`(STATUS_ORDER) 정리.
+
+### 2. task-service 원자성 개선
+
+- **addTask**: 프로젝트 링크 삽입 실패 시 생성된 태스크 롤백 삭제.
+- **updateTask**: 기존 `delete-all → insert` 방식 → 현재 링크와 diff해서 추가/삭제만 처리. 삽입 먼저, 삭제 나중 순서라 실패해도 기존 연결 보존.
+
+### 3. 부모/자식 상태 전파 안전화
+
+배열 인덱스 비교(`tasks[i]?.status`) → `Map<id, status>` 기반 비교로 교체. 순서 의존성 제거.
+
+### 4. 자동 보관 정책 명시화
+
+`autoArchiveTasks`가 `load()` 호출마다 실행되던 구조 → `useRef`로 마운트 1회만 실행.
+
+### 5. task_completions 스냅샷 + 30일 자동 purge
+
+통계 보존을 위해 아카이브 시 `task_completions` 테이블에 스냅샷. 아카이브 후 30일 경과 태스크는 `autoPurgeArchivedTasks`로 영구 삭제.
+
+보존 필드: `assignee`, `type`, `priority`, `labels`, `projects(JSONB)`, `start_date`, `completed_at` → 담당자별 처리량·프로젝트별 완료율·평균 처리 기간 집계 가능.
+
+### 6. 칸반 스타일 개선
+
+- 카드: 상태 색상 좌측 보더(`border-l-2`) + 그림자(`shadow-sm`, 호버 시 `shadow-md`).
+- 컬럼 헤더: 상단 색상 라인(`h-0.5`) + 태스크 수를 상태 색상 pill 뱃지로 교체.
+
+### 7. 간트 개선
+
+- 날짜 없는 태스크의 안내 텍스트를 스크롤 영역에서 sticky 좌측 컬럼으로 이동. 오늘 날짜 기준 스크롤 시에도 항상 보임.
+- Gantt 탭 진입 시 `완료 포함` 토글 자동 해제.
+
+### 8. 뷰 탭 레이블 정리
+
+`Basic View` / `List View` 등 → `Basic` / `List` / `Kanban` / `Gantt` / `Calendar`.
+
+### 9. 홈 내 실행 큐 강화
+
+기존 단순 링크 목록 → `TodayTasksPanel` client component로 교체.
+
+- **날짜 그룹화**: 지연 / 오늘 / 내일 / 이번 주 섹션 분리.
+- **완료 버튼**: 각 행에 체크 버튼. 클릭 시 낙관적 업데이트로 즉시 목록에서 제거, 실패 시 복원 + toast.
+- 서버 컴포넌트(page.tsx)는 유지, task 인터랙션 부분만 client island로 분리.
+
+---
+
 ## 2026-05-31 — 타임라인 데이터 백필 + 4개 브랜드 타임라인 생성 + classify 자동화
 
 ### 1. client_history → issues 백필
