@@ -188,6 +188,9 @@
 }
 
 :root {
+  /* 레이아웃 치수 — inline style의 var()로만 참조돼 @theme tree-shaking 대상이므로 :root에 직접 정의 */
+  --tracker-list-w: 460px;
+
   --background: oklch(1 0 0);
   --foreground: oklch(0.145 0 0);
   --card: oklch(1 0 0);

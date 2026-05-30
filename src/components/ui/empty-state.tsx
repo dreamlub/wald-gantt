@@ -11,7 +11,7 @@ export function EmptyState({ icon, title, description, action, className }: Prop
     <div className={`flex flex-col items-center justify-center text-center ${className ?? 'py-12'}`}>
       {icon && <div className="opacity-30 mb-3">{icon}</div>}
       <div className="text-xs text-muted-foreground">{title}</div>
-      {description && <div className="text-[11px] text-ink-400 mt-1">{description}</div>}
+      {description && <div className="text-3xs text-ink-400 mt-1">{description}</div>}
       {action && <div className="mt-4">{action}</div>}
     </div>
   )

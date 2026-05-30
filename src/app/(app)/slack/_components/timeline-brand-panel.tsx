@@ -1,7 +1,7 @@
 'use client'
 
-import { AlertCircle, Clock, TrendingUp, Inbox } from 'lucide-react'
-import { IssueTreeView } from './issue-tree-view'
+import { AlertCircle, Clock, TrendingUp, Inbox, MousePointerClick } from 'lucide-react'
+import { TimelineViewSwitch } from './timeline-view-switch'
 import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
 
 interface Props {
@@ -10,19 +10,27 @@ interface Props {
 }
 
 export function TimelineBrandPanel({ brandId, stats }: Props) {
-  // 전체 보기
+  // 전체 보기 — 브랜드 미선택 안내
   if (brandId === 'all') {
-    return <IssueTreeView brandFilter={undefined} />
+    return (
+      <div className="flex-1 flex flex-col items-center justify-center gap-3 px-8 text-center">
+        <div className="w-12 h-12 rounded-2xl bg-ink-50 flex items-center justify-center">
+          <MousePointerClick size={22} className="text-ink-300" />
+        </div>
+        <p className="text-sm font-semibold text-foreground">브랜드를 선택해 주세요</p>
+        <p className="text-xs text-ink-400">타임라인은 브랜드별로 확인할 수 있습니다.</p>
+      </div>
+    )
   }
 
   // 아직 stats 로딩 중
   if (!stats) {
-    return <IssueTreeView brandFilter={brandId} />
+    return <TimelineViewSwitch brandFilter={brandId} />
   }
 
-  // 이슈 있으면 바로 트리뷰
+  // 이슈 있으면 바로 트래커
   if (stats.issue_count > 0) {
-    return <IssueTreeView brandFilter={brandId} />
+    return <TimelineViewSwitch brandFilter={brandId} />
   }
 
   // 조건 미충족
@@ -33,8 +41,8 @@ export function TimelineBrandPanel({ brandId, stats }: Props) {
           <AlertCircle size={22} className="text-ink-300" />
         </div>
         <div>
-          <p className="text-[15px] font-semibold text-ink mb-1">{brandId}</p>
-          <p className="text-[13px] text-ink-400">타임라인 생성 조건 미충족</p>
+          <p className="text-base font-semibold text-ink mb-1">{brandId}</p>
+          <p className="text-sm text-ink-400">타임라인 생성 조건 미충족</p>
         </div>
         <div className="bg-muted rounded-xl px-6 py-4 text-left space-y-3 w-full max-w-sm">
           <Stat
@@ -52,7 +60,7 @@ export function TimelineBrandPanel({ brandId, stats }: Props) {
             need="최소 30건"
           />
         </div>
-        <p className="text-[12px] text-ink-300 max-w-xs leading-relaxed">
+        <p className="text-2xs text-ink-300 max-w-xs leading-relaxed">
           {stats.weekly_count === 0
             ? 'classify 스킬로 슬랙 메시지를 분류하면 위클리 리포트가 쌓입니다.'
             : '데이터가 더 쌓이면 /brand-timeline 스킬로 타임라인을 생성할 수 있습니다.'}
@@ -68,8 +76,8 @@ export function TimelineBrandPanel({ brandId, stats }: Props) {
         <Inbox size={22} className="text-ink-300" />
       </div>
       <div>
-        <p className="text-[15px] font-semibold text-ink mb-1">{brandId}</p>
-        <p className="text-[13px] text-ink-400">타임라인이 아직 생성되지 않았습니다</p>
+        <p className="text-base font-semibold text-ink mb-1">{brandId}</p>
+        <p className="text-sm text-ink-400">타임라인이 아직 생성되지 않았습니다</p>
       </div>
       <div className="bg-muted rounded-xl px-6 py-4 text-left space-y-3 w-full max-w-sm">
         <Stat
@@ -87,7 +95,7 @@ export function TimelineBrandPanel({ brandId, stats }: Props) {
           need=""
         />
       </div>
-      <p className="text-[12px] text-ink-300 max-w-xs leading-relaxed">
+      <p className="text-2xs text-ink-300 max-w-xs leading-relaxed">
         데이터가 충분합니다.{' '}
         <code className="bg-ink-100 px-1 py-0.5 rounded text-ink-500">/brand-timeline {brandId}</code>
         를 실행하면 타임라인을 생성할 수 있습니다.
@@ -107,11 +115,11 @@ function Stat({
 }) {
   return (
     <div className="flex items-center gap-2.5">
-      <span className={ok ? 'text-green-500' : 'text-amber-500'}>{icon}</span>
-      <span className="text-[12px] text-ink-500 flex-1">{label}</span>
-      <span className={`text-[12px] font-semibold ${ok ? 'text-ink' : 'text-amber-600'}`}>{value}</span>
+      <span className={ok ? 'text-status-ok' : 'text-status-warn'}>{icon}</span>
+      <span className="text-2xs text-ink-500 flex-1">{label}</span>
+      <span className={`text-2xs font-semibold ${ok ? 'text-ink' : 'text-status-warn'}`}>{value}</span>
       {!ok && need && (
-        <span className="text-[11px] text-ink-300">({need})</span>
+        <span className="text-3xs text-ink-300">({need})</span>
       )}
     </div>
   )

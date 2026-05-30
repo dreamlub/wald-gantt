@@ -12,7 +12,7 @@ export function PriorityBars({ priority, showLabel, onDark }: { priority: Priori
   const meta = PRIORITY_META[priority]
   return (
     <span className="inline-flex items-center gap-1" title={meta.label}>
-      <span className="inline-flex items-end gap-[1px]">
+      <span className="inline-flex items-end gap-px">
         {[1, 2, 3].map(i => (
           <span
             key={i}
@@ -95,7 +95,7 @@ export function PriorityFilterBadge({ priority, active, onClick, dimmed }: {
         dimmed ? 'opacity-40 hover:opacity-70' : 'hover:opacity-80'
       }`}
       style={active
-        ? { backgroundColor: meta.color, color: 'white', borderColor: meta.color }
+        ? { backgroundColor: meta.color, color: 'var(--color-tag-vivid-text)', borderColor: meta.color }
         : { backgroundColor: 'transparent', color: meta.color, borderColor: meta.color }
       }
     >

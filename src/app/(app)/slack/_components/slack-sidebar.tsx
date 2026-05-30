@@ -78,7 +78,7 @@ function CalendarBrandSidebar({
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'summary' | 'rawdata' | 'timeline' | 'calendar'
+  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'rawdata' | 'timeline' | 'calendar'
   history: HistoryItem[]
   dateFrom: string
   dateTo: string
@@ -217,7 +217,7 @@ export function SummarySidebar({
       <div className="mt-3">
         <GroupTitle>중요도</GroupTitle>
         <button onClick={() => onPriorityChange('all')} className={`sidebar-btn ${priorityKey === 'all' ? 'sidebar-btn-active' : ''}`}>
-          <span className="inline-flex items-end gap-[1px] shrink-0">
+          <span className="inline-flex items-end gap-px shrink-0">
             {[5, 7, 9].map((h, i) => (
               <span key={i} className="w-0.5 rounded-sm bg-ink-300" style={{ height: `${h}px` }} />
             ))}
@@ -398,7 +398,7 @@ function BrandBtn({ stat, active, onClick }: {
     >
       <span
         className="w-2 h-2 rounded-full shrink-0"
-        style={{ backgroundColor: hasIssues ? brandColor(stat.brand_name) : eligible ? brandColor(stat.brand_name) : '#d1d5db' }}
+        style={{ backgroundColor: hasIssues || eligible ? brandColor(stat.brand_name) : 'var(--color-ink-300)' }}
       />
       <span className="flex-1 truncate text-left">{stat.brand_name}</span>
       {active && <Check size={12} className="shrink-0" />}

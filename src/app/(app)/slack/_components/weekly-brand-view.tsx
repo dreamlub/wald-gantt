@@ -40,7 +40,7 @@ function MarkdownBody({ text, className }: { text: string; className?: string })
     <ul className={`flex flex-col gap-1 ${className ?? ''}`}>
       {sentences.map((s, i) => (
         <li key={i} className="flex items-start gap-1.5">
-          <span className="mt-[5px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
+          <span className="mt-px5 w-1 h-1 rounded-full bg-ink-300 shrink-0" />
           <span>{renderInline(s)}</span>
         </li>
       ))}
@@ -75,7 +75,10 @@ function groupByWeek(rows: WeeklyBrandSummary[]) {
   }
   return [...map.entries()]
     .sort(([a], [b]) => b.localeCompare(a))
-    .map(([week_start, items]) => ({ week_start, items }))
+    .map(([week_start, items]) => ({
+      week_start,
+      items: items.slice().sort((a, b) => b.item_count - a.item_count),
+    }))
 }
 
 // ── 행 컴포넌트 ───────────────────────────────────────────────

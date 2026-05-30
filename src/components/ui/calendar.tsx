@@ -90,7 +90,7 @@ function Calendar({
         table: "w-full border-collapse",
         weekdays: cn("flex", defaultClassNames.weekdays),
         weekday: cn(
-          "flex-1 text-center rounded-(--cell-radius) text-[10px] font-normal text-muted-foreground select-none",
+          "flex-1 text-center rounded-(--cell-radius) text-4xs font-normal text-muted-foreground select-none",
           defaultClassNames.weekday
         ),
         week: cn("mt-1 flex w-full", defaultClassNames.week),
@@ -219,7 +219,7 @@ function CalendarDayButton({
       data-range-end={modifiers.range_end}
       data-range-middle={modifiers.range_middle}
       className={cn(
-        "relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal text-[11px]",
+        "relative isolate z-10 flex aspect-square size-auto w-full min-w-(--cell-size) flex-col gap-1 border-0 leading-none font-normal text-3xs",
         weekendColor,
         "group-data-[focused=true]/day:relative group-data-[focused=true]/day:z-10",
         // range
