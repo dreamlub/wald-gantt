@@ -47,7 +47,7 @@ export function DailyListSidebarPanel({
     <div className="flex flex-col flex-1 min-h-0 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
 
       {/* ── 기간 ── */}
-      <div className="border-b border-border shrink-0 pt-2">
+      <div className="shrink-0 pt-2 px-2">
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
@@ -58,7 +58,7 @@ export function DailyListSidebarPanel({
       {/* ── 브랜드 ── */}
       {brandList.length > 0 && (
         <div className="flex flex-col flex-1 min-h-0">
-          <div className="p-2 shrink-0">
+          <div className="pt-2 px-2 pb-2 shrink-0">
             <SectionTitle>브랜드 {brandList.length}</SectionTitle>
             <div className="relative">
               <Search size={10} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />

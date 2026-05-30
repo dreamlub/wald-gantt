@@ -5,7 +5,7 @@ import { usePathname, useRouter } from 'next/navigation'
 import { useSyncExternalStore } from 'react'
 import {
   BarChart2, CheckSquare, FileText, Clock, Settings, LogOut,
-  BookOpen, CalendarDays, Sparkles, PanelLeftClose, PanelLeftOpen,
+  BookOpen, CalendarDays, Sparkles, PanelLeftClose, PanelLeftOpen, Inbox,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 
@@ -30,6 +30,7 @@ const navItems: NavItem[] = [
   { href: '/tasks',    icon: CheckSquare,  label: '할일 관리',    short: '할일' },
   { href: '/calendar', icon: CalendarDays, label: '업무시간 관리', short: '업무시간' },
   { href: '/slack',    icon: Clock,        label: '슬랙메시지 분석', short: '슬랙' },
+  { href: '/review',  icon: Inbox,        label: 'Review',          short: 'Review' },
   { href: '/weekly',   icon: FileText,     label: '주간보고 분석', short: '주간보고' },
   { href: '/notes',    icon: BookOpen,     label: '메모장',       short: '메모장' },
   { href: '/settings', icon: Settings,     label: '설정',         short: '설정' },

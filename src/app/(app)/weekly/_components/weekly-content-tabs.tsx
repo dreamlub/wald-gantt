@@ -1,7 +1,7 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Sparkles, LayoutList, RefreshCw, CheckSquare } from 'lucide-react'
+import { FileText, Sparkles, LayoutList, RefreshCw, CheckSquare, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
@@ -41,9 +41,12 @@ interface Props {
   reports:         WeeklyReport[]
   insight:         WeeklyInsight | null
   reportsLoading:  boolean
-  prevWeekStart:   string
-  onInsightUpdate: (i: WeeklyInsight) => void
-  onRefresh:       () => void
+  collecting:      boolean
+  onCollect:       () => void
+  onPrevWeek?:     () => void
+  onNextWeek?:     () => void
+  hasPrev?:        boolean
+  hasNext?:        boolean
 }
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
@@ -56,8 +59,8 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 // ── 컴포넌트 ──────────────────────────────────────────────────────
 
 export function WeeklyContentTabs({
-  week, teamColors, reports, insight, reportsLoading,
-  onInsightUpdate, onRefresh,
+  week, teamColors, reports, insight, reportsLoading, collecting, onCollect,
+  onPrevWeek, onNextWeek, hasPrev, hasNext,
 }: Props) {
   const [activeTab, setActiveTab]     = useState<Tab>('raw')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
@@ -104,12 +107,29 @@ export function WeeklyContentTabs({
           ))}
         </nav>
         <div className="flex-1" />
+        <div className="flex items-center pr-3">
+          <button
+            onClick={onCollect}
+            disabled={collecting}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
+          >
+            <RotateCcw size={12} className={collecting ? 'animate-spin' : ''} />
+            {collecting ? '수집 중...' : '재수집'}
+          </button>
+        </div>
       </div>
 
       {/* ── 컨텍스트 바 ── */}
       <div className="shrink-0 px-4 bg-card border-b border-ink-150">
         {/* 주차 정보 */}
         <div className="h-10 flex items-center gap-2 text-sm text-ink-400">
+          <button
+            onClick={onPrevWeek}
+            disabled={!hasPrev}
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-25 disabled:cursor-not-allowed transition-colors shrink-0"
+          >
+            <ChevronLeft size={14} />
+          </button>
           <span className="font-semibold text-foreground shrink-0">{month}월 {weekNum}주</span>
           <span className="shrink-0">W{wNum}</span>
           <span className="shrink-0">{fmtRange(week.weekStart, week.weekEnd)}</span>
@@ -119,6 +139,13 @@ export function WeeklyContentTabs({
               ? <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-mint-100 text-mint-600 shrink-0">{total}팀</span>
               : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 shrink-0">{collected}/{total}팀</span>
           }
+          <button
+            onClick={onNextWeek}
+            disabled={!hasNext}
+            className="w-5 h-5 flex items-center justify-center rounded hover:bg-muted disabled:opacity-25 disabled:cursor-not-allowed transition-colors shrink-0"
+          >
+            <ChevronRight size={14} />
+          </button>
         </div>
 
         {/* 팀 배지 — 수집 현황 탭 제외 */}
@@ -199,24 +226,14 @@ export function WeeklyContentTabs({
         {activeTab === 'insight' && (
           insight
             ? <AISummaryPanel
-                weekStart={week.weekStart}
                 insight={insight}
                 reports={reports}
-                onInsightUpdate={onInsightUpdate}
-                onRefresh={onRefresh}
                 onClose={() => setActiveTab('summary')}
               />
-            : <div className="flex flex-col items-center justify-center py-20 gap-4">
+            : <div className="flex flex-col items-center justify-center py-20 gap-3">
                 <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
-                <p className="text-sm text-muted-foreground text-center">AI 인사이트가 아직 생성되지 않았습니다.</p>
-                <button
-                  onClick={onAnalyze}
-                  disabled={analyzing}
-                  className="flex items-center gap-1.5 px-4 py-2 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
-                >
-                  {analyzing ? <RefreshCw size={12} className="animate-spin" /> : <Sparkles size={12} />}
-                  {analyzing ? 'AI 분석 중...' : 'AI 분석 시작'}
-                </button>
+                <p className="text-sm text-muted-foreground text-center">인사이트가 아직 생성되지 않았습니다.</p>
+                <p className="text-xs text-ink-400 text-center">MCP 스킬로 주간보고 요약을 실행해 주세요.</p>
               </div>
         )}
 

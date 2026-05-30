@@ -8,6 +8,368 @@
 
 ---
 
+## 설계 결정 (2026-05-30) — Slack 파이프라인 리아키텍처 방향
+
+### 배경
+기존 Daily→Weekly→Timeline 구조의 실효성 문제: 날짜가 주체라 같은 이슈가 여러 날에 흩어져 브랜드별 이슈 추적이 불가능. 더리터 284건을 분석한 결과, "구미선산점 결제 취소 실패"가 3개월 이상 지속됐으나 기존 화면에선 인지 불가.
+
+### 확정된 방향: 슬랙 메시지 3분류 구조
+
+| 유형 | 추적 방식 |
+|------|----------|
+| **이슈** | 노드로 열리고 닫힘 · 파생 이슈 가능 · 자동 상태 업데이트 |
+| **프로젝트** | 마일스톤 기반 (시작~완료, 데드라인) |
+| **결정** | 포인트 기록 · 나중에 "왜 이렇게 했지?" 참조용 |
+
+### 새 파이프라인
+```
+새 슬랙 메시지
+  → AI: 해당 브랜드 열린 이슈 목록 조회 (5~10개)
+  → 기존 이슈 매칭 → 노드 업데이트
+     or 신규 → 새 노드 생성
+  → client_history.issue_id 연결
+```
+Weekly가 하던 볼륨 축소 역할을 이슈 스레드가 자연 대체. AI가 일주일치를 한 번에 읽을 필요 없음.
+
+### Weekly의 역할 변화
+- 기존: 메시지 전체 AI 요약
+- 변경: `WHERE updated_at > 이번주 월요일`로 이슈/프로젝트/결정 테이블 직접 조회 → 브리핑
+
+### 이슈 상태
+- 활성(7일내) / 조용함(7~30일) / 소멸(30일+) — 시간 기반 자동
+- 해소됨 — 사용자가 직접 닫기 (AI 자동 판단 없음)
+
+### 필요한 작업 (미구현)
+1. `issues` 테이블 신규 (id, brand_name, title, type, status, first_seen, last_seen, body, action, parent_issue_id)
+2. `client_history.issue_id` FK 추가
+3. 분류 프롬프트 개편 (열린 이슈 목록 + 매칭 판단)
+4. Weekly 쿼리 변경
+
+> **프롬프트 변경은 구현 시점에 맞춰 진행** — 미리 바꾸면 기존 파이프라인 혼란
+
+---
+
+## 2026-05-30 — Review Inbox 페이지 신규 작성
+
+### 추가 파일
+- `src/app/(app)/review/page.tsx` — 서버 컴포넌트 진입점
+- `src/app/(app)/review/_components/review-shell.tsx` — 'use client', 목록 조회·필터·populate
+- `src/app/(app)/review/_components/review-card.tsx` — 'use client', 개별 후보 카드 + 인라인 태스크 생성 폼
+
+### 주요 사항
+- `ReviewCandidate`, `ReviewStatus`, `ReviewSource`, `ReviewPriority` 타입은 `@/types/index.ts`에 기존 정의 활용
+- 필터: source(Slack/Daily/Weekly) · brand(동적) · priority(높음/보통/낮음) — 단일 선택, 재클릭 시 all 해제
+- 카드 내 "태스크 만들기" → 인라인 폼 펼침 (title/memo/due_date pre-fill, priority → 숫자 변환)
+- 보류/무시 즉시 `PATCH /api/review/candidates/:id` 호출 후 목록에서 제거
+- "후보 수집" 버튼: `POST /api/review/populate` → 재조회, 스피너 표시
+
+---
+
+## 최근 변경 (2026-05-30) — 메모장 전면 강화: 색상·사이드바·휴지통·Tiptap 확장
+
+### 1. 색상 팔레트 확장 + 기본값 노랑 (`e7f30e1`)
+- 메모 색상 6개 → 9개 (lavender, sage, clay 추가)
+- 신규 메모 기본값 yellow로 변경
+- 카드 푸터에 날짜 우측 일시 표시 (M/D HH:mm 형식)
+
+### 2. 메모장 개선 — 색상 필터·그리드 드래그·마크다운 렌더링 (`c5bec2c`)
+- 사이드바 색상 필터: 색상별 원형 버튼 클릭 → 해당 색상 메모만 표시
+- `@dnd-kit/sortable` 그리드 드래그 정렬 (sort_order 실시간 저장)
+- 메모 카드 내 마크다운 렌더링 (react-markdown)
+
+### 3. Notes 사이드바 추가 (`97dc8b0`)
+- 전체 / 고정됨 퀵필터 버튼
+- 색상 필터 칩 (색상별 카운트 표시)
+- 휴지통 링크 (삭제된 메모 관리)
+
+### 4. 신규 메모 생성에도 Tiptap WYSIWYG 적용 (`4d682f1`)
+- NoteCreateBar의 빠른 입력도 Tiptap 에디터로 전환
+- NoteListItem 미사용 컴포넌트 삭제
+
+### 5. 휴지통 기능 (`2b170cd`, `d01b432`, `174b803`, `3133149`, `5b922f7`)
+- `notes.deleted_at` 컬럼 추가 (soft delete)
+- 휴지통 인라인 뷰 → `NoteTrashDrawer` 슬라이드-인 전환
+- 공통 `TrashDrawer` 컴포넌트로 리팩터 (재사용 가능)
+- 드로어 닫을 때 사이드바 `trashCount` 숫자 즉시 동기화
+
+### 6. DB 제약 + 카드 풋터 수정 (`3d87983`, `9961e29`)
+- 신규 색상값 DB CHECK constraint 해제 (동적 추가 가능)
+- 사이드바 색상 필터 한 줄 배치 + 타입 불일치 수정
+
+---
+
+## 최근 변경 (2026-05-30) — /slack 라우트 이동 + 캘린더 중복 제거 + 위클리 사이드바 개편
+
+### 1. `/summary` → `/slack` 라우트 이동 (`2f69b91`)
+- `app/(app)/summary/` 디렉터리 → `app/(app)/slack/`로 이동
+- 사이드바 내비게이션 링크 일괄 수정
+
+### 2. 데일리 리포트 구버전 제거 — v2로 완전 통합 (`fa6ae12`)
+- 기존 `DailyReportView` (v1) 삭제
+- `DailyReportV2View` → `DailyReportView`로 리네임
+- 토글 스위치 및 v1 관련 상태 변수 모두 제거
+
+### 3. 캘린더 일정 중복 제거 강화 (`813191f`, `8901a14`)
+- Google Calendar 이벤트 dedup 조건 강화: `eventId` 기반 중복 차단
+- 브랜드명 표기 차이(예: `ABC` vs `ABC 법인`)로 인한 중복 이벤트 제거
+  - 정규화: 공백·특수문자 제거 후 prefix 일치 여부 비교
+
+### 4. 위클리 리스트 사이드바 개편 (`ac48e49`)
+- 브랜드 목록 사이드바로 이동 (기존 필터 바 → 사이드)
+- 본문 태그·중요도 필터도 사이드바 하단으로 통합
+
+---
+
+## 최근 변경 (2026-05-29–30) — Weekly 주간보고 UI 전면 재설계
+
+### 목적
+팀별 Outline 수집 → AI 분류 → 원문/요약/인사이트 3탭 인라인 구조로 재설계
+
+### 1. 사이드바를 주차 중심 '수집 현황' 구조로 개편 (`d6d7894`)
+- 주차별 섹션에 팀별 수집 상태 도트 + 항목 수 표시
+- 수집 안 된 주차는 흐리게, 수집 완료 주차는 파랑 강조
+- 주차 클릭 → 해당 주차 데이터 로드
+
+### 2. 메인을 원문/요약/인사이트 3탭 인라인 구조로 리디자인 (`ba787bc`)
+- "원문" 탭: Outline 원문 마크다운 그대로 렌더 (weekly-raw-view)
+- "요약" 탭: AI 팀별 요약 카드
+- "인사이트" 탭: 이슈/결정/계획 타입별 필터
+- 탭 전환 시 같은 주차 데이터 유지 (공유 상태)
+
+### 3. 주간보고 수집 화면 주차 중심으로 재설계 (`53475e4`)
+- Outline 수집 버튼: 팀별 개별 수집 + 전체 수집
+- 수집 진행 상태를 주차 단위로 시각화
+
+### 4. Outline 수집/분석을 슬랙처럼 2단계 수동 분리 (`16e8647`)
+- 기존: 수집 즉시 AI 분석 자동 실행
+- 변경: "수집" → 결과 확인 → "분석" 별도 실행
+- 팀별 실패 격리: 한 팀 실패해도 다른 팀 분석 계속 진행
+
+### 5. 미사용 weekly-raw-panel 제거 (`276c3a9`)
+- 원문 인라인 뷰(3탭 구조)로 대체되어 별도 패널 불필요
+
+---
+
+## 최근 변경 (2026-05-29) — 구글 캘린더 — 이벤트 생성·편집·드래그·리사이즈 완성
+
+### 1. 구글 캘린더 단방향 동기화 + 마감 행 추가 (`59d2cc1`)
+- Tasks/Projects 마감일을 Google Calendar에 읽기 전용으로 표시
+- 기존 "업무가능 시간" 행 제거 → 마감 전용 행 추가 (하루종일 이벤트)
+
+### 2. 빈 시간대 클릭 → 일정 생성 → 구글 캘린더 동기화 (`9259e49`)
+- 캘린더 빈 셀 클릭 → 인라인 폼(제목 입력 + 시작/종료 자동 설정)
+- 저장 시 Google Calendar `events.insert` API 호출 후 로컬 상태 갱신
+
+### 3. 이벤트 블록 드래그 이동 + 리사이즈 (`c66f924`)
+- 이벤트 블록 드래그: 마우스 delta 기반 시간대 이동 → `events.patch` 동기화
+- 블록 하단 핸들 드래그: 종료 시간 조정 → `events.patch`
+- 낙관적 업데이트 (드래그 중 즉시 반영, 실패 시 롤백)
+
+### 4. 이벤트 블록 편집을 드로어로 전환 (`f65855d`, `60f581a`)
+- 기존 호버 인라인 편집 → 클릭 시 우측 Drawer 오픈
+- 좁은 이벤트 블록 편집 시 열 너비로 확장
+
+### 5. 이벤트 블록 UI 개선 (`d3ec032`, `b90f339`, `47cee83`)
+- 구글 캘린더와 동일한 스타일로 통일 (모서리 둥글기, 텍스트 크기)
+- 직접 만든 이벤트 블록에 풍선말(툴팁) 추가 (제목·시간·장소)
+- 겹친 일정 블록 호버 시 칸 전체 너비로 펼침 (z-index 상승)
+
+### 6. 캘린더 Tooltip 포털 전환 (`82b5c00`, `76c2336`, `ae5756a`, `94a1d27`)
+- base-ui `<Tooltip>` → 커스텀 포털 툴팁으로 교체
+- 스태킹 컨텍스트 충돌로 툴팁이 이벤트 블록 뒤로 가리는 문제 해결
+- tooltip z-index 인라인 스타일로 강제 적용
+
+### 7. 일정 캘린더 중복 이벤트 dedup 강화 (`4fe0ba7`)
+- `eventId` + 시간 기반 중복 필터링
+
+### 8. Google OAuth 자격증명 DB 관리 + 연동 오류 토스트 (`40e8b5c`)
+- Google OAuth `access_token` / `refresh_token`을 `workspace_credentials` 테이블에 저장
+- 연동 실패(토큰 만료 등) 시 명시적 토스트 에러 메시지 표시
+
+---
+
+## 최근 변경 (2026-05-29) — 워크스페이스 도메인 설정 + 멘션 자동 감지
+
+### 변경 내용 (`be7d82e`)
+- `workspaces.domain` 컬럼 추가 (예: `wald.so`) — 슬랙 멘션 감지에 활용
+- 설정 화면 "워크스페이스" 섹션에 도메인 입력 필드 추가
+- 수집 파이프라인에서 `@domain.com` 패턴을 `mention` 태그로 자동 분류
+- `client_history.tags`에 `mention` 태그 자동 삽입
+
+---
+
+## 최근 변경 (2026-05-29) — Weekly 분석 견고화 + AI Structured Outputs 전환
+
+### 1. JSON 응답을 structured outputs로 전환 (`ca32866`)
+- `claude-3-haiku-*`의 JSON 응답을 기존 `정규식 + repairJson` 파싱 → Anthropic structured outputs으로 교체
+- 응답 잘림, 잘못된 JSON 파싱 오류 원천 차단
+
+### 2. 분석 견고화 — 팀별 실패 격리 + 분석 윈도우 제한 (`663f194`)
+- 한 팀 AI 호출 실패해도 나머지 팀 분석 계속 진행
+- 분석 대상 기간을 최근 2주로 제한 (과도한 토큰 소비 방지)
+
+### 3. 보고서 분석 응답 잘림 해결 (`70bfb22`)
+- `max_tokens` 증가 + 스트리밍 응답 완료 여부 체크 추가
+- 불완전 JSON 수신 시 재시도 로직
+
+### 4. 데일리 리포트 fallback 문구 정리 (`09af071`)
+- 리포트 없는 날짜: "리포트가 없습니다" 단순 문구 → 날짜 + 안내 메시지로 개선
+
+---
+
+## 최근 변경 (2026-05-29) — 보안 수정 + KST 타임존 일원화
+
+### 1. 보안 수정 (`2f6ed94`, `cd86694`, `5092d63`)
+- `daily_report_shares` 테이블 RLS 활성화 + anon 직접 접근 권한 회수
+- 인증 누락 API 라우트 7개에 명시적 `auth.getUser()` 가드 추가 (심층 방어)
+- 미사용 슬랙 디버그 라우트 2개 삭제 (`debug-classify`, `debug-webhook`)
+
+### 2. KST 타임존 계산을 단일 모듈로 일원화 (`440776c`)
+- `src/lib/kst.ts` 신규 생성
+  - `toKST(date)` — Date 객체를 KST로 변환
+  - `toKSTDateStr(date)` — KST 기준 'YYYY-MM-DD' 반환
+  - `parseKSTDate(str)` — KST 날짜 문자열 파싱
+- 기존 분산된 `new Date(utc).getTime() + 9*3600_000` 패턴 전수 교체
+- CLAUDE.md에 타임존 원칙 추가 (위반 시 데이터 오염 경고)
+
+---
+
+## 최근 변경 (2026-05-29) — 버그 헌트 3라운드
+
+### High 4건 수정 (`dca509d` — 데이터 무결성)
+- **타임존 오염**: `client_history.occurred_at`에 `+9h` 중복 적용 → UTC 저장 규칙 재확인 + 영향 데이터 수정
+- **중복 생성**: 반복 태스크 완료 시 다음 인스턴스 2개 생성되는 버그 (lock 없이 동시 호출) → 멱등성 처리
+- **스크롤 복원 실패**: Tasks 뷰 전환 후 스크롤 위치 초기화 → `useLayoutEffect` scroll 복원 추가
+- **태스크 순서 레이스**: 여러 드래그 드롭이 빠르게 연속 실행 시 순서 꼬임 → debounce 150ms 추가
+
+### Medium 7건 수정 (`992b9dd`)
+- Kanban 뷰 카드 드래그 중 placeholder 크기 불일치
+- ListView 서브태스크 들여쓰기 수준 표시 안 됨
+- 날짜 없는 태스크 GanttView 렌더 오류
+- Summary 페이지 무한 로딩 (brandCounts 타입 불일치)
+- 설정 화면 API 키 삭제 후 목록 갱신 안 됨
+- NoteEditModal Ctrl+Enter 저장 후 내용 날아가는 버그
+- Weekly insights 누락 주차 표시 안 됨
+
+### Low 정리 (`0d24dd3`)
+- 툴팁 텍스트 한글/영문 혼용 정리
+- 사이드바 카운트 0일 때 배지 표시 여부 통일
+- 폼 초기화 시 불필요한 리렌더링 제거
+
+---
+
+## 최근 변경 (2026-05-28) — Google Keep 방식 메모장 전면 교체
+
+### 배경
+기존 Obsidian Vault 기반 DailyNoteView를 Google Keep 방식의 카드형 메모장으로 교체
+
+### 변경 내용 (`aecc5ee`, `8d3a7bb`)
+
+**DB**
+- `notes` 테이블 신규 (Supabase migration)
+  - `id`, `workspace_id`, `title`, `content`, `color`, `pinned`, `sort_order`
+  - RLS 적용 (본인 워크스페이스만)
+
+**서비스/훅**
+- `note-service.ts` 신규: `getNotes / createNote / updateNote / deleteNote`
+
+**컴포넌트**
+- `NoteCreateBar`: 상단 빠른 입력바 (클릭 → 확장 → Ctrl+Enter 저장)
+- `NoteCard`: 인라인 편집, 색상 팔레트(6색), 핀 고정, 삭제
+- `NoteColorPicker`: 색상 팔레트 컴포넌트
+- 고정 섹션 / 일반 섹션 분리, CSS columns masonry 레이아웃
+
+**제거**
+- `DailyNoteView.tsx`, `daily-note.ts`, `use-vault-handle.ts` 삭제
+- Settings Vault 섹션 제거
+
+**버그 수정** (`8d3a7bb`)
+- `textarea` 클릭 시 편집 모드 진입 안 되는 버그 수정 (`onClick` 버블링 차단)
+
+---
+
+## 최근 변경 (2026-05-28) — 메뉴/사이드바/헤더 한글화 + Daily Report V2 UI
+
+### 1. 메뉴 한글화 및 순서 변경 (`f35b83f`)
+- 사이드바 내비게이션 메뉴명 영문 → 한글 전환 (Projects → 프로젝트, Tasks → 태스크, Notes → 메모 등)
+- 메뉴 순서 재배치 (운영 우선순위 기준)
+
+### 2. 사이드바 및 페이지 헤더 한글화 (`9fa084e`)
+- 페이지 헤더 제목 영문 → 한글 통일 (Calendar → 일정, Weekly → 주간보고)
+
+### 3. Daily Report V2 UI + 토글 스위치 (`ac78ad8`)
+- 기존 V1 옆에 V2 토글 스위치로 미리 사용 가능
+- V2: 브랜드별 카드 접기/펼치기 + 핵심 카드 동적 확장 + LEAD 섹션
+
+### 4. Daily Report 공유 링크 + client_history 성능 개선 (`b0ea330`)
+- 리포트별 공유 링크 생성 (`daily_report_shares` 테이블 + 단축 URL)
+- `client_history` 쿼리에 복합 인덱스 추가 (workspace_id, occurred_at)
+
+---
+
+## 최근 변경 (2026-05-28) — Outline 수집 트리 기반 전환 + 500줄 분리 + ESLint 훅
+
+### 1. Outline 수집을 collections.documents 트리 기반으로 전환 (`ed49fe4`)
+- 기존: 문서명 정규식 기반 날짜/팀 판별
+- 변경: Outline API `collections.documents`로 트리 탐색 → 폴더 구조로 주차·팀 판별
+- 분기 문서(`2026 Q1` 등) 인식 패턴 개선
+
+### 2. 500줄 규칙 대규모 분리 (`742e273`, `6a5f84d`, `dafdb0a`, `b41ab1e`, `1c2d78e`)
+- `GanttChart.tsx` → `_GanttChartParts.tsx` (헤더 액션·DragOverlay 분리)
+- `TaskFormDialog.tsx` → 날짜 선택·라벨·담당자 섹션 분리
+- `weekly-dashboard.tsx` → `TypeTab`, `DiffSummaryRow`, `ChangesView` 분리
+- `_GanttRows.tsx` → `GanttCategoryLeft/Right` 분리
+- `import-dx1/route.ts` → `_weeks-part1/2.ts` 시드 데이터 분리
+
+### 3. 편집 시 ESLint·500줄 검사 + 종료 시 typecheck 훅 자동화 (`69281d8`)
+- `.claude/hooks/` 설정 추가
+  - 파일 편집 후: ESLint 자동 검사 + 500줄 초과 경고
+  - 세션 종료 시: `npx tsc --noEmit` 자동 실행
+
+---
+
+## 최근 변경 (2026-05-27) — 브랜드 별칭 통합 기능 + UI 스타일 정리
+
+### 1. 브랜드 별칭 통합 기능 (`91eec09`)
+- `client_aliases` 테이블 신규: 슬랙 채널명 → 브랜드 매핑 외에 표기 별칭 지원
+- 예: "쿠우쿠우" / "쿠쿠" / "KURA KURA" → 동일 브랜드로 집계
+- 설정 화면 브랜드 섹션에 별칭 입력 UI 추가
+- 사이드바 브랜드 목록 스타일 정리 (간격, 폰트)
+
+### 2. Gantt 우선순위 표시·Drawer portal·툴바 정리 (`79e2437`)
+- Gantt 우선순위 "안테나" 장식 제거 → 좌측 컬러 스트라이프로 대체
+- 바 투명도(우선순위 기반) 제거 — 진척률 fill로 충분
+- Drawer backdrop을 portal로 분리 (Gantt overflow 충돌 방지)
+- 툴바·뷰탭 버튼 정리 (중복 제거)
+
+### 3. 기타 UI 정리 (`a6eadc6`, `f2ff193`, `f102582`)
+- 딤 배경 `bg-black/30` 통일 + blur 효과 제거
+- 캘린더 브랜드 칩 영역 `max-h-20` 제한 + 세로 스크롤
+- 툴바 탭 폰트 14px, Popover z-index 200으로 수정
+
+---
+
+## 최근 변경 (2026-05-26) — 디자인 시스템 폰트 통일 + 토큰 전수 교정
+
+### 1. 폰트 최소 기준 14px 통일 (`a64d881`, `d8a144f`, `b04c838`, `f64744e`)
+- **Tags·배지·차트 레이블 제외** 본문 폰트 최소 12px 적용
+- 태스크 제목: `text-xs`(12px) → `text-sm`(14px)
+- Gantt 프로젝트 이름: 12px → 14px
+- Summary 데일리 리스트 카드 제목: 12px → 14px
+- 사이드바 콘텐츠 텍스트 최소 12px
+
+### 2. 디자인 시스템 토큰 전수 교정 (`3d889d0`)
+- CSS 변수 직접 참조(`var(--ink)`) → Tailwind 토큰 클래스(`text-ink`) 전수 교체
+- `bg-[var(--bg-hover)]` 임의 값 → `bg-bg-hover` 교체
+- 하드코딩 hex 색상 → 디자인 토큰 교체
+- 드로워·모달 폰트 크기 상향 조정 (`35f382b`)
+
+### 3. Summary 뷰 카드뷰 단일화 + 파일명 정리 (`bd264d5`, `678a9b4`)
+- Daily List 테이블뷰 완전 제거 → 카드뷰 단일화
+- 파일명을 실제 기능과 일치하도록 정리 (예: `table-view` → `brand-daily-list-view`)
+
+---
+
 ## 최근 변경 (2026-05-30) — Bulk 반복 태스크 완료 처리
 
 ### 변경 내용

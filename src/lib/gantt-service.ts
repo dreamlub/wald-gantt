@@ -244,14 +244,18 @@ export async function updateProject(id: string, updates: Partial<GanttProject>):
 }
 
 export async function softDeleteProject(id: string): Promise<void> {
+  const now = new Date().toISOString()
+  // 자식(서브프로젝트)까지 함께 휴지통으로 — restoreTask 패턴과 동일
+  await db().from('gantt_projects').update({ deleted_at: now }).eq('parent_id', id)
   const { error } = await db()
     .from('gantt_projects')
-    .update({ deleted_at: new Date().toISOString() })
+    .update({ deleted_at: now })
     .eq('id', id)
   if (error) throw error
 }
 
-export async function restoreProject(id: string): Promise<GanttProject> {
+/** 부모와 자식(서브프로젝트)을 함께 복원하고 복원된 전체 목록을 반환한다. */
+export async function restoreProject(id: string): Promise<GanttProject[]> {
   const { data, error } = await db()
     .from('gantt_projects')
     .update({ deleted_at: null })
@@ -259,7 +263,13 @@ export async function restoreProject(id: string): Promise<GanttProject> {
     .select()
     .single()
   if (error) throw error
-  return data
+  const { data: children, error: childErr } = await db()
+    .from('gantt_projects')
+    .update({ deleted_at: null })
+    .eq('parent_id', id)
+    .select()
+  if (childErr) throw childErr
+  return [data, ...(children ?? [])]
 }
 
 export async function permanentDeleteProject(id: string): Promise<void> {

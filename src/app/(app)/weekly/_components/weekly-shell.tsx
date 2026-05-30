@@ -3,7 +3,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BookOpen, RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
-import { Button } from '@/components/ui/button'
 import { WeeklyWeekList, type WeekData } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
 import { WeeklyContentTabs } from './weekly-content-tabs'
@@ -37,8 +36,7 @@ export function WeeklyShell() {
   const [dashLoading, setDashLoading] = useState(false)
 
   // 수집 진행
-  const [collecting, setCollecting]       = useState(false)
-  const [collectingAll, setCollectingAll] = useState(false)
+  const [collecting, setCollecting] = useState(false)
 
   // ── 수집 현황 로드 ───────────────────────────────────────────────
 
@@ -118,40 +116,22 @@ export function WeeklyShell() {
     }
   }, [selectedWeek, runImport, loadStatus, loadReports])
 
-  const handleCollectAll = useCallback(async () => {
-    setCollectingAll(true)
-    try {
-      const total = await runImport({})
-      toast[total > 0 ? 'success' : 'info'](
-        total > 0 ? `전체 수집 완료 — ${total}건 저장` : '새로 수집된 내용이 없습니다.'
-      )
-      await loadStatus()
-      if (total > 0 && selectedWeek) loadReports(selectedWeek)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '수집 중 오류')
-    } finally {
-      setCollectingAll(false)
-    }
-  }, [runImport, loadStatus, loadReports, selectedWeek])
-
   // ── 파생 값 ──────────────────────────────────────────────────────
 
-  const selectedWeekData   = data?.weeks.find(w => w.weekStart === selectedWeek)
-  const hasData            = selectedWeekData?.teams.some(t => t.hasData) ?? false
-  const isCollectingAny    = collecting || collectingAll
+  const selectedWeekData = data?.weeks.find(w => w.weekStart === selectedWeek)
+  const hasData          = selectedWeekData?.teams.some(t => t.hasData) ?? false
+  const isCollectingAny  = collecting
   const collectedWeekCount = data?.weeks.filter(w => w.teams.some(t => t.hasData)).length ?? 0
   const weekCount          = data?.weeks.length ?? 0
 
-  const prevWeekStart = selectedWeek
-    ? (() => {
-        const d = new Date(selectedWeek + 'T00:00:00')
-        d.setDate(d.getDate() - 7)
-        const y = d.getFullYear()
-        const m = String(d.getMonth() + 1).padStart(2, '0')
-        const day = String(d.getDate()).padStart(2, '0')
-        return `${y}-${m}-${day}`
-      })()
-    : ''
+  // 데이터 있는 주차만 오름차순 정렬 → 이전/다음 주차 계산
+  const weeksWithData = (data?.weeks ?? [])
+    .filter(w => w.teams.some(t => t.hasData))
+    .slice()
+    .sort((a, b) => (a.weekStart < b.weekStart ? -1 : 1))
+  const currentIdx = weeksWithData.findIndex(w => w.weekStart === selectedWeek)
+  const prevWeekStart = currentIdx > 0 ? weeksWithData[currentIdx - 1].weekStart : null
+  const nextWeekStart = currentIdx < weeksWithData.length - 1 ? weeksWithData[currentIdx + 1].weekStart : null
 
   // ── 렌더 ─────────────────────────────────────────────────────────
 
@@ -163,15 +143,6 @@ export function WeeklyShell() {
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap truncate">
             주간보고 분석
           </h1>
-          <Button
-            variant="ghost"
-            size="sm"
-            onClick={handleCollectWeek}
-            disabled={isCollectingAny || !selectedWeek}
-          >
-            <RefreshCw size={13} className={collecting ? 'animate-spin' : ''} />
-            재수집
-          </Button>
         </div>
 
         {!loading && data && weekCount > 0 && (
@@ -219,9 +190,12 @@ export function WeeklyShell() {
             reports={reports}
             insight={insight}
             reportsLoading={dashLoading}
-            prevWeekStart={prevWeekStart}
-            onInsightUpdate={setInsight}
-            onRefresh={() => loadReports(selectedWeek)}
+            collecting={collecting}
+            onCollect={handleCollectWeek}
+            hasPrev={prevWeekStart !== null}
+            hasNext={nextWeekStart !== null}
+            onPrevWeek={() => prevWeekStart && setSelectedWeek(prevWeekStart)}
+            onNextWeek={() => nextWeekStart && setSelectedWeek(nextWeekStart)}
           />
         ) : (
           /* 미수집 주차 → 수집 유도 */

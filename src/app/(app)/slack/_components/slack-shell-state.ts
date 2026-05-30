@@ -23,7 +23,7 @@ export function pageReducer(state: PageState, action: PageAction): PageState {
     case 'loaded': return {
       items: action.append ? [...state.items, ...action.page.items] : action.page.items,
       cursor: action.page.nextCursor,
-      total: action.page.total,
+      total: action.append ? state.total : action.page.total,
       loading: false,
       hasMore: !!action.page.nextCursor,
       brandCounts: action.append ? state.brandCounts : (action.page.brandCounts ?? {}),

@@ -143,17 +143,7 @@ export function GanttChart({
     } else {
       base = projects.filter(p => p.category_id === catId)
     }
-    if (searchQuery.trim())
-      base = base.filter(p => p.name.toLowerCase().includes(searchQuery.toLowerCase()))
-    if (excludedTeams.size > 0)
-      base = base.filter(p => !excludedTeams.has(p.team || ''))
-    if (excludedPMs.size > 0)
-      base = base.filter(p => !excludedPMs.has(p.pm || ''))
-    if (overdueFilter || startDelayedFilter)
-      base = base.filter(p =>
-        (overdueFilter && isProjectOverdue(p, todayStr)) ||
-        (startDelayedFilter && isStartDelayed(p, todayStr) && !isProjectOverdue(p, todayStr))
-      )
+    // 필터링은 orderedProjectsOf()에서 부모-자식 트리를 인지해 적용한다.
     if (!liveItems) {
       if (sortMode === 'start-asc')
         return [...base].sort((a, b) => (a.start_date ?? 'zzzz') < (b.start_date ?? 'zzzz') ? -1 : 1)
@@ -166,11 +156,39 @@ export function GanttChart({
     return base
   }
 
+  const hasActiveFilter =
+    searchQuery.trim() !== '' || excludedTeams.size > 0 || excludedPMs.size > 0 || overdueFilter || startDelayedFilter
+
+  const matchesFilters = (p: GanttProject): boolean => {
+    if (searchQuery.trim() && !p.name.toLowerCase().includes(searchQuery.toLowerCase())) return false
+    if (excludedTeams.size > 0 && excludedTeams.has(p.team || '')) return false
+    if (excludedPMs.size > 0 && excludedPMs.has(p.pm || '')) return false
+    if (overdueFilter || startDelayedFilter) {
+      const ok =
+        (overdueFilter && isProjectOverdue(p, todayStr)) ||
+        (startDelayedFilter && isStartDelayed(p, todayStr) && !isProjectOverdue(p, todayStr))
+      if (!ok) return false
+    }
+    return true
+  }
+
   function orderedProjectsOf(catId: string): GanttProject[] {
-    const top = projectsOf(catId).filter(p => !p.parent_id)
-    return top.flatMap(p =>
-      collapsedParents.has(p.id) ? [p] : [p, ...projects.filter(c => c.parent_id === p.id).sort((a, b) => a.sort_order - b.sort_order)]
-    )
+    const childrenOf = (pid: string) =>
+      projects.filter(c => c.parent_id === pid).sort((a, b) => a.sort_order - b.sort_order)
+    const tops = projectsOf(catId).filter(p => !p.parent_id)
+
+    return tops.flatMap(top => {
+      const kids = childrenOf(top.id)
+      if (!hasActiveFilter)
+        return collapsedParents.has(top.id) ? [top] : [top, ...kids]
+
+      // 필터 활성: 부모가 걸리면 서브트리 전체, 자식만 걸리면 부모(맥락)+걸린 자식만.
+      const topMatches  = matchesFilters(top)
+      const matchedKids = kids.filter(matchesFilters)
+      if (!topMatches && matchedKids.length === 0) return []
+      if (collapsedParents.has(top.id)) return [top]
+      return [top, ...(topMatches ? kids : matchedKids)]
+    })
   }
 
   function barCols(p: GanttProject): { start: number; end: number } | null {

@@ -1,6 +1,6 @@
 'use client'
 
-import { FileText, RefreshCw, Sparkles, ArrowUpRight } from 'lucide-react'
+import { FileText, RefreshCw } from 'lucide-react'
 import type { WeekData } from './weekly-week-list'
 
 interface Props {
@@ -8,8 +8,6 @@ interface Props {
   teamColors: string[]
   collecting: boolean
   onCollect: () => void
-  onOpenAnalysis: () => void
-  hasAnalysis: boolean
 }
 
 // ── 날짜 유틸 ────────────────────────────────────────────────────
@@ -42,7 +40,7 @@ function fmtRange(start: string, end: string): string {
 // ── 컴포넌트 ─────────────────────────────────────────────────────
 
 export function WeeklyCollectionDetail({
-  week, teamColors, collecting, onCollect, onOpenAnalysis, hasAnalysis,
+  week, teamColors, collecting, onCollect,
 }: Props) {
   const { month, week: weekNum } = weekOfMonth(week.weekStart)
   const wNum      = isoWeekNum(week.weekStart)
@@ -72,17 +70,6 @@ export function WeeklyCollectionDetail({
           )}
         </div>
 
-        {/* 분석 버튼 */}
-        {hasAnalysis && (
-          <button
-            onClick={onOpenAnalysis}
-            className="shrink-0 flex items-center gap-1.5 text-xs font-medium px-3 py-1.5 rounded-md bg-foreground text-background hover:bg-ink-800 transition-colors"
-          >
-            <Sparkles size={11} />
-            AI 요약
-            <ArrowUpRight size={11} />
-          </button>
-        )}
       </div>
 
       <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">

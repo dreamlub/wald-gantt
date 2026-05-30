@@ -6,6 +6,29 @@ import { addDaysYMD, kstToday } from '@/lib/kst'
 
 type Sb = SupabaseClient
 
+const HISTORY_SELECT = [
+  'id',
+  'workspace_id',
+  'brand_name',
+  'type',
+  'tags',
+  'channel',
+  'source_ref',
+  'source_id',
+  'title',
+  'body',
+  'occurred_at',
+  'updated_at',
+  'status',
+  'status_kind',
+  'priority',
+  'author',
+  'raw_message_id',
+  'thread_count',
+  'reclassified_at',
+  'deleted_at',
+].join(', ')
+
 // 브랜드명 → 색상 결정론적 할당 (팔레트 기반 해시)
 const BRAND_PALETTE = [
   '#a5b4fc', '#86efac', '#fda4af', '#fcd34d',
@@ -99,14 +122,14 @@ export async function listHistory(sb?: Sb, daysBack = 90): Promise<HistoryItem[]
   while (true) {
     const { data, error } = await client
       .from('client_history')
-      .select('*')
+      .select(HISTORY_SELECT)
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
       .gte('occurred_at', sinceIso)
       .order('occurred_at', { ascending: false })
       .range(from, from + PAGE - 1)
     if (error) throw error
-    allRows.push(...(data ?? []))
+    allRows.push(...((data ?? []) as unknown as DbHistory[]))
     if (!data || data.length < PAGE) break
     from += PAGE
   }
@@ -213,14 +236,9 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
   const client = sb ?? createBrowserClient()
   const limit = Math.min(params.limit ?? 50, 200)
 
-  let countQuery = client
-    .from('client_history')
-    .select('*', { count: 'exact', head: true })
-    .is('deleted_at', null)
-
   let query = client
     .from('client_history')
-    .select('*')
+    .select(HISTORY_SELECT)
     .is('deleted_at', null)
     .order('occurred_at', { ascending: false })
     .order('id', { ascending: false })
@@ -238,26 +256,29 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
   }
 
   query = applyFilters(query)
-  countQuery = applyFilters(countQuery)
 
   if (params.cursor) {
     const [cursorDate, cursorId] = params.cursor.split('|')
     query = query.or(`occurred_at.lt.${cursorDate},and(occurred_at.eq.${cursorDate},id.lt.${cursorId})`)
   }
 
-  const [pageResult, countResult, brandCounts] = await Promise.all([
-    query, countQuery, fetchBrandCounts(client, params),
+  const [pageResult, brandCounts] = await Promise.all([
+    query, fetchBrandCounts(client, params),
   ])
   if (pageResult.error) throw pageResult.error
 
-  const items = (pageResult.data ?? []).map(toHistory)
+  const items = ((pageResult.data ?? []) as unknown as DbHistory[]).map(toHistory)
   let nextCursor: string | null = null
   if (items.length === limit) {
     const last = items[items.length - 1]
     nextCursor = `${last.occurred_at}|${last.id}`
   }
 
-  return { items, nextCursor, total: countResult.count ?? 0, brandCounts }
+  const total = brandCounts
+    ? Object.values(brandCounts).reduce((sum, count) => sum + count, 0)
+    : 0
+
+  return { items, nextCursor, total, brandCounts }
 }
 
 export interface HistoryStats {
@@ -302,15 +323,10 @@ export async function getHistoryStats(from?: string, to?: string, sb?: Sb): Prom
 // 히스토리에서 distinct 브랜드명 추출 → Client 배열 반환
 export async function getDistinctBrands(sb?: Sb): Promise<Client[]> {
   const client = sb ?? createBrowserClient()
-  const { data, error } = await client
-    .from('client_history')
-    .select('brand_name')
-    .is('deleted_at', null)
-    .not('brand_name', 'is', null)
+  const counts = await fetchBrandCountsFromRpc(client, {})
+  if (counts === null) return []
 
-  if (error) throw error
-
-  const names = [...new Set((data ?? []).map(r => r.brand_name as string).filter(Boolean))]
+  const names = Object.keys(counts).filter(name => name !== '미분류')
   names.sort((a, b) => a.localeCompare(b, 'ko'))
 
   return names.map(name => ({ name, color: brandColor(name) }))

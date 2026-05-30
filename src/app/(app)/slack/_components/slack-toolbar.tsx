@@ -7,7 +7,7 @@ import {
   type LucideIcon,
 } from 'lucide-react'
 
-import type { ViewKey } from './summary-shell-state'
+import type { ViewKey } from './slack-shell-state'
 
 const VIEW_TABS: { key: ViewKey; label: string; icon: LucideIcon }[] = [
   { key: 'rawdata',     label: 'Raw Data',     icon: Database },

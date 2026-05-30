@@ -106,11 +106,8 @@ export function WeeklyDashboard({
       ) : tab === 'insight' ? (
         <AISummaryPanel
           inline
-          weekStart={weekStart}
           insight={insight}
           reports={reports}
-          onInsightUpdate={onInsightUpdate}
-          onRefresh={onRefresh}
         />
       ) : reports.length === 0 ? (
         <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">

@@ -1,11 +1,11 @@
 'use client'
 
-import { useState, useEffect, useCallback, useMemo } from 'react'
+import { useState, useEffect, useCallback, useMemo, useRef } from 'react'
 import { toast } from 'sonner'
 import type { CalendarEvent, GanttTask, TaskStatus, Priority, TaskType, RecurrenceRule } from '@/types'
 import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
-  getTasks, updateTaskSchedule, updateTask,
+  getCalendarTasks, getTaskProjects, updateTaskSchedule, updateTask,
   softDeleteTask, duplicateTask, addTask, searchProjects,
 } from '@/lib/task-service'
 import { buildAllDayIso } from '../_utils'
@@ -31,14 +31,28 @@ export function useCalendarData() {
 
   const loadTasks = useCallback(async () => {
     if (!workspaceId) return
-    const data = await getTasks(workspaceId)
-    setTasks(data.filter(t => !t.deleted_at))
+    const data = await getCalendarTasks(workspaceId)
+    setTasks(data)
   }, [workspaceId])
 
   useEffect(() => {
     // eslint-disable-next-line react-hooks/set-state-in-effect
     loadTasks()
   }, [loadTasks])
+
+  /* ── 드로어 열릴 때 연결 프로젝트 지연 로드 (경량 로더가 조인을 생략하므로) ── */
+  const projectsLoadedFor = useRef<string | null>(null)
+  useEffect(() => {
+    const id = drawerTask?.id
+    if (!id || projectsLoadedFor.current === id) return
+    projectsLoadedFor.current = id
+    getTaskProjects(id)
+      .then(projects => {
+        setDrawerTask(prev => (prev?.id === id ? { ...prev, projects } : prev))
+        setTasks(prev => prev.map(t => (t.id === id ? { ...t, projects } : t)))
+      })
+      .catch(() => { projectsLoadedFor.current = null })
+  }, [drawerTask?.id])
 
   const loadEvents = useCallback(async (start: string, end: string) => {
     setLoadingEvents(true)

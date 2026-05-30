@@ -42,6 +42,39 @@ export async function getTasks(workspaceId: string): Promise<GanttTask[]> {
   return (data as TaskRow[] ?? []).map(mapTaskRow)
 }
 
+/**
+ * 캘린더용 경량 태스크 로더 — 프로젝트 조인을 생략한다.
+ * 캘린더의 패널/그리드/마감 행은 프로젝트 정보를 쓰지 않으며,
+ * 드로어가 열릴 때만 getTaskProjects()로 해당 태스크의 링크를 지연 로드한다.
+ */
+export async function getCalendarTasks(workspaceId: string): Promise<GanttTask[]> {
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .select('*')
+    .eq('workspace_id', workspaceId)
+    .is('deleted_at', null)
+    .is('archived_at', null)
+    .order('sort_order')
+  if (error) throw error
+  return (data as GanttTask[]) ?? []
+}
+
+/** 단일 태스크에 연결된 프로젝트 목록 (드로어 지연 로드용) */
+export async function getTaskProjects(
+  taskId: string,
+): Promise<{ id: string; name: string; board_name: string }[]> {
+  const { data, error } = await db()
+    .from('gantt_task_projects')
+    .select('gantt_projects ( id, name, gantt_boards ( name ) )')
+    .eq('task_id', taskId)
+  if (error) throw error
+  return ((data as unknown as TaskProjectJoin[]) ?? []).map((tp) => ({
+    id: tp.gantt_projects.id,
+    name: tp.gantt_projects.name,
+    board_name: tp.gantt_projects.gantt_boards?.name ?? '',
+  }))
+}
+
 export async function getDeletedTasksCount(workspaceId: string): Promise<number> {
   const { count, error } = await db()
     .from('gantt_tasks')

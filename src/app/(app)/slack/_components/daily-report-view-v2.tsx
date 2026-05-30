@@ -142,8 +142,7 @@ function HeadlineCard({ text, brand, index }: { text: string; brand?: string; in
       style={{ borderColor: 'transparent' }}
     >
       <div className="p-5 flex-1">
-        <div className="flex items-baseline gap-2 mb-3">
-          <span className="text-2xs font-black text-white/40 tracking-widest uppercase">HEADLINE</span>
+        <div className="mb-3">
           <span className="text-3xl font-black leading-none text-white">{num}</span>
         </div>
         <p className="text-sm font-semibold text-white leading-relaxed">

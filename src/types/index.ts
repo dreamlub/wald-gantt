@@ -233,3 +233,28 @@ export interface Note {
   updated_at: string
   deleted_at: string | null
 }
+
+// ── Review Inbox ──────────────────────────────────────────────────────
+
+export type ReviewSource = 'history' | 'daily_report' | 'weekly'
+export type ReviewStatus = 'pending' | 'created' | 'snoozed' | 'ignored'
+export type ReviewPriority = 'high' | 'medium' | 'low'
+
+export interface ReviewCandidate {
+  id: string
+  workspace_id: string
+  source: ReviewSource
+  source_id: string
+  source_date: string       // YYYY-MM-DD
+  title: string
+  memo: string | null
+  brand: string | null
+  priority: ReviewPriority | null
+  due_date: string | null
+  estimated_minutes: number | null
+  evidence_count: number
+  status: ReviewStatus
+  task_id: string | null
+  reviewed_at: string | null
+  created_at: string
+}

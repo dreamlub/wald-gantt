@@ -59,22 +59,23 @@ export function useTasksData() {
   }, [workspace, load])
 
   const handleDelete = useCallback(async (id: string) => {
+    const childCount = tasks.filter(t => t.parent_id === id).length
     try {
-      await softDeleteTask(id)
-      setTasks(prev => prev.filter(t => t.id !== id))
-      setTrashCount(prev => prev + 1)
+      await softDeleteTask(id)  // 서비스 레이어에서 하위 태스크까지 cascade
+      setTasks(prev => prev.filter(t => t.id !== id && t.parent_id !== id))
+      setTrashCount(prev => prev + 1 + childCount)
       toast('휴지통으로 이동했어요', {
         action: {
           label: '되돌리기',
           onClick: async () => {
-            await restoreTask(id)
-            setTrashCount(prev => Math.max(0, prev - 1))
+            await restoreTask(id)  // 부모 + 하위 태스크 함께 복원
+            setTrashCount(prev => Math.max(0, prev - 1 - childCount))
             await load()
           },
         },
       })
     } catch (e) { toast.error(errMsg(e)) }
-  }, [load])
+  }, [tasks, load])
 
   const handleStatusChange = useCallback(async (id: string, status: TaskStatus) => {
     let updatedTasks = tasks.map(t => t.id === id ? { ...t, status } : t)

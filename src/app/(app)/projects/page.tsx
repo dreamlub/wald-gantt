@@ -233,8 +233,7 @@ export default function GanttPage() {
     const project  = projects.find(p => p.id === id)
     const children = projects.filter(p => p.parent_id === id)
     try {
-      await softDeleteProject(id)
-      await Promise.all(children.map(c => softDeleteProject(c.id)))
+      await softDeleteProject(id)  // 서비스 레이어에서 자식까지 cascade
       setProjects(prev => prev.filter(p => p.id !== id && p.parent_id !== id))
       setTrashCount(c => c + 1 + children.length)
       toast('휴지통으로 이동했어요', {
@@ -242,9 +241,9 @@ export default function GanttPage() {
           label: '되돌리기',
           onClick: async () => {
             try {
-              const restored = await restoreProject(id)
-              setProjects(prev => [...prev, restored].sort((a, b) => a.sort_order - b.sort_order))
-              setTrashCount(c => Math.max(0, c - 1))
+              const restored = await restoreProject(id)  // 부모 + 자식 전체 복원
+              setProjects(prev => [...prev, ...restored].sort((a, b) => a.sort_order - b.sort_order))
+              setTrashCount(c => Math.max(0, c - restored.length))
             } catch (e) { toast.error(errMsg(e)) }
           },
         },

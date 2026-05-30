@@ -14,7 +14,7 @@ import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
-import { TimelineView } from './timeline-view'
+import { IssueTreeView } from './issue-tree-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
@@ -307,9 +307,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
               onBrandsLoaded={handleCalendarBrandsLoaded}
             />
           ) : view === 'timeline' ? (
-            <TimelineView
-              dateFrom={dateFrom || undefined}
-              dateTo={dateTo || undefined}
+            <IssueTreeView
               brandFilter={brandId === 'all' ? undefined : brandId}
             />
           ) : view === 'rawdata' ? (

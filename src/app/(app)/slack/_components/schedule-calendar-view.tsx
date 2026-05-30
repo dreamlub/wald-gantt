@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useMemo } from 'react'
-import { ChevronLeft, ChevronRight, CalendarDays, Search } from 'lucide-react'
+import { ChevronLeft, ChevronRight, CalendarDays } from 'lucide-react'
 import { createClient } from '@/lib/supabase/client'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { Priority } from '../_lib/types'
@@ -15,6 +15,7 @@ interface UpcomingEvent {
   parsedDate: Date | null
   parsedEndDate: Date | null
   fuzzy: boolean
+  reportDate: string  // 이 항목을 보고한 daily_report의 날짜 (YYYY-MM-DD)
 }
 
 // 브랜드명 정규화: 괄호 수식어·커피/카페 접미사 제거
@@ -97,15 +98,19 @@ function dateKey(d: Date) {
 const WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
 
 
-export function ScheduleCalendarView() {
+interface Props {
+  activeBrands: Set<string>
+  onToggleBrand: (b: string) => void
+  onBrandsLoaded: (brands: string[], counts: Map<string, number>, total: number) => void
+}
+
+export function ScheduleCalendarView({ activeBrands, onBrandsLoaded }: Props) {
   const [events, setEvents] = useState<UpcomingEvent[]>([])
   const [loading, setLoading] = useState(true)
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
-  const [activeBrands, setActiveBrands] = useState<Set<string>>(new Set())
-  const [brandQuery, setBrandQuery] = useState('')
   const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
 
   useEffect(() => {
@@ -136,43 +141,28 @@ export function ScheduleCalendarView() {
               parsedDate: start,
               parsedEndDate: end,
               fuzzy,
+              reportDate: row.report_date as string,
             })
           }
         }
       }
 
-      setEvents([...seen.values()])
+      const eventsArr = [...seen.values()]
+      setEvents(eventsArr)
       setLoading(false)
+
+      // 사이드바로 브랜드 목록 전달
+      const brandSet = new Set<string>()
+      const counts = new Map<string, number>()
+      for (const e of eventsArr) {
+        for (const b of e.brand.split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean)) {
+          if (b !== '미분류') { brandSet.add(b); counts.set(b, (counts.get(b) ?? 0) + 1) }
+        }
+      }
+      onBrandsLoaded([...brandSet].sort((a, b) => (counts.get(b) ?? 0) - (counts.get(a) ?? 0)), counts, eventsArr.length)
     }
     load()
-  }, [])
-
-  const allBrands = useMemo(() => {
-    const set = new Set<string>()
-    for (const e of events) {
-      if (!e.brand || e.brand === '미분류') continue
-      for (const b of e.brand.split(/\s*\/\s*/)) {
-        const t = b.trim()
-        if (t) set.add(t)
-      }
-    }
-    return [...set].sort((a, b) => a.localeCompare(b, 'ko'))
-  }, [events])
-
-  const brandEventCounts = useMemo(() => {
-    const counts = new Map<string, number>()
-    for (const e of events) {
-      for (const b of e.brand.split(/\s*\/\s*/).map(s => s.trim()).filter(Boolean)) {
-        if (b !== '미분류') counts.set(b, (counts.get(b) ?? 0) + 1)
-      }
-    }
-    return counts
-  }, [events])
-
-  const visibleBrands = useMemo(() => {
-    const q = brandQuery.trim().toLowerCase()
-    return q ? allBrands.filter(b => b.toLowerCase().includes(q)) : allBrands
-  }, [allBrands, brandQuery])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   const filteredEvents = useMemo(() => {
     if (activeBrands.size === 0) return events
@@ -181,6 +171,16 @@ export function ScheduleCalendarView() {
       return brands.some(b => activeBrands.has(b))
     })
   }, [events, activeBrands])
+
+  // 브랜드 선택 시 해당 브랜드 이벤트가 있는 가장 최신 달로 이동
+  useEffect(() => {
+    if (activeBrands.size === 0 || events.length === 0) return
+    const branded = filteredEvents.filter(e => e.parsedDate !== null)
+    if (branded.length === 0) return
+    const latest = branded.reduce<Date>((max, e) =>
+      e.parsedDate! > max ? e.parsedDate! : max, branded[0].parsedDate!)
+    setCurrentMonth(new Date(latest.getFullYear(), latest.getMonth(), 1))
+  }, [activeBrands]) // eslint-disable-line react-hooks/exhaustive-deps
 
   // 날짜별 이벤트 맵
   const eventsByDate = useMemo(() => {
@@ -206,7 +206,15 @@ export function ScheduleCalendarView() {
     return map
   }, [filteredEvents])
 
-  const undatedEvents = useMemo(() => filteredEvents.filter(e => !e.parsedDate), [filteredEvents])
+  const undatedEvents = useMemo(() => {
+    const y = currentMonth.getFullYear()
+    const m = currentMonth.getMonth()
+    return filteredEvents.filter(e => {
+      if (e.parsedDate) return false
+      const rd = new Date(e.reportDate + 'T00:00:00')
+      return rd.getFullYear() === y && rd.getMonth() === m
+    })
+  }, [filteredEvents, currentMonth])
 
   // 캘린더 그리드 생성
   const calendarDays = useMemo(() => {
@@ -227,13 +235,6 @@ export function ScheduleCalendarView() {
   const nextMonth = () => setCurrentMonth(m => new Date(m.getFullYear(), m.getMonth() + 1, 1))
   const goToday  = () => { const n = new Date(); setCurrentMonth(new Date(n.getFullYear(), n.getMonth(), 1)) }
 
-  const toggleBrand = (brand: string) =>
-    setActiveBrands(prev => {
-      const next = new Set(prev)
-      if (next.has(brand)) next.delete(brand)
-      else next.add(brand)
-      return next
-    })
 
   if (loading) {
     return (
@@ -244,65 +245,7 @@ export function ScheduleCalendarView() {
   }
 
   return (
-    <div className="flex-1 flex overflow-hidden">
-
-      {/* 좌측 브랜드 사이드바 */}
-      <aside className="w-56 shrink-0 border-r border-border bg-card flex flex-col min-h-0">
-        {/* 검색 */}
-        <div className="h-12 flex items-center px-3 border-b border-border shrink-0">
-          <div className="relative w-full">
-            <Search size={12} className="absolute left-2 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
-            <input
-              value={brandQuery}
-              onChange={e => setBrandQuery(e.target.value)}
-              placeholder="브랜드 검색"
-              className="w-full h-8 rounded-md border border-border bg-background pl-7 pr-2 text-sm outline-none focus:border-lilac-300"
-            />
-          </div>
-        </div>
-        {/* 브랜드 목록 */}
-        <div className="flex-1 overflow-y-auto px-2 pb-3 space-y-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <div className="px-1 py-2 text-2xs font-semibold text-ink-400 uppercase tracking-wider">
-            브랜드 {allBrands.length}
-          </div>
-          {/* 전체 */}
-          <button
-            onClick={() => setActiveBrands(new Set())}
-            className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
-              activeBrands.size === 0 ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
-              <span className="flex-1 truncate text-sm font-semibold">전체</span>
-              <span className="text-sm tabular-nums text-ink-400">{events.length}</span>
-            </div>
-          </button>
-          {visibleBrands.map(brand => {
-            const active = activeBrands.has(brand)
-            const color = brandColor(brand)
-            const count = brandEventCounts.get(brand) ?? 0
-            return (
-              <button
-                key={brand}
-                onClick={() => toggleBrand(brand)}
-                className={`w-full rounded-md px-2 py-2 text-left transition-colors ${
-                  active ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: color }} />
-                  <span className="flex-1 truncate text-sm font-semibold">{brand}</span>
-                  <span className="text-sm tabular-nums text-ink-400">{count}</span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </aside>
-
-      {/* 우측 캘린더 */}
-      <div className="flex-1 flex flex-col overflow-hidden">
+    <div className="flex-1 flex flex-col overflow-hidden">
 
         {/* 월 내비게이션 */}
         <div className="shrink-0 flex items-center gap-2 px-4 py-2.5 border-b border-border bg-card">
@@ -492,7 +435,6 @@ export function ScheduleCalendarView() {
           </>
         )
       })()}
-      </div>{/* 우측 캘린더 끝 */}
     </div>
   )
 }

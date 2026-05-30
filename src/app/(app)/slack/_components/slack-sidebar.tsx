@@ -383,9 +383,6 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
   const dayItems = history.filter(h =>
     kstDate(h.occurred_at) === selectedDate
   )
-  const dayTagCounts: Record<string, number> = {}
-  for (const t of TAG_KEYS) dayTagCounts[t] = 0
-  for (const h of dayItems) for (const t of h.tags ?? []) dayTagCounts[t] = (dayTagCounts[t] ?? 0) + 1
 
   const brandCounts: Record<string, number> = {}
   for (const h of dayItems) {
@@ -400,42 +397,6 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
         dateFrom={dateFrom} history={history}
         onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
       />
-
-      <div className="mt-3">
-        <GroupTitle>전체 {dayItems.length}건</GroupTitle>
-        {PRIORITY_KEYS.map(p => {
-          const dayPriCount = dayItems.filter(h => h.priority === p).length
-          if (dayPriCount === 0) return null
-          const meta = PRIORITY_META[p]
-          const active = dailyPriorities.has(p)
-          return (
-            <button key={p} onClick={() => onToggleDailyPriority(p)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
-              <PriorityBars priority={p} />
-              <span className="flex-1 truncate text-left">{meta.label}</span>
-              {active && <Check size={12} className="shrink-0" />}
-              <span className="text-sm text-ink-400">{dayPriCount}</span>
-            </button>
-          )
-        })}
-      </div>
-
-      <div className="mt-3">
-        <GroupTitle>태그</GroupTitle>
-        {TAG_KEYS.map(t => {
-          const count = dayTagCounts[t] ?? 0
-          if (count === 0) return null
-          const meta = TAG_META[t]
-          const active = dailyTags.has(t)
-          return (
-            <button key={t} onClick={() => onToggleDailyTag(t)} className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}>
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
-              <span className="flex-1 truncate text-left">{meta.label}</span>
-              {active && <Check size={12} className="shrink-0" />}
-              <span className="text-sm text-ink-400">{count}</span>
-            </button>
-          )
-        })}
-      </div>
 
       {topBrands.length > 0 && (
         <div className="mt-3">
