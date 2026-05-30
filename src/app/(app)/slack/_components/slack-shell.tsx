@@ -80,6 +80,12 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [weeklyBrandCounts, setWeeklyBrandCounts] = useState<Record<string, number>>({})
   const handleWeeklyBrandsLoaded = useCallback((counts: Record<string, number>) => setWeeklyBrandCounts(counts), [])
+  const [weeklyBrands, setWeeklyBrands] = useState<Set<string>>(new Set())
+  const toggleWeeklyBrand = useCallback((b: string) => setWeeklyBrands(prev => {
+    const next = new Set(prev)
+    if (next.has(b)) next.delete(b); else next.add(b)
+    return next
+  }), [])
   const [dailyBrands,     setDailyBrands]     = useState<Set<string>>(new Set())
   const [dailyTags,       setDailyTags]       = useState<Set<Tag>>(new Set())
   const [dailyPriorities, setDailyPriorities] = useState<Set<Priority>>(new Set())
@@ -261,6 +267,8 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
           onBrandChange={setBrandId}
           brandCounts={pg.brandCounts}
           weeklyBrandCounts={weeklyBrandCounts}
+          weeklyBrands={weeklyBrands}
+          onToggleWeeklyBrand={toggleWeeklyBrand}
           dailyBrands={dailyBrands}
           dailyTags={dailyTags}
           dailyPriorities={dailyPriorities}
@@ -395,8 +403,8 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                 <WeeklyBrandView
                   dateFrom={dateFrom}
                   dateTo={dateTo}
-                  brandFilter={brandId === 'all' ? undefined : brandId}
-                  onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
+                  brandFilter={weeklyBrands}
+                  onSelectBrand={toggleWeeklyBrand}
                   onCountChange={handleWeeklyCountChange}
                   onBrandsLoaded={handleWeeklyBrandsLoaded}
                   selectedTags={selectedTags}

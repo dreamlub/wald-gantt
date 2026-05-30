@@ -92,6 +92,8 @@ interface Props {
   onBrandChange: (b: string | 'all') => void
   brandCounts?: Record<string, number>
   weeklyBrandCounts?: Record<string, number>
+  weeklyBrands: Set<string>
+  onToggleWeeklyBrand: (b: string) => void
   dailyBrands: Set<string>
   dailyTags: Set<Tag>
   dailyPriorities: Set<Priority>
@@ -112,7 +114,7 @@ export function SummarySidebar({
   dateFrom, dateTo, onDateFromChange, onDateToChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
-  brandId, onBrandChange, brandCounts, weeklyBrandCounts,
+  brandId, onBrandChange, brandCounts, weeklyBrandCounts, weeklyBrands, onToggleWeeklyBrand,
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
   calendarBrands, calendarBrandList, calendarBrandCounts, calendarTotalCount,
@@ -159,7 +161,7 @@ export function SummarySidebar({
       <WeeklyListSidebar
         dateFrom={dateFrom} dateTo={dateTo}
         onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-        brandId={brandId} onBrandChange={onBrandChange}
+        activeBrands={weeklyBrands} onToggleBrand={onToggleWeeklyBrand}
         brandCounts={weeklyBrandCounts}
       />
     )
@@ -238,10 +240,10 @@ export function SummarySidebar({
 }
 
 // ── WeeklyList 사이드바 ─────────────────────────────────────
-function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange, brandId, onBrandChange, brandCounts }: {
+function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange, activeBrands, onToggleBrand, brandCounts }: {
   dateFrom: string; dateTo: string
   onDateFromChange: (s: string) => void; onDateToChange: (s: string) => void
-  brandId: string | 'all'; onBrandChange: (b: string | 'all') => void
+  activeBrands: Set<string>; onToggleBrand: (b: string) => void
   brandCounts?: Record<string, number>
 }) {
   const [query, setQuery] = useState('')
@@ -284,23 +286,24 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
           </div>
           <div className="px-2 pb-3 overflow-y-auto flex-1 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
             <button
-              onClick={() => onBrandChange('all')}
-              className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
+              onClick={() => { for (const [n] of brandList) if (activeBrands.has(n)) onToggleBrand(n) }}
+              className={`sidebar-btn ${activeBrands.size === 0 ? 'sidebar-btn-active' : ''}`}
             >
               <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
               <span className="flex-1 truncate text-left">전체</span>
               <span className="text-sm text-ink-400">{total}</span>
             </button>
             {visible.map(([name, count]) => {
-              const active = brandId === name
+              const active = activeBrands.has(name)
               return (
                 <button
                   key={name}
-                  onClick={() => onBrandChange(active ? 'all' : name)}
+                  onClick={() => onToggleBrand(name)}
                   className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
                 >
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(name) }} />
                   <span className="flex-1 truncate text-left">{name}</span>
+                  {active && <Check size={12} className="shrink-0" />}
                   <span className="text-sm text-ink-400">{count}</span>
                 </button>
               )

@@ -131,7 +131,7 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
 interface Props {
   dateFrom?:        string
   dateTo?:          string
-  brandFilter?:     string
+  brandFilter?:     Set<string>
   onSelectBrand:    (id: string) => void
   onCountChange?:   (total: number, filtered: number) => void
   onBrandsLoaded?:  (counts: Record<string, number>) => void
@@ -172,25 +172,29 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
 
   useEffect(() => { fetchSummaries() }, [fetchSummaries])
 
+  // 날짜만 필터한 결과 → 사이드바 브랜드 카운트 기준 (브랜드/태그/중요도 선택해도 목록 유지)
+  const dateFiltered = useMemo(() => {
+    if (!dateFrom && !dateTo) return rows
+    return rows.filter(r => {
+      const sun = new Date(r.week_start + 'T00:00:00')
+      sun.setDate(sun.getDate() + 6)
+      const weekEnd = sun.toISOString().split('T')[0]
+      if (dateFrom && weekEnd < dateFrom) return false
+      if (dateTo && r.week_start > dateTo) return false
+      return true
+    })
+  }, [rows, dateFrom, dateTo])
+
   const filtered = useMemo(() => {
-    let result = rows
-    if (dateFrom || dateTo) {
-      result = result.filter(r => {
-        const sun = new Date(r.week_start + 'T00:00:00')
-        sun.setDate(sun.getDate() + 6)
-        const weekEnd = sun.toISOString().split('T')[0]
-        if (dateFrom && weekEnd < dateFrom) return false
-        if (dateTo && r.week_start > dateTo) return false
-        return true
-      })
-    }
-    if (brandFilter) result = result.filter(r => r.brand_name === brandFilter)
+    let result = dateFiltered
+    if (brandFilter && brandFilter.size > 0)
+      result = result.filter(r => brandFilter.has(r.brand_name))
     if (selectedTags && selectedTags.size > 0)
       result = result.filter(r => r.key_tags?.some(t => selectedTags.has(t as Tag)))
     if (priorityKey && priorityKey !== 'all')
       result = result.filter(r => r.max_priority === priorityKey)
     return result
-  }, [rows, brandFilter, dateFrom, dateTo, selectedTags, priorityKey])
+  }, [dateFiltered, brandFilter, selectedTags, priorityKey])
 
   useEffect(() => {
     onCountChange?.(rows.length, filtered.length)
@@ -199,9 +203,9 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
   useEffect(() => {
     if (!onBrandsLoaded) return
     const counts: Record<string, number> = {}
-    for (const r of filtered) counts[r.brand_name] = (counts[r.brand_name] ?? 0) + 1
+    for (const r of dateFiltered) counts[r.brand_name] = (counts[r.brand_name] ?? 0) + 1
     onBrandsLoaded(counts)
-  }, [filtered, onBrandsLoaded])
+  }, [dateFiltered, onBrandsLoaded])
 
   const weekGroups = useMemo(() => groupByWeek(filtered), [filtered])
 
