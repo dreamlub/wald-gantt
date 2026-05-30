@@ -1,8 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
-import { Pin, Search, X } from 'lucide-react'
-import { NOTE_COLORS } from './_components/note-color-picker'
+import { Search, X } from 'lucide-react'
 import {
   DndContext, DragOverlay, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent, type DragStartEvent,
@@ -14,6 +13,7 @@ import { getNotes, createNote, updateNote, deleteNote } from '@/lib/note-service
 import { NoteCard, NoteCardOverlay } from './_components/note-card'
 import { NoteCreateBar }  from './_components/note-create-bar'
 import { NoteEditModal }  from './_components/note-edit-modal'
+import { NotesSidebar, type NoteQuickFilter } from './_components/notes-sidebar'
 
 export default function NotesPage() {
   const [notes,        setNotes]        = useState<Note[]>([])
@@ -22,7 +22,9 @@ export default function NotesPage() {
   const [selectedId,   setSelectedId]   = useState<string | null>(null)
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [colorFilter,  setColorFilter]  = useState<Set<NoteColor>>(new Set())
+  const [quickFilter,  setQuickFilter]  = useState<NoteQuickFilter>('all')
   const [activeId,     setActiveId]     = useState<string | null>(null)
+  const [trashNotes,   setTrashNotes]   = useState<Note[]>([])
   const pinReqRef = useRef(0)
 
   function toggleColorFilter(color: NoteColor) {
@@ -67,6 +69,7 @@ export default function NotesPage() {
     if (!deleted) return
     setNotes(prev => prev.filter(n => n.id !== id))
     if (selectedId === id) setSelectedId(null)
+    setTrashNotes(prev => [deleted, ...prev])
 
     let undone = false
     const timer = setTimeout(async () => {
@@ -81,6 +84,7 @@ export default function NotesPage() {
         onClick: () => {
           undone = true
           clearTimeout(timer)
+          setTrashNotes(prev => prev.filter(n => n.id !== id))
           setNotes(prev => [...prev, deleted].sort((a, b) => {
             if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
             if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
@@ -102,7 +106,7 @@ export default function NotesPage() {
     setActiveId(null)
     const { active, over } = event
     if (!over || active.id === over.id) return
-    if (searchQuery || colorFilter.size > 0) return
+    if (searchQuery || colorFilter.size > 0 || quickFilter !== 'all') return
 
     const activeNote = notes.find(n => n.id === active.id)
     const overNote   = notes.find(n => n.id === over.id)
@@ -125,10 +129,11 @@ export default function NotesPage() {
   }
 
   // ── 필터 ─────────────────────────────────────────────────────
-  const q        = searchQuery.toLowerCase()
+  const q = searchQuery.toLowerCase()
   const filtered = notes
     .filter(n => !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
     .filter(n => colorFilter.size === 0 || colorFilter.has(n.color))
+    .filter(n => quickFilter === 'pinned' ? n.pinned : true)
 
   const pinnedNotes  = filtered.filter(n =>  n.pinned)
   const regularNotes = filtered.filter(n => !n.pinned)
@@ -140,124 +145,110 @@ export default function NotesPage() {
   }
 
   return (
-    <div className="flex-1 flex flex-col overflow-hidden bg-background">
-      {/* 상단 바 */}
-      <div className="h-12 border-b bg-card flex items-center px-4 gap-2 shrink-0">
-        <span className="text-sm font-semibold text-foreground">메모장</span>
-        <span className="text-xs text-ink-400 tabular-nums">
-          {loading ? '' : colorFilter.size > 0
-            ? `${filtered.length}/${notes.length}개`
-            : `${notes.length}개`
-          }
-        </span>
+    <div className="flex-1 flex overflow-hidden">
+      {/* 사이드바 */}
+      <NotesSidebar
+        quickFilter={quickFilter}
+        onQuickFilterChange={setQuickFilter}
+        totalCount={notes.length}
+        pinnedCount={notes.filter(n => n.pinned).length}
+        colorFilter={colorFilter}
+        onColorFilterChange={toggleColorFilter}
+        onColorFilterClear={() => setColorFilter(new Set())}
+        trashCount={trashNotes.length}
+        onTrashOpen={() => toast('휴지통 기능은 준비 중입니다.')}
+      />
 
-        {/* 검색 */}
-        <div className="flex items-center gap-1 ml-1">
-          {searchOpen || searchQuery ? (
-            <div className="relative flex items-center">
-              <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
-              <input
-                autoFocus={searchOpen}
-                type="text"
-                value={searchQuery}
-                onChange={e => setSearchQuery(e.target.value)}
-                onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
-                placeholder="검색"
-                className="text-sm pl-6 pr-6 py-1 border rounded-lg w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
-              />
-              {searchQuery && (
-                <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1.5 text-ink-300 hover:text-foreground">
-                  <X size={11} />
-                </button>
-              )}
+      {/* 메인 영역 */}
+      <div className="flex-1 flex flex-col overflow-hidden bg-background">
+        {/* 상단 바 */}
+        <div className="h-12 border-b bg-card flex items-center px-4 gap-2 shrink-0">
+          <span className="text-sm font-semibold text-foreground">
+            {loading ? '' : colorFilter.size > 0 || quickFilter !== 'all'
+              ? `${filtered.length}/${notes.length}개`
+              : `${notes.length}개`
+            }
+          </span>
+
+          {/* 검색 */}
+          <div className="flex items-center gap-1">
+            {searchOpen || searchQuery ? (
+              <div className="relative flex items-center">
+                <Search size={12} className="absolute left-2 text-ink-300 pointer-events-none" />
+                <input
+                  autoFocus={searchOpen}
+                  type="text"
+                  value={searchQuery}
+                  onChange={e => setSearchQuery(e.target.value)}
+                  onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
+                  placeholder="검색"
+                  className="text-sm pl-6 pr-6 py-1 border rounded-lg w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
+                />
+                {searchQuery && (
+                  <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1.5 text-ink-300 hover:text-foreground">
+                    <X size={11} />
+                  </button>
+                )}
+              </div>
+            ) : (
+              <button
+                onClick={() => setSearchOpen(true)}
+                className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
+                title="검색"
+              >
+                <Search size={14} />
+              </button>
+            )}
+          </div>
+
+          <div className="flex-1" />
+        </div>
+
+        {/* 스크롤 영역 */}
+        <div className="flex-1 overflow-y-auto px-6 py-6">
+          {!searchQuery && quickFilter !== 'pinned' && (
+            <div className="mb-8">
+              <NoteCreateBar onCreate={handleCreate} />
+            </div>
+          )}
+
+          {loading ? (
+            <div className="flex items-center justify-center py-20 text-sm text-ink-300">로딩 중...</div>
+          ) : filtered.length === 0 ? (
+            <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
+              <span className="text-3xl">{searchQuery ? '🔍' : '📝'}</span>
+              <p className="text-sm font-medium text-muted-foreground">
+                {searchQuery ? `"${searchQuery}" 검색 결과 없음` : '메모가 없습니다'}
+              </p>
+              {!searchQuery && <p className="text-sm text-ink-300">위 입력란을 클릭해 첫 메모를 만들어 보세요</p>}
             </div>
           ) : (
-            <button
-              onClick={() => setSearchOpen(true)}
-              className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
-              title="검색"
+            <DndContext
+              sensors={sensors}
+              collisionDetection={closestCenter}
+              onDragStart={handleDragStart}
+              onDragEnd={handleDragEnd}
+              onDragCancel={() => setActiveId(null)}
             >
-              <Search size={14} />
-            </button>
+              {pinnedNotes.length > 0 && (
+                <section className="mb-6">
+                  <NoteCollection notes={pinnedNotes} {...sharedProps} />
+                </section>
+              )}
+              {regularNotes.length > 0 && (
+                <section>
+                  {pinnedNotes.length > 0 && quickFilter !== 'pinned' && (
+                    <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider block mb-3">기타</span>
+                  )}
+                  <NoteCollection notes={regularNotes} {...sharedProps} />
+                </section>
+              )}
+              <DragOverlay>
+                {activeNote && <NoteCardOverlay note={activeNote} />}
+              </DragOverlay>
+            </DndContext>
           )}
         </div>
-
-        {/* 색상 필터 */}
-        <div className="flex items-center gap-0.5 ml-1">
-          {(Object.entries(NOTE_COLORS) as [NoteColor, (typeof NOTE_COLORS)[NoteColor]][]).map(([key, c]) => (
-            <button
-              key={key}
-              title={`${c.label}만 보기`}
-              onClick={() => toggleColorFilter(key)}
-              className={`w-3.5 h-3.5 rounded-full border-2 transition-all hover:scale-110 ${c.dot} ${
-                colorFilter.has(key)
-                  ? 'border-foreground scale-110'
-                  : 'border-transparent opacity-40 hover:opacity-80'
-              }`}
-            />
-          ))}
-          {colorFilter.size > 0 && (
-            <button
-              onClick={() => setColorFilter(new Set())}
-              className="ml-0.5 p-0.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
-              title="필터 초기화"
-            >
-              <X size={10} />
-            </button>
-          )}
-        </div>
-
-        <div className="flex-1" />
-      </div>
-
-      {/* 스크롤 영역 */}
-      <div className="flex-1 overflow-y-auto px-6 py-6">
-        {!searchQuery && (
-          <div className="mb-8">
-            <NoteCreateBar onCreate={handleCreate} />
-          </div>
-        )}
-
-        {loading ? (
-          <div className="flex items-center justify-center py-20 text-sm text-ink-300">로딩 중...</div>
-        ) : filtered.length === 0 ? (
-          <div className="flex flex-col items-center justify-center py-24 gap-2 text-center">
-            <span className="text-3xl">{searchQuery ? '🔍' : '📝'}</span>
-            <p className="text-sm font-medium text-muted-foreground">
-              {searchQuery ? `"${searchQuery}" 검색 결과 없음` : '메모가 없습니다'}
-            </p>
-            {!searchQuery && <p className="text-sm text-ink-300">위 입력란을 클릭해 첫 메모를 만들어 보세요</p>}
-          </div>
-        ) : (
-          <DndContext
-            sensors={sensors}
-            collisionDetection={closestCenter}
-            onDragStart={handleDragStart}
-            onDragEnd={handleDragEnd}
-            onDragCancel={() => setActiveId(null)}
-          >
-            {pinnedNotes.length > 0 && (
-              <section className="mb-6">
-                <div className="flex items-center gap-1.5 mb-3">
-                  <Pin size={11} className="text-ink-400" />
-                  <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider">고정됨</span>
-                </div>
-                <NoteCollection notes={pinnedNotes} {...sharedProps} />
-              </section>
-            )}
-            {regularNotes.length > 0 && (
-              <section>
-                {pinnedNotes.length > 0 && (
-                  <span className="text-xs font-semibold text-ink-400 uppercase tracking-wider block mb-3">기타</span>
-                )}
-                <NoteCollection notes={regularNotes} {...sharedProps} />
-              </section>
-            )}
-            <DragOverlay>
-              {activeNote && <NoteCardOverlay note={activeNote} />}
-            </DragOverlay>
-          </DndContext>
-        )}
       </div>
 
       {selectedNote && (
