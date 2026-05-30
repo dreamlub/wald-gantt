@@ -23,6 +23,7 @@ export async function GET(req: NextRequest) {
     .select('*')
     .eq('workspace_id', member.workspace_id)
     .order('last_seen', { ascending: false })
+    .limit(2000) // 브랜드당 수십 건 × 브랜드 수 상한
 
   if (brand) q = q.eq('brand_name', brand)
   if (status && status !== 'all') q = q.eq('status', status)

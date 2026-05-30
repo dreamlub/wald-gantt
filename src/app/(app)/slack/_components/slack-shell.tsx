@@ -14,8 +14,9 @@ import { StatsView } from './stats-view'
 import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
-import { IssueTreeView } from './issue-tree-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
+import { TimelineBrandPanel } from './timeline-brand-panel'
+import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
 import { HistoryDetailDrawer } from './detail-drawer'
 import { FilterChip } from './filter-chip'
 import {
@@ -76,6 +77,8 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
   const [searchQuery,  setSearchQuery]  = useState(searchParams.get('q') ?? '')
   const [searchOpen,   setSearchOpen]   = useState(false)
   const [activeItem,   setActiveItem]   = useState<HistoryItem | null>(null)
+  const [timelineStats,     setTimelineStats]     = useState<BrandTimelineStat[]>([])
+  const handleTimelineStatsLoaded = useCallback((stats: BrandTimelineStat[]) => setTimelineStats(stats), [])
   const [weeklyCount,       setWeeklyCount]       = useState<{ total: number; filtered: number }>({ total: 0, filtered: 0 })
   const handleWeeklyCountChange = useCallback((total: number, filtered: number) => setWeeklyCount({ total, filtered }), [])
   const [weeklyBrandCounts, setWeeklyBrandCounts] = useState<Record<string, number>>({})
@@ -281,6 +284,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
           calendarTotalCount={calendarTotalCount}
           onToggleCalendarBrand={toggleCalendarBrand}
           onClearCalendarBrands={() => setCalendarBrands(new Set())}
+          onTimelineStatsLoaded={handleTimelineStatsLoaded}
         />
       </div>
 
@@ -307,8 +311,9 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
               onBrandsLoaded={handleCalendarBrandsLoaded}
             />
           ) : view === 'timeline' ? (
-            <IssueTreeView
-              brandFilter={brandId === 'all' ? undefined : brandId}
+            <TimelineBrandPanel
+              brandId={brandId}
+              stats={timelineStats.find(s => s.brand_name === brandId) ?? null}
             />
           ) : view === 'rawdata' ? (
             <RawDataView />

@@ -42,6 +42,7 @@ export async function GET(req: NextRequest) {
       .eq('workspace_id', member.workspace_id)
       .eq('status', status)
       .order('source_date', { ascending: false })
+      .limit(500) // status 탭별 최대 500건
 
     if (source)   q = q.eq('source', source)
     if (brand)    q = q.eq('brand', brand)
@@ -54,17 +55,13 @@ export async function GET(req: NextRequest) {
 
     const candidates = (data ?? []) as ReviewCandidate[]
 
-    // priority desc (high→medium→low→null), due_date asc nulls last, source_date desc (already sorted)
+    // priority는 'high'/'medium'/'low' 문자열이라 알파벳순 DB 정렬 불가 → JS에서 처리
     candidates.sort((a, b) => {
       const pd = priorityRank(a.priority) - priorityRank(b.priority)
       if (pd !== 0) return pd
-
-      // due_date asc nulls last
       if (a.due_date && b.due_date) return a.due_date.localeCompare(b.due_date)
       if (a.due_date) return -1
       if (b.due_date) return 1
-
-      // source_date desc (already sorted by DB, preserve)
       return b.source_date.localeCompare(a.source_date)
     })
 

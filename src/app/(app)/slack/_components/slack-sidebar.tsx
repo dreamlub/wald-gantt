@@ -106,6 +106,7 @@ interface Props {
   calendarTotalCount: number
   onToggleCalendarBrand: (b: string) => void
   onClearCalendarBrands: () => void
+  onTimelineStatsLoaded?: (stats: BrandTimelineStat[]) => void
 }
 
 export function SummarySidebar({
@@ -119,6 +120,7 @@ export function SummarySidebar({
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
   calendarBrands, calendarBrandList, calendarBrandCounts, calendarTotalCount,
   onToggleCalendarBrand, onClearCalendarBrands,
+  onTimelineStatsLoaded,
 }: Props) {
   const tagCounts: Record<string, number> = {}
   for (const t of TAG_KEYS) tagCounts[t] = 0
@@ -170,7 +172,9 @@ export function SummarySidebar({
   if (view === 'timeline') {
     return (
       <TimelineSidebar
-        brandId={brandId} onBrandChange={onBrandChange}
+        brandId={brandId}
+        onBrandChange={onBrandChange}
+        onStatsLoaded={onTimelineStatsLoaded ?? (() => {})}
       />
     )
   }
@@ -313,31 +317,33 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
 }
 
 // ── Timeline 사이드바 ───────────────────────────────────────
-function TimelineSidebar({ brandId, onBrandChange }: {
-  brandId: string | 'all'; onBrandChange: (b: string | 'all') => void
-}) {
-  const [brandCounts, setBrandCounts] = useState<Record<string, number>>({})
+import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
+
+interface TimelineSidebarProps {
+  brandId: string | 'all'
+  onBrandChange: (b: string | 'all') => void
+  onStatsLoaded: (stats: BrandTimelineStat[]) => void
+}
+
+function TimelineSidebar({ brandId, onBrandChange, onStatsLoaded }: TimelineSidebarProps) {
+  const [brands, setBrands] = useState<BrandTimelineStat[]>([])
 
   useEffect(() => {
-    fetch('/api/issues')
+    fetch('/api/brands/timeline')
       .then(r => r.json())
-      .then(({ issues }: { issues: { brand_name: string; status: string }[] }) => {
-        const counts: Record<string, number> = {}
-        for (const issue of issues ?? []) {
-          const b = issue.brand_name ?? '미분류'
-          counts[b] = (counts[b] ?? 0) + 1
-        }
-        setBrandCounts(counts)
+      .then(({ brands: rows }: { brands: BrandTimelineStat[] }) => {
+        setBrands(rows ?? [])
+        onStatsLoaded(rows ?? [])
       })
       .catch(() => {})
-  }, [])
-
-  const total = Object.values(brandCounts).reduce((a, b) => a + b, 0)
+  }, [onStatsLoaded])
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <div className="mt-1">
-        <GroupTitle>브랜드</GroupTitle>
+        <GroupTitle>브랜드 {brands.length}</GroupTitle>
+
+        {/* 전체 버튼 */}
         <button
           onClick={() => onBrandChange('all')}
           className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
@@ -345,27 +351,61 @@ function TimelineSidebar({ brandId, onBrandChange }: {
           <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
           <span className="flex-1 truncate text-left">전체</span>
           {brandId === 'all' && <Check size={12} className="shrink-0" />}
-          <span className="text-sm text-ink-400">{total}</span>
         </button>
-        {Object.entries(brandCounts)
-          .sort((a, b) => b[1] - a[1])
-          .map(([name, cnt]) => {
-            const active = brandId === name
-            return (
-              <button
-                key={name}
-                onClick={() => onBrandChange(active ? 'all' : name)}
-                className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
-              >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brandColor(name) }} />
-                <span className="flex-1 truncate text-left">{name}</span>
-                {active && <Check size={12} className="shrink-0" />}
-                <span className="text-sm text-ink-400">{cnt}</span>
-              </button>
-            )
-          })}
+
+        {/* 이슈 있는 브랜드 */}
+        {brands.filter(b => b.issue_count > 0).map(b => (
+          <BrandBtn key={b.brand_name} stat={b} active={brandId === b.brand_name}
+            onClick={() => onBrandChange(brandId === b.brand_name ? 'all' : b.brand_name)} />
+        ))}
+
+        {/* 조건 충족 but 이슈 없음 */}
+        {brands.filter(b => b.eligible && b.issue_count === 0).length > 0 && (
+          <div className="px-2 pt-3 pb-1">
+            <span className="text-2xs font-semibold text-ink-300 uppercase tracking-wider">생성 가능</span>
+          </div>
+        )}
+        {brands.filter(b => b.eligible && b.issue_count === 0).map(b => (
+          <BrandBtn key={b.brand_name} stat={b} active={brandId === b.brand_name}
+            onClick={() => onBrandChange(brandId === b.brand_name ? 'all' : b.brand_name)} />
+        ))}
+
+        {/* 조건 미충족 */}
+        {brands.filter(b => !b.eligible).length > 0 && (
+          <div className="px-2 pt-3 pb-1">
+            <span className="text-2xs font-semibold text-ink-300 uppercase tracking-wider">데이터 부족</span>
+          </div>
+        )}
+        {brands.filter(b => !b.eligible).map(b => (
+          <BrandBtn key={b.brand_name} stat={b} active={brandId === b.brand_name}
+            onClick={() => onBrandChange(brandId === b.brand_name ? 'all' : b.brand_name)} />
+        ))}
       </div>
     </div>
+  )
+}
+
+function BrandBtn({ stat, active, onClick }: {
+  stat: BrandTimelineStat; active: boolean; onClick: () => void
+}) {
+  const hasIssues = stat.issue_count > 0
+  const eligible  = stat.eligible
+
+  return (
+    <button
+      onClick={onClick}
+      className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''} ${!eligible ? 'opacity-50' : ''}`}
+    >
+      <span
+        className="w-2 h-2 rounded-full shrink-0"
+        style={{ backgroundColor: hasIssues ? brandColor(stat.brand_name) : eligible ? brandColor(stat.brand_name) : '#d1d5db' }}
+      />
+      <span className="flex-1 truncate text-left">{stat.brand_name}</span>
+      {active && <Check size={12} className="shrink-0" />}
+      {hasIssues && (
+        <span className="text-sm text-ink-400">{stat.issue_count}</span>
+      )}
+    </button>
   )
 }
 

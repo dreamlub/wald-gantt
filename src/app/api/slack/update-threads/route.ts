@@ -59,30 +59,45 @@ export async function POST() {
 
         send('status', { message: '스레드 업데이트 대상 조회 중...' })
 
-        // 1. raw_message_id 있는 전체 client_history
-        const { data: historyItems, error: histErr } = await sb
-          .from('client_history')
-          .select('id, source_id, raw_message_id')
-          .eq('workspace_id', workspaceId)
-          .is('deleted_at', null)
-          .not('raw_message_id', 'is', null)
-          .limit(20000) // PostgREST 기본 1000행 캡 회피: 전체 client_history 대상
+        // 1. raw_message_id 있는 전체 client_history — 페이지네이션으로 전수 수집
+        const PAGE = 1000
+        const historyItems: { id: string; source_id: string; raw_message_id: string }[] = []
+        let page = 0
+        while (true) {
+          const { data, error } = await sb
+            .from('client_history')
+            .select('id, source_id, raw_message_id')
+            .eq('workspace_id', workspaceId)
+            .is('deleted_at', null)
+            .not('raw_message_id', 'is', null)
+            .range(page * PAGE, (page + 1) * PAGE - 1)
+          if (error) throw error
+          if (!data?.length) break
+          historyItems.push(...(data as typeof historyItems))
+          if (data.length < PAGE) break
+          page++
+        }
 
-        if (histErr) throw histErr
-        if (!historyItems || historyItems.length === 0) {
+        if (historyItems.length === 0) {
           send('result', { updated: 0, message: '업데이트 대상 없음' })
           return
         }
 
-        // 2. 대응하는 raw_messages 조회
-        const rawIds = historyItems.map(h => h.raw_message_id as string)
-        const { data: rawRows, error: rawErr } = await sb
-          .from('slack_raw_messages')
-          .select('id, channel_id, parent_ts, raw_json')
-          .in('id', rawIds)
+        // 2. 대응하는 raw_messages 조회 — 500개씩 청크 (.in() 파라미터 제한 우회)
+        const rawIds = historyItems.map(h => h.raw_message_id)
+        const CHUNK = 500
+        type RawRow = { id: string; channel_id: string | null; parent_ts: string; raw_json: unknown }
+        const rawRows: RawRow[] = []
+        for (let i = 0; i < rawIds.length; i += CHUNK) {
+          const { data, error } = await sb
+            .from('slack_raw_messages')
+            .select('id, channel_id, parent_ts, raw_json')
+            .in('id', rawIds.slice(i, i + CHUNK))
+          if (error) throw error
+          if (data) rawRows.push(...(data as RawRow[]))
+        }
 
-        if (rawErr) throw rawErr
-        if (!rawRows || rawRows.length === 0) {
+        if (rawRows.length === 0) {
           send('result', { updated: 0, message: 'raw 데이터 없음' })
           return
         }

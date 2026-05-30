@@ -27,6 +27,7 @@ export async function GET(req: NextRequest) {
     .eq('workspace_id', member.workspace_id)
     .order('week_start', { ascending: true })
     .order('brand_name', { ascending: true })
+    .limit(5000) // 브랜드 수 × 주차 수 상한. 50브랜드 × 100주 = 5,000
 
   if (from)  query = query.gte('week_start', from)
   if (to)    query = query.lte('week_start', to)

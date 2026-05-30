@@ -75,12 +75,14 @@ export async function POST() {
     const since60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
 
     // ── 1. client_history 후보 ──────────────────────────────────────────
+    // 60일 × 일평균 50건 = 3,000건 상한 가정. high/issue 필터는 JS에서 하므로 넉넉하게 설정
     const { data: histories } = await sb
       .from('client_history')
       .select('id, title, body, brand_name, priority, occurred_at, tags')
       .eq('workspace_id', workspaceId)
       .is('deleted_at', null)
       .gte('occurred_at', since60)
+      .limit(5000)
 
     const historyRows: CandidateRow[] = (histories ?? [])
       .filter(h => h.priority === 'high' || (Array.isArray(h.tags) && h.tags.includes('issue')))
@@ -104,6 +106,7 @@ export async function POST() {
       .select('report_date, content')
       .eq('workspace_id', workspaceId)
       .gte('report_date', since60.slice(0, 10))
+      .limit(200) // 60일 × 팀별 1건. 팀 최대 3 × 60일 = 180건 상한
 
     const reportRows: CandidateRow[] = []
     for (const report of reports ?? []) {
@@ -139,6 +142,7 @@ export async function POST() {
       .select('id, week_start, team, summary')
       .eq('workspace_id', workspaceId)
       .gte('week_start', since60.slice(0, 10))
+      .limit(100) // 60일 ÷ 7 × 팀 수. 팀 10 × 9주 = 90건 상한
 
     const weeklyRows: CandidateRow[] = []
     for (const report of weeklyReports ?? []) {
