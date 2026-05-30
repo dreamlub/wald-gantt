@@ -11,8 +11,10 @@ function firstParam(value: string | string[] | undefined): string | undefined {
   return Array.isArray(value) ? value[0] : value
 }
 
+// timeline 뷰는 사이드바(/api/brands/timeline)·트래커(/api/issues)가 자체 조회하므로
+// 서버 진입 시 90일치 client_history(listHistory: 스레드 RPC + 페이지네이션)를 미리 받을 필요가 없다.
 function needsInitialHistory(view: string | undefined): boolean {
-  return view === 'dailyreport' || view === 'timeline'
+  return view === 'dailyreport'
 }
 
 export default async function SummaryPage({ searchParams }: { searchParams: SummarySearchParams }) {

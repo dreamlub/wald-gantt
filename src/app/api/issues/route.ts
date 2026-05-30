@@ -59,14 +59,9 @@ export async function GET(req: NextRequest) {
       .select('id, from_issue_id, to_issue_id, relation_type, note')
       .eq('workspace_id', member.workspace_id)
       .limit(5000),
-    // evidence_count — issue_id 컬럼만 끌어와 JS에서 group-by (N+1 회피, 단일 쿼리)
-    sb
-      .from('client_history')
-      .select('issue_id')
-      .eq('workspace_id', member.workspace_id)
-      .not('issue_id', 'is', null)
-      .is('deleted_at', null)
-      .limit(20000),
+    // evidence_count — DB group-by RPC (이슈별 ~230행). issue_id 전체를 끌어와 JS로 세던 기존 방식은
+    // PostgREST db-max-rows(1000) 캡에 잘려 연결 1,067건 중 일부가 누락되는 정확도 버그가 있었음.
+    sb.rpc('get_issue_evidence_counts', { p_workspace_id: member.workspace_id }),
   ])
 
   // 현재 이슈 집합에 속한 관계만 전달
@@ -75,11 +70,8 @@ export async function GET(req: NextRequest) {
   )
 
   const evidenceCounts: Record<string, number> = {}
-  for (const row of evidenceRes.data ?? []) {
-    const id = row.issue_id as string | null
-    if (id && issueIds.has(id)) {
-      evidenceCounts[id] = (evidenceCounts[id] ?? 0) + 1
-    }
+  for (const row of (evidenceRes.data ?? []) as { issue_id: string; cnt: number }[]) {
+    if (issueIds.has(row.issue_id)) evidenceCounts[row.issue_id] = Number(row.cnt)
   }
 
   return NextResponse.json({ issues: issueList, relations, evidenceCounts })
