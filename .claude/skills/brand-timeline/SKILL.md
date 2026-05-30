@@ -200,6 +200,14 @@ content JSONB의 action_items에서 해당 브랜드(brand 필드)만 필터.
 
 3단계 체인은 UI가 2단계만 지원하므로 가장 의미 있는 2단계로 압축.
 
+**분해 원칙 (시스템 영역 분리) — umbrella 과집중 방지:**
+하나의 root가 **서로 다른 시스템 영역 2개 이상**을 흡수하면 반드시 영역별 root로 분리한다. "운영 장애", "반복 장애", "복합 장애" 같은 포괄 제목은 추적 단위가 아니다 — 구체 시스템/증상별로 나눈다.
+
+시스템 영역 예: 오더앱(주문·결제 클라이언트) · 가맹점앱/어드민(매출·정산·집계) · 점주앱/서버 인프라(DB·접속·로그인) · 결제/PG(이중결제·직연동) · 로그인(카카오 등) · 키오스크/쿠폰/상품노출 · 외부 제휴(수수료 협의) · 신규 오픈/하드웨어 · 컴플라이언스.
+
+- 단일 영역일 때만 "~오류(반복)" umbrella를 만든다. (예: "오더앱 결제·주문 장애(반복)" OK / "오더앱·가맹점앱 반복 운영 장애"는 영역 혼재 → **분리**: 오더앱 결제·매출/정산·인프라·키오스크로)
+- 단일 일관 프로젝트(예: 어드민 전환)는 evidence가 많아도 영역이 하나면 하나로 유지 — 분해 불필요.
+
 #### 3-5. 프로젝트·결정
 
 - **project**: 시작+완료/목표일 있는 것. closed = 배포·오픈 완료 명시
@@ -379,6 +387,22 @@ SELECT
 **합격선 (미달 시 재작업):**
 - `evidence_미연결 / evidence_전체` ≤ 약 10% — 대부분 메시지가 노드에 연결돼야 함 (Step 4 누락 점검)
 - `관계수 ≥ 1` — 단일 단순 브랜드가 아니면(전환·운영장애 등 다주제) 관계 0은 **거의 항상 누락**. 0이면 아래 트리거를 다시 확인.
+
+**분해 게이트 (umbrella 과집중 점검 — 반드시 실행):**
+큰 umbrella가 여러 시스템 영역을 흡수했는지 root별로 확인한다.
+
+```sql
+SELECT p.title,
+       count(c.id) AS 자식수,
+       (SELECT count(*) FROM client_history ch WHERE ch.issue_id=p.id AND ch.deleted_at IS NULL) AS 직접evidence
+FROM issues p LEFT JOIN issues c ON c.parent_issue_id=p.id
+WHERE p.brand_name='{{브랜드}}' AND p.parent_issue_id IS NULL
+GROUP BY p.id, p.title
+HAVING count(c.id) >= 6
+    OR (SELECT count(*) FROM client_history ch WHERE ch.issue_id=p.id AND ch.deleted_at IS NULL) >= 40
+ORDER BY 직접evidence DESC;
+```
+→ **걸린 root는 본문을 다시 읽어 서로 다른 시스템 영역이 섞였는지 확인한다.** 섞였으면 3-4 분해 원칙대로 영역별 root로 분리한다. 단일 일관 영역(예: 어드민 전환 프로젝트)이면 유지 가능. "운영 장애/복합 장애" 류 제목이 이 게이트에 걸리면 거의 항상 분리 대상이다.
 
 **주제 연속성 트리거 (반드시 확인):**
 같은 주제 키워드를 가진 부모 노드가 2개 이상이면, 그들 사이에 관계가 있는지 점검한다.
