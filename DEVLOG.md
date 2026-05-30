@@ -1,5 +1,45 @@
 # Wald Gantt — 개발 로그
 
+---
+
+## 최근 변경 (2026-05-30) — 타임라인 브랜드 목록 전체 표시 + Supabase row limit 전수 수정
+
+### 신규
+
+**타임라인 사이드바 전체 브랜드 표시**
+- `GET /api/brands/timeline` — `get_brand_timeline_stats` DB 함수(RPC)로 전체 브랜드 집계
+  - 기존: issues 테이블에 있는 브랜드만 표시 (Supabase 1000행 캡 + issues 없는 브랜드 누락)
+  - 변경: 전체 브랜드를 데이터 상태별 3단 구분으로 표시
+- `get_brand_timeline_stats(p_workspace_id)` Postgres 함수 — 데일리/위클리/이슈 건수 GROUP BY 집계
+- `TimelineBrandPanel` — 브랜드 선택 시 3가지 상태 렌더링
+  - 이슈 있음 → IssueTreeView
+  - 조건 충족 but 이슈 없음 → `/brand-timeline` 스킬 안내
+  - 조건 미충족 → 위클리 N주 / 데일리 N건 표시
+- 사이드바 3단 구분: 이슈 있음 / 생성 가능 (위클리 4주+, 데일리 30건+) / 데이터 부족
+- 타임라인 탭 사이드바 날짜 피커 제거
+
+**brand-timeline 스킬 등록**
+- `.claude/skills/brand-timeline/SKILL.md` — 브랜드 타임라인 생성 스킬
+- weekly_brand_summaries thread_id 체인 → 인과 추론 → issues 테이블 삽입 방법론 포함
+
+### 수정 — Supabase PostgREST 1000행 기본 캡 전수 수정
+
+Supabase PostgREST가 단일 쿼리당 기본 최대 1000행을 반환하는 제약으로 데이터가 조용히 잘리는 문제를 전수 점검 후 수정.
+
+| 파일 | 문제 | 수정 방법 |
+|------|------|----------|
+| `api/brands/timeline` | JS 카운팅 + 1000행 캡 | RPC(DB 집계 함수)로 전환 |
+| `api/slack/update-threads` | client_history 20000 limit 무효 + `.in()` limit 없음 | 페이지네이션 루프 + 500개 청크 |
+| `api/timeline` | weekly_brand_summaries limit 없음 | `.limit(5000)` |
+| `api/issues` | issues 전체 limit 없음 | `.limit(2000)` |
+| `api/review/populate` | 3개 테이블 모두 limit 없음 | 각각 `.limit(5000/200/100)` |
+| `api/review/candidates` | limit 없음 + priority JS 재정렬 | `.limit(500)` + JS 정렬 유지 |
+
+**미수정 (1회성 마이그레이션 또는 운영 빈도 낮음):**
+- `slack/remap-history`, `slack/migrate-user-names`, `weekly/collection-status`
+
+---
+
 ## 백로그
 
 | 항목 | 내용 | 우선순위 |
