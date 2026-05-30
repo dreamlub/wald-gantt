@@ -83,7 +83,7 @@ export function NoteEditModal({ note, onUpdate, onDelete, onClose }: Props) {
     }
   }
 
-  const bg = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  const bg = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.yellow.bg
 
   return (
     <div

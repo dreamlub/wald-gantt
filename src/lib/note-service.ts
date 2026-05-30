@@ -7,9 +7,20 @@ export async function getNotes(): Promise<Note[]> {
   const { data, error } = await db()
     .from('notes')
     .select('*')
+    .is('deleted_at', null)
     .order('pinned', { ascending: false })
     .order('sort_order', { ascending: true })
     .order('created_at', { ascending: false })
+  if (error) throw error
+  return data ?? []
+}
+
+export async function getTrashedNotes(): Promise<Note[]> {
+  const { data, error } = await db()
+    .from('notes')
+    .select('*')
+    .not('deleted_at', 'is', null)
+    .order('deleted_at', { ascending: false })
   if (error) throw error
   return data ?? []
 }
@@ -29,7 +40,7 @@ export async function createNote(params: {
       user_id:    user.id,
       title:      params.title      ?? '',
       content:    params.content    ?? '',
-      color:      params.color      ?? 'default',
+      color:      params.color      ?? 'yellow',
       pinned:     params.pinned     ?? false,
       sort_order: params.sort_order ?? 0,
     })
@@ -47,18 +58,38 @@ export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' |
   if (error) throw error
 }
 
-export async function deleteNote(id: string): Promise<void> {
+/** 소프트 삭제: deleted_at 설정 */
+export async function softDeleteNote(id: string): Promise<void> {
+  const { error } = await db()
+    .from('notes')
+    .update({ deleted_at: new Date().toISOString(), pinned: false })
+    .eq('id', id)
+  if (error) throw error
+}
+
+/** 휴지통에서 복원: deleted_at 제거 */
+export async function restoreNote(id: string): Promise<void> {
+  const { error } = await db()
+    .from('notes')
+    .update({ deleted_at: null })
+    .eq('id', id)
+  if (error) throw error
+}
+
+/** 영구 삭제 */
+export async function permanentDeleteNote(id: string): Promise<void> {
   const { error } = await db().from('notes').delete().eq('id', id)
   if (error) throw error
 }
 
+/** 하위 호환용 — 즉시 영구 삭제 */
+export { permanentDeleteNote as deleteNote }
+
 /**
  * 태스크가 삭제될 때 연결된 모든 메모에서 해당 링크를 제거합니다.
- * 태스크 삭제 성공 여부에는 영향을 주지 않으므로 에러는 조용히 처리합니다.
  */
 export async function removeTaskLinkFromNotes(taskId: string): Promise<void> {
   try {
-    // links JSONB 배열 안에 해당 taskId를 가진 객체가 있는 notes 조회
     const { data: notes } = await db()
       .from('notes')
       .select('id, links')

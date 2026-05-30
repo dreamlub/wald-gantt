@@ -34,7 +34,7 @@ function Highlight({ text, query }: { text: string; query: string }) {
 
 // 드래그 오버레이 전용 — useSortable 없이 카드 외형만 렌더링
 export function NoteCardOverlay({ note }: { note: Note }) {
-  const bg     = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
+  const bg     = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.yellow.bg
   const date   = format(new Date(note.updated_at), 'M/d')
   const isLong = note.content.length > 300
   return (
@@ -78,8 +78,8 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
     opacity: isDragging ? 0 : 1,
   }
 
-  const bg        = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.default.bg
-  const date      = format(new Date(note.updated_at), 'M/d')
+  const bg        = NOTE_COLORS[note.color]?.bg ?? NOTE_COLORS.yellow.bg
+  const date      = format(new Date(note.updated_at), 'M/d HH:mm')
   const isLong    = note.content.length > 300
   const checkboxes = note.content ? parseCheckboxStats(note.content) : null
 
@@ -153,8 +153,8 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
         <div className="opacity-0 group-hover:opacity-100 transition-opacity">
           <ColorPicker value={note.color} onChange={color => onUpdate(note.id, { color })} />
         </div>
-        <span className="text-2xs text-ink-400 ml-1.5 tabular-nums">{date}</span>
         <div className="flex-1" />
+        <span className="text-2xs text-ink-400 tabular-nums">{date}</span>
         <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
           <button
             onClick={() => onUpdate(note.id, { pinned: !note.pinned })}

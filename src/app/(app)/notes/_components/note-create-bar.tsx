@@ -15,7 +15,7 @@ export function NoteCreateBar({ onCreate }: Props) {
   const [open,    setOpen]    = useState(false)
   const [title,   setTitle]   = useState('')
   const [content, setContent] = useState('')
-  const [color,   setColor]   = useState<NoteColor>('default')
+  const [color,   setColor]   = useState<NoteColor>('yellow')
   const containerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -34,7 +34,7 @@ export function NoteCreateBar({ onCreate }: Props) {
     if (t || c) onCreate({ title: t, content: c, color })
     setTitle('')
     setContent('')
-    setColor('default')
+    setColor('yellow')
     setOpen(false)
   }
 
@@ -43,7 +43,7 @@ export function NoteCreateBar({ onCreate }: Props) {
       setOpen(false)
       setTitle('')
       setContent('')
-      setColor('default')
+      setColor('yellow')
     }
   }
 
@@ -87,7 +87,7 @@ export function NoteCreateBar({ onCreate }: Props) {
         <ColorPicker value={color} onChange={setColor} />
         <div className="flex-1" />
         <button
-          onClick={() => { setOpen(false); setTitle(''); setContent(''); setColor('default') }}
+          onClick={() => { setOpen(false); setTitle(''); setContent(''); setColor('yellow') }}
           className="px-3 py-1.5 rounded-lg text-sm text-muted-foreground hover:bg-black/5 transition-colors"
         >
           취소

@@ -212,7 +212,7 @@ export interface WeeklyReport {
   updated_at: string
 }
 
-export type NoteColor = 'default' | 'yellow' | 'blue' | 'green' | 'pink' | 'purple'
+export type NoteColor = 'yellow' | 'orange' | 'red' | 'pink' | 'purple' | 'blue' | 'teal' | 'green' | 'gray'
 
 export interface NoteLink {
   type:  'task' | 'project'
@@ -231,4 +231,5 @@ export interface Note {
   links: NoteLink[]
   created_at: string
   updated_at: string
+  deleted_at: string | null
 }
