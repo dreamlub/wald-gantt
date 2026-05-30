@@ -17,18 +17,22 @@ interface UpcomingEvent {
   fuzzy: boolean
 }
 
-// 제목 정규화: 소문자 + 공백·특수문자 제거 후 앞 12자
-// → 같은 일정이 "A미팅", "A미팅 확정", "A 미팅" 등으로 조금씩 달라도 같은 키로 묶임
+// 제목 정규화: 소문자 + 공백·특수문자 제거 후 앞 6자
+// → "A미팅", "A미팅 확정", "A 미팅 준비" 등 조금씩 다른 표현을 같은 키로 묶음
 function normalizeTitle(title: string): string {
-  return title.toLowerCase().replace(/[\s\-_·,.!?~()\[\]「」『』【】]/g, '').slice(0, 12)
+  return title.toLowerCase().replace(/[\s\-_·,.!?~()\[\]「」『』【】]/g, '').slice(0, 6)
 }
 
 // 날짜 정규화: M/D or M월D일 → "M/D" 통일
-// → "6/3", "6월 3일", "6/3(화)" 모두 같은 키
+// → "6/3", "6월 3일", "6월3일", "6/3(화)" 모두 같은 키
+// ※ 룩비하인드로 "2025/6/3"에서 "25/6"이 잘못 매칭되는 케이스 방지
 function normalizeDateKey(dateStr: string): string {
-  const md = dateStr.match(/(\d{1,2})[\/월](\d{1,2})/)
-  if (md) return `${parseInt(md[1])}/${parseInt(md[2])}`
-  return dateStr.trim().slice(0, 8)
+  const str = dateStr.trim()
+  const kor = str.match(/(\d{1,2})월\s*(\d{1,2})/)
+  if (kor) return `${parseInt(kor[1])}/${parseInt(kor[2])}`
+  const slash = str.match(/(?<!\d)(\d{1,2})\/(\d{1,2})/)
+  if (slash) return `${parseInt(slash[1])}/${parseInt(slash[2])}`
+  return str.slice(0, 8)
 }
 
 // M/D → 연도 추론: 현재 연도 기준, 이미 3개월 이상 지난 월이면 다음 연도로 간주
