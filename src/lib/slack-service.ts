@@ -366,8 +366,17 @@ ${fullText}
 const MAX_TITLE_LEN = 60
 
 /**
+ * 마크다운/불릿/구두점/공백을 걷어내고 실제 의미 있는 글자(한글·영문·숫자)가 있는지.
+ * "**", "• -", "...", 이모지-only 같은 알맹이 없는 값을 걸러낸다.
+ */
+export function hasMeaningfulContent(s: string): boolean {
+  return /[\p{L}\p{N}]/u.test(s)
+}
+
+/**
  * AI 분류 결과를 저장 직전에 검증·정규화하는 품질 게이트(순수 함수, 단위 테스트 대상).
- * - 하드 차단(null 반환 = 저장하지 않음): 제목 또는 본문이 비어있는 경우
+ * - 하드 차단(null 반환 = 저장하지 않음): 제목 또는 본문에 의미 있는 내용이 없는 경우
+ *   (빈 문자열뿐 아니라 마크업·불릿·구두점만 있는 알맹이 없는 값도 차단)
  * - 보정: 제목 길이 컷(MAX_TITLE_LEN), 볼드 마크업 균형(balanceBold),
  *   태그 중복 제거, 작성자 fallback
  * (태그 enum·우선순위·필수필드 등 구조 검증은 상위 Zod 스키마가 이미 보장)
@@ -384,10 +393,10 @@ export function validateClassification(
   fallbackAuthor: string,
 ): ClassifyResult | null {
   const title = input.title.trim().slice(0, MAX_TITLE_LEN)
-  if (!title) return null
+  if (!hasMeaningfulContent(title)) return null
 
   const body = balanceBold(input.body.trim())
-  if (!body) return null
+  if (!hasMeaningfulContent(body)) return null
 
   return {
     tags: [...new Set(input.tags)],

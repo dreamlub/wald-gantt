@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { getReplySourceIds, isObviousNoise, balanceBold, validateClassification, type RawJson } from './slack-service'
+import { getReplySourceIds, isObviousNoise, balanceBold, validateClassification, hasMeaningfulContent, type RawJson } from './slack-service'
 
 function makeRj(text: string, replies: RawJson['replies'] = []): RawJson {
   return {
@@ -128,5 +128,30 @@ describe('validateClassification', () => {
   it('brand 는 trim 후 비면 undefined, 값 있으면 trim', () => {
     expect(validateClassification({ ...base, brand: '  ' }, 'fb')!.brand).toBeUndefined()
     expect(validateClassification({ ...base, brand: ' 더리터 ' }, 'fb')!.brand).toBe('더리터')
+  })
+
+  it('마크업/불릿만 있고 알맹이 없는 제목은 차단', () => {
+    expect(validateClassification({ ...base, title: '**' }, 'fb')).toBeNull()
+    expect(validateClassification({ ...base, title: '•••' }, 'fb')).toBeNull()
+  })
+
+  it('불릿/공백만 있는 본문은 차단', () => {
+    expect(validateClassification({ ...base, body: '• \n- \n•' }, 'fb')).toBeNull()
+    expect(validateClassification({ ...base, body: '🙏' }, 'fb')).toBeNull()
+  })
+})
+
+describe('hasMeaningfulContent', () => {
+  it('한글·영문·숫자가 있으면 true', () => {
+    expect(hasMeaningfulContent('• 강릉점 매출')).toBe(true)
+    expect(hasMeaningfulContent('foo')).toBe(true)
+    expect(hasMeaningfulContent('2026')).toBe(true)
+  })
+  it('마크업·불릿·구두점·이모지만이면 false', () => {
+    expect(hasMeaningfulContent('**')).toBe(false)
+    expect(hasMeaningfulContent('• - *')).toBe(false)
+    expect(hasMeaningfulContent('...')).toBe(false)
+    expect(hasMeaningfulContent('🙏👍')).toBe(false)
+    expect(hasMeaningfulContent('   ')).toBe(false)
   })
 })
