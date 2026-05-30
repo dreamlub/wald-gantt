@@ -11,11 +11,10 @@ export const STATUS_GROUPS: { status: TaskStatus; label: string; color: string; 
 ]
 
 export const STATUS_ABBR: Record<TaskStatus, string> = {
-  inbox: 'X', backlog: 'B', 'to-do': 'T', 'in-progress': 'I', done: 'D', pending: 'P',
+  backlog: 'B', 'to-do': 'T', 'in-progress': 'I', done: 'D', pending: 'P',
 }
 
 export const STATUS_COLOR: Record<TaskStatus, string> = {
-  inbox:         'var(--task-status-inbox, var(--color-ink-400))',
   backlog:       'var(--task-status-backlog)',
   'to-do':       'var(--task-status-todo)',
   'in-progress': 'var(--task-status-in-progress)',
@@ -24,7 +23,6 @@ export const STATUS_COLOR: Record<TaskStatus, string> = {
 }
 
 export const STATUS_BG_COLOR: Record<TaskStatus, string> = {
-  inbox:         'var(--task-status-inbox-bg, var(--color-muted))',
   backlog:       'var(--task-status-backlog-bg)',
   'to-do':       'var(--task-status-todo-bg)',
   'in-progress': 'var(--task-status-in-progress-bg)',
@@ -33,7 +31,7 @@ export const STATUS_BG_COLOR: Record<TaskStatus, string> = {
 }
 
 export const STATUS_LABEL: Record<TaskStatus, string> = {
-  inbox: 'Inbox', backlog: 'Backlog', 'to-do': 'To-Do', 'in-progress': 'In Progress', done: 'Done', pending: 'Pending',
+  backlog: 'Backlog', 'to-do': 'To-Do', 'in-progress': 'In Progress', done: 'Done', pending: 'Pending',
 }
 
 export const PROJECT_COLORS = [
@@ -49,11 +47,11 @@ export const ASSIGNEE_COLORS = [
 export type ViewType = 'basic' | 'listview' | 'kanban' | 'calendar' | 'gantt'
 
 export const VIEW_TABS: { key: ViewType; label: string; icon: React.ReactNode }[] = [
-  { key: 'basic',    label: 'Basic View',    icon: <LayoutGrid size={13} /> },
-  { key: 'listview', label: 'List View',     icon: <List size={13} /> },
-  { key: 'kanban',   label: 'Kanban View',   icon: <Columns3 size={13} /> },
-  { key: 'gantt',    label: 'Gantt View',    icon: <GanttChartSquare size={13} /> },
-  { key: 'calendar', label: 'Calendar View', icon: <CalendarDays size={13} /> },
+  { key: 'basic',    label: 'Basic',    icon: <LayoutGrid size={13} /> },
+  { key: 'listview', label: 'List',     icon: <List size={13} /> },
+  { key: 'kanban',   label: 'Kanban',   icon: <Columns3 size={13} /> },
+  { key: 'gantt',    label: 'Gantt',    icon: <GanttChartSquare size={13} /> },
+  { key: 'calendar', label: 'Calendar', icon: <CalendarDays size={13} /> },
 ]
 
 // ── 우선순위 ─────────────────────────────────────────────────

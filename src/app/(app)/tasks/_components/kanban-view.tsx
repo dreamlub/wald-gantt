@@ -12,7 +12,7 @@ import {
 } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { GanttTask, TaskStatus } from '@/types'
-import { STATUS_GROUPS, PriorityBars } from '../_constants'
+import { STATUS_GROUPS, STATUS_COLOR, PriorityBars } from '../_constants'
 import { fmtDate, isOverdue, overdueDays, isStartDelayed, startDelayedDays, daysDiff } from '../_utils'
 import { MemoTooltip } from '@/components/MemoTooltip'
 import { LabelBadge } from './label-badge'
@@ -61,12 +61,15 @@ function KanbanCard({ task, assigneeColor, onEdit, isDragging, subTaskStats, onM
   const assigneeName = task.type === 'mine' ? '내 할일' : (task.assignee ?? '')
   const labels   = task.labels ?? []
 
+  const statusColor = STATUS_COLOR[task.status]
+
   return (
     <div
-      className={`bg-card rounded-lg border border-border/60 px-3.5 py-3 group
-        hover:bg-muted/60 transition-colors cursor-pointer
-        ${isDone ? 'opacity-55' : ''}
+      className={`bg-card rounded-lg border border-border/60 border-l-2 px-3.5 py-3 group
+        shadow-sm hover:shadow-md hover:bg-muted/40 transition-all cursor-pointer
+        ${isDone ? 'opacity-50' : ''}
         ${isDragging ? 'opacity-0' : ''}`}
+      style={{ borderLeftColor: statusColor }}
       onClick={() => onEdit(task)}
     >
       {/* 제목 */}
@@ -183,13 +186,15 @@ function KanbanColumn({
 
   return (
     <div className="flex flex-col shrink-0 w-72 h-full border-r border-border/30 last:border-r-0">
-      <div className="flex items-center gap-2 px-3 py-3">
+      <div className="h-0.5 w-full" style={{ backgroundColor: color }} />
+      <div className="flex items-center gap-2 px-3 py-2.5">
+        <span className="text-sm font-semibold text-foreground flex-1">{label}</span>
         <span
-          className="shrink-0 w-2 h-2 rounded-full"
-          style={{ backgroundColor: color }}
-        />
-        <span className="text-sm font-semibold text-foreground">{label}</span>
-        <span className="text-sm text-muted-foreground">{tasks.length}</span>
+          className="text-xs font-semibold px-1.5 py-0.5 rounded-full"
+          style={{ backgroundColor: color + '22', color }}
+        >
+          {tasks.length}
+        </span>
       </div>
 
       <SortableContext items={orderedIds} strategy={verticalListSortingStrategy}>

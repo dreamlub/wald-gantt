@@ -122,7 +122,10 @@ export async function addTask(
     const { error: linkError } = await db()
       .from('gantt_task_projects')
       .insert(projectIds.map(project_id => ({ task_id: task.id, project_id })))
-    if (linkError) throw linkError
+    if (linkError) {
+      await db().from('gantt_tasks').delete().eq('id', task.id)
+      throw linkError
+    }
   }
 
   return { ...task, projects: [] }
@@ -140,13 +143,26 @@ export async function updateTask(
   if (error) throw error
 
   if (projectIds !== undefined) {
-    const { error: delError } = await db().from('gantt_task_projects').delete().eq('task_id', id)
-    if (delError) throw delError
-    if (projectIds.length > 0) {
-      const { error: linkError } = await db()
+    const { data: current } = await db().from('gantt_task_projects').select('project_id').eq('task_id', id)
+    const currentIds = new Set((current ?? []).map(r => r.project_id as string))
+    const newIds = new Set(projectIds)
+
+    const toAdd = projectIds.filter(pid => !currentIds.has(pid))
+    const toRemove = [...currentIds].filter(pid => !newIds.has(pid))
+
+    if (toAdd.length > 0) {
+      const { error: addError } = await db()
         .from('gantt_task_projects')
-        .insert(projectIds.map(project_id => ({ task_id: id, project_id })))
-      if (linkError) throw linkError
+        .insert(toAdd.map(project_id => ({ task_id: id, project_id })))
+      if (addError) throw addError
+    }
+    if (toRemove.length > 0) {
+      const { error: removeError } = await db()
+        .from('gantt_task_projects')
+        .delete()
+        .eq('task_id', id)
+        .in('project_id', toRemove)
+      if (removeError) throw removeError
     }
   }
 }
@@ -338,18 +354,67 @@ export async function searchProjects(workspaceId: string, query: string): Promis
 // ── Archive ───────────────────────────────────────────────
 
 const DEFAULT_ARCHIVE_DAYS = 7
+const DEFAULT_PURGE_DAYS   = 30
 
-/** 완료 후 N일 경과한 태스크를 자동 아카이브 */
+/** 완료 후 N일 경과한 태스크를 스냅샷 후 아카이브 */
 export async function autoArchiveTasks(workspaceId: string, days: number = DEFAULT_ARCHIVE_DAYS): Promise<number> {
-  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString()
-  const { data, error } = await db()
+  const cutoff    = new Date(Date.now() - days * 86_400_000).toISOString()
+  const now       = new Date().toISOString()
+
+  // 아카이브 대상 조회 (프로젝트 포함)
+  const { data: targets, error: fetchError } = await db()
     .from('gantt_tasks')
-    .update({ archived_at: new Date().toISOString() })
+    .select(TASK_SELECT)
     .eq('workspace_id', workspaceId)
     .eq('status', 'done')
     .is('archived_at', null)
     .is('deleted_at', null)
     .lt('updated_at', cutoff)
+  if (fetchError) throw fetchError
+  if (!targets || targets.length === 0) return 0
+
+  const tasks = (targets as TaskRow[]).map(mapTaskRow)
+
+  // task_completions 스냅샷 (ON CONFLICT DO NOTHING — 중복 안전)
+  await db()
+    .from('task_completions')
+    .insert(
+      tasks.map(t => ({
+        workspace_id: workspaceId,
+        task_id:      t.id,
+        title:        t.title,
+        assignee:     t.assignee,
+        type:         t.type,
+        priority:     t.priority ?? 0,
+        labels:       t.labels ?? [],
+        projects:     (t.projects ?? []).map(p => ({ id: p.id, name: p.name })),
+        start_date:   t.start_date,
+        due_date:     t.due_date,
+        completed_at: t.updated_at ?? now,
+      }))
+    )
+    .select()  // ON CONFLICT DO NOTHING은 upsert 없이 insert 충돌 시 무시
+
+  // 아카이브 처리
+  const ids = tasks.map(t => t.id)
+  const { error: archiveError } = await db()
+    .from('gantt_tasks')
+    .update({ archived_at: now })
+    .in('id', ids)
+  if (archiveError) throw archiveError
+
+  return tasks.length
+}
+
+/** 아카이브 후 N일 경과한 태스크를 영구 삭제 (task_completions에 스냅샷 보존) */
+export async function autoPurgeArchivedTasks(workspaceId: string, days: number = DEFAULT_PURGE_DAYS): Promise<number> {
+  const cutoff = new Date(Date.now() - days * 86_400_000).toISOString()
+  const { data, error } = await db()
+    .from('gantt_tasks')
+    .delete()
+    .eq('workspace_id', workspaceId)
+    .not('archived_at', 'is', null)
+    .lt('archived_at', cutoff)
     .select('id')
   if (error) throw error
   return data?.length ?? 0

@@ -360,10 +360,9 @@ export function GanttView({ tasks, onEdit, onDateChange, onStatusChange }: Props
                         onMouseLeave={() => setMemoHover(null)}
                       />
                     )}
+                    <span className="ml-auto shrink-0 text-xs text-ink-300">날짜 없음</span>
                   </div>
-                  <div className="flex-1 flex items-center px-4">
-                    <span className="text-sm text-ink-300">날짜 없음 — 수정해서 일정을 설정하세요</span>
-                  </div>
+                  <div className="flex-1" />
                 </div>
               )
             })}

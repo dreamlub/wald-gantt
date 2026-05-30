@@ -21,6 +21,7 @@ import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
 import { TAG_META, PRIORITY_META } from './slack/_lib/constants'
 import { toYMD, toShortDate } from '@/lib/date-utils'
 import { ProjectsSection } from './_ProjectsSection'
+import { TodayTasksPanel } from './_TodayTasksPanel'
 
 type WeeklyInsightRow = {
   week_start: string
@@ -116,7 +117,8 @@ export const metadata = {
 
 export default async function CommandCenterPage() {
   const { sb, workspaceId } = await getWorkspaceId()
-  const today = todayLocal()
+  const today   = todayLocal()
+  const tomorrow = addDays(today, 1)
   const weekEnd = addDays(today, 6)
 
   if (!workspaceId) {
@@ -164,12 +166,14 @@ export default async function CommandCenterPage() {
   const history = ((historyRes.data ?? []) as HistoryItem[])
   const latestWeekly = (weeklyRes.data as WeeklyInsightRow | null) ?? null
 
-  const openTasks = tasks.filter(t => t.status !== 'done')
-  const scheduledToday = tasks.filter(t => t.scheduled_at?.slice(0, 10) === today)
-  const dueToday = openTasks.filter(t => t.due_date === today)
-  const dueThisWeek = openTasks.filter(t => t.due_date && t.due_date >= today && t.due_date <= weekEnd)
-  const overdueTasks = openTasks.filter(t => t.due_date && t.due_date < today)
-  const waitingTasks = openTasks.filter(t => t.status === 'pending')
+  const openTasks       = tasks.filter(t => t.status !== 'done')
+  const scheduledToday  = tasks.filter(t => t.scheduled_at?.slice(0, 10) === today)
+  const dueToday        = openTasks.filter(t => t.due_date === today)
+  const dueTomorrow     = openTasks.filter(t => t.due_date === tomorrow)
+  const dueThisWeek     = openTasks.filter(t => t.due_date && t.due_date >= today && t.due_date <= weekEnd)
+  const dueRestWeek     = openTasks.filter(t => t.due_date && t.due_date > tomorrow && t.due_date <= weekEnd)
+  const overdueTasks    = openTasks.filter(t => t.due_date && t.due_date < today)
+  const waitingTasks    = openTasks.filter(t => t.status === 'pending')
   const inProgressTasks = openTasks.filter(t => t.status === 'in-progress')
 
   const highHistoryAll = history.filter(h => h.priority === 'high')
@@ -257,14 +261,13 @@ export default async function CommandCenterPage() {
           </section>
 
           <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
-            <Panel title="내 실행 큐" href={tasksQuickHref('overdue')} icon={<ListTodo size={13} />}>
-              <div className="space-y-2">
-                {Array.from(new Map([...overdueTasks, ...dueToday, ...dueThisWeek].map(t => [t.id, t])).values()).slice(0, 7).map(task => (
-                  <TaskRow key={task.id} task={task} today={today} />
-                ))}
-                {openTasks.length === 0 && <EmptyLine label="열린 태스크가 없습니다." />}
-              </div>
-            </Panel>
+            <TodayTasksPanel
+              overdueTasks={overdueTasks}
+              dueToday={dueToday}
+              dueTomorrow={dueTomorrow}
+              dueRestWeek={dueRestWeek}
+              today={today}
+            />
 
             <Panel title="고객 신호" href={summaryHref({ priority: 'high' })} icon={<MessageSquare size={13} />}>
               <div className="space-y-2">

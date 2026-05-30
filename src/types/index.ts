@@ -53,7 +53,7 @@ export interface TaskHistoryEntry {
   new_value: string | null
 }
 
-export type TaskStatus = 'inbox' | 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
+export type TaskStatus = 'backlog' | 'to-do' | 'in-progress' | 'done' | 'pending'
 export type TaskType   = 'mine' | 'delegated'
 export type RecurrenceRule = 'daily' | 'weekly' | 'monthly' | 'yearly'
 

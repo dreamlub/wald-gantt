@@ -110,7 +110,11 @@ function TasksPageContent() {
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
         <TasksActionBar
           view={view}
-          onViewChange={(v) => { setView(v); if (v !== 'basic' && v !== 'listview') selection.exitSelectionMode() }}
+          onViewChange={(v) => {
+  setView(v)
+  if (v !== 'basic' && v !== 'listview') selection.exitSelectionMode()
+  if (v === 'gantt') filters.setHideDone(true)
+}}
           searchOpen={filters.searchOpen}
           onSearchOpenChange={filters.setSearchOpen}
           searchQuery={filters.searchQuery}

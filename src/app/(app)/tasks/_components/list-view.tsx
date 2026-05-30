@@ -11,7 +11,7 @@ import { TaskStatusBadge } from './task-status-badge'
 
 export type SortKey = 'title' | 'status' | 'priority' | 'assignee' | 'due_date' | 'start_date' | 'created_at' | 'updated_at'
 
-const STATUS_ORDER: Record<TaskStatus, number> = { inbox: -1, backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
+const STATUS_ORDER: Record<TaskStatus, number> = { backlog: 0, 'to-do': 1, 'in-progress': 2, done: 3, pending: 4 }
 
 function SortBtn({
   col, label, sortKey, sortDir, onToggle,

@@ -1,13 +1,13 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useRef, useState } from 'react'
 import { toast } from 'sonner'
 import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
   getTasks, addTask, updateTask, softDeleteTask,
   getDeletedTasksCount, restoreTask, duplicateTask,
   bulkSoftDeleteTasks, bulkUpdateTaskStatus,
-  autoArchiveTasks, getArchivedTasksCount,
+  autoArchiveTasks, autoPurgeArchivedTasks, getArchivedTasksCount,
   createNextRecurringInstance,
 } from '@/lib/task-service'
 import type { GanttTask, TaskStatus, TaskType, Priority, RecurrenceRule, Workspace } from '@/types'
@@ -22,13 +22,17 @@ export function useTasksData() {
   const [archiveCount, setArchiveCount] = useState(0)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set<string>())
+  const autoArchiveDone = useRef(false)
 
   const load = useCallback(async () => {
     try {
       const ws = await getOrCreateWorkspace()
       setWorkspace(ws)
-      // 자동 아카이브 실행 (완료 후 7일 경과 태스크)
-      await autoArchiveTasks(ws.id)
+      if (!autoArchiveDone.current) {
+        autoArchiveDone.current = true
+        await autoArchiveTasks(ws.id)
+        void autoPurgeArchivedTasks(ws.id)
+      }
       const [list, cnt, arcCnt] = await Promise.all([getTasks(ws.id), getDeletedTasksCount(ws.id), getArchivedTasksCount(ws.id)])
       setTasks(list)
       setTrashCount(cnt)
@@ -96,7 +100,8 @@ export function useTasksData() {
 
     setTasks(updatedTasks)
     try {
-      const changed = updatedTasks.filter((t, i) => t.status !== tasks[i]?.status || t.id === id)
+      const prevStatus = new Map(tasks.map(t => [t.id, t.status]))
+      const changed = updatedTasks.filter(t => t.status !== prevStatus.get(t.id))
       await Promise.all(changed.map(t => updateTask(t.id, { status: t.status })))
 
       const changedTask = updatedTasks.find(t => t.id === id)
