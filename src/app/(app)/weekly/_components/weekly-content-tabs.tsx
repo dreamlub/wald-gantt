@@ -5,7 +5,7 @@ import { FileText, Sparkles, LayoutList, RefreshCw, CheckSquare } from 'lucide-r
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
-import { WeeklyDashboard } from './weekly-dashboard'
+import { WeeklySummaryList } from './weekly-summary-list'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
 
 type Tab = 'status' | 'raw' | 'summary' | 'insight'
@@ -31,14 +31,6 @@ function fmtRange(start: string, end: string): string {
   const s = new Date(start + 'T00:00:00')
   const e = new Date(end + 'T00:00:00')
   return `${s.getMonth() + 1}/${s.getDate()} – ${e.getMonth() + 1}/${e.getDate()}`
-}
-
-function countBullets(rawContent: string | null): number {
-  if (!rawContent) return 0
-  return rawContent.split('\n').filter(l => {
-    const t = l.trim()
-    return t.startsWith('- ') || t.startsWith('* ')
-  }).length
 }
 
 // ── Props ─────────────────────────────────────────────────────────
@@ -191,7 +183,6 @@ export function WeeklyContentTabs({
                 {teamNames.map(name => {
                   const idx   = week.teams.findIndex(t => t.label === name)
                   const color = teamColors[idx] ?? 'var(--color-id-indigo)'
-                  const count = countBullets((teamMap.get(name) ?? [])[0]?.raw_content ?? null)
                   const active = effectiveTeam === name
                   return (
                     <button
@@ -208,7 +199,6 @@ export function WeeklyContentTabs({
                         style={{ backgroundColor: active ? 'white' : color }}
                       />
                       {name}
-                      {count > 0 && <span className={`text-xs ${active ? 'opacity-70' : 'text-ink-400'}`}>{count}건</span>}
                     </button>
                   )
                 })}
@@ -225,24 +215,9 @@ export function WeeklyContentTabs({
 
         {/* ── 요약 ── */}
         {activeTab === 'summary' && (
-          <div className="p-6 w-full">
-            {reportsLoading
-              ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-              : <WeeklyDashboard
-                  weekStart={week.weekStart}
-                  prevWeekStart={prevWeekStart}
-                  reports={reports}
-                  insight={null}
-                  reportsLoading={false}
-                  showInsight={false}
-                  onCloseInsight={() => {}}
-                  onInsightUpdate={onInsightUpdate}
-                  onRefresh={onRefresh}
-                  showRaw={false}
-                  onCloseRaw={() => {}}
-                />
-            }
-          </div>
+          reportsLoading
+            ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
+            : <WeeklySummaryList reports={reports} />
         )}
 
         {/* ── 인사이트 ── */}

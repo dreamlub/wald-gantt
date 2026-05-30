@@ -245,6 +245,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
           onPriorityChange={setPriorityKey}
           brandId={brandId}
           onBrandChange={setBrandId}
+          brandCounts={pg.brandCounts}
           dailyBrands={dailyBrands}
           dailyTags={dailyTags}
           dailyPriorities={dailyPriorities}
@@ -334,10 +335,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   hasFilters={hasFilters}
                   hasMore={pg.hasMore}
                   loadingMore={pg.loading}
-                  brandCounts={pg.brandCounts}
-                  activeBrand={brandId === 'all' ? null : brandId}
                   onLoadMore={handleLoadMore}
-                  onSelectBrand={id => setBrandId(id === null || brandId === id ? 'all' : id)}
                   onCreateTask={dialogs.handleOpenCreateTask}
                   onClearFilters={resetFilters}
                 />

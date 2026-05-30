@@ -11,7 +11,7 @@ import { toast } from 'sonner'
 import type { Note, NoteColor } from '@/types'
 import {
   getNotes, createNote, updateNote,
-  softDeleteNote, restoreNote, permanentDeleteNote, getTrashedNotes,
+  softDeleteNote, getTrashedNotes,
 } from '@/lib/note-service'
 import { NoteCard, NoteCardOverlay }  from './_components/note-card'
 import { NoteCreateBar }              from './_components/note-create-bar'
@@ -105,29 +105,10 @@ export default function NotesPage() {
     })
   }
 
-  async function handleRestore(id: string) {
-    const note = trashNotes.find(n => n.id === id)
-    if (!note) return
-    setTrashNotes(prev => prev.filter(n => n.id !== id))
+  function handleRestore(note: Note) {
+    setTrashNotes(prev => prev.filter(n => n.id !== note.id))
     setNotes(prev => [{ ...note, deleted_at: null, pinned: false }, ...prev])
-    try { await restoreNote(id) }
-    catch { toast.error('복원에 실패했습니다.'); load() }
     toast.success('메모를 복원했습니다.')
-  }
-
-  async function handlePermanentDelete(id: string) {
-    setTrashNotes(prev => prev.filter(n => n.id !== id))
-    try { await permanentDeleteNote(id) }
-    catch { toast.error('영구삭제에 실패했습니다.'); load() }
-    toast('메모를 영구삭제했습니다.')
-  }
-
-  async function handleEmptyTrash() {
-    const ids = trashNotes.map(n => n.id)
-    setTrashNotes([])
-    try { await Promise.all(ids.map(permanentDeleteNote)) }
-    catch { toast.error('일부 메모 삭제에 실패했습니다.'); load() }
-    toast('휴지통을 비웠습니다.')
   }
 
   // ── 드래그 정렬 ───────────────────────────────────────────────
@@ -291,11 +272,8 @@ export default function NotesPage() {
       {/* 휴지통 드로어 */}
       <NoteTrashDrawer
         open={trashOpen}
-        trashNotes={trashNotes}
         onClose={() => setTrashOpen(false)}
         onRestore={handleRestore}
-        onPermanentDelete={handlePermanentDelete}
-        onEmptyTrash={handleEmptyTrash}
       />
 
       {selectedNote && (

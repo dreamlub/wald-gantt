@@ -82,6 +82,15 @@ export async function permanentDeleteNote(id: string): Promise<void> {
   if (error) throw error
 }
 
+/** 휴지통 전체 비우기 */
+export async function emptyTrashNotes(): Promise<void> {
+  const { error } = await db()
+    .from('notes')
+    .delete()
+    .not('deleted_at', 'is', null)
+  if (error) throw error
+}
+
 /** 하위 호환용 — 즉시 영구 삭제 */
 export { permanentDeleteNote as deleteNote }
 

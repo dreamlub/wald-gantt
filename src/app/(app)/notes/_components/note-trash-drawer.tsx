@@ -1,71 +1,51 @@
 'use client'
 
-import { Trash2, X } from 'lucide-react'
-import { Drawer, DrawerHeader, DrawerBody } from '@/components/ui/drawer'
-import { NoteTrashCard } from './note-trash-card'
+import { format } from 'date-fns'
+import { TrashDrawer } from '@/components/ui/trash-drawer'
+import { NOTE_COLORS } from './note-color-picker'
+import { getTrashedNotes, restoreNote, permanentDeleteNote, emptyTrashNotes } from '@/lib/note-service'
 import type { Note } from '@/types'
 
 interface Props {
-  open:                boolean
-  trashNotes:          Note[]
-  onClose:             () => void
-  onRestore:           (id: string) => void
-  onPermanentDelete:   (id: string) => void
-  onEmptyTrash:        () => void
+  open:    boolean
+  onClose: () => void
+  onRestore: (note: Note) => void
 }
 
-export function NoteTrashDrawer({
-  open, trashNotes, onClose,
-  onRestore, onPermanentDelete, onEmptyTrash,
-}: Props) {
+export function NoteTrashDrawer({ open, onClose, onRestore }: Props) {
   return (
-    <Drawer open={open} onClose={onClose} width={440}>
-      <DrawerHeader>
-        <div className="flex items-center gap-2 flex-1 min-w-0">
-          <Trash2 size={15} className="text-ink-400 shrink-0" />
-          <span className="font-semibold text-sm truncate">휴지통</span>
-          {trashNotes.length > 0 && (
-            <span className="text-xs text-ink-400 tabular-nums">{trashNotes.length}개</span>
-          )}
-        </div>
-        <div className="flex items-center gap-1 shrink-0">
-          {trashNotes.length > 0 && (
-            <button
-              onClick={onEmptyTrash}
-              className="text-xs px-2.5 py-1.5 rounded-lg text-status-late hover:bg-status-late/10 transition-colors"
-            >
-              모두 삭제
-            </button>
-          )}
-          <button
-            onClick={onClose}
-            className="p-1.5 rounded text-ink-400 hover:text-foreground hover:bg-muted transition-colors"
-          >
-            <X size={15} />
-          </button>
-        </div>
-      </DrawerHeader>
-
-      <DrawerBody className="p-4">
-        {trashNotes.length === 0 ? (
-          <div className="flex flex-col items-center justify-center h-full gap-3 text-center py-16">
-            <span className="text-4xl">🗑️</span>
-            <p className="text-sm font-medium text-muted-foreground">휴지통이 비어있습니다</p>
-            <p className="text-xs text-ink-300">삭제한 메모는 여기에 보관됩니다</p>
-          </div>
-        ) : (
-          <div className="flex flex-col gap-3">
-            {trashNotes.map(note => (
-              <NoteTrashCard
-                key={note.id}
-                note={note}
-                onRestore={id => { onRestore(id) }}
-                onPermanentDelete={id => { onPermanentDelete(id) }}
-              />
-            ))}
-          </div>
-        )}
-      </DrawerBody>
-    </Drawer>
+    <TrashDrawer<Note>
+      open={open}
+      onClose={onClose}
+      fetchDeleted={getTrashedNotes}
+      restoreItem={restoreNote}
+      permanentDeleteItem={permanentDeleteNote}
+      emptyAll={emptyTrashNotes}
+      onRestore={onRestore}
+      getItemName={n => n.title || '(제목 없음)'}
+      label="메모"
+      renderItem={note => {
+        const dot = NOTE_COLORS[note.color]?.dot ?? NOTE_COLORS.yellow.dot
+        const deletedAt = note.deleted_at
+          ? format(new Date(note.deleted_at), 'yyyy.MM.dd')
+          : ''
+        return (
+          <>
+            <div className="text-sm font-medium text-foreground truncate">
+              {note.title || <em className="text-ink-300 not-italic text-sm">제목 없음</em>}
+            </div>
+            <div className="flex items-center gap-1.5 mt-0.5">
+              <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${dot}`} />
+              {note.content && (
+                <span className="text-sm text-muted-foreground truncate max-w-[160px]">
+                  {note.content.replace(/\n+/g, ' ').slice(0, 40)}
+                </span>
+              )}
+              <span className="text-sm text-ink-300 shrink-0">{deletedAt}</span>
+            </div>
+          </>
+        )
+      }}
+    />
   )
 }

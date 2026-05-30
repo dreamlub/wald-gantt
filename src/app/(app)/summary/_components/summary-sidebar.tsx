@@ -9,6 +9,7 @@ import { brandColor } from '@/lib/history-service'
 import { kstDate } from '@/lib/kst'
 import { GroupTitle, MonthGridSection, DateRangePanel } from './sidebar-date-panels'
 import { RawDataSidebarPanel } from './raw-data-sidebar'
+import { DailyListSidebarPanel } from './dailylist-sidebar-panel'
 
 import type { PriorityKey } from './_sidebar-utils'
 import { dateStr } from './_sidebar-utils'
@@ -27,6 +28,7 @@ interface Props {
   onPriorityChange: (p: PriorityKey) => void
   brandId: string | 'all'
   onBrandChange: (b: string | 'all') => void
+  brandCounts?: Record<string, number>
   dailyBrands: Set<string>
   dailyTags: Set<Tag>
   dailyPriorities: Set<Priority>
@@ -41,7 +43,7 @@ export function SummarySidebar({
   dateFrom, dateTo, onDateFromChange, onDateToChange,
   selectedTags, priorityKey,
   onToggleTag, onPriorityChange,
-  brandId, onBrandChange,
+  brandId, onBrandChange, brandCounts,
   dailyBrands, dailyTags, dailyPriorities,
   onToggleDailyBrand, onToggleDailyTag, onToggleDailyPriority,
 }: Props) {
@@ -55,6 +57,19 @@ export function SummarySidebar({
 
   if (view === 'rawdata') {
     return <RawDataSidebarPanel />
+  }
+
+  if (view === 'dailylist') {
+    return (
+      <DailyListSidebarPanel
+        dateFrom={dateFrom} dateTo={dateTo}
+        onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
+        selectedTags={selectedTags} onToggleTag={onToggleTag}
+        priorityKey={priorityKey} onPriorityChange={onPriorityChange}
+        brandId={brandId} onBrandChange={onBrandChange}
+        brandCounts={brandCounts}
+      />
+    )
   }
 
   if (view === 'timeline') {
