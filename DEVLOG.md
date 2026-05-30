@@ -4,8 +4,16 @@
 
 | 항목 | 내용 | 우선순위 |
 |---|---|---|
-| bulk 완료 + 반복 태스크 | bulk 상태 변경 시 반복 태스크 다음 인스턴스가 생성되지 않음 (`handleBulkStatusChange`에 recurrence 처리 없음) | 낮음 |
 | autoArchiveTasks 성능 | `load()` 호출마다 archive 쿼리 실행 → 하루 1회로 제한 필요 (페이지 진입 시에만 또는 별도 cron) | 낮음 |
+
+---
+
+## 최근 변경 (2026-05-30) — Bulk 반복 태스크 완료 처리
+
+### 변경 내용
+- **`handleBulkStatusChange` 반복 태스크 처리 추가** (`tasks/_hooks/use-tasks-data.ts`)
+  - bulk 완료 시 반복 규칙(`recurrence_rule`)이 있는 태스크에 대해 `createNextRecurringInstance` 호출
+  - 다음 인스턴스 생성 후 `load()` 재조회, 토스트에 생성 건수 표시
 
 ---
 
@@ -263,12 +271,11 @@ Board > Category
 ### 1. 메모장(Notes) 기능 개선
 - **NoteCard 개선**: 최대 높이(10rem) 제한 + 긴 내용 하단 fade 마스크, 날짜 표시(`M/d`), 전체화면 편집 버튼(`Maximize2`) 추가
 - **NoteEditModal 신규**: 전체화면 편집 모달. Ctrl+Enter/Esc로 저장/닫기, 제목·내용 auto-resize, 배경 클릭 저장
-- **NoteListItem 신규**: 리스트 뷰 행 컴포넌트. 색상 점·제목·내용 미리보기·날짜·핀 표시, hover 시 액션 버튼(확장/핀/삭제)
 - **notes/page.tsx 전면 개선**:
   - 검색 바: title + content 대소문자 무시 필터
   - 실행취소 삭제: 삭제 즉시 UI에서 제거 후 5초 타이머, 토스트 "실행취소" 클릭 시 복원
-  - 리스트/그리드 뷰 전환: 아이콘 토글, `localStorage('notes-view')`에 저장
   - 고정 메모 우선, 그 아래 최신순 정렬
+- **리스트 뷰 미구현 (취소)**: NoteListItem / 리스트-그리드 뷰 전환은 불필요로 판단해 미구현
 
 ### 2. 설정 > API 키 탭 신규
 - `workspace_api_keys` 테이블 마이그레이션 (`20260529000001_create_workspace_api_keys.sql`)

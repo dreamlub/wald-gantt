@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest'
-import type { HistoryItem } from '@/app/(app)/summary/_lib/types'
+import type { HistoryItem } from '@/app/(app)/slack/_lib/types'
 import { filterHistoryItems, kstDayEnd, kstDayStart, matchesAllTags, toKSTDate } from './history-query-utils'
 
 function item(overrides: Partial<HistoryItem>): HistoryItem {

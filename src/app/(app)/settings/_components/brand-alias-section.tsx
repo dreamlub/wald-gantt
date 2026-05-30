@@ -3,7 +3,7 @@
 import { useState, useEffect, useMemo } from 'react'
 import { Plus, Trash2, ArrowRight } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Client } from '../../summary/_lib/types'
+import type { Client } from '../../slack/_lib/types'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 
 interface Alias {

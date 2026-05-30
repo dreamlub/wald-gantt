@@ -3,7 +3,7 @@
 import { TrendingUp, TrendingDown } from 'lucide-react'
 import type { WeeklyReport, WeeklyReportSummary, WeeklyReportItem } from '@/types/index'
 import { ASSIGNEE_COLORS } from '@/app/(app)/tasks/_constants'
-import { SectionDivider } from '@/app/(app)/summary/_components/sidebar-date-panels'
+import { SectionDivider } from '@/app/(app)/slack/_components/sidebar-date-panels'
 
 // ── 유틸 ─────────────────────────────────────────────────────────
 
@@ -257,7 +257,7 @@ export function TypeTab({
       {TYPE_TABS.map(({ key, label }) => (
         <button
           key={key}
-          onClick={() => onTypeFilterChange(key)}
+          onClick={() => onTypeFilterChange(typeFilter === key ? 'all' : key)}
           className={`px-3 py-2 text-sm font-medium border-b-2 -mb-px transition-colors ${
             typeFilter === key
               ? 'border-lilac-500 text-lilac-600 dark:text-lilac-400'
@@ -326,7 +326,7 @@ export function FilterBar({
         return (
           <button
             key={p.key}
-            onClick={() => onFilterChange(p.key)}
+            onClick={() => onFilterChange(active ? 'all' : p.key)}
             className={`flex items-center gap-1.5 text-sm px-2.5 py-1 rounded-full border transition-colors ${
               active
                 ? 'bg-foreground text-background border-foreground'

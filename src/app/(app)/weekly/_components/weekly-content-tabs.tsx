@@ -42,21 +42,24 @@ interface Props {
   insight:         WeeklyInsight | null
   reportsLoading:  boolean
   prevWeekStart:   string
-  collecting:      boolean
-  onCollect:       () => void
-  onAnalyze:       () => void
-  analyzing:       boolean
   onInsightUpdate: (i: WeeklyInsight) => void
   onRefresh:       () => void
 }
 
+const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
+  { key: 'status',  label: '수집 현황', icon: CheckSquare },
+  { key: 'raw',     label: '원문',      icon: FileText    },
+  { key: 'summary', label: '요약',      icon: LayoutList  },
+  { key: 'insight', label: '인사이트',  icon: Sparkles    },
+]
+
 // ── 컴포넌트 ──────────────────────────────────────────────────────
 
 export function WeeklyContentTabs({
-  week, teamColors, reports, insight, reportsLoading, prevWeekStart,
-  collecting, onCollect, onAnalyze, analyzing, onInsightUpdate, onRefresh,
+  week, teamColors, reports, insight, reportsLoading,
+  onInsightUpdate, onRefresh,
 }: Props) {
-  const [activeTab, setActiveTab]   = useState<Tab>('raw')
+  const [activeTab, setActiveTab]     = useState<Tab>('raw')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
 
   const { month, week: weekNum } = weekOfMonth(week.weekStart)
@@ -65,107 +68,107 @@ export function WeeklyContentTabs({
   const total     = week.teams.length
   const allDone   = collected === total && total > 0
 
-  // 팀별 리포트 그룹
   const teamMap = new Map<string, WeeklyReport[]>()
   for (const r of reports) {
     if (!teamMap.has(r.team)) teamMap.set(r.team, [])
     teamMap.get(r.team)!.push(r)
   }
-  const teamNames     = [...teamMap.keys()]
-  const effectiveTeam = focusedTeam && teamNames.includes(focusedTeam) ? focusedTeam : (teamNames[0] ?? null)
-  const visibleReports = effectiveTeam ? (teamMap.get(effectiveTeam) ?? []) : reports
 
-  const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-    { key: 'status',  label: '수집 현황', icon: CheckSquare },
-    { key: 'raw',     label: '원문',      icon: FileText    },
-    { key: 'summary', label: '요약',      icon: LayoutList  },
-    { key: 'insight', label: '인사이트',  icon: Sparkles    },
-  ]
+  const visibleReports = focusedTeam && teamMap.has(focusedTeam)
+    ? (teamMap.get(focusedTeam) ?? [])
+    : reports
+
+  const teamColorMap = new Map(
+    week.teams.map((t, i) => [t.label, teamColors[i] ?? 'var(--color-id-indigo)'])
+  )
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
-      {/* 헤더 */}
-      <div className="shrink-0 px-6 pt-5 flex items-center gap-3">
-        <div className="flex items-baseline gap-2 flex-1 min-w-0 flex-wrap">
-          <span className="text-sm font-semibold text-ink-400">W{wNum}</span>
-          <h2 className="text-base font-semibold text-foreground">{month}월 {weekNum}주</h2>
-          <span className="text-sm text-ink-400">{fmtRange(week.weekStart, week.weekEnd)}</span>
+
+      {/* ── 탭 바 + 재수집 버튼 ── */}
+      <div className="h-12 flex items-stretch border-b bg-card shrink-0">
+        <nav className="flex items-stretch pl-1">
+          {TABS.map(({ key, label, icon: Icon }) => (
+            <button
+              key={key}
+              onClick={() => setActiveTab(key)}
+              className={`flex items-center gap-1.5 px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+                activeTab === key
+                  ? 'border-lilac-500 text-foreground'
+                  : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
+              }`}
+            >
+              <Icon size={13} />
+              {label}
+            </button>
+          ))}
+        </nav>
+        <div className="flex-1" />
+      </div>
+
+      {/* ── 컨텍스트 바 ── */}
+      <div className="shrink-0 px-4 bg-card border-b border-ink-150">
+        {/* 주차 정보 */}
+        <div className="h-10 flex items-center gap-2 text-sm text-ink-400">
+          <span className="font-semibold text-foreground shrink-0">{month}월 {weekNum}주</span>
+          <span className="shrink-0">W{wNum}</span>
+          <span className="shrink-0">{fmtRange(week.weekStart, week.weekEnd)}</span>
           {week.isCurrent
-            ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-status-future/15 text-status-future">진행 중</span>
+            ? <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-status-future/15 text-status-future shrink-0">진행 중</span>
             : allDone
-              ? <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-mint-100 text-mint-600">{total}팀 수집</span>
-              : <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-amber-100 text-amber-600">{collected}/{total}팀 수집</span>
+              ? <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-mint-100 text-mint-600 shrink-0">{total}팀</span>
+              : <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-amber-100 text-amber-600 shrink-0">{collected}/{total}팀</span>
           }
         </div>
-        {!allDone && (
-          <button
-            onClick={onCollect}
-            disabled={collecting}
-            className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md border border-border text-sm font-medium hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            {collecting ? <RefreshCw size={12} className="animate-spin" /> : <FileText size={12} />}
-            {collecting ? '수집 중...' : '미수집 팀 수집'}
-          </button>
+
+        {/* 팀 배지 — 수집 현황 탭 제외 */}
+        {activeTab !== 'status' && (
+          <div className="flex items-center gap-1 flex-wrap pb-2 mt-2">
+            {week.teams.map((team, i) => {
+              const color  = teamColors[i] ?? 'var(--color-id-indigo)'
+              const active = focusedTeam === team.label
+              return (
+                <button
+                  key={team.id}
+                  onClick={() => setFocusedTeam(p => p === team.label ? null : team.label)}
+                  className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                    active
+                      ? 'bg-foreground text-background'
+                      : team.hasData
+                        ? 'border border-border text-ink-500 hover:text-foreground hover:bg-muted'
+                        : 'border border-dashed border-border text-ink-300'
+                  }`}
+                >
+                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'white' : color }} />
+                  {team.label}
+                </button>
+              )
+            })}
+          </div>
         )}
       </div>
 
-      {/* 탭 바 */}
-      <div className="shrink-0 flex items-center px-6 mt-4 border-b border-border gap-1">
-        {TABS.map(({ key, label, icon: Icon }) => (
-          <button
-            key={key}
-            onClick={() => setActiveTab(key)}
-            className={`flex items-center gap-1.5 px-3 py-2.5 text-sm font-medium border-b-2 -mb-px transition-colors ${
-              activeTab === key
-                ? 'border-foreground text-foreground'
-                : 'border-transparent text-ink-400 hover:text-foreground'
-            }`}
-          >
-            <Icon size={13} />
-            {label}
-          </button>
-        ))}
-      </div>
+      {/* ── 콘텐츠 ── */}
+      <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
-      {/* 콘텐츠 */}
-      <div className="flex-1 overflow-y-auto">
-
-        {/* ── 수집 현황 ── */}
+        {/* 수집 현황 */}
         {activeTab === 'status' && (
           <div className="px-6 py-5 space-y-2">
             {!allDone && (
-              <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-3 mb-4 flex items-center justify-between gap-4">
-                <p className="text-sm text-amber-800 dark:text-amber-200">
-                  {total - collected}개 팀의 보고서가 아직 수집되지 않았습니다.
-                </p>
-                <button
-                  onClick={onCollect}
-                  disabled={collecting}
-                  className="shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-md bg-foreground text-background text-sm font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
-                >
-                  {collecting ? <RefreshCw size={12} className="animate-spin" /> : <FileText size={12} />}
-                  {collecting ? '수집 중...' : '미수집 팀 수집'}
-                </button>
-              </div>
+              <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
+                {total - collected}개 팀의 보고서가 아직 수집되지 않았습니다.
+              </p>
             )}
             {week.teams.map((team, i) => (
-              <div
-                key={team.id}
-                className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card"
-              >
+              <div key={team.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card">
                 <div className="flex items-center gap-2.5 min-w-0">
-                  <span
-                    className="w-2.5 h-2.5 rounded-full shrink-0"
-                    style={{ backgroundColor: teamColors[i] ?? 'var(--color-id-indigo)' }}
-                  />
+                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: teamColors[i] ?? 'var(--color-id-indigo)' }} />
                   <span className="text-sm font-medium text-foreground truncate">{team.label}</span>
                 </div>
                 {team.hasData ? (
                   <div className="flex items-center gap-1.5 shrink-0">
                     <FileText size={12} className="text-ink-400" />
-                    <span className="text-xs text-ink-400">
-                      제출됨
-                    </span>
+                    <span className="text-xs text-ink-400">제출됨</span>
                   </div>
                 ) : (
                   <span className="text-xs font-medium text-status-late shrink-0">미제출</span>
@@ -175,52 +178,24 @@ export function WeeklyContentTabs({
           </div>
         )}
 
-        {/* ── 원문 ── */}
+        {/* 원문 */}
         {activeTab === 'raw' && (
-          <>
-            {teamNames.length > 1 && (
-              <div className="sticky top-0 z-10 flex gap-2 px-6 py-3 bg-background border-b border-border overflow-x-auto">
-                {teamNames.map(name => {
-                  const idx   = week.teams.findIndex(t => t.label === name)
-                  const color = teamColors[idx] ?? 'var(--color-id-indigo)'
-                  const active = effectiveTeam === name
-                  return (
-                    <button
-                      key={name}
-                      onClick={() => setFocusedTeam(name)}
-                      className={`shrink-0 flex items-center gap-1.5 px-3 py-1.5 rounded-full text-sm font-medium transition-colors whitespace-nowrap ${
-                        active
-                          ? 'bg-foreground text-background'
-                          : 'border border-border text-foreground hover:bg-muted'
-                      }`}
-                    >
-                      <span
-                        className="w-2 h-2 rounded-full shrink-0"
-                        style={{ backgroundColor: active ? 'white' : color }}
-                      />
-                      {name}
-                    </button>
-                  )
-                })}
-              </div>
-            )}
-            <div className="p-6 w-full">
-              {reportsLoading
-                ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-                : <WeeklyRawView reports={visibleReports} />
-              }
-            </div>
-          </>
+          <div className="p-6">
+            {reportsLoading
+              ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
+              : <WeeklyRawView reports={visibleReports} teamColorMap={teamColorMap} />
+            }
+          </div>
         )}
 
-        {/* ── 요약 ── */}
+        {/* 요약 */}
         {activeTab === 'summary' && (
           reportsLoading
             ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
             : <WeeklySummaryList reports={reports} />
         )}
 
-        {/* ── 인사이트 ── */}
+        {/* 인사이트 */}
         {activeTab === 'insight' && (
           insight
             ? <AISummaryPanel
@@ -233,9 +208,7 @@ export function WeeklyContentTabs({
               />
             : <div className="flex flex-col items-center justify-center py-20 gap-4">
                 <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
-                <p className="text-sm text-muted-foreground text-center">
-                  AI 인사이트가 아직 생성되지 않았습니다.
-                </p>
+                <p className="text-sm text-muted-foreground text-center">AI 인사이트가 아직 생성되지 않았습니다.</p>
                 <button
                   onClick={onAnalyze}
                   disabled={analyzing}

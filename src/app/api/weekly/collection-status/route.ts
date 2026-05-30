@@ -70,11 +70,11 @@ export async function GET() {
     .eq('workspace_id', member.workspace_id)
     .order('week_start', { ascending: true })
 
-  // 가장 오래된 week_start 기준으로 목록 범위 결정 (없으면 현재 주만)
-  const allWeekStarts = (reports ?? []).map(r => r.week_start as string)
+  // 2026-01-01 이후 데이터만 표시 — 그 이전은 제외
+  const FLOOR = '2026-01-01'
+  const allWeekStarts = (reports ?? []).map(r => r.week_start as string).filter(w => w >= FLOOR)
   const oldestWeek    = allWeekStarts.length > 0 ? allWeekStarts[0] : curMonday
-  // 가장 오래된 주의 월요일을 기준점으로 정렬
-  const oldestMonday  = getMondayOf(oldestWeek)
+  const oldestMonday  = getMondayOf(oldestWeek < FLOOR ? FLOOR : oldestWeek)
 
   const mondays = getMondaysBetween(curMonday, oldestMonday)
 

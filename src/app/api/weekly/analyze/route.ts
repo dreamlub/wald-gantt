@@ -277,15 +277,9 @@ export async function POST(req: NextRequest) {
 
         send('status', { message: '주간 보고서 조회 중...' })
 
-        // 분석 윈도우: 목표 주차 + 전주 비교에 필요한 직전 주차들만.
-        // 전체 과거를 매번 재분석하면 데이터 누적 시 Claude 호출 수·지연이 무한정 증가하므로
-        // 최근 ANALYZE_WEEKS_WINDOW 주로 제한한다 (전주 diff 정확성은 윈도우 내에서 보장).
-        const ANALYZE_WEEKS_WINDOW = 8
-        const windowStart = (() => {
-          let d = week_start
-          for (let i = 0; i < ANALYZE_WEEKS_WINDOW; i++) d = subtractWeek(d)
-          return d
-        })()
+        // 2026년부터 목표 주차까지 전체를 diff 체인으로 처리.
+        // 이전 주차는 summary 캐시 재사용이므로 Claude 호출은 목표 주차만 발생.
+        const windowStart = '2026-01-01'
 
         // 윈도우 범위의 보고서를 오래된 순으로 가져옴
         const { data: allReports, error: fetchErr } = await sb
@@ -331,11 +325,23 @@ export async function POST(req: NextRequest) {
           const currTeamMap = new Map<string, WeeklyReportSummary>()
           const currAuthors = new Set<string>()
 
+          const isTargetWeek = wk === week_start
+
           for (let i = 0; i < reports.length; i++) {
             const report = reports[i]
             if (report.author) currAuthors.add(report.author)
 
             const prevItems = prevTeamMap.get(report.team)?.items ?? []
+
+            // 이전 주차에 이미 summary가 있으면 Claude 재호출 없이 캐시 재사용.
+            // diff 체인은 summaryCache를 통해 유지된다.
+            if (!isTargetWeek) {
+              const cached = report.summary as WeeklyReportSummary | null
+              if (cached?.items) {
+                currTeamMap.set(report.team, cached)
+                continue
+              }
+            }
 
             send('status', { message: `${wk} 분석 중... (${i + 1}/${reports.length}: ${report.team})` })
 

@@ -281,14 +281,14 @@ export function DateRangePanel({ dateFrom, dateTo, onDateFromChange, onDateToCha
   const active = activePreset()
 
   return (
-    <div className="pb-1 px-2 flex flex-col gap-2">
+    <div className="pb-1 flex flex-col gap-2">
         <GroupTitle>기간</GroupTitle>
-        <div className="flex items-center gap-1.5">
+        <div className="flex items-center gap-1.5 px-2">
           <SidebarDatePicker value={dateFrom} onChange={onDateFromChange} placeholder="시작일" />
           <span className="text-sm text-ink-400 shrink-0">~</span>
           <SidebarDatePicker value={dateTo} onChange={onDateToChange} placeholder="종료일" />
         </div>
-        <div className="flex flex-wrap gap-1">
+        <div className="flex flex-wrap gap-1 px-2">
           {presets.map(([key, label]) => (
             <button
               key={key}

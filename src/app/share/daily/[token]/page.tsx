@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server'
 import { DailyReportPublicView } from './DailyReportPublicView'
-import type { InsightContent } from '@/app/(app)/summary/_lib/types'
+import type { InsightContent } from '@/app/(app)/slack/_lib/types'
 
 interface PageProps {
   params: Promise<{ token: string }>

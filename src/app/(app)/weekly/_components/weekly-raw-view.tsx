@@ -225,7 +225,12 @@ function ReportBody({ content }: { content: string }) {
 
 // ── 카드 컴포넌트 ─────────────────────────────────────────────────
 
-export function WeeklyRawView({ reports }: { reports: WeeklyReport[] }) {
+interface WeeklyRawViewProps {
+  reports:      WeeklyReport[]
+  teamColorMap?: Map<string, string>
+}
+
+export function WeeklyRawView({ reports, teamColorMap }: WeeklyRawViewProps) {
   if (reports.length === 0) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-2 text-center">
@@ -236,29 +241,41 @@ export function WeeklyRawView({ reports }: { reports: WeeklyReport[] }) {
   }
 
   return (
-    <div className="space-y-5">
-      {reports.map(r => (
-        <article key={r.id} className="rounded-xl border border-border bg-card overflow-hidden">
-          {/* 카드 헤더 */}
-          <div className="flex items-center gap-2 px-5 py-3 border-b border-border text-2xs text-ink-400">
-            <FileText size={12} className="text-ink-400" />
-            <span className="font-medium text-ink-500">{SOURCE_LABEL[r.source] ?? r.source}</span>
-            {r.author && <><span>·</span><span>{r.author}</span></>}
-            <span>·</span>
-            <span className="font-mono">{fmtDatetime(r.updated_at)}</span>
-          </div>
-          {/* 본문 */}
-          <div className="px-5 py-5 border-l-4 border-lilac-200">
-            <div className="text-base font-bold text-foreground mb-4">
-              {r.team} / 주간업무보고
+    <div className="space-y-4">
+      {reports.map(r => {
+        const teamColor = teamColorMap?.get(r.team) ?? 'var(--color-id-indigo)'
+        return (
+          <article
+            key={r.id}
+            className="rounded-xl border border-border bg-card overflow-hidden"
+            style={{ borderLeftColor: teamColor, borderLeftWidth: 3 }}
+          >
+            {/* 카드 헤더: 팀명 + 메타 */}
+            <div className="flex items-center gap-2 px-5 py-3 border-b border-border">
+              <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: teamColor }} />
+              <span className="text-sm font-semibold text-foreground">{r.team}</span>
+              <span className="text-ink-200 select-none">·</span>
+              <span className="text-xs text-ink-400">{SOURCE_LABEL[r.source] ?? r.source}</span>
+              {r.author && (
+                <>
+                  <span className="text-ink-200 select-none">·</span>
+                  <span className="text-xs text-ink-400">{r.author}</span>
+                </>
+              )}
+              <span className="ml-auto text-xs text-ink-300 font-mono tabular-nums">
+                {fmtDatetime(r.updated_at)}
+              </span>
             </div>
-            {r.raw_content
-              ? <ReportBody content={r.raw_content} />
-              : <p className="text-sm text-ink-400">원본 내용이 비어 있습니다.</p>
-            }
-          </div>
-        </article>
-      ))}
+            {/* 본문 */}
+            <div className="px-5 py-5">
+              {r.raw_content
+                ? <ReportBody content={r.raw_content} />
+                : <p className="text-sm text-ink-400">원본 내용이 비어 있습니다.</p>
+              }
+            </div>
+          </article>
+        )
+      })}
     </div>
   )
 }

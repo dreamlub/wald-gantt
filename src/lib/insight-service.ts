@@ -1,5 +1,5 @@
 import { createClient } from '@/lib/supabase/client'
-import type { Insight } from '@/app/(app)/summary/_lib/types'
+import type { Insight } from '@/app/(app)/slack/_lib/types'
 
 async function getWorkspaceId(): Promise<string> {
   const sb = createClient()

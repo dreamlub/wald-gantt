@@ -3,10 +3,11 @@
 import { useState, useEffect, useCallback } from 'react'
 import { BookOpen, RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
+import { Button } from '@/components/ui/button'
 import { WeeklyWeekList, type WeekData } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
 import { WeeklyContentTabs } from './weekly-content-tabs'
-import { getWeeklyReports, getWeeklyInsight, analyzeWeekly } from '@/lib/weekly-service'
+import { getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 
 const TEAM_PALETTE = [
@@ -38,11 +39,6 @@ export function WeeklyShell() {
   // 수집 진행
   const [collecting, setCollecting]       = useState(false)
   const [collectingAll, setCollectingAll] = useState(false)
-
-  // AI 분석 진행
-  const [analyzing, setAnalyzing]   = useState(false)
-  const [analyzeProgress, setAnalyzeProgress] = useState(0)
-  const [analyzeStatus, setAnalyzeStatus]     = useState<string | null>(null)
 
   // ── 수집 현황 로드 ───────────────────────────────────────────────
 
@@ -91,33 +87,6 @@ export function WeeklyShell() {
       setInsight(null)
     }
   }, [selectedWeek]) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── AI 분석 ─────────────────────────────────────────────────────
-
-  const handleAnalyze = useCallback(async () => {
-    if (!selectedWeek) return
-    setAnalyzing(true)
-    setAnalyzeProgress(5)
-    try {
-      const result = await analyzeWeekly(selectedWeek, msg => {
-        setAnalyzeStatus(msg)
-        if (msg.includes('조회'))         setAnalyzeProgress(10)
-        else if (msg.includes('분석 중')) setAnalyzeProgress(p => Math.min(p + 8, 75))
-        else if (msg.includes('종합'))    setAnalyzeProgress(82)
-        else if (msg.includes('저장'))    setAnalyzeProgress(95)
-      })
-      setAnalyzeProgress(100)
-      setInsight(result)
-      toast.success('AI 분석 완료')
-      setTimeout(() => { setAnalyzeProgress(0); setAnalyzeStatus(null) }, 1000)
-    } catch (e) {
-      toast.error(e instanceof Error ? e.message : '분석 실패')
-      setAnalyzeProgress(0)
-      setAnalyzeStatus(null)
-    } finally {
-      setAnalyzing(false)
-    }
-  }, [selectedWeek])
 
   // ── Outline 수집 ─────────────────────────────────────────────────
 
@@ -169,7 +138,7 @@ export function WeeklyShell() {
 
   const selectedWeekData   = data?.weeks.find(w => w.weekStart === selectedWeek)
   const hasData            = selectedWeekData?.teams.some(t => t.hasData) ?? false
-  const isCollectingAny    = collecting || collectingAll || analyzing
+  const isCollectingAny    = collecting || collectingAll
   const collectedWeekCount = data?.weeks.filter(w => w.teams.some(t => t.hasData)).length ?? 0
   const weekCount          = data?.weeks.length ?? 0
 
@@ -192,14 +161,23 @@ export function WeeklyShell() {
       <div className="shrink-0 border-r bg-muted flex flex-col overflow-hidden" style={{ width: 'var(--sidebar-w)' }}>
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap truncate">
-            주간보고 수집
+            주간보고 분석
           </h1>
+          <Button
+            variant="ghost"
+            size="sm"
+            onClick={handleCollectWeek}
+            disabled={isCollectingAny || !selectedWeek}
+          >
+            <RefreshCw size={13} className={collecting ? 'animate-spin' : ''} />
+            재수집
+          </Button>
         </div>
 
         {!loading && data && weekCount > 0 && (
           <div className="shrink-0 px-4 py-2 border-b border-border">
             <p className="text-2xs text-ink-400">
-              최근 {weekCount}주차 · {collectedWeekCount}주 수집됨
+              2026년 · {weekCount}주차 · {collectedWeekCount}주 수집됨
             </p>
           </div>
         )}
@@ -228,22 +206,6 @@ export function WeeklyShell() {
 
       {/* 우측: 상세 */}
       <div className="flex-1 flex flex-col overflow-hidden bg-background">
-        {/* AI 분석 진행 바 */}
-        {analyzing && (
-          <div className="shrink-0 border-b bg-card px-4 py-2 flex items-center gap-3">
-            <RefreshCw size={11} className="animate-spin text-lilac-500 shrink-0" />
-            <div className="flex-1 h-1 rounded-full bg-ink-100 overflow-hidden">
-              <div
-                className="h-full bg-lilac-500 rounded-full"
-                style={{ width: `${analyzeProgress}%`, transition: 'width 0.5s ease-out' }}
-              />
-            </div>
-            {analyzeStatus && (
-              <span className="text-xs text-ink-400 shrink-0 max-w-[220px] truncate">{analyzeStatus}</span>
-            )}
-          </div>
-        )}
-
         {!selectedWeekData ? (
           <div className="flex-1 flex flex-col items-center justify-center gap-3 text-center">
             <BookOpen size={40} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
@@ -258,10 +220,6 @@ export function WeeklyShell() {
             insight={insight}
             reportsLoading={dashLoading}
             prevWeekStart={prevWeekStart}
-            collecting={collecting}
-            onCollect={handleCollectWeek}
-            onAnalyze={handleAnalyze}
-            analyzing={analyzing}
             onInsightUpdate={setInsight}
             onRefresh={() => loadReports(selectedWeek)}
           />
@@ -272,8 +230,6 @@ export function WeeklyShell() {
             teamColors={TEAM_PALETTE}
             collecting={collecting}
             onCollect={handleCollectWeek}
-            onOpenAnalysis={() => {}}
-            hasAnalysis={false}
           />
         )}
       </div>

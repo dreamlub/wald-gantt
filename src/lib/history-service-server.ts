@@ -1,7 +1,7 @@
 import 'server-only'
 import { createClient } from '@/lib/supabase/server'
 import { getDistinctBrands, listHistory } from '@/lib/history-service'
-import type { Client, HistoryItem } from '@/app/(app)/summary/_lib/types'
+import type { Client, HistoryItem } from '@/app/(app)/slack/_lib/types'
 
 export async function getServerClients(): Promise<Client[]> {
   const sb = await createClient()

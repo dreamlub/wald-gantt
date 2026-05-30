@@ -206,9 +206,20 @@ export function useTasksData() {
       await bulkUpdateTaskStatus(ids, status)
       const idSet = new Set(ids)
       setTasks(prev => prev.map(t => idSet.has(t.id) ? { ...t, status } : t))
+
+      if (status === 'done' && workspace) {
+        const recurringTasks = tasks.filter(t => idSet.has(t.id) && t.recurrence_rule)
+        if (recurringTasks.length > 0) {
+          await Promise.all(recurringTasks.map(t => createNextRecurringInstance(workspace.id, t)))
+          await load()
+          toast(`${ids.length}개 태스크 상태를 변경했어요 (반복 태스크 ${recurringTasks.length}개 다음 인스턴스 생성)`)
+          return
+        }
+      }
+
       toast(`${ids.length}개 태스크 상태를 변경했어요`)
     } catch (e) { toast.error(errMsg(e)); await load() }
-  }, [load])
+  }, [tasks, workspace, load])
 
   const toggleCollapse = useCallback((key: string) => {
     setCollapsed(prev => {

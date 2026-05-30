@@ -15,10 +15,10 @@ import {
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
 import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '@/types'
-import type { HistoryItem, Priority, Tag } from './summary/_lib/types'
+import type { HistoryItem, Priority, Tag } from './slack/_lib/types'
 import { brandColor } from '@/lib/history-service'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
-import { TAG_META, PRIORITY_META } from './summary/_lib/constants'
+import { TAG_META, PRIORITY_META } from './slack/_lib/constants'
 import { toYMD, toShortDate } from '@/lib/date-utils'
 import { ProjectsSection } from './_ProjectsSection'
 
@@ -76,7 +76,7 @@ function summaryHref(filters: { priority?: Priority; tag?: Tag; query?: string }
   if (filters.tag) params.set('tags', filters.tag)
   if (filters.query) params.set('q', filters.query)
   const qs = params.toString()
-  return qs ? `/summary?${qs}` : '/summary'
+  return qs ? `/slack?${qs}` : '/slack'
 }
 
 function daysUntil(date: string | null | undefined, today: string): number | null {
@@ -201,7 +201,7 @@ export default async function CommandCenterPage() {
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <QuickLink href="/summary" label="Summary" icon={<MessageSquare size={12} />} />
+          <QuickLink href="/slack" label="Slack" icon={<MessageSquare size={12} />} />
           <QuickLink href="/tasks" label="Tasks" icon={<ListTodo size={12} />} />
           <QuickLink href="/calendar" label="Calendar" icon={<CalendarDays size={12} />} />
         </div>
@@ -275,7 +275,7 @@ export default async function CommandCenterPage() {
               </div>
             </Panel>
 
-            <Panel title="결정 대기" href="/summary?tags=decision" icon={<Target size={13} />}>
+            <Panel title="결정 대기" href="/slack?tags=decision" icon={<Target size={13} />}>
               <div className="space-y-2">
                 {decisionItems.map(item => (
                   <DecisionRow key={item.id} item={item} />

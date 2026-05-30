@@ -1,7 +1,7 @@
 'use client'
 
-import { DailyReportViewV2 } from '@/app/(app)/summary/_components/daily-report-view-v2'
-import type { InsightContent } from '@/app/(app)/summary/_lib/types'
+import { DailyReportViewV2 } from '@/app/(app)/slack/_components/daily-report-view-v2'
+import type { InsightContent } from '@/app/(app)/slack/_lib/types'
 
 interface Props {
   report: {

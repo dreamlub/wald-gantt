@@ -64,8 +64,6 @@ export function SummarySidebar({
       <DailyListSidebarPanel
         dateFrom={dateFrom} dateTo={dateTo}
         onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-        selectedTags={selectedTags} onToggleTag={onToggleTag}
-        priorityKey={priorityKey} onPriorityChange={onPriorityChange}
         brandId={brandId} onBrandChange={onBrandChange}
         brandCounts={brandCounts}
       />
@@ -97,11 +95,11 @@ export function SummarySidebar({
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
-      {view === 'dailylist' || view === 'weeklylist' ? (
+      {view === 'weeklylist' ? (
         <DateRangePanel
           dateFrom={dateFrom} dateTo={dateTo}
           onDateFromChange={onDateFromChange} onDateToChange={onDateToChange}
-          showToday={view === 'dailylist'}
+          showToday={false}
         />
       ) : (
         <MonthGridSection
@@ -120,7 +118,7 @@ export function SummarySidebar({
               <span className="w-2 h-2 rounded-full shrink-0" style={{ background: meta.dot }} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
               {active && <Check size={12} className="shrink-0" />}
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{tagCounts[t] ?? 0}</span>}
+              {view !== 'weeklylist' && <span className="text-sm text-ink-400">{tagCounts[t] ?? 0}</span>}
             </button>
           )
         })}
@@ -135,15 +133,15 @@ export function SummarySidebar({
             ))}
           </span>
           <span className="flex-1 truncate text-left">전체</span>
-          {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts.all}</span>}
+          {view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts.all}</span>}
         </button>
-        {(view === 'dailylist' ? PRIORITY_KEYS : PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0)).map(p => {
+        {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
           const meta = PRIORITY_META[p]
           return (
             <button key={p} onClick={() => onPriorityChange(priorityKey === p ? 'all' : p)} className={`sidebar-btn ${priorityKey === p ? 'sidebar-btn-active' : ''}`}>
               <PriorityBars priority={p} />
               <span className="flex-1 truncate text-left">{meta.label}</span>
-              {view !== 'dailylist' && view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts[p]}</span>}
+              {view !== 'weeklylist' && <span className="text-sm text-ink-400">{priCounts[p]}</span>}
             </button>
           )
         })}

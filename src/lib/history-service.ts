@@ -1,6 +1,6 @@
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
-import type { Client, HistoryItem, HistoryType, StatusKind, Priority, Tag } from '@/app/(app)/summary/_lib/types'
+import type { Client, HistoryItem, HistoryType, StatusKind, Priority, Tag } from '@/app/(app)/slack/_lib/types'
 import { kstDayEnd, kstDayStart, toKSTDate } from '@/lib/history-query-utils'
 import { addDaysYMD, kstToday } from '@/lib/kst'
 

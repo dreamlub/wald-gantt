@@ -3,7 +3,7 @@
 import { useState, useCallback, useEffect, useMemo } from 'react'
 import { RefreshCw, Hash, MessageSquare, EyeOff, ChevronDown } from 'lucide-react'
 import { toast } from 'sonner'
-import type { Client } from '../../summary/_lib/types'
+import type { Client } from '../../slack/_lib/types'
 import type { SlackChannelItem } from '@/app/api/slack/channels/route'
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 

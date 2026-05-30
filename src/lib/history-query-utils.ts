@@ -1,4 +1,4 @@
-import type { HistoryItem, Priority, Tag } from '@/app/(app)/summary/_lib/types'
+import type { HistoryItem, Priority, Tag } from '@/app/(app)/slack/_lib/types'
 import { kstDate } from '@/lib/kst'
 
 // 하위 호환 re-export — KST 기준은 @/lib/kst 단일 모듈로 일원화됨

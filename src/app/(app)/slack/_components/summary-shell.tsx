@@ -4,7 +4,8 @@ import { useMemo, useState, useTransition, useEffect, useRef, useCallback, useRe
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
 import type { Client, HistoryItem, Tag, Priority, HistoryEditDraft } from '../_lib/types'
-import { TAG_META, PRIORITY_META } from '../_lib/constants'
+import { TAG_META, PRIORITY_META, TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
+import { TagFilterBadge, PriorityFilterBadge } from './badges'
 import { SummarySidebar } from './summary-sidebar'
 import { type PriorityKey, getCurrentWeekStart } from './_sidebar-utils'
 import { SummaryToolbar } from './summary-toolbar'
@@ -291,10 +292,11 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
             />
           ) : (
             <>
-              {/* 필터 칩 바 — 스크롤 밖 고정 */}
+              {/* 필터 바 — 스크롤 밖 고정 */}
               {view !== 'summary' && (
-                <div className="shrink-0 px-6 pt-3 bg-card border-b border-ink-150">
-                  <div className="h-9 flex items-center gap-2 flex-nowrap overflow-x-auto text-sm text-ink-400 [&::-webkit-scrollbar]:hidden [scrollbar-width:none] [-ms-overflow-style:none]">
+                <div className="shrink-0 px-4 bg-card border-b border-ink-150">
+                  <div className="h-10 flex items-center gap-2 text-sm text-ink-400">
+                    {/* 좌측: 건수 + 활성 필터 칩 */}
                     <span className="shrink-0">
                       {view === 'dailylist'
                         ? <>전체 <b className="text-foreground font-semibold">{dailyTotalCount}</b>건{dailyTotalCount !== pg.total && <> 중 <b className="text-foreground font-semibold">{pg.total}</b>건</>}</>
@@ -309,22 +311,47 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                         브랜드: {brandId}
                       </FilterChip>
                     )}
-                    {priorityKey !== 'all' && (
-                      <FilterChip onClear={() => setPriorityKey('all')}>
-                        중요도: {PRIORITY_META[priorityKey as Priority].label}
-                      </FilterChip>
-                    )}
                     {authorKey !== 'all' && (
                       <FilterChip onClear={() => setAuthorKey('all')}>
                         작성자: {authorKey}
                       </FilterChip>
                     )}
-                    {[...selectedTags].map(t => (
+                    {view !== 'dailylist' && priorityKey !== 'all' && (
+                      <FilterChip onClear={() => setPriorityKey('all')}>
+                        중요도: {PRIORITY_META[priorityKey as Priority].label}
+                      </FilterChip>
+                    )}
+                    {view !== 'dailylist' && [...selectedTags].map(t => (
                       <FilterChip key={t} onClear={() => toggleTag(t)}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
                         {TAG_META[t].label}
                       </FilterChip>
                     ))}
+
+                    {/* 우측: dailylist 전용 태그/중요도 토글 */}
+                    {view === 'dailylist' && (
+                      <div className="ml-auto flex items-center gap-1 shrink-0">
+                        {TAG_KEYS.map(t => (
+                          <TagFilterBadge
+                            key={t}
+                            tag={t}
+                            active={selectedTags.has(t)}
+                            onClick={() => toggleTag(t)}
+                            dimmed={selectedTags.size > 0 && !selectedTags.has(t)}
+                          />
+                        ))}
+                        <span className="w-px h-3.5 bg-ink-200 mx-0.5 shrink-0" />
+                        {PRIORITY_KEYS.map(p => (
+                          <PriorityFilterBadge
+                            key={p}
+                            priority={p}
+                            active={priorityKey === p}
+                            onClick={() => setPriorityKey(priorityKey === p ? 'all' : p)}
+                            dimmed={priorityKey !== 'all' && priorityKey !== p}
+                          />
+                        ))}
+                      </div>
+                    )}
                   </div>
                 </div>
               )}
@@ -344,6 +371,7 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                 <WeeklyBrandView
                   dateFrom={dateFrom}
                   dateTo={dateTo}
+                  brandFilter={brandId === 'all' ? undefined : brandId}
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                   onCountChange={handleWeeklyCountChange}
                 />
