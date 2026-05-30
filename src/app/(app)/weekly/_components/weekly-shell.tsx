@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { RefreshCw, Settings } from 'lucide-react'
+import { BookOpen, RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { WeeklyWeekList, type WeekData } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
