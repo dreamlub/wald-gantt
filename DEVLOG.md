@@ -9,6 +9,45 @@
 
 ---
 
+## 최근 변경 (2026-05-30) — 메모 에디터 Tiptap WYSIWYG 전환
+
+### 목적
+textarea + 별도 미리보기 토글 방식을 제거하고, Tiptap 기반 실시간 리치 에디터로 교체
+
+### 변경 내용
+
+**신규 패키지 (`package.json`)**
+- `@tiptap/react`, `@tiptap/starter-kit`, `@tiptap/extension-task-list`, `@tiptap/extension-task-item`, `@tiptap/extension-placeholder`, `tiptap-markdown` 추가
+
+**`note-editor.tsx` 신규**
+- Tiptap 에디터 래퍼 컴포넌트
+- StarterKit + TaskList + TaskItem(nested) + Markdown(`tiptap-markdown`) + Placeholder 확장 조합
+- `ExitEmptyTaskItem` 커스텀 Extension: 빈 체크박스 항목에서 Enter 시 리스트 탈출
+- props: `content`, `onChange(markdown)`, `placeholder?`, `autoFocus?`
+- 마크다운 문자열 ↔ Tiptap 문서 변환을 `tiptap-markdown`이 담당 (인/아웃 모두)
+
+**`note-edit-modal.tsx` 수정**
+- `textarea` + `preview` state + `NoteMarkdown` 렌더 → `NoteEditor` 단일 컴포넌트로 교체
+- 미리보기/편집 토글 버튼 제거 (WYSIWYG이므로 불필요)
+- `useLayoutEffect` auto-resize 로직 제거
+- `Eye`/`EyeOff` import 제거, `useRef` 제거
+
+---
+
+## 최근 변경 (2026-05-30) — Weekly Raw View 마크다운 전처리 개선
+
+### 목적
+Outline 원문의 짝 없는 `**` 마커와 연속 줄바꿈으로 인한 렌더링 오류 수정
+
+### 변경 내용
+
+**`weekly-raw-view.tsx`**
+- `remarkBreaks` 플러그인 추가: 단일 줄바꿈도 `<br>`로 렌더링
+- `preprocessMd()` 함수 신규: `<br>` → `\n` 변환, 연속 빈 줄 정리, **짝 없는 `**` 마커 이스케이프** (리스트·헤딩 줄은 제외)
+- 기존 인라인 전처리 로직 → `preprocessMd()` 함수로 분리
+
+---
+
 ## 최근 변경 (2026-05-30) — 프로젝트 진척률(%) 기능
 
 ### 목적

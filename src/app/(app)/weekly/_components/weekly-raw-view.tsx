@@ -2,6 +2,7 @@
 
 import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
+import remarkBreaks from 'remark-breaks'
 import { FileText } from 'lucide-react'
 import type { WeeklyReport, WeeklyReportSource } from '@/types/index'
 import { fmtDatetime } from './weekly-dashboard-parts'
@@ -33,15 +34,73 @@ const MD_CLASSES = `
   [&_hr]:border-border [&_hr]:my-3
 `.replace(/\n/g, ' ').trim()
 
-/** <br> → \n 변환 후 ReactMarkdown으로 렌더 */
+// 짝 없는 * 제거 — 유효한 **bold** / *italic* 는 플레이스홀더로 보호 후 복원
+function cleanAsterisks(line: string): string {
+  return line
+    .replace(/\*\*(.+?)\*\*/g, '\x00$1\x01')
+    .replace(/\*\*/g, '')
+    .replace(/\*([^*\n]+?)\*/g, '\x02$1\x03')
+    .replace(/\*/g, '')
+    .replace(/\x00/g, '**').replace(/\x01/g, '**')
+    .replace(/\x02/g, '*').replace(/\x03/g, '*')
+}
+
+// Outline 원문 전처리:
+//   <br>→\n / ==highlight== 제거 / 짝없는 * 제거
+//   구분선 없는 파이프 행(| 팀 | 내용 |) → **팀** + 내용 텍스트로 변환
+function preprocessMd(content: string): string {
+  const lines = content
+    .replace(/<br\s*\/?>/gi, '\n')
+    .replace(/\n{3,}/g, '\n\n')
+    .replace(/==(.+?)==/g, '$1')
+    .split('\n')
+
+  const out: string[] = []
+  let i = 0
+
+  while (i < lines.length) {
+    const line = lines[i]
+
+    // 리스트·헤딩 → 그대로
+    if (/^([*\-+]|\d+\.)\s/.test(line) || /^#{1,6}\s/.test(line)) {
+      out.push(line); i++; continue
+    }
+
+    // 파이프 행 블록 수집
+    if (/^\s*\|/.test(line)) {
+      const block: string[] = []
+      while (i < lines.length && /^\s*\|/.test(lines[i])) {
+        block.push(lines[i]); i++
+      }
+      // GFM 구분선(|---|) 포함이면 정상 테이블 → 그대로 유지
+      if (block.some(l => /^\s*\|[\s|:\-]{3,}\|/.test(l))) {
+        out.push(...block)
+      } else {
+        // 구분선 없음 → **col1** + 나머지 내용 형식으로 변환
+        for (const row of block) {
+          const cells = row.split('|').slice(1, -1).map(c => c.trim()).filter(c => c.length > 0)
+          if (cells.length === 0) continue
+          if (cells.length === 1) { out.push(cleanAsterisks(cells[0])); continue }
+          out.push(`**${cells[0]}**`)
+          out.push(cleanAsterisks(cells.slice(1).join(' ')))
+        }
+      }
+      continue
+    }
+
+    // 일반 줄 → 별표 정리
+    out.push(cleanAsterisks(line))
+    i++
+  }
+
+  return out.join('\n')
+}
+
 function Md({ content }: { content: string }) {
-  const processed = content
-    .replace(/<br\s*\/?>/gi, '\n')  // <br> → 줄바꿈
-    .replace(/\n{3,}/g, '\n\n')     // 연속 빈 줄 정리
   return (
     <div className={MD_CLASSES}>
-      <ReactMarkdown remarkPlugins={[remarkGfm]}>
-        {processed}
+      <ReactMarkdown remarkPlugins={[remarkGfm, remarkBreaks]}>
+        {preprocessMd(content)}
       </ReactMarkdown>
     </div>
   )
