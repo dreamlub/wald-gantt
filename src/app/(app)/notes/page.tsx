@@ -20,16 +20,16 @@ import { NoteTrashDrawer }            from './_components/note-trash-drawer'
 import { NotesSidebar, type NoteQuickFilter } from './_components/notes-sidebar'
 
 export default function NotesPage() {
-  const [notes,        setNotes]        = useState<Note[]>([])
-  const [trashNotes,   setTrashNotes]   = useState<Note[]>([])
-  const [loading,      setLoading]      = useState(true)
-  const [searchQuery,  setSearchQuery]  = useState('')
-  const [selectedId,   setSelectedId]   = useState<string | null>(null)
-  const [searchOpen,   setSearchOpen]   = useState(false)
-  const [colorFilter,  setColorFilter]  = useState<Set<NoteColor>>(new Set())
-  const [quickFilter,  setQuickFilter]  = useState<NoteQuickFilter>('all')
-  const [trashOpen,    setTrashOpen]    = useState(false)
-  const [activeId,     setActiveId]     = useState<string | null>(null)
+  const [notes,       setNotes]       = useState<Note[]>([])
+  const [trashCount,  setTrashCount]  = useState(0)
+  const [loading,     setLoading]     = useState(true)
+  const [searchQuery, setSearchQuery] = useState('')
+  const [selectedId,  setSelectedId]  = useState<string | null>(null)
+  const [searchOpen,  setSearchOpen]  = useState(false)
+  const [colorFilter, setColorFilter] = useState<Set<NoteColor>>(new Set())
+  const [quickFilter, setQuickFilter] = useState<NoteQuickFilter>('all')
+  const [trashOpen,   setTrashOpen]   = useState(false)
+  const [activeId,    setActiveId]    = useState<string | null>(null)
   const pinReqRef = useRef(0)
 
   function toggleColorFilter(color: NoteColor) {
@@ -45,7 +45,7 @@ export default function NotesPage() {
     try {
       const [active, trashed] = await Promise.all([getNotes(), getTrashedNotes()])
       setNotes(active)
-      setTrashNotes(trashed)
+      setTrashCount(trashed.length)
     } catch { toast.error('메모를 불러오지 못했습니다.') }
     finally { setLoading(false) }
   }, [])
@@ -75,10 +75,8 @@ export default function NotesPage() {
   function handleDelete(id: string) {
     const deleted = notes.find(n => n.id === id)
     if (!deleted) return
-    const now = new Date().toISOString()
-    const deletedNote = { ...deleted, deleted_at: now, pinned: false }
     setNotes(prev => prev.filter(n => n.id !== id))
-    setTrashNotes(prev => [deletedNote, ...prev])
+    setTrashCount(prev => prev + 1)           // 즉시 +1
     if (selectedId === id) setSelectedId(null)
 
     let undone = false
@@ -94,7 +92,7 @@ export default function NotesPage() {
         onClick: () => {
           undone = true
           clearTimeout(timer)
-          setTrashNotes(prev => prev.filter(n => n.id !== id))
+          setTrashCount(prev => prev - 1)     // 실행취소 시 -1
           setNotes(prev => [...prev, deleted].sort((a, b) => {
             if (a.pinned !== b.pinned) return a.pinned ? -1 : 1
             if (a.sort_order !== b.sort_order) return a.sort_order - b.sort_order
@@ -106,7 +104,7 @@ export default function NotesPage() {
   }
 
   function handleRestore(note: Note) {
-    setTrashNotes(prev => prev.filter(n => n.id !== note.id))
+    setTrashCount(prev => Math.max(0, prev - 1))  // 복원 시 -1
     setNotes(prev => [{ ...note, deleted_at: null, pinned: false }, ...prev])
     toast.success('메모를 복원했습니다.')
   }
@@ -175,7 +173,7 @@ export default function NotesPage() {
         colorFilter={colorFilter}
         onColorFilterChange={toggleColorFilter}
         onColorFilterClear={() => setColorFilter(new Set())}
-        trashCount={trashNotes.length}
+        trashCount={trashCount}
         onTrashOpen={() => setTrashOpen(true)}
       />
 
@@ -274,7 +272,8 @@ export default function NotesPage() {
         open={trashOpen}
         onClose={() => {
           setTrashOpen(false)
-          getTrashedNotes().then(setTrashNotes).catch(() => {})
+          // 드로어에서 영구삭제/전체비우기 후 카운트 동기화
+          getTrashedNotes().then(n => setTrashCount(n.length)).catch(() => {})
         }}
         onRestore={handleRestore}
       />
