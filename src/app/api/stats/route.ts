@@ -148,6 +148,20 @@ export async function GET(req: NextRequest) {
     }
   }
 
+  // ── 데일리리포트 커버리지 (기간 내 날짜별 생성 여부) ───────
+  // report_date는 date 컬럼(KST 날짜) → 범위 문자열 직접 비교
+  const { data: reportRows } = await sb
+    .from('daily_reports')
+    .select('report_date, item_count')
+    .eq('workspace_id', wsId)
+    .gte('report_date', from)
+    .lte('report_date', to)
+    .limit(2000)
+  const reportMap = new Map<string, number>()
+  for (const r of reportRows ?? []) reportMap.set(r.report_date as string, (r.item_count as number) ?? 0)
+  const reportCoverage = dates.map(d => ({ date: d, has: reportMap.has(d), items: reportMap.get(d) ?? 0 }))
+  const reportDays = reportMap.size
+
   const payload: StatsResponse = {
     range: { from, to, days: dates.length },
     totals: {
@@ -172,6 +186,8 @@ export async function GET(req: NextRequest) {
     hourly,
     topChannels: topN(channelMap, 6),
     topAuthors: topN(authorMap, 6),
+    reportCoverage,
+    reportDays,
   }
 
   return NextResponse.json(payload)

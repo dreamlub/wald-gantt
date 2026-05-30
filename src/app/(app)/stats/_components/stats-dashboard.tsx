@@ -2,7 +2,7 @@
 
 import { useEffect, useState, useCallback } from 'react'
 import {
-  Activity, Hash, Users, CheckSquare, CalendarClock, Tag as TagIcon, Loader2,
+  Activity, Hash, Users, CheckSquare, CalendarClock, CalendarCheck, Tag as TagIcon, Loader2,
 } from 'lucide-react'
 import { brandColor } from '@/lib/history-service'
 import { addDaysYMD, kstToday } from '@/lib/kst'
@@ -11,7 +11,7 @@ import { EMPTY_STATS } from '../_lib/stats-types'
 import { PRIORITY_META } from '@/app/(app)/slack/_lib/constants'
 import {
   Section, StatCard, VolumeBars, CompletedBars, DistroBar, BrandStack, MiniBars, TopList,
-  type Segment,
+  CoverageCalendar, type Segment,
 } from './stats-primitives'
 
 const PRESETS = [
@@ -101,6 +101,16 @@ export function StatsDashboard() {
             {/* 일별 메시지 볼륨 */}
             <Section icon={<Activity size={13} className="text-ink-400" />} label="일별 메시지 볼륨" hint="진한 막대 = 이슈 분류">
               <VolumeBars data={data.dailyVolume} />
+            </Section>
+
+            {/* 데일리리포트 커버리지 */}
+            <Section
+              icon={<CalendarCheck size={13} className="text-ink-400" />}
+              label="데일리리포트 커버리지"
+              badge={`${data.reportDays}/${data.range.days}일`}
+              hint={`생성률 ${data.range.days ? Math.round(data.reportDays / data.range.days * 100) : 0}% · 회색 = 미생성`}
+            >
+              <CoverageCalendar data={data.reportCoverage} />
             </Section>
 
             {/* 브랜드별 이슈·분류 */}

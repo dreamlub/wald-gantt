@@ -314,6 +314,76 @@ export function DeadlineList({
   )
 }
 
+// ── 커버리지 히트맵 (GitHub 스타일: 주=열, 요일=행) ───────────
+// has=true → 리포트 생성(초록), false → 미생성 갭(회색). 주말 미생성은 정상일 수 있음.
+// item_count는 신뢰 불가라 색칠엔 미사용(툴팁만).
+const COV_WEEKDAYS = ['일', '월', '화', '수', '목', '금', '토']
+
+type CovCell = { date: string; has: boolean; items: number }
+
+function dowOf(ymd: string): number {
+  return new Date(`${ymd}T00:00:00Z`).getUTCDay()
+}
+
+export function CoverageCalendar({ data }: { data: CovCell[] }) {
+  if (data.length === 0) return null
+
+  // 주(열) 단위로 분할 — 일요일에 새 열 시작, 첫 열 앞부분은 패딩(null)
+  const cols: (CovCell | null)[][] = []
+  let cur: (CovCell | null)[] = Array(dowOf(data[0].date)).fill(null)
+  for (const pt of data) {
+    if (dowOf(pt.date) === 0 && cur.length > 0) { cols.push(cur); cur = [] }
+    cur.push(pt)
+  }
+  if (cur.length > 0) cols.push(cur)
+
+  // 열 상단 월 라벨 (월이 바뀌는 첫 열에만)
+  const monthLabel = cols.map((col, ci) => {
+    const first = col.find(Boolean)
+    if (!first) return ''
+    const mm = first.date.slice(5, 7)
+    const prev = ci > 0 ? cols[ci - 1].find(Boolean)?.date.slice(5, 7) : null
+    return mm !== prev ? `${Number(mm)}월` : ''
+  })
+
+  return (
+    <div className="bg-card border border-border rounded-lg px-4 py-3.5">
+      <div className="flex gap-1 overflow-x-auto pb-1">
+        {/* 요일 라벨 열 */}
+        <div className="flex flex-col gap-0.5 pr-1 shrink-0 pt-3.5">
+          {COV_WEEKDAYS.map((w, i) => (
+            <span key={w} className="h-3 text-3xs text-ink-300 leading-3">{i % 2 === 1 ? w : ''}</span>
+          ))}
+        </div>
+        {cols.map((col, ci) => (
+          <div key={ci} className="flex flex-col gap-0.5 shrink-0">
+            <span className="h-3.5 text-3xs text-ink-300 leading-3 whitespace-nowrap">{monthLabel[ci]}</span>
+            {Array.from({ length: 7 }, (_, dow) => {
+              const cell = col.find(c => c && dowOf(c.date) === dow) ?? null
+              if (!cell) return <span key={dow} className="w-3 h-3" />
+              return (
+                <span
+                  key={dow}
+                  className="w-3 h-3 rounded-sm"
+                  style={{ background: cell.has ? 'var(--task-status-done)' : 'var(--color-ink-150)' }}
+                  title={`${cell.date} · ${cell.has ? `리포트 생성${cell.items > 0 ? ` (${cell.items}건)` : ''}` : '리포트 없음'}`}
+                />
+              )
+            })}
+          </div>
+        ))}
+      </div>
+      {/* 범례 */}
+      <div className="flex items-center gap-1.5 mt-2 text-3xs text-ink-300">
+        <span className="w-3 h-3 rounded-sm" style={{ background: 'var(--task-status-done)' }} />
+        <span>생성</span>
+        <span className="w-3 h-3 rounded-sm ml-2" style={{ background: 'var(--color-ink-150)' }} />
+        <span>미생성</span>
+      </div>
+    </div>
+  )
+}
+
 function Dot({ c }: { c: string }) {
   return <span className="inline-block w-1.5 h-1.5 rounded-full align-middle mr-0.5" style={{ background: c }} />
 }

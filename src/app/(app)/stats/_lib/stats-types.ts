@@ -56,6 +56,10 @@ export interface StatsResponse {
   hourly: number[] // 길이 24, index = KST 시
   topChannels: { name: string; count: number }[]
   topAuthors: { name: string; count: number }[]
+  // 데일리리포트 커버리지 — 기간 내 날짜별 리포트 존재 여부.
+  // has=false → 미생성 갭. item_count는 신뢰 불가(대부분 0)라 색칠엔 미사용, 툴팁 참고용.
+  reportCoverage: { date: string; has: boolean; items: number }[]
+  reportDays: number // 기간 내 리포트 생성된 날 수
 }
 
 // ── 프로젝트 통계 ─────────────────────────────────────────
@@ -106,4 +110,6 @@ export const EMPTY_STATS: StatsResponse = {
   hourly: Array(24).fill(0),
   topChannels: [],
   topAuthors: [],
+  reportCoverage: [],
+  reportDays: 0,
 }
