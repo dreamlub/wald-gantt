@@ -76,10 +76,20 @@ export function ageTxt(d: string) {
 }
 
 // 상세 설명을 항목 단위로 분리 — 줄바꿈 우선, 없으면 문장(마침표) 단위
+// 슬랙/분류 본문 정리 — 리터럴 \n을 실제 줄바꿈으로, ** 볼드 마크업 제거
+export function cleanText(body: string): string {
+  return body
+    .replace(/\\n/g, '\n')   // 이스케이프 안 풀린 리터럴 \n → 줄바꿈
+    .replace(/\*\*/g, '')    // ** 볼드 마크업 제거
+    .replace(/[ \t]+\n/g, '\n')
+    .trim()
+}
+
 export function toBullets(body: string): string[] {
-  const byLine = body.split(/\n+/).map(s => s.trim().replace(/^[-•·]\s*/, '')).filter(Boolean)
+  const cleaned = cleanText(body)
+  const byLine = cleaned.split(/\n+/).map(s => s.trim().replace(/^[-•·]\s*/, '')).filter(Boolean)
   if (byLine.length > 1) return byLine
-  return body.split(/(?<=[.。!?])\s+/).map(s => s.trim()).filter(Boolean)
+  return cleaned.split(/(?<=[.。!?])\s+/).map(s => s.trim()).filter(Boolean)
 }
 
 // 상태 3색 = status(open/closed) × last_seen 경과로 파생

@@ -343,16 +343,6 @@ function TimelineSidebar({ brandId, onBrandChange, onStatsLoaded }: TimelineSide
       <div className="mt-1">
         <GroupTitle>브랜드 {brands.length}</GroupTitle>
 
-        {/* 전체 버튼 */}
-        <button
-          onClick={() => onBrandChange('all')}
-          className={`sidebar-btn ${brandId === 'all' ? 'sidebar-btn-active' : ''}`}
-        >
-          <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
-          <span className="flex-1 truncate text-left">전체</span>
-          {brandId === 'all' && <Check size={12} className="shrink-0" />}
-        </button>
-
         {/* 이슈 있는 브랜드 */}
         {brands.filter(b => b.issue_count > 0).map(b => (
           <BrandBtn key={b.brand_name} stat={b} active={brandId === b.brand_name}

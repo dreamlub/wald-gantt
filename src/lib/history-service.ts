@@ -161,6 +161,7 @@ export interface HistoryPageParams {
   q?: string
   cursor?: string
   limit?: number
+  issue_id?: string
 }
 
 export interface HistoryPage {
@@ -251,6 +252,7 @@ export async function listHistoryPage(params: HistoryPageParams, sb?: Sb): Promi
     if (params.priority) q = q.eq('priority', params.priority) as T
     if (params.tags?.length) q = q.contains('tags', params.tags) as T
     if (params.author) q = q.eq('author', params.author) as T
+    if (params.issue_id) q = q.eq('issue_id', params.issue_id) as T
     if (params.q) q = q.or(`title.ilike.%${params.q}%,body.ilike.%${params.q}%,channel.ilike.%${params.q}%,author.ilike.%${params.q}%`) as T
     return q
   }

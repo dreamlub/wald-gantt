@@ -25,5 +25,6 @@ export function parseHistoryPageParams(sp: URLSearchParams): HistoryPageParams {
     q: sp.get('q') ?? undefined,
     cursor: sp.get('cursor') ?? undefined,
     limit: parseHistoryLimit(sp.get('limit')),
+    issue_id: sp.get('issue_id') ?? undefined,
   }
 }

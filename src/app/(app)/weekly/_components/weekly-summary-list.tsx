@@ -193,11 +193,16 @@ export function WeeklySummaryList({ reports }: Props) {
 
   const allItems = assembleItems(reports)
 
-  // 브랜드 목록 — 기타는 맨 마지막
+  // 브랜드 목록 — 건수 내림차순, 기타는 맨 마지막
+  const brandCountMap = new Map<string, number>()
+  for (const item of allItems) {
+    const b = brandOf(item)
+    brandCountMap.set(b, (brandCountMap.get(b) ?? 0) + 1)
+  }
   const brandList = [...new Set(allItems.map(brandOf))].sort((a, b) => {
     if (a === NO_BRAND) return 1
     if (b === NO_BRAND) return -1
-    return a.localeCompare(b, 'ko')
+    return (brandCountMap.get(b) ?? 0) - (brandCountMap.get(a) ?? 0)
   })
 
   const filtered = selectedBrand

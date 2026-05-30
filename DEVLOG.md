@@ -2,6 +2,35 @@
 
 ---
 
+## 2026-05-31 — 슬랙 타임라인 트래커 좌측 패널 재설계
+
+`/slack?view=timeline`의 좌측 계층 패널을 카드형 → **프로젝트 관리식 컴팩트 계층 리스트**로 전환.
+
+- 행: `ForestNode`(150px 카드) → `NodeRow`(36px 행, 프로젝트 행 높이·`text-sm`와 정합). 부모=상태 아이콘 배지+제목(bold)+건수, 자식=`└` 기호 들여쓰기.
+- 좌측 색상 띠(상태색 `--color-status-late/warn`, `--color-ink-300`) + 행 음영(부모 `bg-muted/40`, 자식 `bg-card`). 선택 시 배경만 하이라이트(`bg-status-future/10`), 띠색은 상태색 유지.
+- 상단 바: 브랜드명(bold) + "N월 N일 기준 작성"(최신 `created_at`) + 타입 필터칩(이슈/프로젝트/결정, `badges.tsx` FilterBadge 규격 `text-3xs px-2 py-0.5` + CSS 변수 색). 활성/주의 카운트는 제거(필터 기능 없어 불필요).
+- 우측 상세: 디자인 토큰(`text-foreground`/`muted-foreground`/`bg-card`)으로 재작성, 헤더 칩 색상화(브랜드=`brandColor`, 타입=상태색), 상세설명 불릿 분리, 흰 배경 위 테두리 카드로 분리.
+- 신규/구버전 토글 제거 + 구버전 4파일 삭제(`issue-tree-view`/`timeline-with-toggle`/`timeline-v2-view`/`timeline-view`).
+- 다크모드 대응은 보류(이 페이지가 `ink` 팔레트+`bg-white`로 라이트 전용 설계) → 아이디어 백로그.
+
+---
+
+## 2026-05-31 — 브랜드 타임라인 생성 (도쿄플라츠·HPS·아노아)
+
+`brand-timeline` 스킬 `initial` 모드로 3개 브랜드 타임라인을 issues/issue_relations/client_history.issue_id까지 완성. (매머드는 별도 진행 중이라 제외)
+
+| 브랜드 | 노드(부모/자식) | Slack 연결 | 관계 | 성격 |
+|--------|------|-----------|------|------|
+| 도쿄플라츠 | 45 (18/27) | 201/201 | 2 | 일본 도쿄 매장 오픈, 결제-주문 연동 장애 중심 |
+| HPS(흡스커피) | 34 (15/19) | 116/116 | 2 | 수원 신규 오픈, 심사 위기→오픈 첫주 장애 |
+| 아노아 | 34 (13/21) | 84/84 | 1 | 구독 모델, 구독권 결제·해지·키오스크 할인 이슈 |
+
+- weekly `thread_id` 체인 → 국면별 이슈/프로젝트/결정 도출 → 부모-자식 계층 + 비계층 관계(`causes`/`blocks`/`related`).
+- evidence 연결: 자식은 날짜+키워드 1:1 매칭, umbrella/프로젝트는 주제 키워드 흡수 → 전 브랜드 100% 연결.
+- 데이터는 Supabase(`issues`/`issue_relations`/`client_history`)에 직접 반영(git 미포함).
+
+---
+
 ## 2026-05-31 — 할일 관리 품질 개선 + 홈 Today 실행 큐 강화
 
 다른 AI의 코드 리뷰를 기반으로 할일 관리 버그·취약점 수정, 통계용 아카이브 분리, UI 개선, 홈 화면 실행 큐 강화. (커밋 `6620596`)

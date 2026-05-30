@@ -7,7 +7,7 @@ import { brandColor } from '@/lib/history-service'
 import type { HistoryItem } from '@/types/index'
 import {
   type TrackerIssueRow, type Relation,
-  TYPE_META, STATUS_META, REL_META, nodeStatus, ageTxt, toBullets,
+  TYPE_META, STATUS_META, REL_META, nodeStatus, ageTxt, toBullets, cleanText,
 } from './_tracker-shared'
 
 function DetailMetric({
@@ -196,7 +196,7 @@ export function IssueDetailPanel({
                   </p>
                   {expanded && msg.body && (
                     <p className="mt-2 text-xs text-ink-500 leading-relaxed whitespace-pre-wrap border-t border-border pt-2">
-                      {msg.body}
+                      {cleanText(msg.body)}
                     </p>
                   )}
                 </button>
