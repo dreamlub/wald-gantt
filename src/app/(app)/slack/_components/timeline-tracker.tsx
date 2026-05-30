@@ -1,10 +1,10 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { CalendarDays, Loader2, SlidersHorizontal } from 'lucide-react'
+import { Archive, CalendarDays, Check, Loader2, SlidersHorizontal } from 'lucide-react'
 import {
   type TrackerIssueRow, type Relation, type TypeFilter, type RelationType,
-  TYPE_META, TYPE_KEYS, nodeStatus,
+  TYPE_META, TYPE_KEYS, STALE_DAYS, nodeStatus, isStale,
 } from './_tracker-shared'
 import { NodeRow, ClusterGroup } from './tracker-node-row'
 import { IssueDetailPanel } from './tracker-detail-panel'
@@ -18,6 +18,9 @@ export function TimelineTracker({ brandFilter }: Props) {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(new Set())
   const [showClosed, setShowClosed] = useState(false)
+  const [showStaleOnly, setShowStaleOnly] = useState(false)
+  const [bulkClosing, setBulkClosing] = useState(false)
+  const [bulkConfirm, setBulkConfirm] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // 이슈 + 관계 로드 (좌·우 공유)
@@ -61,7 +64,8 @@ export function TimelineTracker({ brandFilter }: Props) {
   const { trees, standalones } = useMemo(() => {
     const rows = issues.filter(r =>
       (typeFilter.size === 0 || typeFilter.has(r.type as TypeFilter)) &&
-      (showClosed || nodeStatus(r) !== 'closed')
+      (showClosed || nodeStatus(r) !== 'closed') &&
+      (!showStaleOnly || isStale(r))
     )
     const byId = new Map(rows.map(r => [r.id, r]))
     const parentIds = new Set(rows.filter(r => r.parent_issue_id && byId.has(r.parent_issue_id)).map(r => r.parent_issue_id!))
@@ -83,7 +87,10 @@ export function TimelineTracker({ brandFilter }: Props) {
       .filter(r => !parentIds.has(r.id) && (!r.parent_issue_id || !byId.has(r.parent_issue_id)))
       .sort((a, b) => rank(a) - rank(b))
     return { trees, standalones }
-  }, [issues, typeFilter, showClosed])
+  }, [issues, typeFilter, showClosed, showStaleOnly])
+
+  // 정리 대상(30일+ 무언급 open) 건수 — 토글 뱃지용 (타입 필터 무관 전체)
+  const staleCount = useMemo(() => issues.filter(isStale).length, [issues])
 
   // 트래킹 작성 기준일 = 가장 최근 created_at (없으면 last_seen)
   const trackedLabel = useMemo(() => {
@@ -132,6 +139,37 @@ export function TimelineTracker({ brandFilter }: Props) {
       }))
     }
   }, [])
+
+  // 정리 대상 일괄 닫기 — 현재 로드된 stale 이슈 전체를 closed 처리 (개별 PATCH, 실패분만 롤백)
+  const handleBulkClose = useCallback(async () => {
+    const ids = issues.filter(isStale).map(r => r.id)
+    if (ids.length === 0) return
+    setBulkConfirm(false)
+    setBulkClosing(true)
+    setIssues(prev => prev.map(r => (isStale(r) ? { ...r, status: 'closed' } : r)))
+    const idSet = new Set(ids)
+    try {
+      const settled = await Promise.allSettled(ids.map(async id => {
+        const res = await fetch(`/api/issues/${id}`, {
+          method: 'PATCH',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ status: 'closed', includeChildren: false }),
+        })
+        if (!res.ok) throw new Error('API error')
+        return id
+      }))
+      const failed = new Set<string>()
+      settled.forEach((s, i) => { if (s.status === 'rejected') failed.add(ids[i]) })
+      if (failed.size > 0) {
+        setIssues(prev => prev.map(r => (failed.has(r.id) ? { ...r, status: 'open' } : r)))
+      }
+    } catch {
+      // 예외 전체 실패 시 낙관적 갱신 되돌리기
+      setIssues(prev => prev.map(r => (idSet.has(r.id) ? { ...r, status: 'open' } : r)))
+    } finally {
+      setBulkClosing(false)
+    }
+  }, [issues])
 
   // A안: 선택 노드 기준 관계 방향칩 맵 + 무관 노드 dim 집합 (미선택이면 null)
   const { relMap, dimSet } = useMemo(() => {
@@ -202,8 +240,60 @@ export function TimelineTracker({ brandFilter }: Props) {
             <SlidersHorizontal size={10} />
             해결 포함
           </button>
+          <button
+            onClick={() => { setShowStaleOnly(v => !v); setBulkConfirm(false) }}
+            disabled={staleCount === 0 && !showStaleOnly}
+            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+              showStaleOnly
+                ? 'bg-status-warn/15 text-status-warn border-status-warn-border'
+                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
+            }`}
+            title={`${STALE_DAYS}일 이상 언급 없는 미해결 이슈`}
+          >
+            <Archive size={10} />
+            정리 대상
+            {staleCount > 0 && <span className="tabular-nums font-bold">{staleCount}</span>}
+          </button>
         </div>
       </div>
+
+      {/* 정리 대상 모드 — 일괄 닫기 액션 바 */}
+      {showStaleOnly && staleCount > 0 && (
+        <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-status-warn/8 border-b border-status-warn-border text-xs">
+          <Archive size={11} className="text-status-warn shrink-0" />
+          <span className="text-ink-600">
+            {STALE_DAYS}일 이상 조용한 이슈 <b className="text-status-warn tabular-nums">{staleCount}</b>건
+          </span>
+          <div className="ml-auto flex items-center gap-2">
+            {!bulkConfirm ? (
+              <button
+                onClick={() => setBulkConfirm(true)}
+                disabled={bulkClosing}
+                className="inline-flex items-center gap-1 text-3xs font-medium px-2.5 py-1 rounded-md border border-ink-300 text-ink-600 hover:bg-ink-50 transition-colors disabled:opacity-50"
+              >
+                {bulkClosing ? <Loader2 size={10} className="animate-spin" /> : <Check size={10} />}
+                전체 해결 완료
+              </button>
+            ) : (
+              <>
+                <span className="text-ink-500">{staleCount}건을 모두 닫을까요?</span>
+                <button
+                  onClick={handleBulkClose}
+                  className="text-3xs font-medium px-2.5 py-1 rounded-md border border-status-warn-border text-status-warn hover:bg-status-warn/10 transition-colors"
+                >
+                  확인
+                </button>
+                <button
+                  onClick={() => setBulkConfirm(false)}
+                  className="text-3xs text-ink-300 hover:text-ink-500 transition-colors"
+                >
+                  취소
+                </button>
+              </>
+            )}
+          </div>
+        </div>
+      )}
 
       {/* 좌우 2단 — 좌측은 계층, 우측은 선택 상세 */}
       <div className="flex-1 flex min-h-0">

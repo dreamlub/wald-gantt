@@ -124,3 +124,9 @@ export function nodeStatus(row: IssueRow): NodeStatus {
   if (row.status === 'closed') return 'closed'
   return daysSince(row.last_seen) <= 7 ? 'active' : 'warn'
 }
+
+// 정리 대상 = 30일+ 무언급 open 이슈 (자동 완료 후보)
+export const STALE_DAYS = 30
+export function isStale(row: IssueRow): boolean {
+  return row.status === 'open' && daysSince(row.last_seen) >= STALE_DAYS
+}
