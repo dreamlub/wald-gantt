@@ -2,6 +2,95 @@
 
 ---
 
+## 2026-05-31 — 타임라인 데이터 백필 + 4개 브랜드 타임라인 생성 + classify 자동화
+
+### 1. client_history → issues 백필
+
+기존 issues 80건(더리터 38 + 텐퍼센트 42) 모두 `client_history.issue_id` 미연결 상태였음.
+AI 에이전트가 날짜·매장명·CX번호 기준으로 각 메시지를 최적 이슈에 매핑.
+
+| 브랜드 | 총 메시지 | 연결 완료 | 연결률 |
+|--------|----------|----------|--------|
+| 더리터 | 284건 | 284건 | 100% |
+| 텐퍼센트 | 184건 | 163건 | 89% |
+
+### 2. issue_relations 생성 (더리터 7건, 텐퍼센트 8건)
+
+weekly thread 체인(b3ad64d2→e66a8c1f→3f0a3d88 등)과 이슈 body를 교차 분석해 비계층 인과 관계 도출.
+
+**더리터 주요 관계**
+- `causes`: POS 디스크 부족 → 주문서 미출력
+- `continues`: KIS VAN 결제 누락 → 키오스크 전표 미생성
+- `causes`: KIS VAN 결제 누락 → 경영진 합동 미팅
+
+**텐퍼센트 주요 관계**
+- `causes`: 이탈 위기 → 3/26 본사 대면미팅
+- `causes`: 이탈 위기 → 함구 결정
+- `causes`: BI 데이터 불일치 → beta 메뉴 제거 결정
+
+### 3. 매머드커피 brand-timeline initial 생성
+
+이슈 0건 → 루트 10건 + 자식 15건 = 25개 이슈, Slack 연결 130건, 관계 7건.
+
+| 루트 이슈 | 자식 | 메시지 |
+|----------|------|--------|
+| 오더앱·가맹점앱 반복 운영 장애 | 7 | 203건 |
+| AppFit 어드민 전환 프로젝트 | 2 | 66건 |
+| 동대문구청점 신규 오픈 준비 | 1 | 11건 |
+| 이중결제 반복 발생 | 2 | 10건 |
+
+주요 발견: 이중결제 3/3 강동길동점부터 5/14 충정로점까지 3개월 미해결. 쿠프마케팅 수수료 협의 결렬이 선물하기 개발 블로킹.
+
+### 4. DX Part brand-timeline initial 생성
+
+루트 16건 + 자식 7건 = 23개 이슈, Slack 연결 48건, 관계 5건.
+
+Outline 전사 도입 → Plane CE → waldsupport.com → 브랜드인사이트 오픈 흐름 타임라인화.
+현재 열린 이슈: 브랜드인사이트 집계 전면 불일치(5/4), AppFit 지도API키·필수값 다수 유실(5/11).
+
+### 5. classify 스킬 4단계 자동화
+
+기존 파이프라인: 분류 → 데일리 → 주간 타임라인 *(수동)* brand-timeline
+
+```
+(변경 후) 분류 → 데일리 → 주간 타임라인 → 이슈 incremental (자동)
+```
+
+3단계 완료 직후 이슈 있는 브랜드에 한해 자동으로 incremental 실행.
+- `last_processed_at` 이후 신규 메시지만 처리 (전체 재처리 없음)
+- 신규 메시지 0건인 브랜드는 건너뜀
+- 30일+ 조용한 open 이슈는 완료 보고에만 포함 (자동 closed 전환 금지)
+
+---
+
+## 2026-05-31 — 슬랙 디자인 토큰화 + 타임라인 트래커 분리 + 네비 아이콘
+
+`slack/_components` 디자인 시스템 감사 → 위반 일괄 토큰화, 500줄 초과 분리, 좌측 네비 아이콘 정정. (커밋 `754f108`, `c08789a`)
+
+### 디자인 시스템 토큰화
+- **죽은 코드 삭제**: `issue-graph-view`·`issue-logic-tree`(어디서도 import 안 됨, hex 35+개), 구 타임라인 뷰 3종(`timeline-view`/`v2`/`with-toggle`), `api/issues/[id]/evidence`.
+- hex → 시맨틱 토큰(status·tag·ink), `color:'white'` → `--color-tag-vivid-text`.
+- `text-[10~15px]` → `text-2xs~5xs` 스케일, `py-[3px]`/`mt-[5px]` → `px3`/`px5` 토큰(기존 `--spacing-px3/5` 존재했음), `min/w-[Npx]` → Tailwind 스케일.
+- 공통 UI(`ui/calendar`·`empty-state`·`section-label`)까지 전역 폰트 토큰화. slack 전역 위반 0건.
+
+### timeline-tracker 500줄 분리 (536 → 199줄)
+- `_tracker-shared.ts`(타입·상수·헬퍼) / `tracker-node-row.tsx`(NodeRow+ClusterGroup) / `tracker-detail-panel.tsx`(IssueDetailPanel) 추출.
+- `react/no-children-prop` 해소(`children`→`childRows`), 미사용 dim 강조 제거.
+- **함정 기록**: Tailwind v4 `@theme`의 임의 변수는 CSS 정적 참조분만 `:root`로 방출 → inline `var()`로만 쓰는 레이아웃 토큰(`--tracker-list-w`·`--nav-w`·`--z-drag`)은 tree-shake돼 누락. `--tracker-list-w`는 일반 `:root`에 직접 정의 + fallback `460px`.
+
+### 회귀 수정 (분리 중 발생)
+- 노드 선택 시 나머지가 흐려지던 문제(잘못 연결한 `opacity-40`) 제거.
+- 좌측 목록 너비가 늘어나던 문제 → `var(--tracker-list-w, 460px)` fallback.
+
+### 좌측 네비 아이콘 정정 (`AppNav.tsx`)
+- 슬랙메시지 분석 `Clock`(시계) → `MessageSquare`, 프로젝트 관리 `BarChart2` → `GanttChartSquare`(통계 아이콘과 중복 제거), 홈 `Sparkles` → `Home`.
+
+### 검증
+- `tsc`/eslint 통과, 모든 파일 500줄 이하. 브라우저에서 트래커 정상 렌더(노드·타입칩·콘솔 에러 0), 너비 460px·흐림 제거 확인.
+- 미해결: 실행 중 dev 서버(3001)가 stale module graph 상태(없는 `stats-dashboard` 옛 import 참조 + globals.css 미재빌드) → **서버 재시작 필요**.
+
+---
+
 ## 2026-05-31 — 통계 대시보드 확장: 프로젝트·이슈 탭
 
 `/stats`를 단일 메시지 대시보드 → **3탭(메시지·프로젝트·이슈)** 으로 확장. 전체 기능 통계화 가능성 조사 후 집계가 전무하던 두 영역 신설.
