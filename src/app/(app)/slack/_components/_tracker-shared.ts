@@ -59,6 +59,33 @@ export const REL_META: Record<RelationType, { label: string; from: string }> = {
   related:   { label: '연관',  from: '∼' },
 }
 
+// 주는 쪽(outgoing = 선택 노드 → 이 노드) 라벨. 선택 노드가 이 노드에 영향을 줌.
+export const REL_OUTGOING_LABEL: Record<RelationType, string> = {
+  causes:    '악영향',      // 선택 노드가 이 노드에 악영향
+  blocks:    '차단',        // 선택 노드가 이 노드를 차단
+  recurs_as: '재발',        // 선택 노드가 이 노드로 재발
+  continues: '다음 단계',   // 선택 노드 → 이 노드로 이어짐
+  related:   '연관',
+}
+
+// 받는 쪽(incoming = 이 노드 → 선택 노드) 라벨. 이 노드가 영향을 '주는' from 쪽.
+export const REL_INCOMING_LABEL: Record<RelationType, string> = {
+  causes:    '원인',        // 이 노드가 선택 노드를 유발 → 이 노드가 원인
+  blocks:    '차단요인',    // 이 노드가 선택 노드를 막음
+  recurs_as: '재발원',      // 선택 노드가 이 노드의 재발
+  continues: '이전 단계',   // 이 노드 → 선택 노드로 이어짐
+  related:   '연관',
+}
+
+// 관계 타입별 색 (방향칩·관계도 공용, CSS 변수)
+export const REL_COLOR: Record<RelationType, string> = {
+  causes:    'var(--color-status-late)',
+  blocks:    'var(--color-status-warn)',
+  continues: 'var(--color-status-future)',
+  recurs_as: 'var(--color-lilac-500)',
+  related:   'var(--color-ink-400)',
+}
+
 export const TYPE_KEYS: TypeFilter[] = ['issue', 'project', 'decision']
 
 // ── Helpers ───────────────────────────────────────────────

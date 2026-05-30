@@ -3,15 +3,18 @@
 import { useState } from 'react'
 import { ChevronDown, ChevronRight, Link2 } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { type IssueRow, ST_BG, ST_SYMBOL, nodeStatus, ageTxt } from './_tracker-shared'
+import { type IssueRow, type RelationType, ST_BG, ST_SYMBOL, REL_COLOR, REL_OUTGOING_LABEL, REL_INCOMING_LABEL, nodeStatus, ageTxt } from './_tracker-shared'
 
 // ── 계층 행 (테이블 row + 색상 띠) ───────────────────────────
 export function NodeRow({
-  row, selected, relCount, childCount, open, onToggle, onSelect, isChild,
+  row, selected, relCount, childCount, open, onToggle, onSelect, isChild, relTo, dimmed,
 }: {
   row: IssueRow; selected: boolean; relCount: number
   childCount?: number; open?: boolean; onToggle?: () => void
   onSelect: (id: string) => void; isChild?: boolean
+  // A안: 선택 노드와의 관계 방향칩(있으면 강조 대상) / 무관 노드 dim
+  relTo?: { type: RelationType; outgoing: boolean }
+  dimmed?: boolean
 }) {
   const st = nodeStatus(row)
   const hasChildren = (childCount ?? 0) > 0
@@ -21,13 +24,14 @@ export function NodeRow({
       onClick={() => onSelect(row.id)}
       style={{ borderLeft: `3px solid ${band}` }}
       className={cn(
-        'flex items-center h-9 gap-2 cursor-pointer select-none border-b transition-colors',
+        'flex items-center h-9 gap-2 cursor-pointer select-none border-b transition-all',
         isChild ? 'pl-10' : 'pl-2',
         selected
           ? 'bg-status-future/10'
           : isChild
             ? 'bg-card hover:bg-muted'
             : 'bg-muted/40 hover:bg-muted',
+        dimmed && 'opacity-35',
       )}
     >
       {!isChild && (
@@ -62,7 +66,17 @@ export function NodeRow({
         </span>
       )}
       <div className="flex items-center gap-2 shrink-0 pr-3 text-3xs">
-        {relCount > 0 && <span className="flex items-center gap-0.5 text-ink-200"><Link2 size={9} />{relCount}</span>}
+        {relTo && (
+          <span
+            className="flex items-center gap-0.5 font-medium px-1.5 py-0.5 rounded-full whitespace-nowrap"
+            style={{ color: REL_COLOR[relTo.type], background: `color-mix(in srgb, ${REL_COLOR[relTo.type]} 12%, transparent)` }}
+          >
+            {relTo.outgoing
+              ? REL_OUTGOING_LABEL[relTo.type]
+              : REL_INCOMING_LABEL[relTo.type]}
+          </span>
+        )}
+        {!relTo && relCount > 0 && <span className="flex items-center gap-0.5 text-ink-200"><Link2 size={9} />{relCount}</span>}
         <span className="text-ink-300 tabular-nums text-right whitespace-nowrap">{ageTxt(row.last_seen)}</span>
       </div>
     </div>
@@ -71,11 +85,14 @@ export function NodeRow({
 
 // ── 클러스터 그룹 (parent + 자식들) ─────────────────────────
 export function ClusterGroup({
-  root, childRows, selectedId, relCountOf, onSelect,
+  root, childRows, selectedId, relCountOf, onSelect, relMap, dimSet,
 }: {
   root: IssueRow; childRows: IssueRow[]
   selectedId: string | null
   relCountOf: (id: string) => number; onSelect: (id: string) => void
+  // A안: 선택 노드 기준 관계 방향칩 맵 + dim 대상 집합 (미선택이면 둘 다 비어있음)
+  relMap?: Map<string, { type: RelationType; outgoing: boolean }>
+  dimSet?: Set<string> | null
 }) {
   const [open, setOpen] = useState(true)
   return (
@@ -84,12 +101,14 @@ export function ClusterGroup({
         row={root} selected={selectedId === root.id}
         relCount={relCountOf(root.id)} childCount={childRows.length}
         open={open} onToggle={() => setOpen(v => !v)} onSelect={onSelect}
+        relTo={relMap?.get(root.id)} dimmed={dimSet?.has(root.id)}
       />
       {open && childRows.map((c) => (
         <NodeRow
           key={c.id} row={c} selected={selectedId === c.id}
           relCount={relCountOf(c.id)} onSelect={onSelect}
           isChild
+          relTo={relMap?.get(c.id)} dimmed={dimSet?.has(c.id)}
         />
       ))}
     </>

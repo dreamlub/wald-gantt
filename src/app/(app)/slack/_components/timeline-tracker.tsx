@@ -1,14 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { CalendarDays, Loader2, SlidersHorizontal, Network } from 'lucide-react'
+import { CalendarDays, Loader2, SlidersHorizontal } from 'lucide-react'
 import {
-  type TrackerIssueRow, type Relation, type TypeFilter,
+  type TrackerIssueRow, type Relation, type TypeFilter, type RelationType,
   TYPE_META, TYPE_KEYS, nodeStatus,
 } from './_tracker-shared'
 import { NodeRow, ClusterGroup } from './tracker-node-row'
 import { IssueDetailPanel } from './tracker-detail-panel'
-import { RelationMap } from './tracker-relation-map'
 
 interface Props { brandFilter?: string }
 
@@ -19,7 +18,6 @@ export function TimelineTracker({ brandFilter }: Props) {
   const [loading, setLoading] = useState(true)
   const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(new Set())
   const [showClosed, setShowClosed] = useState(false)
-  const [showMap, setShowMap] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // 이슈 + 관계 로드 (좌·우 공유)
@@ -135,6 +133,25 @@ export function TimelineTracker({ brandFilter }: Props) {
     }
   }, [])
 
+  // A안: 선택 노드 기준 관계 방향칩 맵 + 무관 노드 dim 집합 (미선택이면 null)
+  const { relMap, dimSet } = useMemo(() => {
+    if (selectedId == null) return { relMap: undefined, dimSet: null as Set<string> | null }
+    const rm = new Map<string, { type: RelationType; outgoing: boolean }>()
+    const connected = new Set<string>([selectedId])
+    for (const r of relations) {
+      if (r.from_issue_id === selectedId) { rm.set(r.to_issue_id, { type: r.relation_type, outgoing: true }); connected.add(r.to_issue_id) }
+      if (r.to_issue_id === selectedId)   { rm.set(r.from_issue_id, { type: r.relation_type, outgoing: false }); connected.add(r.from_issue_id) }
+    }
+    // dim 대상 = 화면에 보이는 노드 중 선택·연결에 안 든 것
+    const dim = new Set<string>()
+    for (const t of trees) {
+      if (!connected.has(t.root.id)) dim.add(t.root.id)
+      for (const c of t.children) if (!connected.has(c.id)) dim.add(c.id)
+    }
+    for (const s of standalones) if (!connected.has(s.id)) dim.add(s.id)
+    return { relMap: rm, dimSet: dim }
+  }, [selectedId, relations, trees, standalones])
+
   const selectedRels = selectedId
     ? relations.filter(r => r.from_issue_id === selectedId || r.to_issue_id === selectedId)
     : []
@@ -185,29 +202,8 @@ export function TimelineTracker({ brandFilter }: Props) {
             <SlidersHorizontal size={10} />
             해결 포함
           </button>
-          <button
-            onClick={() => setShowMap(v => !v)}
-            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-              showMap
-                ? 'bg-ink-100 text-ink-600 border-ink-300'
-                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
-            }`}
-          >
-            <Network size={10} />
-            관계도 {showMap ? '▲' : '▽'}
-          </button>
         </div>
       </div>
-
-      {/* 관계도 (접이식, 전체 폭) */}
-      {showMap && (
-        <RelationMap
-          issues={issues}
-          relations={relations}
-          selectedId={selectedId}
-          onSelect={toggleSelect}
-        />
-      )}
 
       {/* 좌우 2단 — 좌측은 계층, 우측은 선택 상세 */}
       <div className="flex-1 flex min-h-0">
@@ -235,6 +231,8 @@ export function TimelineTracker({ brandFilter }: Props) {
                     selectedId={selectedId}
                     relCountOf={relCountOf}
                     onSelect={toggleSelect}
+                    relMap={relMap}
+                    dimSet={dimSet}
                   />
                 ))}
                 {standalones.map(r => (
@@ -244,6 +242,8 @@ export function TimelineTracker({ brandFilter }: Props) {
                     selected={selectedId === r.id}
                     relCount={relCountOf(r.id)}
                     onSelect={toggleSelect}
+                    relTo={relMap?.get(r.id)}
+                    dimmed={dimSet?.has(r.id)}
                   />
                 ))}
               </div>
