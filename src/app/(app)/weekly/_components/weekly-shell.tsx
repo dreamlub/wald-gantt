@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useEffect, useCallback } from 'react'
-import { CloudDownload, RefreshCw, Settings, BookOpen } from 'lucide-react'
+import { RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
 import { WeeklyWeekList, type WeekData } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
@@ -190,22 +190,10 @@ export function WeeklyShell() {
     <div className="flex flex-1 overflow-hidden">
       {/* 좌측: 주차 목록 */}
       <div className="shrink-0 border-r bg-muted flex flex-col overflow-hidden" style={{ width: 'var(--sidebar-w)' }}>
-        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0 gap-2">
-          <BookOpen size={14} className="text-ink-400 shrink-0" />
+        <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap truncate">
             주간보고 수집
           </h1>
-          <button
-            onClick={handleCollectAll}
-            disabled={isCollectingAny}
-            title="전체 팀 수집"
-            className="p-1 rounded text-ink-300 hover:text-muted-foreground hover:bg-muted transition-colors disabled:opacity-50"
-          >
-            {collectingAll
-              ? <RefreshCw size={14} className="animate-spin" />
-              : <CloudDownload size={14} />
-            }
-          </button>
         </div>
 
         {!loading && data && weekCount > 0 && (

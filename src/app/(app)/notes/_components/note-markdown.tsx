@@ -18,6 +18,12 @@ function preserveBlankLines(content: string): string {
   })
 }
 
+// remark-gfm 은 `- [ ]`(내용 없음)을 task item으로 인식하지 못함 (GFM 스펙: 내용 필수).
+// zero-width space(​)를 삽입해 remark-gfm 이 task item으로 파싱하도록 유도.
+function fixEmptyTaskItems(content: string): string {
+  return content.replace(/^([ \t]*[-*] \[[ x]\])\s*$/gm, '$1 ​')
+}
+
 export function NoteMarkdown({ content, onToggle }: Props) {
   let idx = 0
   return (
@@ -54,7 +60,7 @@ export function NoteMarkdown({ content, onToggle }: Props) {
           },
         }}
       >
-        {preserveBlankLines(content)}
+        {fixEmptyTaskItems(preserveBlankLines(content))}
       </ReactMarkdown>
     </div>
   )

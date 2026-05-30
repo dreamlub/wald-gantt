@@ -102,6 +102,14 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
       }}
       className={`group relative rounded-2xl border border-border/60 p-4 transition-shadow hover:shadow-md cursor-grab active:cursor-grabbing select-none break-inside-avoid mb-4 ${bg}`}
     >
+      {/* 고정 핀 */}
+      {note.pinned && (
+        <Pin
+          size={13}
+          className="absolute top-3 right-3 text-rose-500 fill-rose-500"
+        />
+      )}
+
       {note.title && (
         <p className="text-sm font-semibold text-foreground mb-1.5 leading-snug">
           <Highlight text={note.title} query={highlight} />

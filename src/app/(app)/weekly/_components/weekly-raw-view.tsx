@@ -53,6 +53,11 @@ function preprocessMd(content: string): string {
     .replace(/<br\s*\/?>/gi, '\n')
     .replace(/\n{3,}/g, '\n\n')
     .replace(/==(.+?)==/g, '$1')
+    // GFM 테이블 셀에서 <br> 누락으로 붙어버린 항목 분리 (heuristic)
+    // ① 닫힘 괄호 직후 한글·숫자로 새 항목 시작
+    .replace(/\)(?=[가-힣0-9])/g, ')\n')
+    // ② 완료·예정·필요 직후 라틴·숫자·기호로 새 항목 시작 (조사·어미 아닌 경우만)
+    .replace(/(완료|예정|필요)(?=[A-Z0-9\[\(\*])/g, '$1\n')
     .split('\n')
 
   const out: string[] = []
