@@ -3,7 +3,6 @@
 import { AlertCircle, Clock, TrendingUp, Inbox, MousePointerClick } from 'lucide-react'
 import { TimelineViewSwitch } from './timeline-view-switch'
 import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
-
 interface Props {
   brandId: string | 'all'
   stats: BrandTimelineStat | null

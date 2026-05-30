@@ -1,8 +1,10 @@
 'use client'
 
+import { useEffect, useState } from 'react'
 import { CalendarDays, GitBranch, Link2, MessageSquareText } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { brandColor } from '@/lib/history-service'
+import type { HistoryItem } from '@/types/index'
 import {
   type TrackerIssueRow, type Relation,
   TYPE_META, STATUS_META, REL_META, nodeStatus, ageTxt, toBullets,
@@ -49,6 +51,18 @@ export function IssueDetailPanel({
   titleOf: (id: string) => string
   onSelect: (id: string) => void
 }) {
+  const [messages, setMessages] = useState<HistoryItem[]>([])
+  const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null)
+
+  useEffect(() => {
+    if (!issue) { setMessages([]); setExpandedMsgId(null); return }
+    setExpandedMsgId(null)
+    fetch(`/api/history?issue_id=${issue.id}&limit=50`)
+      .then(r => r.json())
+      .then(({ items }: { items: HistoryItem[] }) => setMessages(items ?? []))
+      .catch(() => setMessages([]))
+  }, [issue?.id])
+
   if (!issue) return <DetailEmpty />
 
   const st = nodeStatus(issue)
@@ -127,7 +141,7 @@ export function IssueDetailPanel({
       </section>
 
       {relations.length > 0 && (
-        <section>
+        <section className="mb-5">
           <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">연결 관계</h3>
           <div className="space-y-1.5">
             {relations.map(r => {
@@ -147,6 +161,44 @@ export function IssueDetailPanel({
                     <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground">{titleOf(other)}</span>
                   </div>
                   {r.note && <p className="mt-1 line-clamp-2 text-xs text-muted-foreground">{r.note}</p>}
+                </button>
+              )
+            })}
+          </div>
+        </section>
+      )}
+
+      {messages.length > 0 && (
+        <section>
+          <h3 className="mb-2 text-xs font-semibold uppercase tracking-wider text-muted-foreground">
+            슬랙 연결 <span className="normal-case font-normal text-ink-400">{messages.length}건</span>
+          </h3>
+          <div className="space-y-1.5">
+            {messages.map(msg => {
+              const expanded = expandedMsgId === msg.id
+              return (
+                <button
+                  key={msg.id}
+                  onClick={() => setExpandedMsgId(expanded ? null : msg.id)}
+                  className="w-full rounded-md border bg-card px-3 py-2 text-left hover:bg-muted transition-colors"
+                >
+                  <div className="flex items-center gap-2 mb-1">
+                    <span className="text-xs text-muted-foreground">{msg.occurred_at.slice(0, 10)}</span>
+                    {msg.author && (
+                      <span className="text-xs font-medium text-foreground">{msg.author}</span>
+                    )}
+                    {msg.channel && (
+                      <span className="text-xs text-ink-400 truncate">#{msg.channel}</span>
+                    )}
+                  </div>
+                  <p className={`text-sm text-foreground leading-relaxed ${expanded ? '' : 'line-clamp-2'}`}>
+                    {msg.title}
+                  </p>
+                  {expanded && msg.body && (
+                    <p className="mt-2 text-xs text-ink-500 leading-relaxed whitespace-pre-wrap border-t border-border pt-2">
+                      {msg.body}
+                    </p>
+                  )}
                 </button>
               )
             })}

@@ -1,7 +1,7 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { CalendarDays, Loader2 } from 'lucide-react'
+import { CalendarDays, Loader2, SlidersHorizontal } from 'lucide-react'
 import {
   type TrackerIssueRow, type Relation, type TypeFilter,
   TYPE_META, TYPE_KEYS, nodeStatus,
@@ -16,7 +16,8 @@ export function TimelineTracker({ brandFilter }: Props) {
   const [relations, setRelations] = useState<Relation[]>([])
   const [evidenceCounts, setEvidenceCounts] = useState<Record<string, number>>({})
   const [loading, setLoading] = useState(true)
-  const [typeFilter, setTypeFilter] = useState<TypeFilter>('issue')
+  const [typeFilter, setTypeFilter] = useState<Set<TypeFilter>>(new Set())
+  const [showClosed, setShowClosed] = useState(false)
   const [selectedId, setSelectedId] = useState<string | null>(null)
 
   // 이슈 + 관계 로드 (좌·우 공유)
@@ -58,7 +59,10 @@ export function TimelineTracker({ brandFilter }: Props) {
 
   // 타입별 필터 + 트리 구성 (우측 포레스트)
   const { trees, standalones } = useMemo(() => {
-    const rows = issues.filter(r => r.type === typeFilter)
+    const rows = issues.filter(r =>
+      (typeFilter.size === 0 || typeFilter.has(r.type as TypeFilter)) &&
+      (showClosed || nodeStatus(r) !== 'closed')
+    )
     const byId = new Map(rows.map(r => [r.id, r]))
     const parentIds = new Set(rows.filter(r => r.parent_issue_id && byId.has(r.parent_issue_id)).map(r => r.parent_issue_id!))
     const childMap = new Map<string, TrackerIssueRow[]>()
@@ -78,7 +82,7 @@ export function TimelineTracker({ brandFilter }: Props) {
       .filter(r => !r.parent_issue_id && !parentIds.has(r.id))
       .sort((a, b) => rank(a) - rank(b))
     return { trees, standalones }
-  }, [issues, typeFilter])
+  }, [issues, typeFilter, showClosed])
 
   // 트래킹 작성 기준일 = 가장 최근 created_at (없으면 last_seen)
   const trackedLabel = useMemo(() => {
@@ -106,14 +110,18 @@ export function TimelineTracker({ brandFilter }: Props) {
             {trackedLabel}
           </span>
         )}
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto flex items-center gap-2">
           {TYPE_KEYS.map(key => {
             const meta = TYPE_META[key]
-            const on = typeFilter === key
+            const on = typeFilter.has(key)
             return (
               <button
                 key={key}
-                onClick={() => setTypeFilter(key)}
+                onClick={() => setTypeFilter(prev => {
+                  const next = new Set(prev)
+                  if (next.has(key)) next.delete(key); else next.add(key)
+                  return next
+                })}
                 className="inline-flex items-center text-3xs font-medium px-2 py-0.5 rounded-full border transition-all hover:opacity-80"
                 style={on
                   ? { backgroundColor: meta.color, color: 'var(--color-tag-vivid-text)', borderColor: meta.color }
@@ -123,6 +131,18 @@ export function TimelineTracker({ brandFilter }: Props) {
               </button>
             )
           })}
+          <div className="w-px h-3.5 bg-ink-200 shrink-0" />
+          <button
+            onClick={() => setShowClosed(v => !v)}
+            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
+              showClosed
+                ? 'bg-ink-100 text-ink-600 border-ink-300'
+                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
+            }`}
+          >
+            <SlidersHorizontal size={10} />
+            해결 포함
+          </button>
         </div>
       </div>
 
