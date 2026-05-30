@@ -219,7 +219,7 @@ export function WeeklyContentTabs({
         {activeTab === 'summary' && (
           reportsLoading
             ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-            : <WeeklySummaryList reports={reports} />
+            : <WeeklySummaryList reports={visibleReports} />
         )}
 
         {/* 인사이트 */}

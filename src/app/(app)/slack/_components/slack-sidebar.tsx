@@ -170,7 +170,6 @@ export function SummarySidebar({
   if (view === 'timeline') {
     return (
       <TimelineSidebar
-        history={history}
         brandId={brandId} onBrandChange={onBrandChange}
       />
     )

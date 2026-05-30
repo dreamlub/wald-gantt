@@ -53,6 +53,18 @@ function subtractWeek(dateStr: string): string {
   return addDaysYMD(dateStr, -7)
 }
 
+function weekEndOf(dateStr: string): string {
+  return addDaysYMD(dateStr, 6)
+}
+
+function getMondayOf(dateStr: string): string {
+  const d = new Date(dateStr + 'T00:00:00')
+  const day = d.getDay()
+  const diff = day === 0 ? -6 : 1 - day
+  d.setDate(d.getDate() + diff)
+  return `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+}
+
 function countItems(summaries: WeeklyReportSummary[], type: string): number {
   return summaries.reduce((sum, r) => sum + r.items.filter(it => it.type === type).length, 0)
 }
@@ -88,15 +100,44 @@ function matchKey(a: string | null, b: string | null): boolean {
   return na.includes(nb) || nb.includes(na)
 }
 
+function tokenSet(s: string): Set<string> {
+  const normalized = s.toLowerCase().replace(/[^\w가-힣\s]/g, ' ')
+  return new Set(normalized.split(/\s+/).filter(t => t.length >= 2))
+}
+
+function tokenOverlap(a: string, b: string): number {
+  const at = tokenSet(a)
+  const bt = tokenSet(b)
+  if (at.size === 0 || bt.size === 0) return 0
+  let common = 0
+  for (const t of at) if (bt.has(t)) common++
+  return common / Math.min(at.size, bt.size)
+}
+
+function sameWeeklyItem(
+  curr: Pick<WeeklyReportItem, 'type' | 'title' | 'detail' | 'brand'>,
+  prev: Pick<WeeklyReportItem, 'type' | 'title' | 'detail' | 'brand'>,
+): boolean {
+  if (curr.type !== prev.type) return false
+
+  const sameBrand = matchKey(curr.brand, prev.brand)
+  const sameTitle = matchKey(curr.title, prev.title)
+  const relatedText = tokenOverlap(
+    `${curr.title} ${curr.detail}`,
+    `${prev.title} ${prev.detail}`,
+  ) >= 0.35
+
+  if (sameBrand) return sameTitle || relatedText
+  if (!curr.brand && !prev.brand) return sameTitle || relatedText
+  return false
+}
+
 function applyDiff(
   currItems: z.infer<typeof ExtractedItemSchema>[],
   prevItems: WeeklyReportItem[],
 ): WeeklyReportItem[] {
   return currItems.map(curr => {
-    const matched = prevItems.find(prev =>
-      matchKey(curr.brand, prev.brand) ||
-      (!curr.brand && !prev.brand && matchKey(curr.title, prev.title))
-    )
+    const matched = prevItems.find(prev => sameWeeklyItem(curr, prev))
 
     if (!matched) {
       return { ...curr, change: 'new' as const, prev_status: null, prev_title: null, block_reason: null }
@@ -121,10 +162,7 @@ function findDropped(
   prevItems: WeeklyReportItem[],
 ): WeeklyReportItem[] {
   return prevItems
-    .filter(prev => !currItems.some(curr =>
-      matchKey(curr.brand, prev.brand) ||
-      (!curr.brand && !prev.brand && matchKey(curr.title, prev.title))
-    ))
+    .filter(prev => !currItems.some(curr => sameWeeklyItem(curr, prev)))
     .map(prev => ({
       ...prev,
       change: 'dropped' as const,
@@ -280,14 +318,16 @@ export async function POST(req: NextRequest) {
         // 2026년부터 목표 주차까지 전체를 diff 체인으로 처리.
         // 이전 주차는 summary 캐시 재사용이므로 Claude 호출은 목표 주차만 발생.
         const windowStart = '2026-01-01'
+        const weekEnd = weekEndOf(week_start)
 
-        // 윈도우 범위의 보고서를 오래된 순으로 가져옴
+        // 윈도우 범위의 보고서를 오래된 순으로 가져옴.
+        // weekly_reports.week_start는 원문 날짜라 월요일이 아닐 수 있으므로 목표 주의 일요일까지 조회한다.
         const { data: allReports, error: fetchErr } = await sb
           .from('weekly_reports')
           .select('*')
           .eq('workspace_id', workspaceId)
           .gte('week_start', windowStart)
-          .lte('week_start', week_start)
+          .lte('week_start', weekEnd)
           .order('week_start', { ascending: true })
 
         if (fetchErr) throw fetchErr
@@ -299,7 +339,7 @@ export async function POST(req: NextRequest) {
         // 주차별로 그룹핑
         const weekMap = new Map<string, DbReport[]>()
         for (const r of allReports) {
-          const wk = r.week_start as string
+          const wk = getMondayOf(r.week_start as string)
           if (!weekMap.has(wk)) weekMap.set(wk, [])
           weekMap.get(wk)!.push(r as DbReport)
         }

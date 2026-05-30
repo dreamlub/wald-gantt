@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import type { WeeklyReportItem, WeeklyReportSummary } from '@/types'
 import type { ReviewPriority, ReviewSource } from '@/types'
 
 // daily_reports.content.action_items 구조
@@ -37,6 +38,20 @@ function severityToPriority(severity: string): ReviewPriority {
   if (severity === 'urgent') return 'high'
   if (severity === 'watch') return 'medium'
   return 'low'
+}
+
+function weeklyPriority(item: WeeklyReportItem): ReviewPriority {
+  if (item.status === 'blocked' || item.type === 'issue') return 'high'
+  if (item.type === 'plan') return 'medium'
+  return 'low'
+}
+
+function stableWeeklyItemKey(item: WeeklyReportItem): string {
+  return `${item.type}:${item.title}:${item.brand ?? ''}`
+    .toLowerCase()
+    .replace(/\s+/g, '')
+    .replace(/[^\w가-힣:]/g, '')
+    .slice(0, 120)
 }
 
 export async function POST() {
@@ -118,7 +133,37 @@ export async function POST() {
       }
     }
 
-    const rows = [...historyRows, ...reportRows]
+    // ── 3. weekly_report 후보 ──────────────────────────────────────────
+    const { data: weeklyReports } = await sb
+      .from('weekly_reports')
+      .select('id, week_start, team, summary')
+      .eq('workspace_id', workspaceId)
+      .gte('week_start', since60.slice(0, 10))
+
+    const weeklyRows: CandidateRow[] = []
+    for (const report of weeklyReports ?? []) {
+      const summary = report.summary as WeeklyReportSummary | null
+      const items = summary?.items ?? []
+      items.forEach((item) => {
+        if (!item.action_required) return
+
+        weeklyRows.push({
+          workspace_id: workspaceId,
+          source: 'weekly' as ReviewSource,
+          source_id: `${report.id}|${stableWeeklyItemKey(item)}`,
+          source_date: report.week_start,
+          title: item.task_title ?? item.title,
+          memo: item.task_memo ?? item.detail ?? null,
+          brand: item.brand ?? report.team ?? null,
+          priority: weeklyPriority(item),
+          due_date: item.due_date ?? null,
+          estimated_minutes: item.estimated_minutes ?? null,
+          evidence_count: 1,
+        })
+      })
+    }
+
+    const rows = [...historyRows, ...reportRows, ...weeklyRows]
     if (rows.length === 0) {
       return NextResponse.json({ inserted: 0 })
     }

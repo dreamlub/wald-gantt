@@ -132,6 +132,12 @@ function quarterSortKey(title: string): number {
   return Number(year) * 4 + q
 }
 
+function quarterKeyForDate(weekStart: string): number | null {
+  const d = new Date(weekStart + 'T00:00:00')
+  if (Number.isNaN(d.getTime())) return null
+  return d.getFullYear() * 4 + Math.floor(d.getMonth() / 3) + 1
+}
+
 // 수집할 최근 분기 문서 수 (현재 + 직전 분기). 분석 윈도우(8주)를 충분히 커버하며
 // 과거 전체 분기를 매번 재수집하던 비용을 줄인다.
 const RECENT_QUARTERS = 2
@@ -213,12 +219,17 @@ export async function POST(req: Request) {
         quarterDocs = allDocs.filter(d => isQuarterDoc(d.title))
       }
 
-      // 최근 분기 문서만 수집 — 제목의 연/분기 기준 내림차순 정렬 후 상위 N개.
-      // 과거 전체 분기를 매번 재수집하던 동작을 제한한다.
-      quarterDocs = quarterDocs
+      // 일반 수집은 최근 분기만 보되, 특정 주차 수집은 해당 분기 문서를 우선 본다.
+      const sortedQuarterDocs = quarterDocs
         .slice()
         .sort((a, b) => quarterSortKey(b.title) - quarterSortKey(a.title))
-        .slice(0, RECENT_QUARTERS)
+      const targetQuarterKey = filterWeekStart ? quarterKeyForDate(filterWeekStart) : null
+      const targetQuarterDocs = targetQuarterKey == null
+        ? []
+        : sortedQuarterDocs.filter(d => quarterSortKey(d.title) === targetQuarterKey)
+      quarterDocs = targetQuarterDocs.length > 0
+        ? targetQuarterDocs
+        : sortedQuarterDocs.slice(0, RECENT_QUARTERS)
 
       let upserted = 0
       let errors = 0
@@ -253,7 +264,7 @@ export async function POST(req: Request) {
                 const childText: string = childRes.data?.text ?? ''
                 if (!childText) continue
                 const { error } = await sb.from('weekly_reports').upsert(
-                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, summary: null, updated_at: new Date().toISOString() },
+                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, updated_at: new Date().toISOString() },
                   { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                 )
                 if (error) errors++; else upserted++
@@ -269,7 +280,7 @@ export async function POST(req: Request) {
                   : childSections
                 for (const section of filtered) {
                   const { error } = await sb.from('weekly_reports').upsert(
-                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, summary: null, updated_at: new Date().toISOString() },
+                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, updated_at: new Date().toISOString() },
                     { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                   )
                   if (error) errors++; else upserted++
@@ -292,7 +303,6 @@ export async function POST(req: Request) {
               author: null,
               week_start: section.weekStart,
               raw_content: section.content,
-              summary: null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
