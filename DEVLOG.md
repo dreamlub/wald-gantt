@@ -2,6 +2,32 @@
 
 ---
 
+## 2026-05-31 — 이슈 관계 시각화 A안 (선택 하이라이트)
+
+타임라인 부모 노드 간 비계층 관계(`issue_relations`)를 화면에 드러내는 방법 탐색. A(선택 하이라이트)·B(상시 인디케이터)·C(간트형 시간축)·D(관계 그래프) 검토.
+
+### 경위
+- **D안(관계 그래프)** 두 차례 시도 후 폐기: 자체 SVG → 노드 겹침 / React Flow+dagre → 자동 레이아웃은 됐으나 노드 많으면 본질적으로 산만. 그래프는 조망엔 좋아도 운영 화면엔 과함.
+- **A안 채택**: 별도 영역·외부 의존성 없이 기존 트리에 얹는 방식. "이 이슈가 뭐랑 엮였나"를 클릭으로 즉답.
+
+### 구현 (커밋 b331321, 3dcfd7b)
+- 노드 선택 시 관계로 이어진 노드만 또렷, 무관 노드 dim(`opacity-35`).
+- 연결 노드 행에 **방향 라벨 칩** (화살표 대신 의미 단어):
+  - outgoing(선택→이노드): 악영향 / 차단 / 다음 단계 / 재발 / 연관
+  - incoming(이노드→선택): 원인 / 차단요인 / 이전 단계 / 재발원 / 연관
+- `_tracker-shared`에 `REL_OUTGOING_LABEL`·`REL_INCOMING_LABEL`·`REL_COLOR` 추가, `timeline-tracker`에서 선택 기준 `relMap`/`dimSet` 계산해 트리에 전달.
+- D안 폐기: `tracker-relation-map.tsx` 삭제 + `@xyflow/react`·`@dagrejs/dagre` 의존성 제거.
+
+### 부수 작업 (같은 세션)
+- 좌우 패널 고정폭 → 비율(flex-[2]:[3])로 변경해 창 축소 시 함께 줄도록.
+- 슬랙 연결 메시지/이슈 본문 `cleanText` 전처리(리터럴 `\n`·`**` 정리).
+- 매머드 AppFit project 4개를 본문 기반 `continues`로 연결(관계 누락 보정).
+
+### 충돌 마커 잔재 정리
+- 다른 세션의 "이슈 완료 처리 Part 2(30일+ 정리 대상 큐, e863f0e)"가 A안과 합쳐지며 `timeline-tracker.tsx` 워킹트리에 충돌 마커가 남아 있었음(커밋엔 미반영). HEAD(3f20a5b)는 이미 두 기능 공존 정상본이라 `git checkout HEAD -- timeline-tracker.tsx`로 복원. A안(relMap/dimSet/방향칩) + Part2(isStale/handleBulkClose/showStaleOnly) 공존 확인, lint·tsc 0.
+
+---
+
 ## 2026-05-31 — AI 분류 검증 강화: 무의미 내용 차단 (코덱스 #3)
 
 `validateClassification` 품질 게이트 보강.
