@@ -66,6 +66,7 @@ export async function POST(req: NextRequest) {
 
         const dates = dateRange(from, to)
         let totalRaw = 0
+        const truncatedDays: { date: string; total: number }[] = []
 
         send('status', { message: `${dates.length}일 Raw 수집 시작 (${from} ~ ${to})` })
 
@@ -86,6 +87,8 @@ export async function POST(req: NextRequest) {
           const allMatches: SlackMatch[] = []
           let page = 1
           let searchRetries = 0
+          let lastPages = 1
+          let lastTotal = 0
           while (page <= 10) {
             let result
             try {
@@ -108,10 +111,18 @@ export async function POST(req: NextRequest) {
               break
             }
             allMatches.push(...(result.messages.matches as SlackMatch[]))
+            lastPages = result.messages.paging?.pages ?? 1
+            lastTotal = result.messages.total ?? 0
             send('status', { message: `[${di + 1}/${dates.length}] ${date} page ${page}: ${result.messages.matches.length}건 (누적 ${allMatches.length}건, 전체 ${result.messages.total ?? '?'})` })
-            if (page >= (result.messages.paging?.pages ?? 1)) break
+            if (page >= lastPages) break
             page++
             await delay(1000)
+          }
+
+          // Slack 검색은 최대 10페이지(1,000건)만 반환 — 초과분은 조용히 누락되므로 경고
+          if (lastPages > 10) {
+            truncatedDays.push({ date, total: lastTotal })
+            send('status', { message: `⚠️ [${date}] 검색 ${lastTotal}건 중 1,000건 상한 도달 — 약 ${lastTotal - 1000}건 누락 가능 (${lastPages}p)` })
           }
 
           const cleanMatches = allMatches.filter(m =>
@@ -264,7 +275,7 @@ export async function POST(req: NextRequest) {
             }))
             const { error } = await sb
               .from('slack_raw_messages')
-              .upsert(upsertData, { onConflict: 'workspace_id,channel,parent_ts' })
+              .upsert(upsertData, { onConflict: 'workspace_id,channel_id,parent_ts' })
             if (error) {
               send('status', { message: `[${date}] 저장 오류: ${error.message}` })
             } else {
@@ -274,7 +285,10 @@ export async function POST(req: NextRequest) {
           }
         }
 
-        send('result', { message: `완료 — ${dates.length}일 / 총 ${totalRaw}건 Raw 저장` })
+        const truncNote = truncatedDays.length > 0
+          ? ` ⚠️ 1,000건 상한으로 누락 가능한 날 ${truncatedDays.length}일: ${truncatedDays.map(d => `${d.date}(${d.total}건)`).join(', ')}`
+          : ''
+        send('result', { message: `완료 — ${dates.length}일 / 총 ${totalRaw}건 Raw 저장${truncNote}`, truncatedDays })
       } catch (err) {
         console.error('[collect-raw]', err)
         send('error', { message: err instanceof Error ? err.message : 'Internal error' })

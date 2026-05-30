@@ -70,14 +70,12 @@ const SYSTEM_PROMPT = `당신은 발트루스트 DX팀의 클라이언트 업무
 - issue: 해결이 필요한 문제 또는 장애
 - decision: 합의·확정된 의사결정
 - mention: 담당자를 직접 멘션한 긴급 요청
-- in_progress: 현재 진행 중인 작업
-- done: 완료된 작업
 - schedule: 날짜가 확정된 일정
 
 [severity 판단 기준]
 - urgent: mention+issue 조합, 또는 priority=high — 24시간 내 대응
-- watch: issue 단독, 또는 in_progress 중 응답 지연 — 이번 주 내 팔로업
-- info: decision / done / schedule — 참고용
+- watch: issue 단독 — 이번 주 내 팔로업
+- info: decision / schedule — 참고용
 
 [body 구조]
 각 항목의 body는 불릿(•) 3줄 구조입니다. 반드시 활용하세요:
@@ -86,11 +84,11 @@ const SYSTEM_PROMPT = `당신은 발트루스트 DX팀의 클라이언트 업무
 - 3줄(•): 필요한 조치 또는 완료 표현
 
 [pending 판단 기준]
-author가 외부([브랜드명] prefix)이고, tags에 in_progress가 있으며, 내부 담당자의 후속 응답·결정이 확인되지 않는 항목만 포함합니다.
+author가 외부([브랜드명] prefix)인 요청·문의(issue 또는 mention)인데, 내부 담당자의 후속 응답·결정이 확인되지 않는 항목만 포함합니다.
 
 [출력 규칙]
 - 반드시 한국어로 작성
-- done 태그 항목은 action_items에 포함하지 말 것
+- 이미 완료·해결됐다고 보고된 항목은 action_items에 넣지 말고 decisions 또는 참고로 분류
 - upcoming은 title 또는 body에 구체적인 날짜가 언급된 항목만
 - related_count는 해당 action_item과 관련된 원본 메시지 수
 - brand 필드에는 아래 제공되는 클라이언트 목록의 정확한 name 값을 그대로 사용
@@ -244,7 +242,7 @@ ${JSON.stringify(newItemsWithBrand, null, 2)}
 
 기존 분석에 신규 항목을 반영하여 업데이트된 인사이트를 생성하세요.
 - 기존 action_items / decisions의 id 유지, 신규 항목은 이어서 채번 (a1 다음 a2...)
-- 신규 done 항목과 연관된 기존 action_items → decisions로 이동하거나 제거
+- 완료·해결됐다고 보고된 신규 항목과 연관된 기존 action_items → decisions로 이동하거나 제거
 - pending에서 내부 응답이 확인된 항목 제거
 - 신규 이슈·결정·일정 추가
 - action_items별 task_candidate/task_title/task_memo/due_date/estimated_minutes를 재판단

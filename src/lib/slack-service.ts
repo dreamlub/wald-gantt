@@ -345,12 +345,25 @@ ${fullText}
     tags.push('mention')
   }
 
+  // 저장 전 검증·정규화 (빈 제목 차단, 볼드 마크업 균형 보정, author fallback)
+  const title = parsed.title.trim().slice(0, 60)
+  if (!title) {
+    console.log(`[classify] 빈 제목 제외 ts=${raw.ts}`)
+    return null
+  }
+
   return {
     tags,
     priority: parsed.priority,
-    title:    parsed.title.slice(0, 60),
-    body:     parsed.body,
-    author:   parsed.author,
-    brand:    parsed.brand || undefined,
+    title,
+    body:     balanceBold(parsed.body.trim()),
+    author:   parsed.author?.trim() || raw.user_name || raw.user || '',
+    brand:    parsed.brand?.trim() || undefined,
   }
+}
+
+// 닫히지 않은 ** 볼드 마크업 보정 — `**`가 홀수면 마지막 여는 표식을 제거
+export function balanceBold(text: string): string {
+  if (((text.match(/\*\*/g) ?? []).length) % 2 === 0) return text
+  return text.replace(/\*\*([^*]*)$/, '$1')
 }

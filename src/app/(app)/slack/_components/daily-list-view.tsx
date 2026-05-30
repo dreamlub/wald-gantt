@@ -104,7 +104,8 @@ function HistoryRow({
           )}
         </div>
         {(item.tags ?? []).slice(0, 1).map(tag => {
-          const meta = TAG_META[tag]
+          const meta = TAG_META[tag as keyof typeof TAG_META]
+          if (!meta) return null
           return (
             <span
               key={tag}

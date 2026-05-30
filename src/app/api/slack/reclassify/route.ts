@@ -160,24 +160,22 @@ export async function POST(req: NextRequest) {
           skipped += results.length - valid.length
 
           if (valid.length > 0) {
-            // 이전 분류 아카이브
+            // 이전 분류 아카이브 데이터 구성
             const oldSummaries = valid
               .filter(r => existingHistMap.has(r.raw_message_id))
               .map(r => {
                 const old = existingHistMap.get(r.raw_message_id)!
                 return { workspace_id: workspaceId, client_history_id: old.id, thread_count: old.thread_count, title: old.title, body: old.body ?? '' }
               })
-            if (oldSummaries.length > 0) {
-              const { error: archiveErr } = await sb.from('client_history_summaries').insert(oldSummaries)
-              if (archiveErr) send('status', { message: `아카이브 실패(무시): ${archiveErr.message}` })
-            }
 
-            const { error: upsertErr } = await sb
-              .from('client_history')
-              .upsert(valid, { onConflict: 'workspace_id,source_id' })
-            if (upsertErr) {
+            // 아카이브 + upsert를 단일 트랜잭션(RPC)으로 원자 처리 — 중간상태 방지
+            const { error: applyErr } = await sb.rpc('reclassify_apply', {
+              p_summaries: oldSummaries,
+              p_rows: valid,
+            })
+            if (applyErr) {
               totalUpsertFail += valid.length
-              send('status', { message: `저장실패: ${upsertErr.message} (code: ${upsertErr.code})` })
+              send('status', { message: `저장실패: ${applyErr.message} (code: ${applyErr.code})` })
             } else {
               classified += valid.length
             }

@@ -2,6 +2,145 @@
 
 ---
 
+## 2026-05-31 — 통계 대시보드 확장: 프로젝트·이슈 탭
+
+`/stats`를 단일 메시지 대시보드 → **3탭(메시지·프로젝트·이슈)** 으로 확장. 전체 기능 통계화 가능성 조사 후 집계가 전무하던 두 영역 신설.
+
+### 신규
+- `stats/_components/stats-tabs.tsx` — 상단 탭 전환(메시지/프로젝트/이슈). `page.tsx`가 `StatsTabs` 렌더.
+- `api/stats/projects/route.ts` — 상태 분포, **일정 리스케줄 분석**(project_history end_date 변경 횟수+누적 슬립일), 마감 임박·초과, 카테고리·PM별 부하. start/end_date는 text(YYYY-MM-DD) 문자열 비교.
+- `api/stats/issues/route.ts` — 미해결/해결, 타입별, 해결 소요시간 버킷, aging 미해결 Top(마지막 언급 경과일), 브랜드별 미해결 부하. KST 날짜 diff.
+- `stats/_components/project-stats.tsx` · `issue-stats.tsx` — 각 패널.
+- `stats-primitives.tsx` — `RankList`(이름+막대+값+부가) · `DeadlineList`(임박/초과 색상) 추가.
+- `stats-types.ts` — `ProjectStatsResponse`·`IssueStatsResponse`(+EMPTY).
+
+### 조사 결론 (통계화 우선순위)
+프로젝트(리스케줄 122회 변경)·이슈(미해결/해결·평균 해결일)가 데이터 충분+기존 UI 없음 → 채택. Review Inbox는 770건 전부 단일일 생성으로 시계열 불가 → 제외. recurs_as 관계 0건이라 재발 전용 섹션 제외.
+
+### 검증
+- `tsc`/eslint 통과, 신규 파일 모두 500줄 이하.
+- API 실측: 프로젝트 95(진행 28·완료 7·마감초과 6·리스케줄 55, Top 삼성웰스토리 13회/+28일), 이슈 150(미해결 104·해결 46·평균 7일·aging 75일). 브라우저 3탭 렌더·전환 확인, 콘솔 에러 없음.
+
+---
+
+## 2026-05-31 — 슬랙 분석 안정성 보강 #1·#3 (태그 정합 + raw 충돌키)
+
+외부 리뷰 지적을 코드/DB와 대조 검증 후 저비용·고효과 2건 수정.
+
+### #1 태그 스키마 정합 (분석기 정리)
+- `classifyMessage`(`slack-service.ts:36`)는 `issue/decision/schedule/mention` 4태그만 생성하는데, `insights/generate` 프롬프트는 `in_progress`/`done`까지 전제 → `pending` 섹션·`watch` severity 일부 분기·`done` 제외 규칙이 **죽은 규칙**이었음.
+- `api/insights/generate/route.ts` SYSTEM_PROMPT를 4태그 체계로 정리: 태그 정의에서 in_progress/done 제거, severity 재정의, **pending을 "외부 author([브랜드] prefix) 요청(issue/mention) + 내부 미응답"으로 재정의**, done 의존 규칙을 "완료·해결 보고 항목"으로 치환(증분 프롬프트 포함).
+
+### #3 raw 충돌키 channel(이름) → channel_id
+- 기존 `UNIQUE(workspace_id, channel, parent_ts)`의 `channel`은 resolved 이름이라, DM/채널 표시명이 바뀌면 같은 글이 새 row로 중복 저장됨. 조회는 이미 `channel_id` 기준이라 충돌키와 불일치(코드 주석도 인지). **실제 중복 215쌍 확인.**
+- 마이그레이션 `slack_raw_dedup_channel_id_unique`: 보존 row 선정(history 연결 우선 → collected_at 최신) → 삭제 raw 참조 history 재지정 → 중복 215건 삭제(7375→7160) → 제약을 `(workspace_id, channel_id, parent_ts)`로 교체.
+- 위험그룹 1건(신두화 DM 표시명 `U09…`→`신두화 (DM)` 변경으로 같은 통화요청 2회 분류)은 `client_history.raw_message_id` unique 때문에 재지정 불가 → 중복 분류 1건 소프트 삭제(`deleted_at`+detach, 복구 가능, 타임라인 미연결 확인).
+- `api/slack/collect-raw/route.ts:267` `onConflict`를 `workspace_id,channel_id,parent_ts`로 변경.
+
+### 남은 백로그 (미수정)
+#4 client_history 충돌키 source_id→raw_message_id(긴급도 낮음), #6 데일리리포트 운영성.
+
+---
+
+## 2026-05-31 — 슬랙 분석 안정성 보강 #2·#7·#5
+
+### #2 수집 누락 경고 (collect-raw)
+- Slack `search.messages`는 최대 10페이지(1,000건/일)만 반환. 초과분은 조용히 누락됨.
+- `collect-raw/route.ts`: 루프 종료 후 `lastPages > 10`이면 `truncatedDays` 기록 + ⚠️ SSE 경고(`검색 N건 중 1,000건 상한 도달 — 약 M건 누락 가능`). 최종 result에 누락일 요약 첨부.
+
+### #7 AI 출력 검증·정규화 (classifyMessage)
+- zod로 태그/priority/구조는 이미 보장 → 남은 의미 검증 추가.
+- classifyMessage 반환 직전: 빈 제목 차단(null), author fallback(parsed→user_name→user), `balanceBold()`로 닫히지 않은 `**` 볼드 보정.
+- `balanceBold` 순수함수 export + vitest 3케이스(slack-service.test.ts, 총 9 pass).
+
+### #5 재분류 원자화 (RPC)
+- 기존: 아카이브 insert → upsert 별도 실행(중간상태 위험, 아카이브 실패 무시).
+- 마이그레이션 `reclassify_apply_atomic`: `reclassify_apply(p_summaries jsonb, p_rows jsonb)` plpgsql로 아카이브+upsert를 단일 트랜잭션화(`ON CONFLICT (workspace_id, source_id) DO UPDATE`, `GRANT EXECUTE TO authenticated`).
+- `reclassify/route.ts`: 두 쿼리를 `sb.rpc('reclassify_apply', ...)` 단일 호출로 교체.
+
+### 검증 메모
+- 변경 파일 lint/type 클린. `npm run check`의 기존 에러 7건(weekly-*, review-shell, daily-report-view, ProjectFormDialog 등)은 본 작업과 무관 — 스코프 외라 미수정.
+
+---
+
+## 2026-05-31 — 통계 대시보드 (메인 메뉴 `/stats` 라우트)
+
+서버 집계 기반 통계 대시보드를 **독립 라우트 `/stats` + 좌측 메인 메뉴 항목**으로 신설. 기존 고아 슬랙 `summary` 뷰(툴바 미노출 + 클라이언트 필터 데이터만 사용)를 대체·제거.
+
+### 신규 (`app/(app)/stats/`)
+- `api/stats/route.ts` — KST 일별 집계 단일 엔드포인트. `from`/`to`(기본 90일). 워크스페이스 스코프. client_history 행을 `.range()` 페이지네이션으로 끝까지 순회 후 JS 집계(아래 함정 참고).
+- `stats/_lib/stats-types.ts` — `StatsResponse` 공유 타입 + `EMPTY_STATS`.
+- `stats/_components/stats-primitives.tsx` — 차트 프리미티브(VolumeBars/CompletedBars/DistroBar/BrandStack/MiniBars/TopList/StatCard/Section). 외부 차트 라이브러리 없이 div/토큰 기반.
+- `stats/_components/stats-dashboard.tsx` — 30/90/180일 토글 + 7개 섹션 조립.
+- `stats/page.tsx` — 대시보드 렌더 서버 페이지.
+- `lib/kst.ts` — `kstHour()` 추가(IANA 타임존 기준 시, 고정 +9h 금지 규칙 준수).
+- 분류 상수·타입은 슬랙 `_lib`(constants/types) 재사용.
+
+### 섹션
+요약카드 6종 · 일별 메시지 볼륨(이슈 하위 세그먼트) · 브랜드별 이슈·분류(상위 12) · 투두 처리량(완료 막대 + 현재 상태 분포) · 요일/시간대 패턴 · 우선순위 분포 · Top 채널/작성자.
+
+### 배선
+- `AppNav`: `통계`(BarChart3) 메뉴 항목 추가 — `슬랙메시지 분석`과 `Review` 사이.
+- 슬랙에서 `summary` 완전 제거: `slack-toolbar` 탭 / `slack-shell` 분기·`StatsDashboard` import / `slack-shell-state` ViewKey·VALID_VIEWS / `slack-sidebar` view 유니온 / 죽은 `filtered`·필터칩 분기.
+- `slack/page.tsx`: `summary` initialHistory 로딩 제외.
+- `stats-view.tsx`(구) 삭제.
+
+### 함정 (재발 방지)
+- **PostgREST `db-max-rows`(기본 1000)** 가 `.limit(20000)`을 무시하고 행을 1000개로 잘라 집계가 과소 계산됨(첫 구현 메시지 2521→1000). `.range(offset, offset+999)` 루프로 전체 순회해 해결. 대량 행 JS 집계 라우트는 동일 패턴 필수.
+
+### 검증
+- `tsc --noEmit` / eslint 통과, 신규·수정 파일 모두 500줄 이하.
+- DB 교차검증(90일): 메시지 2521·이슈 1043·브랜드 82·활성일 68·투두완료 48 — API 응답과 정확히 일치.
+- 브라우저(`/slack?view=summary`): 7개 섹션·90바 차트 렌더, 30일 토글 재조회(914건·23일) 확인. 콘솔 에러 없음.
+
+---
+
+## 2026-05-30 — Timeline 구현 Phase 1~5 (issue_relations + evidence + 신규 트래커 UI)
+
+설계 확정안(좌=evidence / 우=포레스트, issue_relations 신설) 구현. 진행 순서는 검토 반영대로 데이터 레이어 → 스킬 → UI.
+
+### Phase 1 — issue_relations 스키마
+- `supabase/migrations/20260530140000_create_issue_relations.sql` + MCP 적용 완료
+- 방향 고정: `from_issue_id → to_issue_id` = "from이 to에 영향". enum: `causes`/`blocks`/`recurs_as`/`continues`/`related`
+- 제약: UNIQUE(from,to,type), CHECK(from≠to), RLS(workspace_members USING+WITH CHECK), 인덱스 from/to/workspace
+
+### Phase 2 — GET /api/issues 확장 (`api/issues/route.ts`)
+- 응답에 `relations`(현 이슈 집합 필터) + `evidenceCounts`(client_history group-by, 단일 쿼리 N+1 회피) 추가
+- `select('*')` → `ISSUE_COLUMNS` 명시. 원문은 미포함(첫 로딩 경량)
+
+### Phase 3 — GET /api/issues/evidence 신규 (`api/issues/evidence/route.ts`)
+- **브랜드 전체** client_history 원문 타임라인(issue_id 포함), 최신 500건 → 시간순 정렬
+- 컬럼명 실제 스키마 맞춤(title/body/thread_count/issue_id)
+- (구) `[id]/evidence`(이슈별)는 아래 양방향 싱크 재설계로 폐기·삭제
+
+### Phase 4 — brand-timeline 스킬 개편 (`.claude/skills/brand-timeline/SKILL.md`)
+- Step 3-6 신설: parent_issue_id(계층·실선) vs issue_relations(비계층·점선) 구분 + 방향 규칙 표
+- Step 4: issue_relations INSERT(ON CONFLICT DO NOTHING) / Step 5: 관계 검증 쿼리 + 체크리스트 2항목
+
+### Phase 5 — timeline-tracker.tsx 신규 UI (양방향 싱크 재설계)
+- **좌우 상시 표시 + 양방향 싱크** (master-detail 폐기). 좌측은 노드 선택과 무관하게 항상 브랜드 전체 원문 타임라인.
+- 싱크: 우측 노드 클릭 → 좌측 해당 issue_id 메시지 강조+스크롤 + 나머지 dim, 우측은 관계 이슈만 강조. 좌측 메시지 클릭 → 그 issue_id 노드 선택(양방향). 재클릭/선택해제 버튼으로 토글.
+- 노드에 evidence 건수 배지 표시(미연결 메시지는 좌측에서 '미연결' 표기 → 데이터 갭 가시화).
+- 상태 3색 = nodeStatus(open+7일내=활성/open초과=주의/closed=해결), CSS 토큰(status-late/warn, ink-*)으로 하드코딩 hex 제거
+- 필터바: 활성/주의 카운트 + 이슈/프로젝트/결정 토글. `timeline-brand-panel`이 IssueTreeView→TimelineTracker로 교체
+
+### 검증
+- `npx tsc --noEmit` / eslint 통과
+- DB 실측: 더리터(루트20·자식18)·텐퍼센트(루트20·자식22) 트리 존재, issue_relations INSERT·제약·ON CONFLICT 동작 확인
+- **브라우저 렌더 검증 완료**(/slack?view=timeline&brand=텐퍼센트): 좌 evidence 50건 + 우 트리 42노드 + 필터바 + 신규/구버전 토글 동시 표시. 노드 클릭 시 선택(aria-pressed) + 나머지 메시지 dim + 선택 해제 버튼 동작 확인. 좌측 매칭 0건은 issue_id 미연결 데이터 갭 때문(예상대로)
+
+### Phase 6 — 구버전 뷰 폴백 토글
+- `timeline-view-switch.tsx` 신규 — 신규 트래커 ↔ 구버전 `IssueTreeView` 우상단 토글(신규/구버전). 기본 '신규'.
+- `timeline-brand-panel`이 TimelineTracker 대신 TimelineViewSwitch 렌더. 구버전은 삭제하지 않고 비교·폴백용으로 유지.
+- 나머지 뷰(timeline-view/v2/graph/logic-tree/with-toggle)는 현재 미배선 상태로 코드만 잔존.
+
+### 미완 / 후속
+- **데이터 갭**: 기존 issues 80건 모두 `client_history.issue_id` 미연결(linked_msgs=0) → evidence 패널 현재 빈 상태. 스킬 재실행 또는 issue_id 백필 필요
+- issue_relations 데이터 0건(스킬 재실행 전) — UI 빈 상태 정상
+- 점선 relation을 SVG 라인으로 렌더(현재는 좌측 관계 칩)
+
+---
+
 ## 2026-05-30 — Review Inbox history(Slack) 소스 제거
 
 ### 배경

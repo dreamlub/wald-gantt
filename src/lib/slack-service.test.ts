@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { getReplySourceIds, isObviousNoise, type RawJson } from './slack-service'
+import { getReplySourceIds, isObviousNoise, balanceBold, type RawJson } from './slack-service'
 
 function makeRj(text: string, replies: RawJson['replies'] = []): RawJson {
   return {
@@ -15,6 +15,22 @@ function makeRj(text: string, replies: RawJson['replies'] = []): RawJson {
     replies,
   }
 }
+
+describe('balanceBold', () => {
+  it('균형 잡힌 볼드는 그대로', () => {
+    expect(balanceBold('**a** 일반 **b**')).toBe('**a** 일반 **b**')
+    expect(balanceBold('볼드 없음')).toBe('볼드 없음')
+  })
+
+  it('닫히지 않은 마지막 볼드 표식 제거', () => {
+    expect(balanceBold('a **b')).toBe('a b')
+    expect(balanceBold('**a** c **d')).toBe('**a** c d')
+  })
+
+  it('여러 줄에서도 마지막 미닫힘만 보정', () => {
+    expect(balanceBold('• 배경: **중요**\n• 조치: **미완')).toBe('• 배경: **중요**\n• 조치: 미완')
+  })
+})
 
 describe('isObviousNoise', () => {
   it('빈 텍스트는 노이즈', () => {
