@@ -2,6 +2,18 @@
 
 ---
 
+## 2026-05-31 — AI 분류 결과 저장 전 의미 검증기 (코덱스 #7)
+
+분류 결과를 client_history에 저장하기 직전의 품질 게이트를 `validateClassification` 순수 함수로 분리·보강.
+
+- 기존: classifyMessage 안에 빈 제목 차단·`balanceBold`(볼드 균형)·author fallback이 인라인으로만 존재.
+- 추가: **빈/공백 본문 차단**(제목과 대칭), **태그 중복 제거**(순서 보존), 제목 60자 컷(`MAX_TITLE_LEN`)·brand trim을 한 함수로 통합.
+- 구조 검증(태그 enum·우선순위·필수필드)은 상위 Zod 스키마가 이미 보장 → 의미 검증만 담당.
+- 순수 함수로 추출해 단위 테스트 8개 추가(`slack-service.test.ts`): 빈 제목·빈 본문 차단, 볼드 보정, 태그 dedup, 길이 컷, author fallback, brand trim.
+- 검증: `vitest` 17 pass · `tsc` src 0 · `eslint` 0.
+
+---
+
 ## 2026-05-31 — 슬랙 기능 사용자 버그 4건 수정
 
 전수 분석에서 "도달 가능 확정"된 실사용 버그 4건 수정.

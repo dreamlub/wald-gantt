@@ -1,6 +1,6 @@
 // @vitest-environment node
 import { describe, it, expect } from 'vitest'
-import { getReplySourceIds, isObviousNoise, balanceBold, type RawJson } from './slack-service'
+import { getReplySourceIds, isObviousNoise, balanceBold, validateClassification, type RawJson } from './slack-service'
 
 function makeRj(text: string, replies: RawJson['replies'] = []): RawJson {
   return {
@@ -80,5 +80,53 @@ describe('getReplySourceIds', () => {
         { ts: '1716365040.000003', text: 'reply', user: 'U3', user_name: 'b' },
       ]),
     ])).toEqual(['1716364860.000002', '1716365040.000003'])
+  })
+})
+
+describe('validateClassification', () => {
+  const base = {
+    tags: ['issue'],
+    priority: 'medium' as const,
+    title: '점주앱 매출 미집계',
+    body: '• 배경: 강릉점 매출 누락',
+    author: '홍길동',
+  }
+
+  it('정상 입력은 정규화된 결과 반환', () => {
+    const r = validateClassification(base, 'fallback')
+    expect(r).not.toBeNull()
+    expect(r!.title).toBe('점주앱 매출 미집계')
+    expect(r!.author).toBe('홍길동')
+    expect(r!.brand).toBeUndefined()
+  })
+
+  it('빈/공백 제목은 저장 차단(null)', () => {
+    expect(validateClassification({ ...base, title: '   ' }, 'fb')).toBeNull()
+  })
+
+  it('빈/공백 본문은 저장 차단(null)', () => {
+    expect(validateClassification({ ...base, body: '   ' }, 'fb')).toBeNull()
+  })
+
+  it('깨진 볼드 마크업 보정', () => {
+    expect(validateClassification({ ...base, body: '앞 **안닫힘' }, 'fb')!.body).toBe('앞 안닫힘')
+  })
+
+  it('중복 태그 제거(순서 보존)', () => {
+    expect(validateClassification({ ...base, tags: ['issue', 'issue', 'mention'] }, 'fb')!.tags)
+      .toEqual(['issue', 'mention'])
+  })
+
+  it('제목을 60자로 자른다', () => {
+    expect(validateClassification({ ...base, title: '가'.repeat(80) }, 'fb')!.title.length).toBe(60)
+  })
+
+  it('작성자가 비면 fallback 사용', () => {
+    expect(validateClassification({ ...base, author: '  ' }, 'fallback작성자')!.author).toBe('fallback작성자')
+  })
+
+  it('brand 는 trim 후 비면 undefined, 값 있으면 trim', () => {
+    expect(validateClassification({ ...base, brand: '  ' }, 'fb')!.brand).toBeUndefined()
+    expect(validateClassification({ ...base, brand: ' 더리터 ' }, 'fb')!.brand).toBe('더리터')
   })
 })

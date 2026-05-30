@@ -345,20 +345,57 @@ ${fullText}
     tags.push('mention')
   }
 
-  // 저장 전 검증·정규화 (빈 제목 차단, 볼드 마크업 균형 보정, author fallback)
-  const title = parsed.title.trim().slice(0, 60)
-  if (!title) {
-    console.log(`[classify] 빈 제목 제외 ts=${raw.ts}`)
+  const result = validateClassification(
+    {
+      tags,
+      priority: parsed.priority,
+      title: parsed.title,
+      body: parsed.body,
+      author: parsed.author,
+      brand: parsed.brand,
+    },
+    raw.user_name || raw.user || '',
+  )
+  if (!result) {
+    console.log(`[classify] 검증 미달 제외 ts=${raw.ts} (제목 또는 본문 비어있음)`)
     return null
   }
+  return result
+}
+
+const MAX_TITLE_LEN = 60
+
+/**
+ * AI 분류 결과를 저장 직전에 검증·정규화하는 품질 게이트(순수 함수, 단위 테스트 대상).
+ * - 하드 차단(null 반환 = 저장하지 않음): 제목 또는 본문이 비어있는 경우
+ * - 보정: 제목 길이 컷(MAX_TITLE_LEN), 볼드 마크업 균형(balanceBold),
+ *   태그 중복 제거, 작성자 fallback
+ * (태그 enum·우선순위·필수필드 등 구조 검증은 상위 Zod 스키마가 이미 보장)
+ */
+export function validateClassification(
+  input: {
+    tags: string[]
+    priority: 'high' | 'medium' | 'low'
+    title: string
+    body: string
+    author?: string | null
+    brand?: string | null
+  },
+  fallbackAuthor: string,
+): ClassifyResult | null {
+  const title = input.title.trim().slice(0, MAX_TITLE_LEN)
+  if (!title) return null
+
+  const body = balanceBold(input.body.trim())
+  if (!body) return null
 
   return {
-    tags,
-    priority: parsed.priority,
+    tags: [...new Set(input.tags)],
+    priority: input.priority,
     title,
-    body:     balanceBold(parsed.body.trim()),
-    author:   parsed.author?.trim() || raw.user_name || raw.user || '',
-    brand:    parsed.brand?.trim() || undefined,
+    body,
+    author: input.author?.trim() || fallbackAuthor || '',
+    brand: input.brand?.trim() || undefined,
   }
 }
 
