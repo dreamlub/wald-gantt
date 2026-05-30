@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { brandColor } from '@/lib/history-service'
-import { Check } from 'lucide-react'
 
 import type { Tag, Priority } from '../_lib/types'
-import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
+import { TAG_META } from '../_lib/constants'
 import { PriorityBars } from './badges'
+
+type PriorityKey = 'all' | Priority
 
 interface WeeklyBrandSummary {
   id: string
@@ -77,83 +78,6 @@ function groupByWeek(rows: WeeklyBrandSummary[]) {
     .map(([week_start, items]) => ({ week_start, items }))
 }
 
-// ── 필터 바 ───────────────────────────────────────────────────
-function WeeklyFilterBar({
-  tagFilter, priorityFilter, rows,
-  onToggleTag, onTogglePriority,
-}: {
-  tagFilter: Set<Tag>
-  priorityFilter: Priority | null
-  rows: WeeklyBrandSummary[]
-  onToggleTag: (t: Tag) => void
-  onTogglePriority: (p: Priority) => void
-}) {
-  const tagCounts = useMemo(() => {
-    const c: Record<string, number> = {}
-    for (const t of TAG_KEYS) c[t] = 0
-    for (const r of rows) for (const t of r.key_tags ?? []) c[t] = (c[t] ?? 0) + 1
-    return c
-  }, [rows])
-
-  const priCounts = useMemo(() => {
-    const c: Record<string, number> = {}
-    for (const p of PRIORITY_KEYS) c[p] = 0
-    for (const r of rows) if (r.max_priority) c[r.max_priority] = (c[r.max_priority] ?? 0) + 1
-    return c
-  }, [rows])
-
-  return (
-    <div className="shrink-0 flex items-center gap-1.5 px-5 py-2 border-b border-border bg-card flex-wrap">
-      {/* 태그 */}
-      {TAG_KEYS.filter(t => (tagCounts[t] ?? 0) > 0).map(t => {
-        const meta = TAG_META[t]
-        const active = tagFilter.has(t)
-        return (
-          <button
-            key={t}
-            onClick={() => onToggleTag(t)}
-            className={`flex items-center gap-1 text-sm px-2 py-0.5 rounded-full border transition-colors ${
-              active
-                ? 'border-transparent text-white'
-                : 'border-border text-ink-500 hover:text-foreground hover:border-ink-300'
-            }`}
-            style={active ? { background: meta.dot } : undefined}
-          >
-            <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: active ? 'rgba(255,255,255,0.7)' : meta.dot }} />
-            {meta.label}
-            <span className={`tabular-nums ${active ? 'text-white/70' : 'text-ink-400'}`}>{tagCounts[t]}</span>
-          </button>
-        )
-      })}
-
-      {/* 구분선 */}
-      {TAG_KEYS.some(t => (tagCounts[t] ?? 0) > 0) && PRIORITY_KEYS.some(p => (priCounts[p] ?? 0) > 0) && (
-        <span className="w-px h-4 bg-border shrink-0" />
-      )}
-
-      {/* 중요도 */}
-      {PRIORITY_KEYS.filter(p => (priCounts[p] ?? 0) > 0).map(p => {
-        const meta = PRIORITY_META[p]
-        const active = priorityFilter === p
-        return (
-          <button
-            key={p}
-            onClick={() => onTogglePriority(p)}
-            className={`flex items-center gap-1.5 text-sm px-2 py-0.5 rounded-full border transition-colors ${
-              active ? 'bg-muted border-ink-300 text-foreground' : 'border-border text-ink-500 hover:text-foreground hover:border-ink-300'
-            }`}
-          >
-            <PriorityBars priority={p} />
-            {meta.label}
-            <span className="tabular-nums text-ink-400">{priCounts[p]}</span>
-            {active && <Check size={10} className="text-foreground" />}
-          </button>
-        )
-      })}
-    </div>
-  )
-}
-
 // ── 행 컴포넌트 ───────────────────────────────────────────────
 function WeekSummaryRow({ row, expanded, onToggle }: {
   row:      WeeklyBrandSummary
@@ -211,23 +135,14 @@ interface Props {
   onSelectBrand:    (id: string) => void
   onCountChange?:   (total: number, filtered: number) => void
   onBrandsLoaded?:  (counts: Record<string, number>) => void
+  selectedTags?:    Set<Tag>
+  priorityKey?:     PriorityKey
 }
 
-export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, onBrandsLoaded }: Props) {
-  const [rows, setRows]               = useState<WeeklyBrandSummary[]>([])
-  const [loading, setLoading]         = useState(true)
-  const [expandedId, setExpandedId]   = useState<string | null>(null)
-  const [tagFilter, setTagFilter]     = useState<Set<Tag>>(new Set())
-  const [priorityFilter, setPriorityFilter] = useState<Priority | null>(null)
-
-  const toggleTag = useCallback((t: Tag) => setTagFilter(prev => {
-    const next = new Set(prev)
-    if (next.has(t)) next.delete(t); else next.add(t)
-    return next
-  }), [])
-
-  const togglePriority = useCallback((p: Priority) =>
-    setPriorityFilter(prev => prev === p ? null : p), [])
+export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, onBrandsLoaded, selectedTags, priorityKey }: Props) {
+  const [rows, setRows]             = useState<WeeklyBrandSummary[]>([])
+  const [loading, setLoading]       = useState(true)
+  const [expandedId, setExpandedId] = useState<string | null>(null)
 
   const fetchSummaries = useCallback(async () => {
     setLoading(true)
@@ -254,7 +169,6 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
     setRows(loaded)
     setLoading(false)
 
-    // 브랜드 카운트를 사이드바로 전달
     const counts: Record<string, number> = {}
     for (const r of loaded) counts[r.brand_name] = (counts[r.brand_name] ?? 0) + 1
     onBrandsLoaded?.(counts)
@@ -275,10 +189,12 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
       })
     }
     if (brandFilter) result = result.filter(r => r.brand_name === brandFilter)
-    if (tagFilter.size > 0) result = result.filter(r => r.key_tags?.some(t => tagFilter.has(t as Tag)))
-    if (priorityFilter) result = result.filter(r => r.max_priority === priorityFilter)
+    if (selectedTags && selectedTags.size > 0)
+      result = result.filter(r => r.key_tags?.some(t => selectedTags.has(t as Tag)))
+    if (priorityKey && priorityKey !== 'all')
+      result = result.filter(r => r.max_priority === priorityKey)
     return result
-  }, [rows, brandFilter, dateFrom, dateTo, tagFilter, priorityFilter])
+  }, [rows, brandFilter, dateFrom, dateTo, selectedTags, priorityKey])
 
   useEffect(() => {
     onCountChange?.(rows.length, filtered.length)
@@ -303,39 +219,30 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
   }
 
   return (
-    <div className="flex-1 min-h-0 flex flex-col overflow-hidden">
-      <WeeklyFilterBar
-        tagFilter={tagFilter}
-        priorityFilter={priorityFilter}
-        rows={rows}
-        onToggleTag={toggleTag}
-        onTogglePriority={togglePriority}
-      />
-      <div className="flex-1 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {weekGroups.length === 0 ? (
-          <div className="py-16 text-center">
-            <p className="text-sm text-muted-foreground">해당 기간에 데이터가 없습니다</p>
+    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {weekGroups.length === 0 ? (
+        <div className="py-16 text-center">
+          <p className="text-sm text-muted-foreground">해당 기간에 데이터가 없습니다</p>
+        </div>
+      ) : weekGroups.map(group => (
+        <section key={group.week_start} className="space-y-2">
+          <div className="flex items-center gap-2 pb-1 border-b border-border">
+            <h3 className="text-sm font-bold text-foreground">{getWeekLabel(group.week_start)}</h3>
+            <span className="text-sm text-ink-400">{getWeekRange(group.week_start)}</span>
+            <span className="text-sm text-ink-400">{group.items.length}건</span>
           </div>
-        ) : weekGroups.map(group => (
-          <section key={group.week_start} className="space-y-2">
-            <div className="flex items-center gap-2 pb-1 border-b border-border">
-              <h3 className="text-sm font-bold text-foreground">{getWeekLabel(group.week_start)}</h3>
-              <span className="text-sm text-ink-400">{getWeekRange(group.week_start)}</span>
-              <span className="text-sm text-ink-400">{group.items.length}건</span>
-            </div>
-            <div className="space-y-1.5">
-              {group.items.map(row => (
-                <WeekSummaryRow
-                  key={row.id}
-                  row={row}
-                  expanded={expandedId === row.id}
-                  onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
-                />
-              ))}
-            </div>
-          </section>
-        ))}
-      </div>
+          <div className="space-y-1.5">
+            {group.items.map(row => (
+              <WeekSummaryRow
+                key={row.id}
+                row={row}
+                expanded={expandedId === row.id}
+                onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
+              />
+            ))}
+          </div>
+        </section>
+      ))}
     </div>
   )
 }

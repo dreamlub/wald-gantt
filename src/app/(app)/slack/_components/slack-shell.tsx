@@ -340,20 +340,20 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                         작성자: {authorKey}
                       </FilterChip>
                     )}
-                    {view !== 'dailylist' && priorityKey !== 'all' && (
+                    {view !== 'dailylist' && view !== 'weeklylist' && priorityKey !== 'all' && (
                       <FilterChip onClear={() => setPriorityKey('all')}>
                         중요도: {PRIORITY_META[priorityKey as Priority].label}
                       </FilterChip>
                     )}
-                    {view !== 'dailylist' && [...selectedTags].map(t => (
+                    {view !== 'dailylist' && view !== 'weeklylist' && [...selectedTags].map(t => (
                       <FilterChip key={t} onClear={() => toggleTag(t)}>
                         <span className="w-1.5 h-1.5 rounded-full" style={{ background: TAG_META[t].dot }} />
                         {TAG_META[t].label}
                       </FilterChip>
                     ))}
 
-                    {/* 우측: dailylist 전용 태그/중요도 토글 */}
-                    {view === 'dailylist' && (
+                    {/* 우측: dailylist·weeklylist 공용 태그/중요도 토글 */}
+                    {(view === 'dailylist' || view === 'weeklylist') && (
                       <div className="ml-auto flex items-center gap-1 shrink-0">
                         {TAG_KEYS.map(t => (
                           <TagFilterBadge
@@ -399,6 +399,8 @@ export function SummaryShell({ initialClients, initialHistory }: Props) {
                   onSelectBrand={id => setBrandId(brandId === id ? 'all' : id)}
                   onCountChange={handleWeeklyCountChange}
                   onBrandsLoaded={handleWeeklyBrandsLoaded}
+                  selectedTags={selectedTags}
+                  priorityKey={priorityKey}
                 />
               )}
               {view === 'summary' && (
