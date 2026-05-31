@@ -95,7 +95,8 @@ delta = 현재값 - 전주값 (양수면 증가, 음수면 감소)
 현재 주차 팀별 `summary->>'summary'` 텍스트를 모아 아래 프롬프트로 Claude에게 생성 요청.
 
 ```sql
-SELECT team, author, summary->>'summary' AS team_summary
+SELECT team, author,
+  COALESCE(summary->>'summary', summary->>'teamSummary') AS team_summary
 FROM weekly_reports
 WHERE workspace_id = '07428e7d-3251-41d7-a83a-96deeab483ab'
   AND week_start >= '{{week_start}}'
@@ -103,6 +104,8 @@ WHERE workspace_id = '07428e7d-3251-41d7-a83a-96deeab483ab'
   AND summary IS NOT NULL
   AND jsonb_typeof(summary) = 'object'
 ORDER BY team;
+
+-- 참고: 구형 summary는 'teamSummary' 키, 신형은 'summary' 키 사용. COALESCE로 호환 처리.
 ```
 
 ### 프롬프트
