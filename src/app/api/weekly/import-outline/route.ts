@@ -37,6 +37,22 @@ function flattenTree(nodes: OutlineTreeNode[] | undefined, parentId: string | nu
   return out
 }
 
+/**
+ * Outline 전용 마크다운 아티팩트를 제거해 AI가 읽기 좋은 텍스트로 정규화.
+ *   \\[ / \\]        → [ / ]  (이중 이스케이프된 대괄호)
+ *   @[이름](mention://...) → 이름  (Outline 내부 멘션)
+ *   ==text==        → text   (Outline 하이라이트)
+ *   <br>            → 공백   (테이블 셀 내 줄바꿈 태그)
+ */
+function cleanOutlineMarkdown(text: string): string {
+  return text
+    .replace(/\\\[/g, '[')
+    .replace(/\\\]/g, ']')
+    .replace(/@\[([^\]]+)\]\(mention:\/\/[^)]+\)/g, '$1')
+    .replace(/==([^=\n]+)==/g, '$1')
+    .replace(/<br\s*\/?>/gi, ' ')
+}
+
 /** # / ## / ### + YYYY-MM-DD 또는 YYYY.MM.DD 섹션 단위로 분리 */
 function parseWeeklySections(text: string): { weekStart: string; content: string }[] {
   const sections: { weekStart: string; content: string }[] = []
@@ -264,7 +280,7 @@ export async function POST(req: Request) {
                 const childText: string = childRes.data?.text ?? ''
                 if (!childText) continue
                 const { error } = await sb.from('weekly_reports').upsert(
-                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, summary: null, updated_at: new Date().toISOString() },
+                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: cleanOutlineMarkdown(childText), summary: null, updated_at: new Date().toISOString() },
                   { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                 )
                 if (error) errors++; else upserted++
@@ -280,7 +296,7 @@ export async function POST(req: Request) {
                   : childSections
                 for (const section of filtered) {
                   const { error } = await sb.from('weekly_reports').upsert(
-                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, summary: null, updated_at: new Date().toISOString() },
+                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: cleanOutlineMarkdown(section.content), summary: null, updated_at: new Date().toISOString() },
                     { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                   )
                   if (error) errors++; else upserted++
@@ -302,7 +318,7 @@ export async function POST(req: Request) {
               team: source.label,
               author: null,
               week_start: section.weekStart,
-              raw_content: section.content,
+              raw_content: cleanOutlineMarkdown(section.content),
               summary: null,
               updated_at: new Date().toISOString(),
             },
