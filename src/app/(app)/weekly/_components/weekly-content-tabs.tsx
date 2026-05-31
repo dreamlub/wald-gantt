@@ -4,7 +4,7 @@ import { useMemo, useState } from 'react'
 import { FileText, Sparkles, LayoutList, RefreshCw, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
-import { WeeklyRawView } from './weekly-raw-view'
+
 import { WeeklySummaryList, assembleItems, CHANGE_META, CHANGE_ORDER } from './weekly-summary-list'
 import { useBrandAliases } from '@/hooks/use-brand-aliases'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
@@ -50,7 +50,7 @@ export function WeeklyContentTabs({
 }: Props) {
   const [activeTab, setActiveTab]     = useState<Tab>('summary')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
-  const [showRaw, setShowRaw]         = useState(false)
+
   const aliasMap = useBrandAliases()
 
   const { month, week: weekNum } = weekOfMonth(week.weekStart)
@@ -157,17 +157,15 @@ export function WeeklyContentTabs({
           >
             <ChevronRight size={14} />
           </button>
-          <button
-            onClick={() => setShowRaw(v => !v)}
-            className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors shrink-0 ${
-              showRaw
-                ? 'bg-foreground text-background border-transparent'
-                : 'border-border text-ink-500 hover:text-foreground hover:bg-muted'
-            }`}
+          <a
+            href="https://waldlust.getoutline.com/"
+            target="_blank"
+            rel="noopener noreferrer"
+            className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border border-border text-ink-500 hover:text-foreground hover:bg-muted transition-colors shrink-0"
           >
             <FileText size={11} />
             원문 보기
-          </button>
+          </a>
         </div>
 
         {/* 팀 배지 + 요약 집계 */}
@@ -208,18 +206,7 @@ export function WeeklyContentTabs({
       {/* ── 콘텐츠 ── */}
       <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
-        {/* 원문 오버레이 */}
-        {showRaw && (
-          <div className="p-6">
-            {reportsLoading
-              ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-              : <WeeklyRawView reports={visibleReports} teamColorMap={teamColorMap} />
-            }
-          </div>
-        )}
-
-        {!showRaw && (
-          <div className="flex flex-col flex-1">
+        <div className="flex flex-col flex-1">
             {activeTab === 'summary' && (
               reportsLoading
                 ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
@@ -234,8 +221,7 @@ export function WeeklyContentTabs({
                     <p className="text-xs text-ink-400 text-center font-mono">/weekly-insight {week.weekStart}</p>
                   </div>
             )}
-          </div>
-        )}
+        </div>
       </div>
     </div>
   )
