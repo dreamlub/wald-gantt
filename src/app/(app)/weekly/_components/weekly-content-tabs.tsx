@@ -158,7 +158,7 @@ export function WeeklyContentTabs({
             <ChevronRight size={14} />
           </button>
           <a
-            href="https://waldlust.getoutline.com/"
+            href="https://waldlust.getoutline.com/home"
             target="_blank"
             rel="noopener noreferrer"
             className="ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border border-border text-ink-500 hover:text-foreground hover:bg-muted transition-colors shrink-0"
