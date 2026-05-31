@@ -93,10 +93,10 @@ export function TasksActionBar({
           <Switch
             checked={!hideDone}
             onCheckedChange={(show) => onHideDoneChange(!show)}
-            label={<span className="text-sm">완료 포함</span>}
+            label="완료 포함"
             title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
             offClassName="bg-border"
-            className="text-muted-foreground flex-row-reverse"
+            className="text-sm text-muted-foreground flex-row-reverse"
           />
           {(view === 'basic' || view === 'listview') && (
             <button

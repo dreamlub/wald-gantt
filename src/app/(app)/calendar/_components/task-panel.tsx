@@ -148,9 +148,10 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
         <Switch
           checked={!hideDone}
           onCheckedChange={(show) => setHideDone(!show)}
-          label={<span className="text-xs">완료 포함</span>}
+          label="완료 포함"
+          title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
           offClassName="bg-border"
-          className="text-ink-400 flex-row-reverse"
+          className="text-sm text-muted-foreground flex-row-reverse"
         />
       </div>
 
