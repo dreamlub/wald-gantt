@@ -219,7 +219,7 @@ export function WeeklyContentTabs({
                 : <div className="flex flex-col items-center justify-center py-20 gap-3">
                     <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
                     <p className="text-sm text-muted-foreground text-center">인사이트가 아직 생성되지 않았습니다.</p>
-                    <p className="text-xs text-ink-400 text-center">외부 요약 분석이 끝나면 자동으로 표시됩니다.</p>
+                    <p className="text-xs text-ink-400 text-center font-mono">/weekly-insight {week.weekStart}</p>
                   </div>
             )}
           </div>
