@@ -4,9 +4,13 @@ import { cookies } from 'next/headers'
 
 /** Service-role client that bypasses RLS — use only server-side after verifying authorization. */
 export function createAdminClient() {
+  const serviceRoleKey = process.env.SUPABASE_SERVICE_ROLE_KEY
+  if (!serviceRoleKey) {
+    throw new Error('SUPABASE_SERVICE_ROLE_KEY 환경변수가 설정되지 않았습니다. Vercel 대시보드 또는 .env.local을 확인하세요.')
+  }
   return createSupabaseClient(
     process.env.NEXT_PUBLIC_SUPABASE_URL!,
-    process.env.SUPABASE_SERVICE_ROLE_KEY!,
+    serviceRoleKey,
   )
 }
 
