@@ -339,6 +339,9 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                   placeholder="MM/DD 또는 YYYY.MM.DD"
                 />
               </div>
+              {milestoneDateError && (
+                <p className="mt-2 text-xs text-status-late">{milestoneDateError}</p>
+              )}
             </div>
           ) : (
             <div className="flex flex-col gap-1.5">
