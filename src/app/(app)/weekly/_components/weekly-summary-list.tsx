@@ -130,7 +130,7 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
       <div className="flex items-center gap-2 pb-1.5 border-b border-border">
         {brand === NO_BRAND
           ? <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
-          : <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+          : <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
         }
         <h3 className="text-sm font-bold text-foreground">{brand}</h3>
         <span className="text-sm text-ink-400">{items.length}건</span>

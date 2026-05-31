@@ -26,7 +26,8 @@ import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
 import { ProjectFormDialog } from '@/components/gantt/ProjectFormDialog'
 import { useCreateDialogs } from './use-create-dialogs'
 import type { HistoryPage } from '@/lib/history-service'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 interface Props {
   initialClients: Client[]
@@ -50,6 +51,7 @@ function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
 }
 
 export function SummaryShell({ initialHistory }: Props) {
+  const brandProfiles = useBrandProfiles()
   const router        = useRouter()
   const pathname      = usePathname()
   const searchParams  = useSearchParams()
@@ -330,7 +332,7 @@ export function SummaryShell({ initialHistory }: Props) {
                   </span>
                   {brandId !== 'all' && (
                     <FilterChip onClear={() => setBrandId('all')}>
-                      <span className="w-1.5 h-1.5 rounded-full" style={{ background: brandColor(brandId) }} />
+                      <BrandIcon name={brandId} logoUrl={brandProfiles.get(brandId)?.logo_url} lucideIcon={brandProfiles.get(brandId)?.lucide_icon} size={12} />
                       브랜드: {brandId}
                     </FilterChip>
                   )}

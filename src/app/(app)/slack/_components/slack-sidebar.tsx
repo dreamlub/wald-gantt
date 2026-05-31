@@ -67,7 +67,7 @@ function CalendarBrandSidebar({
               onClick={() => onToggle(brand)}
               className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
             >
-              <BrandIcon name={brand} logoUrl={profiles.get(brand)?.logo_url} lucideIcon={profiles.get(brand)?.lucide_icon} size={8} />
+              <BrandIcon name={brand} logoUrl={profiles.get(brand)?.logo_url} lucideIcon={profiles.get(brand)?.lucide_icon} size={16} />
               <span className="flex-1 truncate text-left">{brand}</span>
               <span className="text-sm text-ink-400">{brandCounts.get(brand) ?? 0}</span>
             </button>
@@ -305,7 +305,7 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
                   onClick={() => onToggleBrand(name)}
                   className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
                 >
-                  <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={8} />
+                  <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={16} />
                   <span className="flex-1 truncate text-left">{name}</span>
                   {active && <Check size={12} className="shrink-0" />}
                   <span className="text-sm text-ink-400">{count}</span>
@@ -392,7 +392,7 @@ function BrandBtn({ stat, active, onClick }: {
       className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''} ${!eligible ? 'opacity-50' : ''}`}
     >
       {hasIssues || eligible
-        ? <BrandIcon name={stat.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+        ? <BrandIcon name={stat.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} className="shrink-0" />
         : <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
       }
       <span className="flex-1 truncate text-left">{stat.brand_name}</span>
@@ -443,7 +443,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
                 onClick={() => onToggleDailyBrand(name)}
                 className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
               >
-                <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={8} />
+                <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={16} />
                 <span className="flex-1 truncate text-left">{name}</span>
                 {active && <Check size={12} className="shrink-0" />}
                 <span className="text-sm text-ink-400">{count}</span>

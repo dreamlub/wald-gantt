@@ -208,7 +208,7 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, brandList, selec
           >
             {b.hasBlocked
               ? <span className="w-2 h-2 rounded-full shrink-0 bg-status-late" />
-              : <BrandIcon name={b.name} logoUrl={profiles.get(b.name)?.logo_url} lucideIcon={profiles.get(b.name)?.lucide_icon} size={8} />
+              : <BrandIcon name={b.name} logoUrl={profiles.get(b.name)?.logo_url} lucideIcon={profiles.get(b.name)?.lucide_icon} size={16} />
             }
             <span className="flex-1 truncate text-left">{b.name}</span>
             <span className="text-sm text-ink-400">{b.count}</span>

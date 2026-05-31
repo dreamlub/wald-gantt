@@ -16,8 +16,14 @@ async function getWorkspaceId(sb: Awaited<ReturnType<typeof createClient>>): Pro
   return member.workspace_id
 }
 
+/** 브랜드명 → ASCII-only Storage 키. 한글 등 비ASCII는 해시로 변환 */
 function slugify(name: string): string {
-  return name.toLowerCase().replace(/[^a-z0-9가-힣]/g, '-').replace(/-+/g, '-').slice(0, 60)
+  const ascii = name.toLowerCase().replace(/[^a-z0-9]/g, '')
+  if (ascii.length >= 3) return ascii.slice(0, 40)
+  // 비ASCII 비율이 높으면 해시 사용
+  let h = 0
+  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
+  return `b${h.toString(36)}`
 }
 
 export async function POST(req: NextRequest) {

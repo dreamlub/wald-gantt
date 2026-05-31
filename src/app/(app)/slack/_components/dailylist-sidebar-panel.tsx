@@ -3,7 +3,8 @@
 import { useMemo, useState } from 'react'
 import { Search } from 'lucide-react'
 
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import { DateRangePanel } from './sidebar-date-panels'
 
 // 섹션 타이틀 — px-2 없이 부모 컨테이너 패딩만 사용 (정렬 일관성)
@@ -24,6 +25,7 @@ export function DailyListSidebarPanel({
   brandCounts,
 }: Props) {
   const [brandQuery, setBrandQuery] = useState('')
+  const profiles = useBrandProfiles()
 
   const brandList = useMemo(() => {
     if (!brandCounts || Object.keys(brandCounts).length === 0) return []
@@ -87,7 +89,7 @@ export function DailyListSidebarPanel({
                   onClick={() => onBrandChange(active ? 'all' : brand.name)}
                   className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(brand.name) }} />
+                  <BrandIcon name={brand.name} logoUrl={profiles.get(brand.name)?.logo_url} lucideIcon={profiles.get(brand.name)?.lucide_icon} size={16} />
                   <span className="flex-1 truncate text-left">{brand.name}</span>
                   <span className="text-sm text-ink-400">{brand.count}</span>
                 </button>

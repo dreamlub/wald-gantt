@@ -3,7 +3,8 @@
 import { useEffect, useState } from 'react'
 import { CalendarDays, CheckCircle2, GitBranch, Link2, Loader2, MessageSquareText, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import type { HistoryItem } from '../_lib/types'
 import {
   type TrackerIssueRow, type Relation,
@@ -53,6 +54,7 @@ export function IssueDetailPanel({
   onSelect: (id: string) => void
   onStatusChange: (id: string, newStatus: 'open' | 'closed', includeChildren: boolean) => Promise<void>
 }) {
+  const profiles = useBrandProfiles()
   const [messages, setMessages] = useState<HistoryItem[]>([])
   const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null)
   const [updating, setUpdating] = useState(false)
@@ -108,7 +110,7 @@ export function IssueDetailPanel({
           </span>
           {issue.brand_name && (
             <span className="inline-flex items-center gap-1.5 text-xs font-medium px-2 py-0.5 rounded-full bg-ink-100 text-ink-700">
-              <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: brandColor(issue.brand_name) }} />
+              <BrandIcon name={issue.brand_name} logoUrl={profiles.get(issue.brand_name)?.logo_url} lucideIcon={profiles.get(issue.brand_name)?.lucide_icon} size={14} />
               {issue.brand_name}
             </span>
           )}

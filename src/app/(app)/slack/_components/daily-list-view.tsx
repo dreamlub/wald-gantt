@@ -85,7 +85,7 @@ function HistoryRow({
           {item.priority
             ? <PriorityBars priority={item.priority} />
             : item.brand_name
-              ? <BrandIcon name={item.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={12} />
+              ? <BrandIcon name={item.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
               : <span className="w-1 h-1 rounded-full bg-ink-300" />
           }
         </span>

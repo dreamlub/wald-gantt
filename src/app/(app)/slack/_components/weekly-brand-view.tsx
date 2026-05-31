@@ -108,7 +108,7 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
           }
         </span>
         <span className="flex items-center gap-1.5 shrink-0">
-          <BrandIcon name={row.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+          <BrandIcon name={row.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
           <span className="text-sm font-semibold text-foreground">{row.brand_name}</span>
         </span>
         <p className="flex-1 min-w-0 text-sm text-ink-600 truncate">{row.topic}</p>
