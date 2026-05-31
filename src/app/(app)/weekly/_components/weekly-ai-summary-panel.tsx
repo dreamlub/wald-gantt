@@ -68,7 +68,7 @@ export function AISummaryPanel({
         <p className="text-sm text-ink-400 py-2">
           {reports.length === 0
             ? '수집된 보고서가 없습니다.'
-            : 'MCP 스킬로 주간보고 요약을 실행해 주세요.'}
+            : '외부 요약 분석 완료 후 표시됩니다.'}
         </p>
       )}
     </div>
