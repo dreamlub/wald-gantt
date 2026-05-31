@@ -1,16 +1,17 @@
 'use client'
 
-import { LayoutList, Pin, Trash2 } from 'lucide-react'
+import { LayoutList, Pin, Inbox, Trash2 } from 'lucide-react'
 import { NOTE_COLORS } from './note-color-picker'
 import type { NoteColor } from '@/types'
 
-export type NoteQuickFilter = 'all' | 'pinned'
+export type NoteQuickFilter = 'all' | 'pinned' | 'inbox'
 
 interface Props {
   quickFilter:          NoteQuickFilter
   onQuickFilterChange:  (key: NoteQuickFilter) => void
   totalCount:           number
   pinnedCount:          number
+  inboxCount:           number
   colorFilter:          Set<NoteColor>
   onColorFilterChange:  (color: NoteColor) => void
   onColorFilterClear:   () => void
@@ -20,12 +21,13 @@ interface Props {
 
 export function NotesSidebar({
   quickFilter, onQuickFilterChange,
-  totalCount, pinnedCount,
+  totalCount, pinnedCount, inboxCount,
   colorFilter, onColorFilterChange, onColorFilterClear,
   trashCount, onTrashOpen,
 }: Props) {
   const quickItems = [
-    { key: 'all'    as const, label: '전체',  count: totalCount,  icon: <LayoutList size={12} className="shrink-0" /> },
+    { key: 'all'    as const, label: '전체',   count: totalCount,  icon: <LayoutList size={12} className="shrink-0" /> },
+    { key: 'inbox'  as const, label: '미처리', count: inboxCount,  icon: <Inbox size={12} className="shrink-0" /> },
     { key: 'pinned' as const, label: '고정됨', count: pinnedCount, icon: <Pin size={12} className="shrink-0" /> },
   ]
 

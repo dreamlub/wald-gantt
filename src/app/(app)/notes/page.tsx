@@ -159,7 +159,7 @@ export default function NotesPage() {
   const filtered = notes
     .filter(n => !q || n.title.toLowerCase().includes(q) || n.content.toLowerCase().includes(q))
     .filter(n => colorFilter.size === 0 || colorFilter.has(n.color))
-    .filter(n => quickFilter === 'pinned' ? n.pinned : true)
+    .filter(n => quickFilter === 'pinned' ? n.pinned : quickFilter === 'inbox' ? n.status === 'inbox' : true)
 
   const pinnedNotes  = filtered.filter(n =>  n.pinned)
   const regularNotes = filtered.filter(n => !n.pinned)
@@ -183,6 +183,7 @@ export default function NotesPage() {
         }}
         totalCount={notes.length}
         pinnedCount={notes.filter(n => n.pinned).length}
+        inboxCount={notes.filter(n => n.status === 'inbox').length}
         colorFilter={colorFilter}
         onColorFilterChange={toggleColorFilter}
         onColorFilterClear={() => setColorFilter(new Set())}
