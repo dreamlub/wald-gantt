@@ -4,6 +4,7 @@ import { zodOutputFormat } from '@anthropic-ai/sdk/helpers/zod'
 import { z } from 'zod'
 import { createClient } from '@/lib/supabase/server'
 import { getApiKey } from '@/lib/workspace-api-keys'
+import { wrapUntrusted, INJECTION_GUARD_SYSTEM } from '@/lib/slack-service'
 
 // ── Zod 스키마 ──────────────────────────────────────────────
 const IssueNodeSchema = z.object({
@@ -89,10 +90,12 @@ export async function POST(req: NextRequest) {
 - 이슈 제목에 브랜드명 포함 금지
 - closed: 조치 완료 또는 해소됨 / open: 미결 또는 진행 중
 - message_keys에는 해당 노드에 속하는 메시지 key 전부 포함
-- 반드시 한국어로 작성`,
+- 반드시 한국어로 작성
+
+${INJECTION_GUARD_SYSTEM}`,
     messages: [{
       role: 'user',
-      content: `브랜드: ${brand_name}\n메시지 수: ${messages.length}건\n\n${messageText}`,
+      content: `브랜드: ${brand_name}\n메시지 수: ${messages.length}건\n\n${wrapUntrusted(messageText)}`,
     }],
   })
 
