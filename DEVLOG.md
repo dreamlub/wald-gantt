@@ -2,6 +2,20 @@
 
 ---
 
+## 2026-05-31 — PR 정리: PR#2 닫기 + 주간 타임라인 생성 API 살리기 (`64e6b25`)
+
+**배경**: 오래된 PR #2(`claude/project-context-memory-ukrk9`)가 master 대상으로 열린 채 방치. 점검 결과 master와 **재작성 이전의 다른 히스토리 계보**(맨 첫 커밋에서만 공통 조상)로, 그대로 머지 시 순(net) `+14,106/−28,407`(보안 마이그레이션 4종 포함)을 되돌리는 상태 → 머지 불가.
+
+- **PR #2 닫음**: patch-id 기준 거의 전 커밋이 master에 이미 동등 반영됨. 사유 코멘트 후 closed.
+- **유일한 미반영 산출물 이식**: `src/app/api/timeline/generate/route.ts`(Stage 3, 주간 타임라인 자동 생성 API) → 현재 계보로 살림 (PR #12).
+  - `POST /api/timeline/generate` — `week_start` 받아 해당 주 데일리 리포트(월~금) + 이전 2주 타임라인을 Claude(`claude-sonnet-4-6`)에 전달 → 브랜드별·주제별 카드 생성 → `weekly_brand_summaries` upsert(해당 주 삭제 후 삽입 = 재생성). thread_id 이월/신규/분기/인과/재발 규칙, SSE 스트리밍.
+  - **현행화**: 키 조달 module-level `new Anthropic` → `getApiKey`(workspace_api_keys) 패턴 + 누락 가드, zod v4 `issue.path` 호환 수정. typecheck·lint 통과.
+
+### 백로그
+- **Weekly 페이지 "주차 생성" 버튼 연동**: 위 `/api/timeline/generate` 호출 UI 진입점. 서버 라우트는 준비됨, SSE 진행 표시(조회→AI 생성→저장) + 주차 선택 UI에 버튼만 붙이면 됨. DEVLOG의 "앱 내 Weekly 생성기" 항목과 동일 맥락.
+
+---
+
 ## 2026-05-31 — 제품 흐름 완성: Notes 신호원화·Home·Stats·Weekly 보강 (P1·P2)
 
 핸드오프 P1·P2 일괄 진행. 모두 마이그레이션 최소(또는 0)·기존 데이터 활용.
