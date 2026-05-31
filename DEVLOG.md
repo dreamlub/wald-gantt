@@ -2,6 +2,22 @@
 
 ---
 
+## 2026-05-31 — 캘린더 로드 실패 복구 (service-role 키 누락 크래시)
+
+증상: `/calendar`에서 "캘린더 로드 실패" 토스트. 원인 추적 결과 보안 커밋 `61726fe`가 `getGoogleCreds`를 `createAdminClient()`로 전환 → `SUPABASE_SERVICE_ROLE_KEY` 필요. 키 미설정 환경에서 Google 토큰 만료(약 1시간) 시 리프레시 경로의 `createClient(url, undefined)`가 throw → events GET이 try/catch 없이 500 HTML 반환 → 클라이언트 `res.json()` 파싱 실패 → 크래시 토스트.
+
+### 수정
+- `google-calendar.ts` `getGoogleCreds`: `SUPABASE_SERVICE_ROLE_KEY` 없거나 admin 조회 실패 시 크래시 대신 **env `GOOGLE_CLIENT_ID/SECRET` fallback**으로 진행(try/catch + 키 존재 가드). → 서비스롤 키 없이도 토큰 리프레시 동작.
+- `calendar/events/route.ts` GET: 본문을 `fetchGoogleEvents`로 분리하고 try/catch로 감싸 예기치 못한 throw도 `{error:'GOOGLE_API_ERROR'}` JSON 500으로 반환 → 클라이언트는 크래시 토스트 대신 정상 에러 배너 표시.
+
+### 후속 (운영)
+- 근본 해결은 `.env.local`/배포 환경에 `SUPABASE_SERVICE_ROLE_KEY` 추가(DB 저장 API 키 사용·admin 기능 정상화). 위 수정은 키 부재 시 graceful degrade를 보장.
+
+### 검증
+- tsc 0 / 변경 파일 lint 0. (런타임은 시크릿 없는 컨테이너라 미재현 — 코드 경로 분석 기반)
+
+---
+
 ## 2026-05-31 — 빌드 복구: 미완성 브랜드 프로필 모듈 누락 (tsc 8 errors)
 
 브랜치에 소비 코드만 커밋되고 모듈 본체는 한 번도 존재한 적 없던 import 8건이 `tsc`를 깨뜨리고 있었음(git 이력·stash 교차 확인 — 본인 작업과 무관한 선행 WIP). 데이터 계층(테이블·API·마이그레이션) 전무 → 전체 기능 구현은 범위 밖이라, **빌드 복구 + 문서화된 기본 동작(로고 없으면 이름 첫 글자)으로 graceful degrade**하는 최소 구현으로 처리.

@@ -39,7 +39,23 @@ export async function GET(req: NextRequest) {
     return NextResponse.json({ error: 'Invalid endDate' }, { status: 400 })
   }
 
-  const tk = await getValidAccessToken(supabase, user.id)
+  try {
+    return await fetchGoogleEvents(supabase, user.id, date, endDate)
+  } catch (e) {
+    // 예기치 못한 throw(토큰 조회/리프레시·네트워크 등)도 JSON으로 반환해
+    // 클라이언트가 HTML 500 파싱 실패로 크래시하지 않도록 한다.
+    console.error('[calendar/events] GET 처리 실패:', e)
+    return NextResponse.json({ error: 'GOOGLE_API_ERROR' }, { status: 500 })
+  }
+}
+
+async function fetchGoogleEvents(
+  supabase: Awaited<ReturnType<typeof createClient>>,
+  userId: string,
+  date: string,
+  endDate: string,
+) {
+  const tk = await getValidAccessToken(supabase, userId)
   if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
 
   const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')

@@ -17,16 +17,21 @@ export async function getGoogleCreds(
       .select('workspace_id')
       .eq('user_id', user.id)
       .single()
-    if (member?.workspace_id) {
-      const admin = createAdminClient()
-      const { data: rows } = await admin
-        .from('workspace_api_keys')
-        .select('key_name, key_value')
-        .eq('workspace_id', member.workspace_id)
-        .in('key_name', ['google_client_id', 'google_client_secret'])
-      const map = Object.fromEntries((rows ?? []).map(r => [r.key_name, r.key_value as string]))
-      if (map.google_client_id && map.google_client_secret) {
-        return { clientId: map.google_client_id, clientSecret: map.google_client_secret }
+    if (member?.workspace_id && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+      try {
+        const admin = createAdminClient()
+        const { data: rows } = await admin
+          .from('workspace_api_keys')
+          .select('key_name, key_value')
+          .eq('workspace_id', member.workspace_id)
+          .in('key_name', ['google_client_id', 'google_client_secret'])
+        const map = Object.fromEntries((rows ?? []).map(r => [r.key_name, r.key_value as string]))
+        if (map.google_client_id && map.google_client_secret) {
+          return { clientId: map.google_client_id, clientSecret: map.google_client_secret }
+        }
+      } catch (e) {
+        // service-role 조회 실패 시 크래시 대신 환경변수 fallback으로 진행
+        console.error('[getGoogleCreds] admin 조회 실패, env fallback 사용:', e)
       }
     }
   }
