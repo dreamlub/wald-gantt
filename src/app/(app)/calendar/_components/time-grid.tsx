@@ -173,6 +173,7 @@ function DayColumn({ date, isToday, events, tasks, calEvents, getMinutesFromY, h
           <div
             className="absolute left-0 right-0 flex items-center pointer-events-none z-20"
             style={{ top: nowTop }}
+            suppressHydrationWarning
           >
             <div className="w-2 h-2 rounded-full bg-status-late -ml-1 shrink-0" />
             <div className="flex-1 border-t-2 border-status-late" />
