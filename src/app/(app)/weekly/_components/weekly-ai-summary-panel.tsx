@@ -81,7 +81,7 @@ export function AISummaryPanel({
   return (
     <>
       <div className="fixed inset-0 bg-black/30 z-overlay" onClick={onClose} />
-      <div className="fixed right-0 top-0 h-full w-[380px] bg-card border-l border-border z-dialog flex flex-col shadow-xl">
+      <div className="fixed right-0 top-0 h-full w-[23.75rem] bg-card border-l border-border z-dialog flex flex-col shadow-xl">
         <div className="flex items-center gap-2 px-4 h-12 border-b border-border shrink-0">
           <Sparkles size={13} className="text-lilac-500" />
           <span className="flex-1 text-sm font-semibold text-foreground">AI 주간 요약</span>
