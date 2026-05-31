@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { AlertTriangle } from 'lucide-react'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
 import { BrandIcon } from '@/components/brand-icon'
@@ -161,21 +161,32 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const aliasMap = useBrandAliases()
 
-  const allItems = assembleItems(reports, aliasMap)
+  const allItems = useMemo(() => assembleItems(reports, aliasMap), [reports, aliasMap])
 
   // summary가 있지만 구조가 깨진 리포트 — 조용히 누락되지 않게 표면화
-  const malformed = reports.filter(r => r.summary != null && !isValidWeeklySummary(r.summary))
+  const malformed = useMemo(
+    () => reports.filter(r => r.summary != null && !isValidWeeklySummary(r.summary)),
+    [reports],
+  )
 
-  const brandList = [...new Set(allItems.map(brandOf))].sort((a, b) => {
-    if (a === NO_BRAND) return 1
-    if (b === NO_BRAND) return -1
-    return allItems.filter(i => brandOf(i) === b).length - allItems.filter(i => brandOf(i) === a).length
-  })
+  const groups = useMemo(() => {
+    const byBrand = new Map<string, EnrichedItem[]>()
+    for (const item of allItems) {
+      const brand = brandOf(item)
+      if (selectedBrand && brand !== selectedBrand) continue
+      const items = byBrand.get(brand)
+      if (items) items.push(item)
+      else byBrand.set(brand, [item])
+    }
 
-  const filtered = selectedBrand ? allItems.filter(i => brandOf(i) === selectedBrand) : allItems
-  const groups = (selectedBrand ? [selectedBrand] : brandList)
-    .map(brand => ({ brand, items: filtered.filter(i => brandOf(i) === brand) }))
-    .filter(g => g.items.length > 0)
+    return [...byBrand.entries()]
+      .sort(([a, aItems], [b, bItems]) => {
+        if (a === NO_BRAND) return 1
+        if (b === NO_BRAND) return -1
+        return bItems.length - aItems.length
+      })
+      .map(([brand, items]) => ({ brand, items }))
+  }, [allItems, selectedBrand])
 
   const malformedBanner = malformed.length > 0 && (
     <div className="flex items-start gap-2 rounded-md border border-status-late/30 bg-status-late/10 px-3 py-2.5 text-sm text-status-late">

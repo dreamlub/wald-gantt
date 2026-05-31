@@ -1,6 +1,6 @@
 'use client'
 
-import { useState } from 'react'
+import { useMemo, useState } from 'react'
 import { FileText, Sparkles, LayoutList, RefreshCw, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
@@ -58,32 +58,44 @@ export function WeeklyContentTabs({
   const total     = week.teams.length
   const allDone   = collected === total && total > 0
 
-  const teamMap = new Map<string, WeeklyReport[]>()
-  for (const r of reports) {
-    if (!teamMap.has(r.team)) teamMap.set(r.team, [])
-    teamMap.get(r.team)!.push(r)
-  }
+  const teamMap = useMemo(() => {
+    const map = new Map<string, WeeklyReport[]>()
+    for (const r of reports) {
+      const teamReports = map.get(r.team)
+      if (teamReports) teamReports.push(r)
+      else map.set(r.team, [r])
+    }
+    return map
+  }, [reports])
 
-  const visibleReports = focusedTeam && teamMap.has(focusedTeam)
-    ? (teamMap.get(focusedTeam) ?? [])
-    : reports
+  const visibleReports = useMemo(
+    () => focusedTeam && teamMap.has(focusedTeam)
+      ? (teamMap.get(focusedTeam) ?? [])
+      : reports,
+    [focusedTeam, reports, teamMap],
+  )
 
-  const teamColorMap = new Map(
-    week.teams.map((t, i) => [t.label, teamColors[i] ?? 'var(--color-id-indigo)'])
+  const teamColorMap = useMemo(
+    () => new Map(
+      week.teams.map((t, i) => [t.label, teamColors[i] ?? 'var(--color-id-indigo)'])
+    ),
+    [teamColors, week.teams],
   )
 
   // 요약 탭용 변경 집계 — 팀 필터 행 우측 표시
-  const summaryTotals = activeTab === 'summary'
-    ? (() => {
-        const items = assembleItems(visibleReports, aliasMap)
-        const filtered = selectedBrand ? items.filter(i => (i.brand ?? '기타') === selectedBrand) : items
-        return CHANGE_ORDER.reduce((acc, k) => {
-          const n = filtered.filter(i => i.change === k).length
-          if (n > 0) acc.push({ k, n })
-          return acc
-        }, [] as { k: string; n: number }[])
-      })()
-    : []
+  const summaryTotals = useMemo(() => {
+    if (activeTab !== 'summary') return []
+    const counts = new Map<string, number>()
+    for (const item of assembleItems(visibleReports, aliasMap)) {
+      if (selectedBrand && (item.brand ?? '기타') !== selectedBrand) continue
+      counts.set(item.change, (counts.get(item.change) ?? 0) + 1)
+    }
+    return CHANGE_ORDER.reduce((acc, k) => {
+      const n = counts.get(k) ?? 0
+      if (n > 0) acc.push({ k, n })
+      return acc
+    }, [] as { k: string; n: number }[])
+  }, [activeTab, aliasMap, selectedBrand, visibleReports])
 
   return (
     <div className="flex flex-col h-full overflow-hidden">
@@ -215,7 +227,7 @@ export function WeeklyContentTabs({
             )}
             {activeTab === 'insight' && (
               insight
-                ? <AISummaryPanel insight={insight} reports={reports} onClose={() => setActiveTab('summary')} />
+                ? <div className="p-6"><AISummaryPanel insight={insight} reports={reports} inline /></div>
                 : <div className="flex flex-col items-center justify-center py-20 gap-3">
                     <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
                     <p className="text-sm text-muted-foreground text-center">인사이트가 아직 생성되지 않았습니다.</p>

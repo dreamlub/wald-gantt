@@ -34,12 +34,14 @@ function weekEndOf(weekStart: string): string {
   return ymd(d)
 }
 
-function countItems(rawContent: string | null): number {
-  if (!rawContent) return 0
-  return rawContent.split('\n').filter(l => {
-    const t = l.trim()
-    return t.startsWith('- ') || t.startsWith('* ')
-  }).length
+function countSummaryItems(summary: unknown): number {
+  if (!summary || typeof summary !== 'object' || Array.isArray(summary)) return 0
+  const obj = summary as { items?: unknown; diff_summary?: { dropped_items?: unknown } }
+  const items = Array.isArray(obj.items) ? obj.items.length : 0
+  const dropped = Array.isArray(obj.diff_summary?.dropped_items)
+    ? obj.diff_summary.dropped_items.length
+    : 0
+  return items + dropped
 }
 
 export async function GET() {
@@ -66,13 +68,13 @@ export async function GET() {
 
   // DB에 저장된 모든 주차 조회 (가장 오래된 주차 파악용)
   // PostgREST 기본 1000행 캡 → .range()로 끝까지 순회해 누락 없이 수집
-  type WReportRow = { team: string; week_start: string; raw_content: string | null }
+  type WReportRow = { team: string; week_start: string; summary: unknown }
   const reports: WReportRow[] = []
   const PAGE = 1000
   for (let offset = 0; ; offset += PAGE) {
     const { data: page, error: pageError } = await sb
       .from('weekly_reports')
-      .select('team, week_start, raw_content')
+      .select('team, week_start, summary')
       .eq('workspace_id', member.workspace_id)
       .order('week_start', { ascending: true })
       .range(offset, offset + PAGE - 1)
@@ -96,7 +98,7 @@ export async function GET() {
     const monday = getMondayOf(r.week_start)   // 어떤 요일이든 해당 주 월요일로
     if (!reportMap.has(monday)) reportMap.set(monday, new Map())
     const prev = reportMap.get(monday)!.get(r.team) ?? 0
-    reportMap.get(monday)!.set(r.team, prev + countItems(r.raw_content))
+    reportMap.get(monday)!.set(r.team, prev + countSummaryItems(r.summary))
   }
 
   const teamList = teams ?? []
