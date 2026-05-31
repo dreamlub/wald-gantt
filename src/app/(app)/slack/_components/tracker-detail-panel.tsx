@@ -95,7 +95,7 @@ export function IssueDetailPanel({
   }
 
   return (
-    <div className="h-full overflow-y-auto px-5 py-5">
+    <div data-scrolltop className="h-full overflow-y-auto px-5 py-5">
       {/* 헤더 */}
       <div className="mb-5">
         <div className="mb-2 flex flex-wrap items-center gap-1.5">

@@ -2,7 +2,8 @@
 
 import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 import type { Tag, Priority } from '../_lib/types'
 import { TAG_META } from '../_lib/constants'
@@ -87,7 +88,8 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
   expanded: boolean
   onToggle: () => void
 }) {
-  const color    = brandColor(row.brand_name)
+  const profiles = useBrandProfiles()
+  const p        = profiles.get(row.brand_name)
   const firstTag = (row.key_tags?.[0] ?? null) as Tag | null
   const tagMeta  = firstTag ? TAG_META[firstTag] : null
 
@@ -106,7 +108,7 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
           }
         </span>
         <span className="flex items-center gap-1.5 shrink-0">
-          <span className="w-2 h-2 rounded-full" style={{ background: color }} />
+          <BrandIcon name={row.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
           <span className="text-sm font-semibold text-foreground">{row.brand_name}</span>
         </span>
         <p className="flex-1 min-w-0 text-sm text-ink-600 truncate">{row.topic}</p>
@@ -235,7 +237,7 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div data-scrolltop className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {weekGroups.length === 0 ? (
         <div className="py-16 text-center">
           <p className="text-sm text-muted-foreground">해당 기간에 데이터가 없습니다</p>

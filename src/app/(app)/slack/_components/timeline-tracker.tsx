@@ -305,7 +305,7 @@ export function TimelineTracker({ brandFilter }: Props) {
       <div className="flex-1 flex min-h-0">
         {/* 좌: 이슈 하이어라키 (비율 2 : 우측 3) */}
         <div className="flex-[2] min-w-0 border-r border-ink-100 flex flex-col min-h-0">
-          <div className="flex-1 overflow-y-auto">
+          <div data-scrolltop className="flex-1 overflow-y-auto">
             {loading ? (
               <div className="h-full flex items-center justify-center">
                 <Loader2 size={18} className="animate-spin text-ink-300" />

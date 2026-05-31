@@ -180,7 +180,7 @@ export function RawDataView() {
       </div>
 
       {/* 테이블 */}
-      <div className="flex-1 overflow-y-auto">
+      <div data-scrolltop className="flex-1 overflow-y-auto">
         <table className="w-full border-collapse">
           <thead className="sticky top-0 bg-muted z-10 border-b border-ink-150">
             <tr>

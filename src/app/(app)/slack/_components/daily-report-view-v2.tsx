@@ -8,7 +8,8 @@ import type { InsightContent, ActionItem, Priority, Tag } from '../_lib/types'
 import { BrandBadge, PriorityBars } from './badges'
 import { PriorityCallout } from './priority-callout'
 import { BodyBullets, SEV_TO_PRIORITY } from './daily-report-helpers'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 interface DailyReportData {
   content: InsightContent
@@ -265,13 +266,13 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   const [expandedKey, setExpandedKey] = useState<string | null>(() =>
     (items.find(i => i.severity === 'urgent') ?? items.find(i => i.severity === 'watch') ?? items[0])?.key ?? null
   )
-  const color       = brandColor(brand)
-  const accent      = color ?? 'var(--color-ink-300)'
+  const profiles = useBrandProfiles()
+  const p = profiles.get(brand)
 
   return (
     <div className="border border-ink-400 rounded-xl overflow-hidden bg-card shadow-sm">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-ink-300 bg-ink-100">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ background: accent }} />
+        <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
         <span className="text-sm text-ink-400">{items.length}</span>
       </div>
@@ -443,7 +444,7 @@ export function DailyReportViewV2({
   }), [filteredActions, raw, filterBrands, filterTags])
 
   return (
-    <div className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
+    <div data-scrolltop className="flex-1 overflow-y-auto [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
       <V2Header content={content} date={date} selectedDate={selectedDate} hideShare={hideShare} />
       <V2Lead headline={content.headline} actionItems={content.action_items} />
       <V2BrandDeck content={content} reportDate={selectedDate} />

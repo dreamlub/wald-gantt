@@ -182,7 +182,7 @@ export function DailyListView({
   }
 
   return (
-    <div className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+    <div data-scrolltop className="flex-1 min-h-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {dateGroups.map(group => (
         <section key={group.date} className="space-y-2">
           <div className="flex items-center gap-2 pb-1 border-b border-border">
