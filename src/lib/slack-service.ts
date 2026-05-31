@@ -73,6 +73,7 @@ export interface ClassifyResult {
 
 export interface BrandMapping {
   channel_id: string
+  channel_name: string | null
   brand_name: string | null
   excluded: boolean
 }
@@ -167,7 +168,7 @@ export async function fetchBrandMappings(
 ): Promise<BrandMapping[]> {
   const { data, error } = await sb
     .from('slack_channel_mappings')
-    .select('channel_id, brand_name, excluded')
+    .select('channel_id, channel_name, brand_name, excluded')
     .eq('workspace_id', workspaceId)
   if (error) throw error
   return (data ?? []) as BrandMapping[]

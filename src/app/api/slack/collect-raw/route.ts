@@ -9,6 +9,7 @@ import {
   fetchUserDirectory, resolveUserName, resolveChannelName,
   type RawJson, type RawReply,
 } from '@/lib/slack-service'
+import { supplementByChannelHistory } from './supplement'
 
 const DATE_REGEX = /^[0-9]{4}-[0-9]{2}-[0-9]{2}$/
 
@@ -285,8 +286,27 @@ export async function POST(req: NextRequest) {
           }
         }
 
+        // ── 2차 보강: 3,000건 상한 초과일 채널별 conversations.history 수집 ──
+        if (truncatedDays.length > 0) {
+          send('status', { message: `🔄 [2차 보강] ${truncatedDays.length}일 채널별 수집 시작...` })
+          let supplementTotal = 0
+          for (const { date, total } of truncatedDays) {
+            send('status', { message: `[보강] ${date} 시작 (검색 상한 ${total}건 초과)` })
+            const count = await supplementByChannelHistory({
+              slack, sb, workspaceId, date,
+              brandMappings, userDir,
+              slackDomain: slackDomain ?? null,
+              send,
+            })
+            supplementTotal += count
+            send('status', { message: `[보강] ${date} 완료 — +${count}건` })
+          }
+          totalRaw += supplementTotal
+          send('status', { message: `[2차 보강] 완료 — 총 +${supplementTotal}건 추가` })
+        }
+
         const truncNote = truncatedDays.length > 0
-          ? ` ⚠️ 1,000건 상한으로 누락 가능한 날 ${truncatedDays.length}일: ${truncatedDays.map(d => `${d.date}(${d.total}건)`).join(', ')}`
+          ? ` (보강 수집 ${truncatedDays.length}일 완료)`
           : ''
         send('result', { message: `완료 — ${dates.length}일 / 총 ${totalRaw}건 Raw 저장${truncNote}`, truncatedDays })
       } catch (err) {
