@@ -60,6 +60,10 @@ function cleanOutlineMarkdown(text: string): string {
     .replace(/\\\n/g, '\n')
     // 6. 남은 단독 백슬래시 연속 → 제거
     .replace(/\\+$/gm, '')
+    // 7. 테이블 셀 내 번호 목록 붙어쓰기 복원
+    //    Outline이 셀 안 줄바꿈을 제거해 "예정3. 사과당" 같이 붙는 문제
+    //    한글/영문 직후 "숫자. " 패턴이면 줄바꿈 삽입
+    .replace(/([가-힣a-zA-Z!?~)\]])(\d+\.\s)/g, '$1\n$2')
 }
 
 /** # / ## / ### + YYYY-MM-DD 또는 YYYY.MM.DD 섹션 단위로 분리 */
