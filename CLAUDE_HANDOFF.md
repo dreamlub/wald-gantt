@@ -2,7 +2,7 @@
 
 Last local verification: 2026-05-31.
 
-This document is the current product/engineering handoff. Earlier P0 claims about `workspace_api_keys`, daily share RPC, XSS, lint, and API error handling were stale after subsequent fixes. Keep the product direction, but use the updated risk list below.
+This document is the current product/engineering handoff. Earlier P0 claims about `workspace_api_keys`, daily share RPC, XSS, lint, and API error handling were stale after subsequent fixes. The two real RLS holes that the live advisor surfaced (`task_completions`, `workspace_members`) were then fixed and pushed (commit `8dfd857`, 2026-05-31). There are no known ERROR-level security findings remaining — the next work is product flow (P1) and pipeline hardening (P2).
 
 ## Product Direction
 
@@ -104,80 +104,26 @@ Current local code now checks errors in:
 - `src/app/api/weekly/collection-status/route.ts`
 - `src/app/api/issues/route.ts`
 
-## Actual P0: Security Work Still Needed
+## Security: P0 RLS Holes — Closed (commit `8dfd857`, 2026-05-31)
 
-### 1. Enable RLS on `task_completions`
+Both ERROR-level holes the live Supabase advisor surfaced were fixed and verified. Migration: `supabase/migrations/20260531200002_fix_rls_holes.sql`.
 
-Migration file:
+### 1. `task_completions` RLS — DONE
 
-- `supabase/migrations/20260531000001_create_task_completions.sql`
+- Was created in `public` without RLS → task completion snapshots (title, assignee, labels, projects, dates) exposable across workspaces via Data API.
+- Fix: `enable row level security` + workspace-member `for all` policy.
+- Verified live: `rls_enabled = true`, 1 policy. Row count was 0, so no data had leaked.
 
-Problem:
+### 2. `workspace_members` INSERT policy — DONE
 
-- The table is created in `public`.
-- The migration creates indexes but does not enable RLS.
-- It stores task completion snapshots: title, assignee, labels, projects, dates.
+- Had an INSERT policy with `WITH CHECK (true)` → any authenticated user could insert themselves into an arbitrary workspace, bypassing all membership-based RLS.
+- Fix: dropped the `insert membership` policy. Legitimate membership is created only by `create_workspace_for_user` (a `SECURITY DEFINER` RPC that bypasses RLS), and all 38 app-code references to `workspace_members` are SELECT-only — so removing the policy has no functional impact.
+- Verified live: 0 INSERT policies.
 
-Impact:
+### 3. Advisor re-run — DONE
 
-- If exposed via Supabase Data API, task completion history can leak across workspaces.
-- Claude reported live Supabase advisor flagged this as ERROR level.
-- Current row count may be 0, but the risk becomes real as soon as completed task snapshots are inserted.
-
-Required fix:
-
-```sql
-alter table task_completions enable row level security;
-
-create policy "workspace members can access task_completions"
-  on task_completions
-  for all
-  using (
-    workspace_id in (
-      select workspace_id from workspace_members where user_id = auth.uid()
-    )
-  )
-  with check (
-    workspace_id in (
-      select workspace_id from workspace_members where user_id = auth.uid()
-    )
-  );
-```
-
-Also consider explicit grants/revokes based on the project's Data API exposure settings.
-
-### 2. Fix `workspace_members` INSERT Policy
-
-Claude reported live DB has an INSERT policy with `WITH CHECK (true)`.
-
-Impact:
-
-- If authenticated users can insert themselves into arbitrary workspaces, all membership-based RLS becomes bypassable.
-- This weakens workspace isolation globally, including issues, review candidates, API keys, projects, and task data.
-
-Required fix:
-
-- Inspect live `workspace_members` policies.
-- Remove any self-service arbitrary insert policy.
-- Allow membership creation only through a controlled server/admin flow.
-- If self-join is required, enforce an invite token, domain rule, or owner/admin check.
-- Add a migration that reproduces the corrected policy state.
-
-Suggested policy direction:
-
-```text
-SELECT: user can see own memberships
-INSERT: disabled for normal authenticated users, or allowed only with invite/owner check
-UPDATE/DELETE: owner/admin controlled only
-```
-
-### 3. Run Supabase Advisors After Both Fixes
-
-After applying the two fixes:
-
-- run Supabase security advisors
-- confirm no ERROR-level RLS findings remain
-- check function warnings separately, especially `SECURITY DEFINER` and mutable search path warnings
+- Re-ran Supabase security advisors after both fixes: **no ERROR-level findings remain**.
+- Remaining items are all WARN and mostly intentional: `function_search_path_mutable` (hardening), `SECURITY DEFINER` functions executable by anon/authenticated (shared-token report/board access is by design), and leaked-password protection (a dashboard toggle). Address opportunistically, not blocking.
 
 ## P1: Product Flow Completion
 
