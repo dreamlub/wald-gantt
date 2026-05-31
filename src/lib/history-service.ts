@@ -290,7 +290,7 @@ export async function getHistoryStats(from?: string, to?: string, sb?: Sb): Prom
   if (from) query = query.gte('occurred_at', kstDayStart(from))
   if (to) query = query.lte('occurred_at', kstDayEnd(to))
 
-  const { data, error } = await query
+  const { data, error } = await query.limit(50000)
   if (error) throw error
 
   const rows = data ?? []

@@ -42,21 +42,16 @@ function buildPayload(
 async function fromSlack(wsId: string, sb: Awaited<ReturnType<typeof createClient>>): Promise<ResourceStatsResponse> {
   const sinceUtc = new Date(Date.now() - WINDOW_WEEKS * 7 * 86400000).toISOString()
   type Row = { author: string | null; brand_name: string | null; occurred_at: string }
-  const rows: Row[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from('client_history')
-      .select('author, brand_name, occurred_at')
-      .eq('workspace_id', wsId)
-      .is('deleted_at', null)
-      .gte('occurred_at', sinceUtc)
-      .order('occurred_at', { ascending: true })
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    const batch = (data ?? []) as Row[]
-    rows.push(...batch)
-    if (batch.length < PAGE) break
-  }
+  const { data, error } = await sb
+    .from('client_history')
+    .select('author, brand_name, occurred_at')
+    .eq('workspace_id', wsId)
+    .is('deleted_at', null)
+    .gte('occurred_at', sinceUtc)
+    .order('occurred_at', { ascending: true })
+    .limit(50000)
+  if (error) throw error
+  const rows = (data ?? []) as Row[]
   if (rows.length === 0) return EMPTY_RESOURCE_STATS
 
   const pairMap = new Map<string, ResourcePair>()
@@ -82,21 +77,16 @@ async function fromWeekly(wsId: string, sb: Awaited<ReturnType<typeof createClie
     new Date(Date.now() - WINDOW_WEEKS * 7 * 86400000).toISOString().slice(0, 10)
   )
   type ReportRow = { week_start: string; summary: { items?: { assignee?: string | null; brand?: string | null }[] } | null }
-  const reports: ReportRow[] = []
-  for (let from = 0; ; from += PAGE) {
-    const { data, error } = await sb
-      .from('weekly_reports')
-      .select('week_start, summary')
-      .eq('workspace_id', wsId)
-      .gte('week_start', sinceDate)
-      .not('summary', 'is', null)
-      .order('week_start', { ascending: true })
-      .range(from, from + PAGE - 1)
-    if (error) throw error
-    const batch = (data ?? []) as ReportRow[]
-    reports.push(...batch)
-    if (batch.length < PAGE) break
-  }
+  const { data, error } = await sb
+    .from('weekly_reports')
+    .select('week_start, summary')
+    .eq('workspace_id', wsId)
+    .gte('week_start', sinceDate)
+    .not('summary', 'is', null)
+    .order('week_start', { ascending: true })
+    .limit(500)
+  if (error) throw error
+  const reports = (data ?? []) as ReportRow[]
   if (reports.length === 0) return EMPTY_RESOURCE_STATS
 
   const pairMap = new Map<string, ResourcePair>()

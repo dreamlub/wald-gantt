@@ -47,18 +47,15 @@ export async function GET() {
   // 마감일(end_date) 변경 이력 — 프로젝트별 변경 횟수 + 누적 슬립
   const ids = projects.map(p => p.id)
   const histByProj = new Map<string, { old_value: string | null; new_value: string | null }[]>()
-  for (let off = 0; ; off += 1000) {
-    const { data: h } = await sb.from('gantt_project_history')
-      .select('project_id, old_value, new_value')
-      .in('project_id', ids).eq('field_name', 'end_date')
-      .order('changed_at', { ascending: true }).range(off, off + 999)
-    const batch = h ?? []
-    for (const row of batch) {
-      const arr = histByProj.get(row.project_id) ?? []
-      arr.push({ old_value: row.old_value, new_value: row.new_value })
-      histByProj.set(row.project_id, arr)
-    }
-    if (batch.length < 1000) break
+  const { data: histData } = await sb.from('gantt_project_history')
+    .select('project_id, old_value, new_value')
+    .in('project_id', ids).eq('field_name', 'end_date')
+    .order('changed_at', { ascending: true })
+    .limit(20000)
+  for (const row of histData ?? []) {
+    const arr = histByProj.get(row.project_id) ?? []
+    arr.push({ old_value: row.old_value, new_value: row.new_value })
+    histByProj.set(row.project_id, arr)
   }
 
   const nameById = new Map(projects.map(p => [p.id, p.name]))

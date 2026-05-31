@@ -218,6 +218,7 @@ export async function getDeletedProjects(boardId: string): Promise<GanttProject[
     .eq('board_id', boardId)
     .not('deleted_at', 'is', null)
     .order('deleted_at', { ascending: false })
+    .limit(500)
   if (error) throw error
   return data
 }

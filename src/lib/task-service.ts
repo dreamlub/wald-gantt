@@ -429,6 +429,7 @@ export async function getArchivedTasks(workspaceId: string): Promise<GanttTask[]
     .not('archived_at', 'is', null)
     .is('deleted_at', null)
     .order('archived_at', { ascending: false })
+    .limit(500)
   if (error) throw error
   return (data as TaskRow[] ?? []).map(mapTaskRow)
 }
