@@ -5,7 +5,7 @@ import { FileText, Sparkles, LayoutList, RefreshCw, RotateCcw, ChevronLeft, Chev
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
-import { WeeklySummaryList } from './weekly-summary-list'
+import { WeeklySummaryList, assembleItems, CHANGE_META, CHANGE_ORDER } from './weekly-summary-list'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
 import { weekRangeLabel } from '@/lib/week-format'
 
@@ -70,6 +70,19 @@ export function WeeklyContentTabs({
     week.teams.map((t, i) => [t.label, teamColors[i] ?? 'var(--color-id-indigo)'])
   )
 
+  // 요약 탭용 변경 집계 — 팀 필터 행 우측 표시
+  const summaryTotals = activeTab === 'summary'
+    ? (() => {
+        const items = assembleItems(visibleReports)
+        const filtered = selectedBrand ? items.filter(i => (i.brand ?? '기타') === selectedBrand) : items
+        return CHANGE_ORDER.reduce((acc, k) => {
+          const n = filtered.filter(i => i.change === k).length
+          if (n > 0) acc.push({ k, n })
+          return acc
+        }, [] as { k: string; n: number }[])
+      })()
+    : []
+
   return (
     <div className="flex flex-col h-full overflow-hidden">
 
@@ -132,7 +145,7 @@ export function WeeklyContentTabs({
           </button>
         </div>
 
-        {/* 팀 배지 */}
+        {/* 팀 배지 + 요약 집계 */}
         <div className="flex items-center gap-1 flex-wrap pb-2 mt-2">
           {week.teams.map((team, i) => {
             const color  = teamColors[i] ?? 'var(--color-id-indigo)'
@@ -154,6 +167,16 @@ export function WeeklyContentTabs({
               </button>
             )
           })}
+          {summaryTotals.length > 0 && (
+            <div className="ml-auto flex items-center gap-1.5 shrink-0">
+              <span className="w-px h-3.5 bg-border shrink-0" />
+              {summaryTotals.map(({ k, n }) => (
+                <span key={k} className={`text-xs font-semibold px-1.5 py-[3px] rounded-full ${CHANGE_META[k as keyof typeof CHANGE_META].badge}`}>
+                  {CHANGE_META[k as keyof typeof CHANGE_META].label} {n}
+                </span>
+              ))}
+            </div>
+          )}
         </div>
       </div>
 

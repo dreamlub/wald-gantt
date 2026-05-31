@@ -15,7 +15,7 @@ interface EnrichedItem extends WeeklyReportItem {
   change: ChangeKey
 }
 
-const CHANGE_META: Record<ChangeKey, { label: string; dot: string; badge: string }> = {
+export const CHANGE_META: Record<ChangeKey, { label: string; dot: string; badge: string }> = {
   new:       { label: '신규',   dot: 'bg-lilac-500',     badge: 'bg-lilac-100 text-lilac-600 dark:bg-lilac-900/30 dark:text-lilac-400' },
   continued: { label: '진행중', dot: 'bg-status-future', badge: 'bg-status-future/10 text-status-future' },
   completed: { label: '완료',   dot: 'bg-mint-500',      badge: 'bg-mint-100 text-mint-600 dark:bg-mint-900/20 dark:text-mint-400' },
@@ -27,13 +27,13 @@ const TYPE_LABEL: Record<TypeKey, string> = {
   issue: '이슈', decision: '결정', plan: '계획',
 }
 
-const CHANGE_ORDER: ChangeKey[] = ['blocked', 'new', 'continued', 'completed', 'dropped']
+export const CHANGE_ORDER: ChangeKey[] = ['blocked', 'new', 'continued', 'completed', 'dropped']
 
 const NO_BRAND = '기타'
 
 // ── 데이터 조립 ───────────────────────────────────────────────────
 
-function assembleItems(reports: WeeklyReport[]): EnrichedItem[] {
+export function assembleItems(reports: WeeklyReport[]): EnrichedItem[] {
   const result: EnrichedItem[] = []
   for (const r of reports) {
     const summary = r.summary as unknown as WeeklyReportSummary | null
@@ -117,11 +117,6 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
   expandedKey: string | null
   onToggle:    (key: string) => void
 }) {
-  const counts = CHANGE_ORDER.reduce((acc, k) => {
-    const n = items.filter(i => i.change === k).length
-    if (n > 0) acc.push({ k, n })
-    return acc
-  }, [] as { k: ChangeKey; n: number }[])
   const profiles = useBrandProfiles()
   const p = brand !== NO_BRAND ? profiles.get(brand) : undefined
 
@@ -134,13 +129,6 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
         }
         <h3 className="text-sm font-bold text-foreground">{brand}</h3>
         <span className="text-sm text-ink-400">{items.length}건</span>
-        <div className="ml-auto flex items-center gap-1.5">
-          {counts.map(({ k, n }) => (
-            <span key={k} className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${CHANGE_META[k].badge}`}>
-              {CHANGE_META[k].label} {n}
-            </span>
-          ))}
-        </div>
       </div>
       {items.map((item, i) => {
         const key = `${brand}-${i}`
