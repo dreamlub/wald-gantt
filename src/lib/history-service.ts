@@ -29,20 +29,8 @@ const HISTORY_SELECT = [
   'deleted_at',
 ].join(', ')
 
-// 브랜드명 → 색상 결정론적 할당 (팔레트 기반 해시)
-const BRAND_PALETTE = [
-  '#a5b4fc', '#86efac', '#fda4af', '#fcd34d',
-  '#93c5fd', '#fdba74', '#c4b5fd', '#5eead4',
-  '#f9a8d4', '#7dd3fc', '#f0abfc', '#d9f99d',
-]
-
-export function brandColor(name: string): string {
-  let hash = 0
-  for (let i = 0; i < name.length; i++) {
-    hash = (hash * 31 + name.charCodeAt(i)) & 0xffffffff
-  }
-  return BRAND_PALETTE[Math.abs(hash) % BRAND_PALETTE.length]
-}
+import { brandColor } from '@/lib/brand-color'
+export { brandColor }
 
 interface DbHistory {
   id: string

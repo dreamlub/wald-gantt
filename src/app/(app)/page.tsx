@@ -211,7 +211,7 @@ export default async function CommandCenterPage() {
         </div>
       </header>
 
-      <main className="flex-1 overflow-y-auto">
+      <main data-scrolltop className="flex-1 overflow-y-auto">
         <div className="px-6 py-5 space-y-5 max-w-[93.75rem] mx-auto">
           <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             <MetricCard href={tasksQuickHref('due-today')} label="오늘 실행" value={todayExecutionCount} detail={`예정 ${scheduledToday.length} · 마감 ${dueToday.length}`} icon={<Timer size={14} />} tone="lilac" />

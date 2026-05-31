@@ -221,7 +221,7 @@ export default function NotesPage() {
         </div>
 
         {/* 스크롤 영역 */}
-        <div className="flex-1 overflow-y-auto px-6 py-6">
+        <div data-scrolltop className="flex-1 overflow-y-auto px-6 py-6">
           {!searchQuery && quickFilter !== 'pinned' && (
             <div className="mb-8">
               <NoteCreateBar onCreate={handleCreate} />

@@ -202,7 +202,7 @@ export function ReviewShell() {
       </div>
 
       {/* 카드 목록 */}
-      <div className="flex-1 overflow-y-auto scrollbar-visible px-5 py-4">
+      <div data-scrolltop className="flex-1 overflow-y-auto scrollbar-visible px-5 py-4">
         {loading ? (
           <div className="flex items-center justify-center h-32 text-sm text-ink-400">
             불러오는 중...

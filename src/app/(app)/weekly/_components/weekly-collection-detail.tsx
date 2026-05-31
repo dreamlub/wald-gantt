@@ -72,7 +72,7 @@ export function WeeklyCollectionDetail({
 
       </div>
 
-      <div className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
+      <div data-scrolltop className="flex-1 overflow-y-auto px-6 py-5 space-y-5">
         {/* 수집 배너 */}
         {!allDone && (
           <div className="rounded-lg bg-amber-50 border border-amber-200 dark:bg-amber-950/30 dark:border-amber-800 px-4 py-4">

@@ -2,7 +2,7 @@
 
 import { useState, useEffect } from 'react'
 import {
-  User, Link2, Monitor, Database,
+  User, Link2, Monitor, Database, Building2,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
   Download, ChevronRight, Plus, BookOpen, Hash,
 } from 'lucide-react'
@@ -16,6 +16,7 @@ import { BrandAliasSection } from './brand-alias-section'
 import { ApiKeysSection } from './api-keys-section'
 import { SlackReminderSection } from './slack-reminder-section'
 import { SortableWeeklyRow } from './weekly-source-row'
+import { BrandProfilesSection } from './brand-profiles-section'
 import {
   DndContext, closestCenter, PointerSensor, useSensor, useSensors,
   type DragEndEvent,
@@ -24,7 +25,7 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 
-type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'data'
+type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'brands' | 'data'
 
 type WeeklySource = {
   id: string
@@ -40,6 +41,7 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'display',      label: '화면',        icon: Monitor },
   { key: 'channels',     label: 'Slack 채널',  icon: Hash },
   { key: 'weekly',       label: 'Weekly 연동', icon: BookOpen },
+  { key: 'brands',       label: '브랜드',      icon: Building2 },
   { key: 'data',         label: '데이터',      icon: Database },
 ]
 
@@ -236,6 +238,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
     display:      '화면 설정',
     channels:     'Slack 채널 관리',
     weekly:       'Weekly 문서 연동',
+    brands:       '브랜드 관리',
     data:         '데이터',
   }
 
@@ -267,7 +270,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
           <span className="text-sm font-semibold text-foreground">{SECTION_TITLE[section]}</span>
         </div>
 
-        <div className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-background">
+        <div data-scrolltop className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-background">
 
           {/* ── 계정 ── */}
           {section === 'account' && (
@@ -459,6 +462,14 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
                 <p className="text-sm text-ink-400">Outline 컬렉션 ID는 컬렉션 URL에서 확인할 수 있습니다.</p>
               </SettingCard>
             </>
+          )}
+
+          {/* ── 브랜드 ── */}
+          {section === 'brands' && (
+            <SettingCard title="브랜드별 아이콘">
+              <p className="text-sm text-ink-400">로고를 업로드하거나 아이콘을 선택하세요. 없으면 이름 첫 글자가 표시됩니다.</p>
+              <BrandProfilesSection clients={clients} />
+            </SettingCard>
           )}
 
           {/* ── 데이터 ── */}

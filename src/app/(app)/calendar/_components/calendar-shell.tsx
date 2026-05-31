@@ -234,7 +234,7 @@ export function CalendarShell() {
         )}
 
         {/* 날짜 헤더 + 마감 + ALL-DAY + 타임그리드 */}
-        <div ref={scrollContainerRef} className="flex-1 overflow-y-auto">
+        <div ref={scrollContainerRef} data-scrolltop className="flex-1 overflow-y-auto">
 
           {/* 날짜 헤더 (sticky) */}
           <div className="sticky top-0 z-30 flex border-b bg-muted">
