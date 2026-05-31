@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-05-31 — 보안/품질 게이트 5종 수정
+
+**배경**: 코드 리뷰에서 발견된 보안·품질 이슈 5종을 프로덕션 기준으로 수정.
+
+### 1. API 키 SELECT 차단 (보안)
+- `createAdminClient()` (service-role) 추가 — `src/lib/supabase/server.ts`
+- `workspace_api_keys` RLS 정책을 쓰기(INSERT/UPDATE/DELETE)만 허용, SELECT 제거
+  → 사용자 JWT로 Supabase Data API 직접 호출 시 Slack/Anthropic 키 값 노출 차단
+- `getApiKey`, `getGoogleCreds`, API 키 설정 route GET 모두 admin 클라이언트로 전환
+- 마이그레이션: `20260531200000_restrict_api_keys_select.sql`
+- ⚠️ `.env.local`에 `SUPABASE_SERVICE_ROLE_KEY=` 추가 필요 (Supabase 대시보드 > Project Settings > API > service_role)
+
+### 2. upsert_daily_report_share 권한 검증 (보안)
+- SECURITY DEFINER 함수 내부에 `workspace_members` 멤버 확인 추가
+  → 임의 workspace_id로 RPC 직접 호출 차단
+- 마이그레이션: `20260531200001_secure_upsert_daily_report_share.sql`
+
+### 3. XSS 제거
+- `daily-list-view.tsx` — `dangerouslySetInnerHTML` 제거, `**bold**` → React `<strong>` 요소 렌더링
+- `note-markdown.tsx` — `rehype-sanitize` 추가(`rehypeRaw` 다음에 적용), 불필요한 HTML 태그 차단
+
+### 4. Lint 3 errors → 0 errors
+- `schedule-calendar-view.tsx:23` — `let b` → `const b`
+- `schedule-calendar-view.tsx:182` — `react-hooks/set-state-in-effect`: `useEffect` 내 `setCurrentMonth` 제거 → "render 중 state 조정" 패턴으로 전환
+- `review-shell.tsx:78` — `react-hooks/set-state-in-effect`: `setLoading(true)` 를 event handler로 이동, effect는 초기 fetch만 담당
+
+### 5. API 에러 처리 (신뢰도)
+- `collection-status/route.ts` — weekly_sources, weekly_reports 페이지네이션 루프 에러 검사 추가
+- `issues/route.ts` — issues 쿼리, relations/evidence RPC 에러 검사 추가
+
+---
+
 ## 2026-05-31 — 이슈 관계 시각화 A안 (선택 하이라이트)
 
 타임라인 부모 노드 간 비계층 관계(`issue_relations`)를 화면에 드러내는 방법 탐색. A(선택 하이라이트)·B(상시 인디케이터)·C(간트형 시간축)·D(관계 그래프) 검토.

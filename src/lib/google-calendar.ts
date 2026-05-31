@@ -1,4 +1,5 @@
 import type { createClient } from '@/lib/supabase/server'
+import { createAdminClient } from '@/lib/supabase/server'
 import { kstDate } from '@/lib/kst'
 
 type ServerSupabase = Awaited<ReturnType<typeof createClient>>
@@ -17,7 +18,8 @@ export async function getGoogleCreds(
       .eq('user_id', user.id)
       .single()
     if (member?.workspace_id) {
-      const { data: rows } = await supabase
+      const admin = createAdminClient()
+      const { data: rows } = await admin
         .from('workspace_api_keys')
         .select('key_name, key_value')
         .eq('workspace_id', member.workspace_id)

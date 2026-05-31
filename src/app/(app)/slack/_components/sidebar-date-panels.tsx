@@ -119,8 +119,8 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
               <span className="text-4xs font-bold tracking-[0.04em] px-1 rounded-2xs bg-lilac-100 text-lilac-600">NOW</span>
             )}
           </div>
-          <button onClick={nextMonth} disabled={atCurrentMonth}
-            className="w-6 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors disabled:text-ink-200 disabled:cursor-not-allowed">
+          <button onClick={nextMonth}
+            className="w-6 h-6 flex items-center justify-center text-ink-400 hover:text-foreground transition-colors">
             <ChevronRight size={12} />
           </button>
         </div>

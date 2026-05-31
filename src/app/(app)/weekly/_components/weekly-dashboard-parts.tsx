@@ -354,7 +354,7 @@ export function ProgressBar({ progress, slowPhase, statusMessage }: {
 }) {
   return (
     <div>
-      <div className="relative h-[3px] rounded-full bg-ink-100 overflow-hidden">
+      <div className="relative h-px3 rounded-full bg-ink-100 overflow-hidden">
         <div
           className="absolute inset-y-0 left-0 h-full bg-lilac-500"
           style={{

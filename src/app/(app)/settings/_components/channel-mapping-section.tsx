@@ -252,7 +252,7 @@ function ChannelRow({ ch, dirty, brandSuggestions, onBrandChange, onExcludeToggl
         onChange={v => onBrandChange(ch.channel_id, v || null)}
         suggestions={brandSuggestions}
         placeholder="브랜드명"
-        className="text-2xs bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:border-lilac-300 w-[120px] shrink-0"
+        className="text-2xs bg-background border border-border rounded px-2 py-1 text-foreground focus:outline-none focus:border-lilac-300 w-30 shrink-0"
       />
       <button
         onClick={() => onExcludeToggle(ch.channel_id)}

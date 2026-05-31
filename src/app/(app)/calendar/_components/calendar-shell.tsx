@@ -169,7 +169,7 @@ export function CalendarShell() {
             <Button variant="ghost" size="icon-xs" onClick={() => goWeek(-1)} className="text-ink-400">
               <ChevronLeft size={15} />
             </Button>
-            <span className="text-sm font-medium text-foreground min-w-[148px] text-center select-none">{weekLabel}</span>
+            <span className="text-sm font-medium text-foreground min-w-[9.25rem] text-center select-none">{weekLabel}</span>
             <Button variant="ghost" size="icon-xs" onClick={() => goWeek(1)} className="text-ink-400">
               <ChevronRight size={15} />
             </Button>
@@ -279,7 +279,7 @@ export function CalendarShell() {
               return (
                 <div
                   key={date}
-                  className={`flex-1 min-w-0 border-l border-border min-h-[52px] px-1 py-1 flex flex-col gap-0.5 transition-colors ${
+                  className={`flex-1 min-w-0 border-l border-border min-h-13 px-1 py-1 flex flex-col gap-0.5 transition-colors ${
                     dragOverAllDay === date ? DRAG_OVER_BG : ''
                   }`}
                   onDragOver={e => {

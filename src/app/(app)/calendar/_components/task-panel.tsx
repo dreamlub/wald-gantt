@@ -124,7 +124,7 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
             <ChevronDown size={12} />
           </button>
           {showSort && (
-            <div className="absolute left-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-[100px] py-1">
+            <div className="absolute left-0 top-full mt-1 bg-card border border-border rounded-lg shadow-lg z-50 min-w-25 py-1">
               {SORT_CYCLE.map(key => (
                 <button
                   key={key}

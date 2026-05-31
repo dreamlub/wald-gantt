@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server'
-import { createClient } from '@/lib/supabase/server'
+import { createClient, createAdminClient } from '@/lib/supabase/server'
 
 const ALLOWED_KEYS = ['anthropic', 'slack_user', 'outline', 'slack_domain', 'google_client_id', 'google_client_secret', 'slack_reminder_channel'] as const
 type KeyName = typeof ALLOWED_KEYS[number]
@@ -39,9 +39,10 @@ function mask(value: string): string {
 export async function GET() {
   try {
     const sb = await createClient()
-    const workspaceId = await getWorkspaceId(sb)
+    const workspaceId = await getWorkspaceId(sb) // 세션 클라이언트로 인가 확인
 
-    const { data, error } = await sb
+    const admin = createAdminClient() // RLS 우회 후 실제 키 값 조회 (마스킹 후 반환)
+    const { data, error } = await admin
       .from('workspace_api_keys')
       .select('key_name, key_value, updated_at')
       .eq('workspace_id', workspaceId)

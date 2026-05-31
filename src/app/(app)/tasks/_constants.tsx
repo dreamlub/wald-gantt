@@ -81,11 +81,11 @@ export function PriorityBars({ priority, showLabel }: {
   const meta = PRIORITY_META[p]
   return (
     <span className="inline-flex items-center gap-1">
-      <span className="inline-flex items-end gap-[1px]">
+      <span className="inline-flex items-end gap-px">
         {[1, 2, 3].map(i => (
           <span
             key={i}
-            className="w-[2px] rounded-sm"
+            className="w-0.5 rounded-sm"
             style={{
               height: `${3 + i * 2}px`,
               backgroundColor: i <= p ? meta.color : 'var(--color-ink-150)',

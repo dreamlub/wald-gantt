@@ -1,11 +1,12 @@
 'use client'
 
-import { useCallback, useEffect, useState } from 'react'
+import { useCallback, useEffect, useMemo, useState } from 'react'
 import { RefreshCw } from 'lucide-react'
 import { toast } from 'sonner'
 import type { ReviewCandidate, ReviewStatus } from '@/types'
 import { createClient } from '@/lib/supabase/client'
 import { ReviewCard } from './review-card'
+import { ReviewSidebar } from './review-sidebar'
 
 interface TaskDraft {
   title: string
@@ -63,7 +64,6 @@ export function ReviewShell() {
   }, [])
 
   const fetchCandidates = useCallback(async (tab: StatusTab) => {
-    setLoading(true)
     try {
       const res = await fetch(`/api/review/candidates?status=${tab}`)
       if (res.ok) {
@@ -74,9 +74,10 @@ export function ReviewShell() {
     }
   }, [])
 
+  // 초기 로딩: loading은 useState(true)로 시작하므로 effect 내 동기 setLoading 불필요
   useEffect(() => {
     void fetchCandidates(activeTab)
-  }, [activeTab, fetchCandidates])
+  }, []) // eslint-disable-line react-hooks/exhaustive-deps
 
   async function handlePopulate() {
     setPopulating(true)
@@ -88,6 +89,7 @@ export function ReviewShell() {
         return
       }
       toast.success(`후보 ${body.inserted ?? 0}건 수집 완료`)
+      setLoading(true)
       await fetchCandidates(activeTab)
     } finally {
       setPopulating(false)
@@ -110,7 +112,15 @@ export function ReviewShell() {
     setCandidates(prev => prev.filter(c => c.id !== id))
   }
 
-  const brands = [...new Set(candidates.map(c => c.brand).filter((b): b is string => Boolean(b)))]
+  const brandStats = useMemo(() => {
+    const map = new Map<string, number>()
+    for (const c of candidates) {
+      if (c.brand) map.set(c.brand, (map.get(c.brand) ?? 0) + 1)
+    }
+    return [...map.entries()]
+      .map(([name, count]) => ({ name, count }))
+      .sort((a, b) => b.count - a.count)
+  }, [candidates])
 
   const filtered = candidates.filter(c => {
     if (filterSource !== 'all' && c.source !== filterSource) return false
@@ -120,12 +130,18 @@ export function ReviewShell() {
   })
 
   return (
-    <div className="flex flex-col h-full min-w-0 overflow-hidden">
+    <div className="flex flex-1 overflow-hidden">
+      <ReviewSidebar
+        brands={brandStats}
+        selectedBrand={filterBrand}
+        onSelectBrand={setFilterBrand}
+      />
+      <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
       {/* 헤더 */}
       <div className="h-12 flex items-center gap-3 px-5 border-b bg-card shrink-0">
-        <h1 className="text-sm font-semibold text-foreground">Review Inbox</h1>
+        <h1 className="text-sm font-semibold text-foreground">일감 판단</h1>
         {!loading && activeTab === 'pending' && filtered.length > 0 && (
-          <span className="inline-flex items-center justify-center min-w-[20px] h-5 px-1.5 rounded-full bg-foreground text-background text-xs font-medium">
+          <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-foreground text-background text-xs font-medium">
             {filtered.length}
           </span>
         )}
@@ -144,7 +160,12 @@ export function ReviewShell() {
         {STATUS_TABS.map(tab => (
           <button
             key={tab.key}
-            onClick={() => setActiveTab(tab.key)}
+            onClick={() => {
+              if (tab.key === activeTab) return
+              setActiveTab(tab.key)
+              setLoading(true)
+              void fetchCandidates(tab.key)
+            }}
             className={`px-4 py-2.5 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
               activeTab === tab.key
                 ? 'border-foreground text-foreground'
@@ -169,15 +190,6 @@ export function ReviewShell() {
         </select>
 
         <select
-          value={filterBrand}
-          onChange={e => setFilterBrand(e.target.value)}
-          className="text-sm px-2 py-1 border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-lilac-300"
-        >
-          <option value="all">전체 브랜드</option>
-          {brands.map(b => <option key={b} value={b}>{b}</option>)}
-        </select>
-
-        <select
           value={filterPriority}
           onChange={e => setFilterPriority(e.target.value)}
           className="text-sm px-2 py-1 border border-border rounded-md bg-background text-foreground outline-none focus:ring-1 focus:ring-lilac-300"
@@ -190,7 +202,7 @@ export function ReviewShell() {
       </div>
 
       {/* 카드 목록 */}
-      <div className="flex-1 overflow-y-auto px-5 py-4">
+      <div className="flex-1 overflow-y-auto scrollbar-visible px-5 py-4">
         {loading ? (
           <div className="flex items-center justify-center h-32 text-sm text-ink-400">
             불러오는 중...
@@ -216,6 +228,7 @@ export function ReviewShell() {
             ))}
           </div>
         )}
+      </div>
       </div>
     </div>
   )

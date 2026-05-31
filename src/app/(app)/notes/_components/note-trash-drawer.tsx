@@ -37,7 +37,7 @@ export function NoteTrashDrawer({ open, onClose, onRestore }: Props) {
             <div className="flex items-center gap-1.5 mt-0.5">
               <span className={`w-1.5 h-1.5 rounded-full inline-block shrink-0 ${dot}`} />
               {note.content && (
-                <span className="text-sm text-muted-foreground truncate max-w-[160px]">
+                <span className="text-sm text-muted-foreground truncate max-w-40">
                   {note.content.replace(/\n+/g, ' ').slice(0, 40)}
                 </span>
               )}

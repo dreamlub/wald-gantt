@@ -70,7 +70,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           <div className="shrink-0 w-6 flex items-center justify-center mr-1"><div className="w-px h-4 bg-ink-200 ml-3" /></div>
         )
       ) : selectionMode ? (
-        <div className="shrink-0 mr-1 w-[18px] flex items-center justify-center">
+        <div className="shrink-0 mr-1 w-[1.125rem] flex items-center justify-center">
           <button
             onClick={e => { e.stopPropagation(); onSelect?.(task.id) }}
             className={`w-3.5 h-3.5 rounded border-2 flex items-center justify-center transition-colors ${selected ? 'bg-lilac-500 border-lilac-500' : 'border-border hover:border-lilac-400'}`}

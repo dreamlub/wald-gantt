@@ -125,10 +125,13 @@ function HistoryRow({
       {expanded && (
         <div className="border-t border-border px-5 py-3 space-y-2">
           {item.body && (
-            <p
-              className="text-sm text-ink-500 leading-relaxed whitespace-pre-line"
-              dangerouslySetInnerHTML={{ __html: item.body.replace(/\*\*(.+?)\*\*/g, '<strong>$1</strong>') }}
-            />
+            <p className="text-sm text-ink-500 leading-relaxed whitespace-pre-line">
+              {item.body.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
+                part.startsWith('**') && part.endsWith('**')
+                  ? <strong key={i}>{part.slice(2, -2)}</strong>
+                  : part
+              )}
+            </p>
           )}
           <div className="flex items-center gap-2 text-sm text-ink-400">
             <span className="truncate"># {item.channel}</span>

@@ -43,7 +43,8 @@ export async function GET(req: NextRequest) {
   if (brand) q = q.eq('brand_name', brand)
   if (status && status !== 'all') q = q.eq('status', status)
 
-  const { data: issues } = await q
+  const { data: issues, error: issuesError } = await q
+  if (issuesError) return NextResponse.json({ error: issuesError.message }, { status: 500 })
   const issueList = issues ?? []
   const issueIds = new Set(issueList.map(i => i.id))
 
@@ -63,6 +64,9 @@ export async function GET(req: NextRequest) {
     // PostgREST db-max-rows(1000) 캡에 잘려 연결 1,067건 중 일부가 누락되는 정확도 버그가 있었음.
     sb.rpc('get_issue_evidence_counts', { p_workspace_id: member.workspace_id }),
   ])
+
+  if (relationsRes.error) return NextResponse.json({ error: relationsRes.error.message }, { status: 500 })
+  if (evidenceRes.error) return NextResponse.json({ error: evidenceRes.error.message }, { status: 500 })
 
   // 현재 이슈 집합에 속한 관계만 전달
   const relations = (relationsRes.data ?? []).filter(

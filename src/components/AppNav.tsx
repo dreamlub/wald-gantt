@@ -31,7 +31,7 @@ const navItems: NavItem[] = [
   { href: '/calendar', icon: CalendarDays,      label: '업무시간 관리', short: '업무시간' },
   { href: '/slack',    icon: MessageSquare,     label: '슬랙메시지 분석', short: '슬랙' },
   { href: '/stats',    icon: BarChart3,    label: '통계',         short: '통계' },
-  { href: '/review',  icon: Inbox,        label: 'Review',          short: 'Review' },
+  { href: '/review',  icon: Inbox,        label: '일감 판단',       short: '일감' },
   { href: '/weekly',   icon: FileText,     label: '주간보고 분석', short: '주간보고' },
   { href: '/notes',    icon: BookOpen,     label: '메모장',       short: '메모장' },
   { href: '/settings', icon: Settings,     label: '설정',         short: '설정' },

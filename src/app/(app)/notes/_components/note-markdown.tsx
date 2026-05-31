@@ -4,6 +4,7 @@ import ReactMarkdown from 'react-markdown'
 import remarkGfm from 'remark-gfm'
 import remarkBreaks from 'remark-breaks'
 import rehypeRaw from 'rehype-raw'
+import rehypeSanitize, { defaultSchema } from 'rehype-sanitize'
 
 interface Props {
   content:  string
@@ -42,7 +43,7 @@ export function NoteMarkdown({ content, onToggle }: Props) {
     `}>
       <ReactMarkdown
         remarkPlugins={[remarkGfm, remarkBreaks]}
-        rehypePlugins={[rehypeRaw]}
+        rehypePlugins={[rehypeRaw, [rehypeSanitize, defaultSchema]]}
         components={{
           input({ type, checked }) {
             if (type !== 'checkbox') return null

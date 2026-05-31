@@ -34,7 +34,7 @@ export function BulkActionBar({
           상태 변경 <ChevronDown size={11} />
         </button>
         {bulkStatusOpen && (
-          <div className="absolute bottom-full mb-1.5 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[110px] z-above">
+          <div className="absolute bottom-full mb-1.5 left-0 bg-card border border-border rounded-lg shadow-lg py-1 min-w-[6.875rem] z-above">
             {STATUS_GROUPS.map(({ status, label, color }) => (
               <button
                 key={status}

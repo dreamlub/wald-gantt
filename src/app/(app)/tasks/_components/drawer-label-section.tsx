@@ -42,7 +42,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
         ))}
         <div className="relative">
           <input
-            className="text-sm px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-[100px]"
+            className="text-sm px-2 py-0.5 rounded-full border border-dashed border-border outline-none focus:border-lilac-300 text-muted-foreground placeholder:text-ink-300 min-w-25"
             placeholder="입력 후 Enter"
             value={labelInput}
             onChange={e => { setLabelInput(e.target.value); setLabelOpen(true) }}
@@ -58,7 +58,7 @@ export function DrawerLabelSection({ labels, setLabels, labelSuggestions }: Prop
             )
             if (suggestions.length === 0) return null
             return (
-              <ul className="absolute z-50 left-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-40 overflow-y-auto min-w-[140px]">
+              <ul className="absolute z-50 left-0 top-full mt-0.5 bg-card border border-border rounded-md shadow-lg py-0.5 max-h-40 overflow-y-auto min-w-35">
                 {suggestions.map(s => (
                   <li
                     key={s}

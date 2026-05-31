@@ -94,7 +94,7 @@ function KeyRow({ info, onSaved, onDeleted }: {
         <div className="flex items-center gap-2 shrink-0">
           {info.set && !editing && (
             <>
-              <span className={`text-xs ${info.secret ? 'font-mono' : ''} text-ink-400 bg-muted px-2 py-0.5 rounded max-w-[180px] truncate`}>
+              <span className={`text-xs ${info.secret ? 'font-mono' : ''} text-ink-400 bg-muted px-2 py-0.5 rounded max-w-45 truncate`}>
                 {info.masked}
               </span>
               <button

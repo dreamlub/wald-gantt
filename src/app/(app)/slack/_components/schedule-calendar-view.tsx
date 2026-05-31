@@ -21,7 +21,7 @@ interface UpcomingEvent {
 // 브랜드명 정규화: 괄호 수식어·커피/카페 접미사 제거
 // → "매머드" = "매머드커피", "발트" = "발트(내부)"
 function normalizeBrand(brand: string): string {
-  let b = brand.trim().replace(/\s*\([^)]*\)\s*$/, '').trim()
+  const b = brand.trim().replace(/\s*\([^)]*\)\s*$/, '').trim()
   const stripped = b.replace(/(?:커피|카페|coffee|cafe)$/i, '').trim()
   return stripped.length >= 2 ? stripped : b
 }
@@ -112,6 +112,8 @@ export function ScheduleCalendarView({ activeBrands, onBrandsLoaded }: Props) {
     return new Date(now.getFullYear(), now.getMonth(), 1)
   })
   const [overflow, setOverflow] = useState<{ key: string; x: number; y: number } | null>(null)
+  // 브랜드 선택 변경 감지용 — render 중 state 조정 패턴 (useEffect 내 setState 대체)
+  const [prevActiveBrands, setPrevActiveBrands] = useState<Set<string>>(activeBrands)
 
   useEffect(() => {
     async function load() {
@@ -172,15 +174,19 @@ export function ScheduleCalendarView({ activeBrands, onBrandsLoaded }: Props) {
     })
   }, [events, activeBrands])
 
-  // 브랜드 선택 시 해당 브랜드 이벤트가 있는 가장 최신 달로 이동
-  useEffect(() => {
-    if (activeBrands.size === 0 || events.length === 0) return
-    const branded = filteredEvents.filter(e => e.parsedDate !== null)
-    if (branded.length === 0) return
-    const latest = branded.reduce<Date>((max, e) =>
-      e.parsedDate! > max ? e.parsedDate! : max, branded[0].parsedDate!)
-    setCurrentMonth(new Date(latest.getFullYear(), latest.getMonth(), 1))
-  }, [activeBrands]) // eslint-disable-line react-hooks/exhaustive-deps
+  // 브랜드 선택 변경 시 해당 브랜드 이벤트가 있는 가장 최신 달로 이동.
+  // useEffect 내 setState는 cascading render를 유발하므로 render 중 state 조정 패턴을 사용.
+  if (prevActiveBrands !== activeBrands) {
+    setPrevActiveBrands(activeBrands)
+    if (activeBrands.size > 0 && events.length > 0) {
+      const branded = filteredEvents.filter(e => e.parsedDate !== null)
+      if (branded.length > 0) {
+        const latest = branded.reduce<Date>((max, e) =>
+          e.parsedDate! > max ? e.parsedDate! : max, branded[0].parsedDate!)
+        setCurrentMonth(new Date(latest.getFullYear(), latest.getMonth(), 1))
+      }
+    }
+  }
 
   // 날짜별 이벤트 맵
   const eventsByDate = useMemo(() => {

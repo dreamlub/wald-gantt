@@ -54,21 +54,33 @@ export async function GET() {
     .single()
   if (!member) return NextResponse.json({ error: 'No workspace' }, { status: 404 })
 
-  const { data: teams } = await sb
+  const { data: teams, error: teamsError } = await sb
     .from('weekly_sources')
     .select('id, label, sort_order, collection_id')
     .eq('workspace_id', member.workspace_id)
     .order('sort_order')
+  if (teamsError) return NextResponse.json({ error: teamsError.message }, { status: 500 })
 
   const today     = kstToday()
   const curMonday = getMondayOf(today)
 
   // DB에 저장된 모든 주차 조회 (가장 오래된 주차 파악용)
-  const { data: reports } = await sb
-    .from('weekly_reports')
-    .select('team, week_start, raw_content')
-    .eq('workspace_id', member.workspace_id)
-    .order('week_start', { ascending: true })
+  // PostgREST 기본 1000행 캡 → .range()로 끝까지 순회해 누락 없이 수집
+  type WReportRow = { team: string; week_start: string; raw_content: string | null }
+  const reports: WReportRow[] = []
+  const PAGE = 1000
+  for (let offset = 0; ; offset += PAGE) {
+    const { data: page, error: pageError } = await sb
+      .from('weekly_reports')
+      .select('team, week_start, raw_content')
+      .eq('workspace_id', member.workspace_id)
+      .order('week_start', { ascending: true })
+      .range(offset, offset + PAGE - 1)
+    if (pageError) return NextResponse.json({ error: pageError.message }, { status: 500 })
+    const batch = (page ?? []) as WReportRow[]
+    reports.push(...batch)
+    if (batch.length < PAGE) break
+  }
 
   // 2026-01-01 이후 데이터만 표시 — 그 이전은 제외
   const FLOOR = '2026-01-01'
