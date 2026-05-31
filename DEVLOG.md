@@ -2,7 +2,28 @@
 
 ---
 
-## 2026-05-31 — RLS 구멍 2종 수정 + 일감 판단 페이지 개편
+## 2026-05-31 — 제품 흐름 완성: Notes 신호원화·Home·Stats·Weekly 보강 (P1·P2)
+
+핸드오프 P1·P2 일괄 진행. 모두 마이그레이션 최소(또는 0)·기존 데이터 활용.
+
+### P1-1 Notes 미처리 필터 (`38a6fad`)
+- 메모장 사이드바에 '미처리'(status=inbox) 퀵 필터 추가. (Note 신호원화 본체는 선행 구현됨)
+
+### P1-2 Home → 운영 관제판 (`46e35ce`+`6767ce7`)
+- 5섹션 재구성: Review Queue / Capture Inbox / Today Execution / Monitoring / Pipeline Health
+- review·notes 정확 카운트는 count head 쿼리. 500줄 규칙 위해 `_home/helpers.ts`·`_home/ui.tsx` 분리.
+
+### P1-3 Stats 재정의 (`fc41b44`)
+- 탭 재편: 종합/신호/일감 판단/실행/이슈. 신규 종합(Signal→Review→Task→Done 퍼널)·일감 판단(상태·입력원·처리기간) 탭 + `/api/stats/overview`·`/api/stats/review`.
+
+### P1-4 리소스 탭 (`bfec81b`)
+- 담당자×브랜드×주차 투입 간트뷰(client_history 기반). 담당자별/브랜드별 토글, 주 단위 셀로 끊김 표시. `/api/stats/resources`(26주, 1000행 캡 회피 페이지네이션).
+
+### P2 Weekly 파이프라인 보강 (#1 검증 + 표시 견고화)
+- **점검 결과**: 5항목 중 #3(후보 중복)·#4(review 상태 보존) 이미 완료. 생성이 스킬/수동(앱 내 생성기 없음)이라 #2 재생성·#5 실패이력은 백로그(앱 내 Weekly 생성기와 함께)로 보류.
+- `validateWeeklySummary()` 신설(`src/lib/weekly-summary.ts`) — summary JSON 구조(items 배열·title·type) 검증. vitest 6케이스.
+- `upsertWeeklyReport`에 저장 전 가드 — 깨진 summary 차단.
+- `weekly-summary-list`에 "요약 형식 오류 N건" 배너 — 깨진 요약이 조용히 누락되던 것 표면화(팀명 노출).
 
 **배경**: 핸드오프 문서의 P0 5종은 이미 처리된 상태(stale)였고, 라이브 Supabase 보안 어드바이저가 문서에 없던 더 심각한 구멍 2종을 노출. 검증 후 수정.
 

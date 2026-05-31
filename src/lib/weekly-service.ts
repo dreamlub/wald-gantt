@@ -1,6 +1,7 @@
 import { createClient as createBrowserClient } from '@/lib/supabase/client'
 import type { SupabaseClient } from '@supabase/supabase-js'
 import type { WeeklyReport, WeeklyReportSource, WeeklyInsight } from '@/types/index'
+import { validateWeeklySummary } from '@/lib/weekly-summary'
 
 type Sb = SupabaseClient
 
@@ -74,6 +75,13 @@ export async function upsertWeeklyReport(
   sb?: Sb,
 ): Promise<WeeklyReport> {
   const client = sb ?? createBrowserClient()
+
+  // summary가 있으면 저장 전 구조 검증 — 깨진 요약이 DB에 들어가는 것 차단
+  if (report.summary != null) {
+    const v = validateWeeklySummary(report.summary)
+    if (!v.valid) throw new Error(`weekly summary 검증 실패: ${v.error}`)
+  }
+
   const { data, error } = await client
     .from('weekly_reports')
     .upsert(

@@ -1,10 +1,12 @@
 'use client'
 
 import { useState } from 'react'
+import { AlertTriangle } from 'lucide-react'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import { useBrandAliases } from '@/hooks/use-brand-aliases'
+import { isValidWeeklySummary } from '@/lib/weekly-summary'
 
 // ── 타입 & 상수 ───────────────────────────────────────────────────
 
@@ -161,6 +163,9 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
 
   const allItems = assembleItems(reports, aliasMap)
 
+  // summary가 있지만 구조가 깨진 리포트 — 조용히 누락되지 않게 표면화
+  const malformed = reports.filter(r => r.summary != null && !isValidWeeklySummary(r.summary))
+
   const brandList = [...new Set(allItems.map(brandOf))].sort((a, b) => {
     if (a === NO_BRAND) return 1
     if (b === NO_BRAND) return -1
@@ -172,17 +177,31 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
     .map(brand => ({ brand, items: filtered.filter(i => brandOf(i) === brand) }))
     .filter(g => g.items.length > 0)
 
+  const malformedBanner = malformed.length > 0 && (
+    <div className="flex items-start gap-2 rounded-md border border-status-late/30 bg-status-late/10 px-3 py-2.5 text-sm text-status-late">
+      <AlertTriangle size={14} className="mt-0.5 shrink-0" />
+      <span>
+        요약 형식 오류 {malformed.length}건 — 구조가 깨져 표시에서 제외됐습니다
+        {' '}({[...new Set(malformed.map(r => r.team))].join(', ')}). 재요약이 필요합니다.
+      </span>
+    </div>
+  )
+
   if (allItems.length === 0) {
     return (
-      <div className="flex flex-col items-center justify-center py-20 gap-2 text-ink-400">
-        <p className="text-sm">요약 데이터가 없습니다.</p>
-        <p className="text-xs">원문 수집 후 외부 요약 분석이 끝나면 표시됩니다.</p>
+      <div className="px-5 py-4">
+        {malformedBanner}
+        <div className="flex flex-col items-center justify-center py-20 gap-2 text-ink-400">
+          <p className="text-sm">요약 데이터가 없습니다.</p>
+          <p className="text-xs">원문 수집 후 외부 요약 분석이 끝나면 표시됩니다.</p>
+        </div>
       </div>
     )
   }
 
   return (
     <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {malformedBanner}
       {groups.map(({ brand, items }) => (
         <BrandSection
           key={brand}
