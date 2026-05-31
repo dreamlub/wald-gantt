@@ -18,16 +18,17 @@ wald-gantt/
 │   │   │   ├── review/           <- /review 검토 후보
 │   │   │   └── settings/         <- /settings 설정
 │   │   ├── api/                  <- 백엔드 API 라우트
+│   │   │   ├── brands/           <- 브랜드 타임라인 통계
 │   │   │   ├── calendar/         <- Google Calendar 인증/이벤트 연동
 │   │   │   ├── history/          <- 고객 히스토리 조회
-│   │   │   ├── insights/         <- AI 인사이트 생성
-│   │   │   ├── issues/           <- 이슈 생성/시드
+│   │   │   ├── issues/           <- 이슈 CRUD/시드 ([id] 상태 토글 포함)
 │   │   │   ├── reminders/        <- Slack 리마인더 cron
 │   │   │   ├── review/           <- 검토 후보 API
 │   │   │   ├── settings/         <- API 키 설정
-│   │   │   ├── slack/            <- Slack 수집/재분류/매핑
+│   │   │   ├── slack/            <- Slack 수집/재분류/매핑/스레드
+│   │   │   ├── stats/            <- 통계 대시보드 (이슈/프로젝트)
 │   │   │   ├── summary/          <- 데일리 리포트 공유
-│   │   │   ├── timeline/         <- 타임라인 생성
+│   │   │   ├── timeline/         <- 타임라인 조회
 │   │   │   └── weekly/           <- 주간 데이터 import/analyze
 │   │   ├── login/                <- /login 로그인 화면
 │   │   ├── share/[token]/        <- /share/:token 프로젝트 공유
@@ -46,10 +47,14 @@ wald-gantt/
 │   ├── lib/                      <- DB, 외부 서비스, 도메인 로직
 │   │   ├── supabase/             <- Supabase browser/server client
 │   │   ├── calendar-event-service.ts
+│   │   ├── date-utils.ts
+│   │   ├── dnd-utils.ts
 │   │   ├── gantt-service.ts
+│   │   ├── gantt-utils.ts
 │   │   ├── google-calendar.ts
 │   │   ├── history-service.ts
-│   │   ├── insight-service.ts
+│   │   ├── history-query-utils.ts
+│   │   ├── kst.ts
 │   │   ├── note-service.ts
 │   │   ├── slack-service.ts
 │   │   ├── task-service.ts
@@ -110,39 +115,40 @@ wald-gantt/
 | `/calendar` | `src/app/(app)/calendar/page.tsx` | 캘린더/일정 |
 | `/weekly` | `src/app/(app)/weekly/page.tsx` | 주간 인사이트 |
 | `/notes` | `src/app/(app)/notes/page.tsx` | 노트 |
-| `/slack` | `src/app/(app)/slack/page.tsx` | Slack 수집/분류 |
+| `/slack` | `src/app/(app)/slack/page.tsx` | Slack 수집/분류/리포트/타임라인 트래커 |
+| `/stats` | `src/app/(app)/stats/page.tsx` | 통계 대시보드 (메시지/프로젝트/이슈) |
 | `/review` | `src/app/(app)/review/page.tsx` | 검토 후보 |
 | `/settings` | `src/app/(app)/settings/page.tsx` | 설정 |
 | `/login` | `src/app/login/page.tsx` | 로그인 |
 | `/share/:token` | `src/app/share/[token]/page.tsx` | 프로젝트 공유 |
 | `/share/daily/:token` | `src/app/share/daily/[token]/page.tsx` | 데일리 리포트 공유 |
 
-## 파일 규모 (2026-05-30 기준)
+## 파일 규모 (2026-05-31 기준)
 
 | 항목 | 수량 |
 |---|---:|
-| 전체 TS/TSX 파일 | 230개 |
-| 전체 코드 줄 수 | 36,091줄 |
-| App Router page 파일 | 12개 |
-| API route 파일 | 30개 |
-| 테스트 파일 | 8개 |
-| Supabase migration 파일 | 18개 |
+| 전체 TS/TSX 파일 | 244개 |
+| 전체 코드 줄 수 | 35,258줄 |
+| App Router page 파일 | 13개 |
+| API route 파일 | 32개 |
+| 테스트 파일 | 11개 |
+| Supabase migration 파일 | 23개 |
 
 ## 파일 크기 상위 (줄 수)
 
 | 파일 | 줄 수 |
 |---|---:|
 | `src/components/gantt/ProjectFormDialog.tsx` | 539 |
-| `src/components/gantt/GanttChart.tsx` | 530 |
-| `src/app/api/weekly/analyze/route.ts` | 512 |
 | `src/app/(app)/settings/_components/settings-shell.tsx` | 503 |
-| `src/app/(app)/page.tsx` | 471 |
-| `src/app/(app)/slack/_components/timeline-v2-view.tsx` | 465 |
-| `src/app/(app)/slack/_components/slack-shell.tsx` | 457 |
-| `src/app/(app)/slack/_components/daily-report-view-v2.tsx` | 454 |
-| `src/app/(app)/projects/page.tsx` | 450 |
+| `src/app/(app)/page.tsx` | 474 |
+| `src/components/gantt/GanttChart.tsx` | 460 |
+| `src/lib/task-service.ts` | 455 |
+| `src/app/(app)/slack/_components/daily-report-view-v2.tsx` | 453 |
+| `src/app/(app)/slack/_components/slack-sidebar.tsx` | 452 |
 | `src/app/(app)/slack/_components/schedule-calendar-view.tsx` | 440 |
-| `src/app/(app)/slack/_components/timeline-view.tsx` | 433 |
 | `src/app/(app)/calendar/_components/calendar-shell.tsx` | 426 |
+| `src/app/(app)/slack/_components/slack-shell.tsx` | 418 |
+| `src/lib/slack-service.ts` | 415 |
+| `src/components/tasks/TaskFormDialog.tsx` | 412 |
 
 > 현재 1,000줄을 넘는 TS/TSX 파일은 없습니다.
