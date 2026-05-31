@@ -2,6 +2,25 @@
 
 ---
 
+## 2026-05-31 — 빌드 복구: 미완성 브랜드 프로필 모듈 누락 (tsc 8 errors)
+
+브랜치에 소비 코드만 커밋되고 모듈 본체는 한 번도 존재한 적 없던 import 8건이 `tsc`를 깨뜨리고 있었음(git 이력·stash 교차 확인 — 본인 작업과 무관한 선행 WIP). 데이터 계층(테이블·API·마이그레이션) 전무 → 전체 기능 구현은 범위 밖이라, **빌드 복구 + 문서화된 기본 동작(로고 없으면 이름 첫 글자)으로 graceful degrade**하는 최소 구현으로 처리.
+
+### 신규 모듈
+- `lib/brand-color.ts` — `brandColor(name)` 공용 추출. `history-service`가 re-export, 슬랙/통계/홈 다수 소비. `weekly/_lib/brand-colors.ts`는 이 모듈 re-export로 통합(중복 팔레트 제거).
+- `hooks/use-brand-profiles.ts` — `useBrandProfiles(): Map<string, BrandProfile>`. 영속 계층 부재로 현재 빈 맵 반환(소비처는 첫 글자 fallback). 백엔드 생기면 이 훅만 교체.
+- `components/brand-icon.tsx` — 로고 URL 있으면 이미지, 없으면 브랜드색 원형+첫 글자. `lucideIcon`은 예약 prop(미사용, 타입 유지).
+- `settings/_components/brand-profiles-section.tsx` — 브랜드 아이콘 읽기 전용 미리보기 + "커스터마이즈 준비 중" 안내.
+
+### 버그 수정
+- `daily-report-view-v2.tsx` `BrandCard`에서 정의 없이 사용되던 `accent` → `brandColor(brand)`로 정의(TS2304 2건).
+
+### 검증
+- `tsc --noEmit` 0 errors(기존 8 → 0). lint 0 errors(잔여 8 warning은 미변경 파일의 선행 항목). vitest 75 pass.
+- ⚠️ 후속: 브랜드 프로필 로고 업로드·아이콘 선택의 영속 계층(테이블·API·업로드)은 미구현. 제품 결정 필요.
+
+---
+
 ## 2026-05-31 — Prompt Injection 방어 (🔴 보안)
 
 외부 참여자가 작성하는 슬랙 원문이 sanitize 없이 LLM 분류 프롬프트에 직접 삽입돼, priority/brand 조작 등이 가능했던 문제 차단.

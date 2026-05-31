@@ -10,6 +10,7 @@ import { PriorityCallout } from './priority-callout'
 import { BodyBullets, SEV_TO_PRIORITY } from './daily-report-helpers'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
+import { brandColor } from '@/lib/brand-color'
 
 interface DailyReportData {
   content: InsightContent
@@ -268,6 +269,7 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   )
   const profiles = useBrandProfiles()
   const p = profiles.get(brand)
+  const accent = brandColor(brand)
 
   return (
     <div className="border border-ink-400 rounded-xl overflow-hidden bg-card shadow-sm">
