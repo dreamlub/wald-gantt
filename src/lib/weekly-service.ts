@@ -57,43 +57,15 @@ export async function getWeeklyInsight(
 ): Promise<WeeklyInsight | null> {
   const client = sb ?? createBrowserClient()
   const workspaceId = await getWorkspaceId(client)
-  const { data } = await client
+  const { data, error } = await client
     .from('weekly_insights')
     .select('*')
     .eq('workspace_id', workspaceId)
     .eq('week_start', weekStart)
     .maybeSingle()
-  return (data as WeeklyInsight | null) ?? null
-}
-
-/**
- * 전체 팀의 모든 주차 리포트를 한 번에 조회해 주차×팀 매트릭스로 구성.
- * 사이드바의 "수집 현황"(주차별 팀 제출 상태)에 사용.
- * 반환: 주차 목록(내림차순) + week→team(label)→report 맵.
- */
-export async function getWeeklyMatrix(
-  sb?: Sb,
-): Promise<{ weeks: string[]; byWeek: Map<string, Map<string, WeeklyReport>> }> {
-  const client = sb ?? createBrowserClient()
-  const workspaceId = await getWorkspaceId(client)
-  const { data, error } = await client
-    .from('weekly_reports')
-    .select('*')
-    .eq('workspace_id', workspaceId)
-    .order('week_start', { ascending: false })
-    .order('team', { ascending: true })
+  // 권한/네트워크/스키마 오류를 '인사이트 없음'으로 위장하지 않도록 throw (getWeeklyReports와 동일)
   if (error) throw error
-
-  const reports = (data ?? []) as WeeklyReport[]
-  const byWeek = new Map<string, Map<string, WeeklyReport>>()
-  for (const r of reports) {
-    let teamMap = byWeek.get(r.week_start)
-    if (!teamMap) { teamMap = new Map(); byWeek.set(r.week_start, teamMap) }
-    // 같은 팀·주차에 source가 여러 개면 먼저 온 것(정렬상 안정) 유지
-    if (!teamMap.has(r.team)) teamMap.set(r.team, r)
-  }
-  const weeks = [...byWeek.keys()].sort((a, b) => (a < b ? 1 : -1))
-  return { weeks, byWeek }
+  return (data as WeeklyInsight | null) ?? null
 }
 
 // MCP 수집 시 INSERT/UPDATE — UNIQUE(workspace_id, source, team, author, week_start) 기준
