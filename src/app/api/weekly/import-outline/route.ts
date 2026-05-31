@@ -39,18 +39,27 @@ function flattenTree(nodes: OutlineTreeNode[] | undefined, parentId: string | nu
 
 /**
  * Outline 전용 마크다운 아티팩트를 제거해 AI가 읽기 좋은 텍스트로 정규화.
- *   \\[ / \\]        → [ / ]  (이중 이스케이프된 대괄호)
- *   @[이름](mention://...) → 이름  (Outline 내부 멘션)
- *   ==text==        → text   (Outline 하이라이트)
- *   <br>            → 공백   (테이블 셀 내 줄바꿈 태그)
+ *   \\[ / \\]           → [ / ]   (이스케이프된 대괄호)
+ *   @[이름](mention://) → 이름    (Outline 내부 멘션)
+ *   ==text==            → text    (Outline 하이라이트)
+ *   <br>                → 공백    (테이블 셀 내 줄바꿈)
+ *   \~  \-  \*  \|      → 원문자  (Outline 특수문자 이스케이프)
+ *   \\\n  \\$           → 제거    (단독 백슬래시 잔재)
  */
 function cleanOutlineMarkdown(text: string): string {
   return text
-    .replace(/\\\[/g, '[')
-    .replace(/\\\]/g, ']')
+    // 1. Outline 멘션 (@[이름](mention://...)) → 이름
     .replace(/@\[([^\]]+)\]\(mention:\/\/[^)]+\)/g, '$1')
+    // 2. Outline 하이라이트 (==text==) → text
     .replace(/==([^=\n]+)==/g, '$1')
+    // 3. <br> → 공백
     .replace(/<br\s*\/?>/gi, ' ')
+    // 4. 이스케이프된 특수문자 (\[ \] \~ \- \* \| \( \) \. \!) → 원문자
+    .replace(/\\([\[\]~\-*|().!])/g, '$1')
+    // 5. 단독 백슬래시 + 줄바꿈 → 줄바꿈 (Outline 단락 구분자 잔재)
+    .replace(/\\\n/g, '\n')
+    // 6. 남은 단독 백슬래시 연속 → 제거
+    .replace(/\\+$/gm, '')
 }
 
 /** # / ## / ### + YYYY-MM-DD 또는 YYYY.MM.DD 섹션 단위로 분리 */
