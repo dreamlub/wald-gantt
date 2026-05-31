@@ -172,14 +172,23 @@ const EXCLUDED_FROM_API_SECTION = new Set(['slack_reminder_channel'])
 export function ApiKeysSection() {
   const [keys, setKeys]       = useState<ApiKeyInfo[]>([])
   const [loading, setLoading] = useState(true)
+  const [fetchError, setFetchError] = useState<string | null>(null)
 
   const fetchKeys = useCallback(async () => {
     setLoading(true)
+    setFetchError(null)
     try {
       const res = await fetch('/api/settings/api-keys')
       const data = await res.json()
-      if (Array.isArray(data)) setKeys(data.filter((k: ApiKeyInfo) => !EXCLUDED_FROM_API_SECTION.has(k.name)))
+      if (Array.isArray(data)) {
+        setKeys(data.filter((k: ApiKeyInfo) => !EXCLUDED_FROM_API_SECTION.has(k.name)))
+      } else {
+        const msg = (data as { error?: string }).error ?? '알 수 없는 오류'
+        setFetchError(msg)
+        toast.error(`API 키 조회 실패: ${msg}`)
+      }
     } catch {
+      setFetchError('네트워크 오류')
       toast.error('API 키 조회 실패')
     } finally {
       setLoading(false)
@@ -190,6 +199,15 @@ export function ApiKeysSection() {
 
   if (loading) {
     return <p className="text-sm text-ink-400">불러오는 중...</p>
+  }
+
+  if (fetchError) {
+    return (
+      <div className="space-y-2">
+        <p className="text-sm text-status-late">조회 오류: {fetchError}</p>
+        <button onClick={fetchKeys} className="text-xs text-lilac-600 hover:underline">다시 시도</button>
+      </div>
+    )
   }
 
   return (
