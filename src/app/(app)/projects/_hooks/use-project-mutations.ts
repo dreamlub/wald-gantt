@@ -163,7 +163,11 @@ export function useProjectMutations({
         })
         setProjects(prev => [...prev, created])
       }
-    } catch (e) { toastActionError('프로젝트를 저장하지 못했습니다', e) }
+    } catch (e) {
+      // 저장 실패 시 toast + 재throw → 폼(ProjectFormDialog)이 실패를 인지해 드로어를 닫지 않음
+      toastActionError('프로젝트를 저장하지 못했습니다', e)
+      throw e
+    }
   }
 
   async function handleDeleteProject(id: string) {

@@ -178,7 +178,11 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
   const dateError = startDate && endDate && startDate > endDate
     ? '종료일은 시작일 이후여야 합니다.' : null
 
-  const isValid = name.trim().length > 0 && !!categoryId && !dateError
+  // 마일스톤은 날짜 하나가 핵심 — endDate 없으면 저장 후 바가 안 보이는 '유령 마일스톤'이 됨
+  const milestoneDateError = isMilestone && !endDate
+    ? '마일스톤은 날짜가 필요합니다.' : null
+
+  const isValid = name.trim().length > 0 && !!categoryId && !dateError && !milestoneDateError
 
   async function handleSave() {
     if (!isValid) return
