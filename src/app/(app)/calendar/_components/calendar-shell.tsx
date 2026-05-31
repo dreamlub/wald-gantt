@@ -7,8 +7,9 @@ import {
   ChevronLeft, ChevronRight, RefreshCw, AlertCircle,
   CalendarDays, Plus, X, Check,
 } from 'lucide-react'
-import { addDays, parseISO, getISOWeek } from 'date-fns'
+import { addDays, parseISO } from 'date-fns'
 import { Button } from '@/components/ui/button'
+import { weekRangeLabel } from '@/lib/week-format'
 import { STATUS_COLOR, STATUS_BG_COLOR } from '@/app/(app)/tasks/_constants'
 import { TaskDetailDrawer } from '@/app/(app)/tasks/_components/task-detail-drawer'
 import { TaskFormDialog } from '@/components/tasks/TaskFormDialog'
@@ -89,10 +90,8 @@ export function CalendarShell() {
   // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
-  /* ── 주 범위 레이블 ── */
-  const weekStartObj = parseISO(weekStart)
-  const weekEndObj   = parseISO(weekEnd)
-  const weekLabel    = `${weekStartObj.getMonth() + 1}/${weekStartObj.getDate()} ~ ${weekEndObj.getMonth() + 1}/${weekEndObj.getDate()} (${weekEndObj.getFullYear()}년 ${getISOWeek(weekStartObj)}W)`
+  /* ── 주 범위 레이블 (공용 포맷: "M/D ~ M/D (YYYY년 W{n})") ── */
+  const weekLabel = weekRangeLabel(weekStart, weekEnd)
 
   /* ── ?highlight 파라미터 처리 ── */
   useEffect(() => {
