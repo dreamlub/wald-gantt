@@ -98,6 +98,30 @@ export const EMPTY_ISSUE_STATS: IssueStatsResponse = {
   byType: [], resolutionBuckets: [], aging: [], brandLoad: [],
 }
 
+// ── Overview (Signal → Review → Task → Done 퍼널) ──────────
+export interface OverviewStatsResponse {
+  funnel: { key: string; label: string; value: number }[]
+  reviewBySource: { source: string; label: string; count: number }[]
+  conversion: { candidateToTask: number; reviewedRatio: number } // %
+}
+
+export const EMPTY_OVERVIEW_STATS: OverviewStatsResponse = {
+  funnel: [], reviewBySource: [], conversion: { candidateToTask: 0, reviewedRatio: 0 },
+}
+
+// ── Review (일감 판단 큐 진단) ─────────────────────────────
+export interface ReviewStatsResponse {
+  statusTotals: { pending: number; created: number; snoozed: number; ignored: number }
+  bySource: { source: string; label: string; count: number }[]
+  avgDwellDays: number // created_at → reviewed_at (처리 완료 후보 평균)
+  pendingAging: { title: string; brand: string; days: number }[] // 오래 머문 pending Top
+}
+
+export const EMPTY_REVIEW_STATS: ReviewStatsResponse = {
+  statusTotals: { pending: 0, created: 0, snoozed: 0, ignored: 0 },
+  bySource: [], avgDwellDays: 0, pendingAging: [],
+}
+
 export const EMPTY_STATS: StatsResponse = {
   range: { from: '', to: '', days: 0 },
   totals: { messages: 0, activeDays: 0, avgPerDay: 0, brands: 0, issues: 0, todosCompleted: 0 },

@@ -1,21 +1,25 @@
 'use client'
 
 import { useState } from 'react'
-import { MessageSquareText, FolderKanban, CircleDot, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, MessageSquareText, ClipboardList, FolderKanban, CircleDot, type LucideIcon } from 'lucide-react'
+import { OverviewStats } from './overview-stats'
 import { StatsDashboard } from './stats-dashboard'
+import { ReviewStats } from './review-stats'
 import { ProjectStats } from './project-stats'
 import { IssueStats } from './issue-stats'
 
-type TabKey = 'messages' | 'projects' | 'issues'
+type TabKey = 'overview' | 'signals' | 'review' | 'execution' | 'issues'
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
-  { key: 'messages', label: '메시지', icon: MessageSquareText },
-  { key: 'projects', label: '프로젝트', icon: FolderKanban },
-  { key: 'issues', label: '이슈', icon: CircleDot },
+  { key: 'overview',  label: '종합',     icon: LayoutDashboard },
+  { key: 'signals',   label: '신호',     icon: MessageSquareText },
+  { key: 'review',    label: '일감 판단', icon: ClipboardList },
+  { key: 'execution', label: '실행',     icon: FolderKanban },
+  { key: 'issues',    label: '이슈',     icon: CircleDot },
 ]
 
 export function StatsTabs() {
-  const [tab, setTab] = useState<TabKey>('messages')
+  const [tab, setTab] = useState<TabKey>('overview')
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden min-w-0">
@@ -41,9 +45,11 @@ export function StatsTabs() {
       </div>
 
       <div className="flex-1 flex flex-col overflow-hidden">
-        {tab === 'messages' ? <StatsDashboard />
-          : tab === 'projects' ? <ProjectStats />
-            : <IssueStats />}
+        {tab === 'overview' ? <OverviewStats />
+          : tab === 'signals' ? <StatsDashboard />
+            : tab === 'review' ? <ReviewStats />
+              : tab === 'execution' ? <ProjectStats />
+                : <IssueStats />}
       </div>
     </div>
   )
