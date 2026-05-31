@@ -5,7 +5,7 @@ import { FileText, Sparkles, LayoutList, RefreshCw, RotateCcw, ChevronLeft, Chev
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 
-import { WeeklySummaryList, assembleItems, CHANGE_META, CHANGE_ORDER } from './weekly-summary-list'
+import { WeeklySummaryList, assembleItems, CHANGE_META, CHANGE_ORDER, type GroupBy } from './weekly-summary-list'
 import { useBrandAliases } from '@/hooks/use-brand-aliases'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
 import { weekRangeLabel } from '@/lib/week-format'
@@ -50,6 +50,7 @@ export function WeeklyContentTabs({
 }: Props) {
   const [activeTab, setActiveTab]     = useState<Tab>('summary')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
+  const [groupBy, setGroupBy]         = useState<GroupBy>('brand')
 
   const aliasMap = useBrandAliases()
 
@@ -119,7 +120,24 @@ export function WeeklyContentTabs({
           ))}
         </nav>
         <div className="flex-1" />
-        <div className="flex items-center pr-3">
+        <div className="flex items-center gap-2 pr-3">
+          {activeTab === 'summary' && (
+            <div className="flex items-center rounded-md border border-border bg-muted/40 p-0.5 gap-0.5">
+              {(['brand', 'assignee'] as GroupBy[]).map(g => (
+                <button
+                  key={g}
+                  onClick={() => setGroupBy(g)}
+                  className={`px-2.5 py-1 rounded text-xs font-medium transition-colors whitespace-nowrap ${
+                    groupBy === g
+                      ? 'bg-background text-foreground shadow-sm'
+                      : 'text-ink-400 hover:text-foreground'
+                  }`}
+                >
+                  {g === 'brand' ? '브랜드별' : '담당자별'}
+                </button>
+              ))}
+            </div>
+          )}
           <button
             onClick={onCollect}
             disabled={collecting}
@@ -210,7 +228,7 @@ export function WeeklyContentTabs({
             {activeTab === 'summary' && (
               reportsLoading
                 ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-                : <WeeklySummaryList reports={visibleReports} selectedBrand={selectedBrand} />
+                : <WeeklySummaryList reports={visibleReports} selectedBrand={selectedBrand} groupBy={groupBy} />
             )}
             {activeTab === 'insight' && (
               insight

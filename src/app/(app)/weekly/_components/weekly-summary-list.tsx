@@ -150,14 +150,44 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
   )
 }
 
+// ── 담당자 섹션 ───────────────────────────────────────────────────
+
+const NO_ASSIGNEE = '담당자 미지정'
+
+function AssigneeSection({ assignee, items, expandedKey, onToggle }: {
+  assignee:    string
+  items:       EnrichedItem[]
+  expandedKey: string | null
+  onToggle:    (key: string) => void
+}) {
+  return (
+    <section className="space-y-1.5">
+      <div className="flex items-center gap-2 pb-1.5 border-b border-border">
+        <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+        <h3 className="text-sm font-bold text-foreground">{assignee}</h3>
+        <span className="text-sm text-ink-400">{items.length}건</span>
+      </div>
+      {items.map((item, i) => {
+        const key = `${assignee}-${i}`
+        return (
+          <ItemRow key={key} item={item} expanded={expandedKey === key} onToggle={() => onToggle(key)} />
+        )
+      })}
+    </section>
+  )
+}
+
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────
+
+export type GroupBy = 'brand' | 'assignee'
 
 interface Props {
   reports:       WeeklyReport[]
   selectedBrand: string | null
+  groupBy:       GroupBy
 }
 
-export function WeeklySummaryList({ reports, selectedBrand }: Props) {
+export function WeeklySummaryList({ reports, selectedBrand, groupBy }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
   const aliasMap = useBrandAliases()
 
@@ -170,23 +200,43 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
   )
 
   const groups = useMemo(() => {
-    const byBrand = new Map<string, EnrichedItem[]>()
-    for (const item of allItems) {
-      const brand = brandOf(item)
-      if (selectedBrand && brand !== selectedBrand) continue
-      const items = byBrand.get(brand)
-      if (items) items.push(item)
-      else byBrand.set(brand, [item])
+    const filtered = allItems.filter(item =>
+      !selectedBrand || brandOf(item) === selectedBrand
+    )
+
+    if (groupBy === 'assignee') {
+      const byAssignee = new Map<string, EnrichedItem[]>()
+      for (const item of filtered) {
+        const key = item.assignee?.trim() || NO_ASSIGNEE
+        const bucket = byAssignee.get(key)
+        if (bucket) bucket.push(item)
+        else byAssignee.set(key, [item])
+      }
+      return [...byAssignee.entries()]
+        .sort(([a, aItems], [b, bItems]) => {
+          if (a === NO_ASSIGNEE) return 1
+          if (b === NO_ASSIGNEE) return -1
+          return bItems.length - aItems.length
+        })
+        .map(([label, items]) => ({ label, items }))
     }
 
+    // brand 그룹
+    const byBrand = new Map<string, EnrichedItem[]>()
+    for (const item of filtered) {
+      const brand = brandOf(item)
+      const bucket = byBrand.get(brand)
+      if (bucket) bucket.push(item)
+      else byBrand.set(brand, [item])
+    }
     return [...byBrand.entries()]
       .sort(([a, aItems], [b, bItems]) => {
         if (a === NO_BRAND) return 1
         if (b === NO_BRAND) return -1
         return bItems.length - aItems.length
       })
-      .map(([brand, items]) => ({ brand, items }))
-  }, [allItems, selectedBrand])
+      .map(([label, items]) => ({ label, items }))
+  }, [allItems, selectedBrand, groupBy])
 
   const malformedBanner = malformed.length > 0 && (
     <div className="flex items-start gap-2 rounded-md border border-status-late/30 bg-status-late/10 px-3 py-2.5 text-sm text-status-late">
@@ -213,14 +263,22 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
   return (
     <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
       {malformedBanner}
-      {groups.map(({ brand, items }) => (
-        <BrandSection
-          key={brand}
-          brand={brand}
-          items={items}
-          expandedKey={expandedKey}
-          onToggle={key => setExpandedKey(k => k === key ? null : key)}
-        />
+      {groups.map(({ label, items }) => (
+        groupBy === 'assignee'
+          ? <AssigneeSection
+              key={label}
+              assignee={label}
+              items={items}
+              expandedKey={expandedKey}
+              onToggle={key => setExpandedKey(k => k === key ? null : key)}
+            />
+          : <BrandSection
+              key={label}
+              brand={label}
+              items={items}
+              expandedKey={expandedKey}
+              onToggle={key => setExpandedKey(k => k === key ? null : key)}
+            />
       ))}
     </div>
   )
