@@ -80,7 +80,6 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, teamColors }: Pr
     else setCalMonth(m => m - 1)
   }
   function nextMonth() {
-    if (atCurrentMonth) return
     if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
     else setCalMonth(m => m + 1)
   }

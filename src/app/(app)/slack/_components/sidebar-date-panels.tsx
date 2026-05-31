@@ -100,7 +100,6 @@ export function MonthGridSection({ dateFrom, history, onDateFromChange, onDateTo
 
   const atCurrentMonth = calYear === todayY && calMonth === todayM
   function nextMonth() {
-    if (atCurrentMonth) return
     if (calMonth === 11) { setCalYear(y => y + 1); setCalMonth(0) }
     else setCalMonth(m => m + 1)
   }
