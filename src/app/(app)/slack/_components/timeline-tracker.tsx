@@ -1,13 +1,14 @@
 'use client'
 
 import { useEffect, useMemo, useState, useCallback } from 'react'
-import { Archive, CalendarDays, Check, Loader2, SlidersHorizontal } from 'lucide-react'
+import { Archive, CalendarDays, Check, Loader2 } from 'lucide-react'
 import {
   type TrackerIssueRow, type Relation, type TypeFilter, type RelationType,
   TYPE_META, TYPE_KEYS, STALE_DAYS, nodeStatus, isStale,
 } from './_tracker-shared'
 import { NodeRow, ClusterGroup } from './tracker-node-row'
 import { IssueDetailPanel } from './tracker-detail-panel'
+import { Switch } from '@/components/ui/switch'
 
 interface Props { brandFilter?: string }
 
@@ -229,30 +230,35 @@ export function TimelineTracker({ brandFilter }: Props) {
             )
           })}
           <div className="w-px h-3.5 bg-ink-200 shrink-0" />
-          <button
-            onClick={() => setShowClosed(v => !v)}
-            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all ${
-              showClosed
-                ? 'bg-ink-100 text-ink-600 border-ink-300'
-                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
-            }`}
-          >
-            <SlidersHorizontal size={10} />
-            해결 포함
-          </button>
+          {/* 해결 포함 — 보기 옵션(스위치) */}
+          <Switch
+            checked={showClosed}
+            onCheckedChange={setShowClosed}
+            label="해결 포함"
+            aria-label="해결된 이슈 포함"
+            onClassName="bg-ink-500"
+            className="text-3xs text-ink-500"
+          />
+          {/* 정리 대상 — 액션 진입(솔리드 버튼) */}
           <button
             onClick={() => { setShowStaleOnly(v => !v); setBulkConfirm(false) }}
             disabled={staleCount === 0 && !showStaleOnly}
-            className={`inline-flex items-center gap-1 text-3xs font-medium px-2 py-0.5 rounded-full border transition-all disabled:opacity-40 disabled:cursor-not-allowed ${
+            className={`inline-flex items-center gap-1 text-3xs font-semibold px-2.5 py-1 rounded-md transition-colors disabled:opacity-40 disabled:cursor-not-allowed ${
               showStaleOnly
-                ? 'bg-status-warn/15 text-status-warn border-status-warn-border'
-                : 'bg-transparent text-ink-400 border-ink-200 hover:border-ink-300'
+                ? 'bg-status-warn text-white hover:bg-status-warn/90'
+                : 'bg-status-warn/10 text-status-warn hover:bg-status-warn/20'
             }`}
             title={`${STALE_DAYS}일 이상 언급 없는 미해결 이슈`}
           >
             <Archive size={10} />
             정리 대상
-            {staleCount > 0 && <span className="tabular-nums font-bold">{staleCount}</span>}
+            {staleCount > 0 && (
+              <span className={`tabular-nums px-1 rounded-full ${
+                showStaleOnly ? 'bg-white/25' : 'bg-status-warn/20'
+              }`}>
+                {staleCount}
+              </span>
+            )}
           </button>
         </div>
       </div>

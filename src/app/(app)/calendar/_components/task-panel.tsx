@@ -8,6 +8,7 @@ import { STATUS_ORDER, SORT_LABELS, SORT_CYCLE, DRAG_OVER_BG } from '../_constan
 import type { SortKey } from '../_constants'
 import { fmtDate, fmtScheduledAt } from '../_utils'
 import { setActiveDragOffsetY } from './drag-state'
+import { Switch } from '@/components/ui/switch'
 
 interface Props {
   tasks: GanttTask[]
@@ -144,25 +145,13 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
         <div className="flex-1" />
 
         {/* 완료 토글 */}
-        <div
-          className="flex items-center gap-1.5 cursor-pointer select-none"
-          onClick={() => setHideDone(v => !v)}
-        >
-          <span className="text-xs text-ink-400">완료 포함</span>
-          <div
-            role="switch"
-            aria-checked={!hideDone}
-            className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${
-              hideDone ? 'bg-border' : 'bg-foreground'
-            }`}
-          >
-            <span
-              className={`absolute top-0.5 w-3 h-3 rounded-full bg-background shadow-sm transition-transform duration-200 ${
-                hideDone ? 'translate-x-0.5' : 'translate-x-3.5'
-              }`}
-            />
-          </div>
-        </div>
+        <Switch
+          checked={!hideDone}
+          onCheckedChange={(show) => setHideDone(!show)}
+          label={<span className="text-xs">완료 포함</span>}
+          offClassName="bg-border"
+          className="text-ink-400 flex-row-reverse"
+        />
       </div>
 
       {/* 태스크 목록 — from-grid 드롭 시 스케줄 해제 */}

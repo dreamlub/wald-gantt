@@ -3,6 +3,7 @@
 import React from 'react'
 import { Plus, Search, X, CheckSquare } from 'lucide-react'
 import { VIEW_TABS, type ViewType } from '../_constants'
+import { Switch } from '@/components/ui/switch'
 
 interface TasksActionBarProps {
   view: ViewType
@@ -89,20 +90,14 @@ export function TasksActionBar({
         </div>
 
         <div className="flex items-center gap-2 mr-3">
-          <div
-            className="flex items-center gap-1.5 cursor-pointer select-none"
-            onClick={() => onHideDoneChange(!hideDone)}
+          <Switch
+            checked={!hideDone}
+            onCheckedChange={(show) => onHideDoneChange(!show)}
+            label={<span className="text-sm">완료 포함</span>}
             title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
-          >
-            <span className="text-sm text-muted-foreground">완료 포함</span>
-            <div
-              role="switch"
-              aria-checked={!hideDone}
-              className={`relative w-7 h-4 rounded-full transition-colors duration-200 ${hideDone ? 'bg-border' : 'bg-foreground'}`}
-            >
-              <span className={`absolute top-0.5 w-3 h-3 rounded-full bg-background shadow-sm transition-transform duration-200 ${hideDone ? 'translate-x-0.5' : 'translate-x-3.5'}`} />
-            </div>
-          </div>
+            offClassName="bg-border"
+            className="text-muted-foreground flex-row-reverse"
+          />
           {(view === 'basic' || view === 'listview') && (
             <button
               onClick={onToggleSelection}
