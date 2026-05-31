@@ -13,8 +13,14 @@
 ### 후속 (운영)
 - 근본 해결은 `.env.local`/배포 환경에 `SUPABASE_SERVICE_ROLE_KEY` 추가(DB 저장 API 키 사용·admin 기능 정상화). 위 수정은 키 부재 시 graceful degrade를 보장.
 
+### 진단 로그 추가
+시크릿/토큰 값은 제외하고 분기·상태만 `[calendar:*]` prefix로 출력 — 실환경 dev 콘솔에서 실패 지점 즉시 식별.
+- `[calendar:events]` GET 시작(날짜·user 8자)·토큰 미확보 사유·성공 건수.
+- `[calendar:token]` NO_TOKEN / 유효 / 만료+refresh없음 / 리프레시 시도·성공·실패(status).
+- `[calendar:creds]` serviceRoleKey set/UNSET · DB(admin) 사용 · env fallback · creds 전무 경고.
+
 ### 검증
-- tsc 0 / 변경 파일 lint 0. (런타임은 시크릿 없는 컨테이너라 미재현 — 코드 경로 분석 기반)
+- tsc 0 / 변경 파일 lint 0. dev 부팅·events 라우트 401 JSON 스모크 통과. (인증·토큰 만료 실런타임은 시크릿 없는 컨테이너라 미재현 — 본인 환경 콘솔 로그로 확인)
 
 ---
 

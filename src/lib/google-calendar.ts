@@ -17,7 +17,9 @@ export async function getGoogleCreds(
       .select('workspace_id')
       .eq('user_id', user.id)
       .single()
-    if (member?.workspace_id && process.env.SUPABASE_SERVICE_ROLE_KEY) {
+    const hasServiceRole = Boolean(process.env.SUPABASE_SERVICE_ROLE_KEY)
+    console.log(`[calendar:creds] user=ok workspace=${member?.workspace_id ? 'ok' : 'none'} serviceRoleKey=${hasServiceRole ? 'set' : 'UNSET'}`)
+    if (member?.workspace_id && hasServiceRole) {
       try {
         const admin = createAdminClient()
         const { data: rows } = await admin
@@ -27,18 +29,26 @@ export async function getGoogleCreds(
           .in('key_name', ['google_client_id', 'google_client_secret'])
         const map = Object.fromEntries((rows ?? []).map(r => [r.key_name, r.key_value as string]))
         if (map.google_client_id && map.google_client_secret) {
+          console.log('[calendar:creds] DB(admin)에서 google creds 사용')
           return { clientId: map.google_client_id, clientSecret: map.google_client_secret }
         }
+        console.log('[calendar:creds] DB에 google creds 없음 → env fallback 시도')
       } catch (e) {
         // service-role 조회 실패 시 크래시 대신 환경변수 fallback으로 진행
-        console.error('[getGoogleCreds] admin 조회 실패, env fallback 사용:', e)
+        console.error('[calendar:creds] admin 조회 실패, env fallback 사용:', e)
       }
     }
+  } else {
+    console.log('[calendar:creds] 인증 사용자 없음 → env fallback 시도')
   }
   // 환경변수 fallback
   const clientId     = process.env.GOOGLE_CLIENT_ID
   const clientSecret = process.env.GOOGLE_CLIENT_SECRET
-  if (clientId && clientSecret) return { clientId, clientSecret }
+  if (clientId && clientSecret) {
+    console.log('[calendar:creds] env GOOGLE_CLIENT_ID/SECRET 사용')
+    return { clientId, clientSecret }
+  }
+  console.warn('[calendar:creds] google creds 없음(DB·env 모두) → 토큰 리프레시 불가')
   return null
 }
 
@@ -60,15 +70,28 @@ export async function getValidAccessToken(
     .eq('user_id', userId)
     .single()
 
-  if (!tokenRow) return { error: 'NO_TOKEN' }
+  if (!tokenRow) {
+    console.log('[calendar:token] 저장된 토큰 없음 → NO_TOKEN')
+    return { error: 'NO_TOKEN' }
+  }
 
   const isExpired = new Date(tokenRow.expires_at).getTime() < Date.now() + 30_000
-  if (!isExpired) return { token: tokenRow.access_token }
+  if (!isExpired) {
+    console.log('[calendar:token] 유효 토큰 사용(미만료)')
+    return { token: tokenRow.access_token }
+  }
 
-  if (!tokenRow.refresh_token) return { error: 'TOKEN_EXPIRED' }
+  if (!tokenRow.refresh_token) {
+    console.log('[calendar:token] 만료 + refresh_token 없음 → TOKEN_EXPIRED')
+    return { error: 'TOKEN_EXPIRED' }
+  }
 
+  console.log('[calendar:token] 만료 → 리프레시 시도')
   const creds = await getGoogleCreds(supabase)
-  if (!creds) return { error: 'TOKEN_EXPIRED' }
+  if (!creds) {
+    console.log('[calendar:token] creds 없음 → TOKEN_EXPIRED')
+    return { error: 'TOKEN_EXPIRED' }
+  }
 
   const res = await fetch('https://oauth2.googleapis.com/token', {
     method:  'POST',
@@ -80,8 +103,12 @@ export async function getValidAccessToken(
       grant_type:    'refresh_token',
     }),
   })
-  if (!res.ok) return { error: 'TOKEN_EXPIRED' }
+  if (!res.ok) {
+    console.error(`[calendar:token] 리프레시 실패 status=${res.status} → TOKEN_EXPIRED`)
+    return { error: 'TOKEN_EXPIRED' }
+  }
 
+  console.log('[calendar:token] 리프레시 성공 → 새 토큰 저장')
   const data = await res.json() as { access_token: string; expires_in: number }
   await supabase.from('google_calendar_tokens').update({
     access_token: data.access_token,

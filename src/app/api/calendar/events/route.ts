@@ -55,8 +55,12 @@ async function fetchGoogleEvents(
   date: string,
   endDate: string,
 ) {
+  console.log(`[calendar:events] GET ${date}~${endDate} user=${userId.slice(0, 8)}…`)
   const tk = await getValidAccessToken(supabase, userId)
-  if ('error' in tk) return NextResponse.json({ error: tk.error }, { status: 403 })
+  if ('error' in tk) {
+    console.log(`[calendar:events] 토큰 미확보(${tk.error}) → 403`)
+    return NextResponse.json({ error: tk.error }, { status: 403 })
+  }
 
   const url = new URL('https://www.googleapis.com/calendar/v3/calendars/primary/events')
   url.searchParams.set('timeMin',      `${date}T00:00:00+09:00`)
@@ -108,6 +112,7 @@ async function fetchGoogleEvents(
       }
     })
 
+  console.log(`[calendar:events] 성공 — google ${json.items?.length ?? 0}건 중 ${events.length}건 반환`)
   return NextResponse.json({ events })
 }
 
