@@ -2,6 +2,29 @@
 
 ---
 
+## 2026-05-31 — RLS 구멍 2종 수정 + 일감 판단 페이지 개편
+
+**배경**: 핸드오프 문서의 P0 5종은 이미 처리된 상태(stale)였고, 라이브 Supabase 보안 어드바이저가 문서에 없던 더 심각한 구멍 2종을 노출. 검증 후 수정.
+
+### 1. task_completions RLS 활성화 (보안 — ERROR 레벨)
+- public 스키마인데 RLS 미활성 → Data API로 워크스페이스 간 완료-태스크 스냅샷(title/assignee/projects 등) 노출 가능
+- `enable row level security` + workspace_members 기반 `for all` 정책 추가
+- 현재 0행이라 유출 전이었으나 잠재 구멍 차단
+
+### 2. workspace_members 무제한 INSERT 정책 제거 (보안)
+- INSERT 정책이 `WITH CHECK (true)` → 인증 사용자가 임의 워크스페이스에 자기 자신 멤버 삽입 가능 → membership 기반 격리 전체 우회
+- `drop policy "insert membership"` — 정상 멤버십 생성은 `create_workspace_for_user`(SECURITY DEFINER) RPC가 RLS 우회로 처리하므로 영향 없음 (앱 코드의 workspace_members 접근 38곳 전부 SELECT임을 확인)
+- 마이그레이션: `20260531200002_fix_rls_holes.sql`
+- ✅ 어드바이저 재실행: ERROR 0건 (남은 건 전부 WARN — search_path/SECURITY DEFINER 노출/누출비번보호, 대부분 의도된 설계 또는 대시보드 토글)
+
+### 3. 일감 판단(구 Review Inbox) 페이지 개편 (UI)
+- 카드 목록 스크롤바 노출 — `globals.css`에 `.scrollbar-visible` 유틸 추가(전역 `scrollbar-width:none` 오버라이드)
+- 좌측 브랜드 사이드바 신설(`review-sidebar.tsx`) — 검색 + 브랜드별 카운트 + 재클릭 해제, 불릿은 `brandColor()` 고유색
+- 메인 영역에서 브랜드 select 제거, 소스/우선순위 필터는 유지
+- 명칭 변경: "Review Inbox" → "일감 판단" (AppNav 메뉴, 페이지 헤더, 사이드바 헤더, metadata title)
+
+---
+
 ## 2026-05-31 — 보안/품질 게이트 5종 수정
 
 **배경**: 코드 리뷰에서 발견된 보안·품질 이슈 5종을 프로덕션 기준으로 수정.
