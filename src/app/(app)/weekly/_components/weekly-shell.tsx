@@ -44,17 +44,22 @@ export function WeeklyShell() {
     setLoading(true)
     try {
       const res  = await fetch('/api/weekly/collection-status')
+      if (!res.ok) {
+        const err = await res.json().catch(() => ({})) as { error?: string }
+        throw new Error(err.error ?? `HTTP ${res.status}`)
+      }
       const json = await res.json() as CollectionData
       setData(json)
       setSelectedWeek(prev => prev || (json.weeks[0]?.weekStart ?? ''))
-    } catch {
-      toast.error('수집 현황 조회 실패')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : '수집 현황 조회 실패')
     } finally {
       setLoading(false)
     }
   }, [])
 
-  useEffect(() => { void loadStatus() }, []) // eslint-disable-line react-hooks/exhaustive-deps
+  // eslint-disable-next-line react-hooks/exhaustive-deps, react-hooks/set-state-in-effect
+  useEffect(() => { void loadStatus() }, [])
 
   // ── 리포트/인사이트 로드 (데이터 있는 주차 선택 시) ──────────────
 
@@ -75,6 +80,7 @@ export function WeeklyShell() {
   }, [])
 
   // 선택 주차 변경 시 해당 주 데이터 조회
+  /* eslint-disable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
   useEffect(() => {
     if (!selectedWeek || !data) return
     const week = data.weeks.find(w => w.weekStart === selectedWeek)
@@ -84,7 +90,8 @@ export function WeeklyShell() {
       setReports([])
       setInsight(null)
     }
-  }, [selectedWeek]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [selectedWeek])
+  /* eslint-enable react-hooks/set-state-in-effect, react-hooks/exhaustive-deps */
 
   // ── Outline 수집 ─────────────────────────────────────────────────
 
@@ -120,7 +127,6 @@ export function WeeklyShell() {
 
   const selectedWeekData = data?.weeks.find(w => w.weekStart === selectedWeek)
   const hasData          = selectedWeekData?.teams.some(t => t.hasData) ?? false
-  const isCollectingAny  = collecting
   const collectedWeekCount = data?.weeks.filter(w => w.teams.some(t => t.hasData)).length ?? 0
   const weekCount          = data?.weeks.length ?? 0
 

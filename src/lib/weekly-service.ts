@@ -4,6 +4,19 @@ import type { WeeklyReport, WeeklyReportSource, WeeklyInsight } from '@/types/in
 
 type Sb = SupabaseClient
 
+// 현재 사용자의 workspace_id 조회 — 쿼리에 명시 필터를 걸어 RLS에만 의존하지 않도록
+async function getWorkspaceId(client: Sb): Promise<string> {
+  const { data: { user } } = await client.auth.getUser()
+  if (!user) throw new Error('not authenticated')
+  const { data: member } = await client
+    .from('workspace_members')
+    .select('workspace_id')
+    .eq('user_id', user.id)
+    .single()
+  if (!member) throw new Error('no workspace')
+  return member.workspace_id
+}
+
 export type UpsertWeeklyReportInput = {
   workspace_id: string
   source: WeeklyReportSource
@@ -22,12 +35,14 @@ export async function getWeeklyReports(
   sb?: Sb,
 ): Promise<WeeklyReport[]> {
   const client = sb ?? createBrowserClient()
+  const workspaceId = await getWorkspaceId(client)
   const d = new Date(weekStart + 'T00:00:00')
   d.setDate(d.getDate() + 6)
   const weekEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const { data, error } = await client
     .from('weekly_reports')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .gte('week_start', weekStart)
     .lte('week_start', weekEnd)
     .order('source', { ascending: true })
@@ -41,9 +56,11 @@ export async function getWeeklyInsight(
   sb?: Sb,
 ): Promise<WeeklyInsight | null> {
   const client = sb ?? createBrowserClient()
+  const workspaceId = await getWorkspaceId(client)
   const { data } = await client
     .from('weekly_insights')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .eq('week_start', weekStart)
     .maybeSingle()
   return (data as WeeklyInsight | null) ?? null
@@ -58,9 +75,11 @@ export async function getWeeklyMatrix(
   sb?: Sb,
 ): Promise<{ weeks: string[]; byWeek: Map<string, Map<string, WeeklyReport>> }> {
   const client = sb ?? createBrowserClient()
+  const workspaceId = await getWorkspaceId(client)
   const { data, error } = await client
     .from('weekly_reports')
     .select('*')
+    .eq('workspace_id', workspaceId)
     .order('week_start', { ascending: false })
     .order('team', { ascending: true })
   if (error) throw error
