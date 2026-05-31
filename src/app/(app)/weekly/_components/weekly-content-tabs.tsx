@@ -7,30 +7,16 @@ import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
 import { WeeklySummaryList } from './weekly-summary-list'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
+import { weekRangeLabel } from '@/lib/week-format'
 
 type Tab = 'raw' | 'summary' | 'insight'
 
 // ── 날짜 유틸 ────────────────────────────────────────────────────
-
-function isoWeekNum(isoDate: string): number {
-  const d = new Date(isoDate + 'T00:00:00')
-  const tmp = new Date(d.getTime())
-  tmp.setDate(tmp.getDate() + 3 - (tmp.getDay() + 6) % 7)
-  const week1 = new Date(tmp.getFullYear(), 0, 4)
-  return 1 + Math.round(
-    ((tmp.getTime() - week1.getTime()) / 86400000 - 3 + (week1.getDay() + 6) % 7) / 7
-  )
-}
+// ISO 주차·주 범위 라벨은 공용 유틸(@/lib/week-format) 사용
 
 function weekOfMonth(isoDate: string) {
   const d = new Date(isoDate + 'T00:00:00')
   return { month: d.getMonth() + 1, week: Math.ceil(d.getDate() / 7) }
-}
-
-function fmtRange(start: string, end: string): string {
-  const s = new Date(start + 'T00:00:00')
-  const e = new Date(end + 'T00:00:00')
-  return `${s.getMonth() + 1}/${s.getDate()} – ${e.getMonth() + 1}/${e.getDate()}`
 }
 
 // ── Props ─────────────────────────────────────────────────────────
@@ -65,7 +51,6 @@ export function WeeklyContentTabs({
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
 
   const { month, week: weekNum } = weekOfMonth(week.weekStart)
-  const wNum      = isoWeekNum(week.weekStart)
   const collected = week.teams.filter(t => t.hasData).length
   const total     = week.teams.length
   const allDone   = collected === total && total > 0
@@ -130,8 +115,7 @@ export function WeeklyContentTabs({
             <ChevronLeft size={14} />
           </button>
           <span className="font-semibold text-foreground shrink-0">{month}월 {weekNum}주</span>
-          <span className="shrink-0">W{wNum}</span>
-          <span className="shrink-0">{fmtRange(week.weekStart, week.weekEnd)}</span>
+          <span className="shrink-0">{weekRangeLabel(week.weekStart, week.weekEnd)}</span>
           {week.isCurrent
             ? <span className="text-xs font-semibold px-1.5 py-0.5 rounded-full bg-status-future/15 text-status-future shrink-0">진행 중</span>
             : allDone
