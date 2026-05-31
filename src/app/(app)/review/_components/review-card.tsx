@@ -26,6 +26,7 @@ interface Props {
 const SOURCE_BADGE: Record<string, { label: string; className: string }> = {
   daily_report: { label: 'Daily',   className: 'bg-violet-100 text-violet-700 dark:bg-violet-900/30 dark:text-violet-400' },
   weekly:       { label: 'Weekly',  className: 'bg-amber-100 text-amber-700 dark:bg-amber-900/30 dark:text-amber-400' },
+  note:         { label: 'Note',    className: 'bg-teal-100 text-teal-700 dark:bg-teal-900/30 dark:text-teal-400' },
 }
 
 const PRIORITY_BADGE: Record<string, { label: string; className: string }> = {

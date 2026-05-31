@@ -220,6 +220,8 @@ export interface NoteLink {
   title: string
 }
 
+export type NoteStatus = 'inbox' | 'reviewed' | 'archived'
+
 export interface Note {
   id: string
   user_id: string
@@ -229,6 +231,7 @@ export interface Note {
   pinned: boolean
   sort_order: number
   links: NoteLink[]
+  status: NoteStatus
   created_at: string
   updated_at: string
   deleted_at: string | null
@@ -236,7 +239,7 @@ export interface Note {
 
 // ── Review Inbox ──────────────────────────────────────────────────────
 
-export type ReviewSource = 'daily_report' | 'weekly'
+export type ReviewSource = 'daily_report' | 'weekly' | 'note'
 export type ReviewStatus = 'pending' | 'created' | 'snoozed' | 'ignored'
 export type ReviewPriority = 'high' | 'medium' | 'low'
 

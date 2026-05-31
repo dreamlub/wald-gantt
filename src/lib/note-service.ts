@@ -50,7 +50,7 @@ export async function createNote(params: {
   return data
 }
 
-export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'sort_order' | 'links'>>): Promise<void> {
+export async function updateNote(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'sort_order' | 'links' | 'status'>>): Promise<void> {
   const { error } = await db()
     .from('notes')
     .update({ ...patch, updated_at: new Date().toISOString() })

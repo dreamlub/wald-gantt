@@ -2,7 +2,7 @@
 
 import { useRef } from 'react'
 import { format } from 'date-fns'
-import { ArrowUpRight, Pin, PinOff, Trash2 } from 'lucide-react'
+import { ArrowUpRight, Pin, PinOff, Trash2, ClipboardList, CheckCheck } from 'lucide-react'
 import { useSortable } from '@dnd-kit/sortable'
 import { CSS } from '@dnd-kit/utilities'
 import type { Note } from '@/types'
@@ -11,9 +11,10 @@ import { NoteMarkdown, parseCheckboxStats } from './note-markdown'
 
 interface Props {
   note: Note
-  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
+  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links' | 'status'>>) => void
   onDelete: (id: string) => void
   onOpen:   (id: string) => void
+  onSendToReview?: (id: string) => void
   highlight?: string
 }
 
@@ -64,7 +65,7 @@ export function NoteCardOverlay({ note }: { note: Note }) {
   )
 }
 
-export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: Props) {
+export function NoteCard({ note, onUpdate, onDelete, onOpen, onSendToReview, highlight = '' }: Props) {
   const {
     attributes, listeners,
     setNodeRef, transform, transition,
@@ -155,7 +156,7 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
           <ColorPicker value={note.color} onChange={color => onUpdate(note.id, { color })} />
         </div>
 
-        {/* 핀·삭제(좌, 호버) + 일시(우, 상시) */}
+        {/* 핀·삭제·Review·처리됨(좌, 호버) + 일시(우, 상시) */}
         <div className="flex items-center">
           <div className="opacity-0 group-hover:opacity-100 transition-opacity flex items-center gap-0.5">
             <button
@@ -164,6 +165,22 @@ export function NoteCard({ note, onUpdate, onDelete, onOpen, highlight = '' }: P
               className="p-1 rounded-full text-ink-400 hover:text-foreground hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
             >
               {note.pinned ? <PinOff size={12} /> : <Pin size={12} />}
+            </button>
+            {onSendToReview && (
+              <button
+                onClick={() => onSendToReview(note.id)}
+                title="Review로 보내기"
+                className="p-1 rounded-full text-ink-400 hover:text-lilac-600 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+              >
+                <ClipboardList size={12} />
+              </button>
+            )}
+            <button
+              onClick={() => onUpdate(note.id, { status: 'archived' })}
+              title="처리됨"
+              className="p-1 rounded-full text-ink-400 hover:text-mint-600 hover:bg-black/5 dark:hover:bg-white/5 transition-colors"
+            >
+              <CheckCheck size={12} />
             </button>
             <button
               onClick={() => onDelete(note.id)}

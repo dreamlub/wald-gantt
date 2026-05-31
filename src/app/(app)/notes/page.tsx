@@ -60,7 +60,7 @@ export default function NotesPage() {
     } catch { toast.error('메모 생성에 실패했습니다.') }
   }
 
-  async function handleUpdate(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) {
+  async function handleUpdate(id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links' | 'status'>>) {
     setNotes(prev => prev.map(n => n.id === id ? { ...n, ...patch, updated_at: new Date().toISOString() } : n))
     try {
       await updateNote(id, patch)
@@ -70,6 +70,18 @@ export default function NotesPage() {
         if (seq === pinReqRef.current) setNotes(fresh)
       }
     } catch { toast.error('메모 수정에 실패했습니다.'); load() }
+  }
+
+  async function handleSendToReview(id: string) {
+    setNotes(prev => prev.map(n => n.id === id ? { ...n, status: 'reviewed' as const } : n))
+    try {
+      const res = await fetch(`/api/notes/${id}/to-review`, { method: 'POST' })
+      if (!res.ok) throw new Error((await res.json() as { error?: string }).error ?? '오류')
+      toast.success('Review 후보로 등록됐습니다.')
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Review 전송 실패')
+      load()
+    }
   }
 
   function handleDelete(id: string) {
@@ -155,7 +167,8 @@ export default function NotesPage() {
   const activeNote   = activeId   ? notes.find(n => n.id === activeId)   ?? null : null
 
   const sharedProps = {
-    onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId, highlight: q,
+    onUpdate: handleUpdate, onDelete: handleDelete, onOpen: setSelectedId,
+    onSendToReview: handleSendToReview, highlight: q,
   }
 
   return (
@@ -293,13 +306,14 @@ export default function NotesPage() {
 // ── NoteCollection ────────────────────────────────────────────
 interface CollectionProps {
   notes:    Note[]
-  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links'>>) => void
+  onUpdate: (id: string, patch: Partial<Pick<Note, 'title' | 'content' | 'color' | 'pinned' | 'links' | 'status'>>) => void
   onDelete: (id: string) => void
   onOpen:   (id: string) => void
+  onSendToReview: (id: string) => void
   highlight: string
 }
 
-function NoteCollection({ notes, onUpdate, onDelete, onOpen, highlight }: CollectionProps) {
+function NoteCollection({ notes, onUpdate, onDelete, onOpen, onSendToReview, highlight }: CollectionProps) {
   return (
     <SortableContext items={notes.map(n => n.id)} strategy={rectSortingStrategy}>
       <div className="columns-1 sm:columns-2 lg:columns-3 xl:columns-4 gap-4">
@@ -307,6 +321,7 @@ function NoteCollection({ notes, onUpdate, onDelete, onOpen, highlight }: Collec
           <NoteCard
             key={note.id} note={note}
             onUpdate={onUpdate} onDelete={onDelete} onOpen={onOpen}
+            onSendToReview={onSendToReview}
             highlight={highlight}
           />
         ))}

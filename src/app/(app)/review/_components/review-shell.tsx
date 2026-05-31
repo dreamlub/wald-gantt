@@ -187,6 +187,7 @@ export function ReviewShell() {
           <option value="all">전체 소스</option>
           <option value="daily_report">Daily</option>
           <option value="weekly">Weekly</option>
+          <option value="note">Note</option>
         </select>
 
         <select
