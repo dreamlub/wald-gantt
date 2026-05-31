@@ -237,7 +237,7 @@ export function TimelineTracker({ brandFilter }: Props) {
             label="해결 포함"
             aria-label="해결된 이슈 포함"
             onClassName="bg-ink-500"
-            className="text-3xs text-ink-500"
+            className="text-sm text-ink-500 flex-row-reverse"
           />
           {/* 정리 대상 — 액션 진입(솔리드 버튼) */}
           <button
