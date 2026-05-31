@@ -109,8 +109,11 @@ function HistoryRow({
           return (
             <span
               key={tag}
-              className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-              style={{ background: meta.bg, color: meta.color }}
+              className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded"
+              style={{
+                background: `color-mix(in srgb, var(--color-tag-${tag}-dot) 12%, transparent)`,
+                color: `var(--color-tag-${tag}-dot)`,
+              }}
             >
               {meta.label}
             </span>

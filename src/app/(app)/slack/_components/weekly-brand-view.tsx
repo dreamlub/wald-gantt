@@ -113,7 +113,10 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
         {tagMeta && (
           <span
             className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-            style={{ background: tagMeta.bg, color: tagMeta.color }}
+            style={{
+              background: `color-mix(in srgb, ${tagMeta.bg} 12%, transparent)`,
+              color: tagMeta.bg,
+            }}
           >
             {tagMeta.label}
           </span>

@@ -2,6 +2,7 @@
 
 import { useState } from 'react'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
+import { brandColor } from '../_lib/brand-colors'
 
 // ── 타입 & 상수 ───────────────────────────────────────────────────
 
@@ -28,24 +29,6 @@ const TYPE_LABEL: Record<TypeKey, string> = {
 const CHANGE_ORDER: ChangeKey[] = ['blocked', 'new', 'continued', 'completed', 'dropped']
 
 const NO_BRAND = '기타'
-
-// 브랜드 고유 색상 — 이름 해시로 팔레트에서 일관되게 선택
-const BRAND_PALETTE = [
-  'var(--color-id-indigo)',
-  'var(--color-id-purple)',
-  'var(--color-id-teal)',
-  'var(--color-id-green)',
-  'var(--color-id-amber)',
-  'var(--color-id-pink)',
-  'var(--color-id-blue)',
-  'var(--color-id-orange)',
-]
-
-function brandColor(name: string): string {
-  let h = 0
-  for (let i = 0; i < name.length; i++) h = (h * 31 + name.charCodeAt(i)) >>> 0
-  return BRAND_PALETTE[h % BRAND_PALETTE.length]
-}
 
 // ── 데이터 조립 ───────────────────────────────────────────────────
 
@@ -93,25 +76,14 @@ function ItemRow({ item, expanded, onToggle }: {
         ${expanded ? 'rounded-md shadow-sm' : 'rounded-sm'}`}
     >
       <div className="flex items-center gap-2.5 px-3 py-2.5 min-h-10">
-        <span className={`w-2 h-2 rounded-full shrink-0 ${cm.dot}`} />
-
-        {/* 제목 */}
-        <p className="flex-1 min-w-0 text-sm truncate text-foreground">
-          {item.title}
-        </p>
-
-        {/* 배지 */}
+        <p className="flex-1 min-w-0 text-sm truncate text-foreground">{item.title}</p>
         <div className="flex items-center gap-1.5 shrink-0">
           {item.assignee && (
             <span className="text-xs text-ink-400 hidden sm:inline">{item.assignee}</span>
           )}
           <span className="text-xs text-ink-400 hidden sm:inline">{item._team}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">
-            {tl}
-          </span>
-          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${cm.badge}`}>
-            {cm.label}
-          </span>
+          <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">{tl}</span>
+          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${cm.badge}`}>{cm.label}</span>
         </div>
       </div>
 
@@ -128,9 +100,7 @@ function ItemRow({ item, expanded, onToggle }: {
               🚧 {item.block_reason}
             </div>
           )}
-          {item.date && (
-            <p className="text-xs text-ink-400 mt-1">일정: {item.date}</p>
-          )}
+          {item.date && <p className="text-xs text-ink-400 mt-1">일정: {item.date}</p>}
           <p className="text-xs text-ink-300 mt-1">{item._team}</p>
         </div>
       )}
@@ -169,12 +139,7 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
       {items.map((item, i) => {
         const key = `${brand}-${i}`
         return (
-          <ItemRow
-            key={key}
-            item={item}
-            expanded={expandedKey === key}
-            onToggle={() => onToggle(key)}
-          />
+          <ItemRow key={key} item={item} expanded={expandedKey === key} onToggle={() => onToggle(key)} />
         )
       })}
     </section>
@@ -184,31 +149,22 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
 // ── 메인 컴포넌트 ─────────────────────────────────────────────────
 
 interface Props {
-  reports: WeeklyReport[]
+  reports:       WeeklyReport[]
+  selectedBrand: string | null
 }
 
-export function WeeklySummaryList({ reports }: Props) {
-  const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
-  const [expandedKey,   setExpandedKey]   = useState<string | null>(null)
+export function WeeklySummaryList({ reports, selectedBrand }: Props) {
+  const [expandedKey, setExpandedKey] = useState<string | null>(null)
 
   const allItems = assembleItems(reports)
 
-  // 브랜드 목록 — 건수 내림차순, 기타는 맨 마지막
-  const brandCountMap = new Map<string, number>()
-  for (const item of allItems) {
-    const b = brandOf(item)
-    brandCountMap.set(b, (brandCountMap.get(b) ?? 0) + 1)
-  }
   const brandList = [...new Set(allItems.map(brandOf))].sort((a, b) => {
     if (a === NO_BRAND) return 1
     if (b === NO_BRAND) return -1
-    return (brandCountMap.get(b) ?? 0) - (brandCountMap.get(a) ?? 0)
+    return allItems.filter(i => brandOf(i) === b).length - allItems.filter(i => brandOf(i) === a).length
   })
 
-  const filtered = selectedBrand
-    ? allItems.filter(i => brandOf(i) === selectedBrand)
-    : allItems
-
+  const filtered = selectedBrand ? allItems.filter(i => brandOf(i) === selectedBrand) : allItems
   const groups = (selectedBrand ? [selectedBrand] : brandList)
     .map(brand => ({ brand, items: filtered.filter(i => brandOf(i) === brand) }))
     .filter(g => g.items.length > 0)
@@ -223,70 +179,16 @@ export function WeeklySummaryList({ reports }: Props) {
   }
 
   return (
-    <div className="flex h-full min-h-0 overflow-hidden">
-
-      {/* 브랜드 사이드바 */}
-      <aside className="w-52 shrink-0 border-r border-border flex flex-col bg-card">
-        <div className="px-3 py-2.5 text-xs font-semibold text-ink-400 uppercase tracking-wider border-b border-border">
-          브랜드 {brandList.length}
-        </div>
-        <div className="flex-1 overflow-y-auto px-2 py-2 space-y-0.5 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-          <button
-            onClick={() => setSelectedBrand(null)}
-            className={`w-full rounded-md px-2 py-1.5 text-left transition-colors ${
-              selectedBrand === null
-                ? 'bg-muted text-foreground'
-                : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-            }`}
-          >
-            <div className="flex items-center gap-2">
-              <span className="w-1.5 h-1.5 rounded-full bg-ink-300 shrink-0" />
-              <span className="flex-1 truncate text-sm font-medium">전체</span>
-              <span className="text-sm tabular-nums text-ink-400">{allItems.length}</span>
-            </div>
-          </button>
-
-          {brandList.map(brand => {
-            const count      = allItems.filter(i => brandOf(i) === brand).length
-            const active     = selectedBrand === brand
-            const hasBlocked = allItems.some(i => brandOf(i) === brand && i.change === 'blocked')
-            return (
-              <button
-                key={brand}
-                onClick={() => setSelectedBrand(p => p === brand ? null : brand)}
-                className={`w-full rounded-md px-2 py-1.5 text-left transition-colors ${
-                  active
-                    ? 'bg-muted text-foreground'
-                    : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-                }`}
-              >
-                <div className="flex items-center gap-2">
-                  <span
-                    className="w-1.5 h-1.5 rounded-full shrink-0"
-                    style={{ backgroundColor: hasBlocked ? 'var(--color-status-late)' : brandColor(brand) }}
-                  />
-                  <span className="flex-1 truncate text-sm font-medium">{brand}</span>
-                  <span className="text-sm tabular-nums text-ink-400">{count}</span>
-                </div>
-              </button>
-            )
-          })}
-        </div>
-      </aside>
-
-      {/* 메인 콘텐츠 */}
-      <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4 space-y-6
-                      [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-        {groups.map(({ brand, items }) => (
-          <BrandSection
-            key={brand}
-            brand={brand}
-            items={items}
-            expandedKey={expandedKey}
-            onToggle={key => setExpandedKey(k => k === key ? null : key)}
-          />
-        ))}
-      </div>
+    <div className="flex-1 min-w-0 overflow-y-auto px-5 py-4 space-y-6 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
+      {groups.map(({ brand, items }) => (
+        <BrandSection
+          key={brand}
+          brand={brand}
+          items={items}
+          expandedKey={expandedKey}
+          onToggle={key => setExpandedKey(k => k === key ? null : key)}
+        />
+      ))}
     </div>
   )
 }

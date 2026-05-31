@@ -30,7 +30,7 @@ function getMondaysBetween(currentMonday: string, oldestMonday: string): string[
 
 function weekEndOf(weekStart: string): string {
   const d = new Date(weekStart + 'T00:00:00')
-  d.setDate(d.getDate() + 6)
+  d.setDate(d.getDate() + 4)
   return ymd(d)
 }
 

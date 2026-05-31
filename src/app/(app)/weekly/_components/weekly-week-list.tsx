@@ -1,7 +1,7 @@
 'use client'
 
 import { useState, useMemo } from 'react'
-import { ChevronLeft, ChevronRight } from 'lucide-react'
+import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
 import { brandColor } from '../_lib/brand-colors'
 
 export interface TeamStatus {
@@ -170,18 +170,17 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, brandList, selec
       {/* 브랜드 헤더 + 검색창 (고정) */}
       {brandList.length > 0 && (
         <div className="mt-1 pt-2 border-t border-border">
-          <div className="flex items-center px-2 pb-1">
-            <span className="text-2xs font-semibold text-ink-400 uppercase tracking-wider">
-              브랜드 {brandList.length}
-            </span>
+          <div className="px-2 mb-1 text-sm font-semibold text-ink-400 uppercase tracking-wider">
+            브랜드 {brandList.length}
           </div>
-          <div className="px-2 pb-1.5">
+          <div className="px-2 pb-1.5 relative">
+            <Search size={10} className="absolute left-4 top-1/2 -translate-y-1/2 text-ink-300 pointer-events-none" />
             <input
               type="text"
               value={brandSearch}
               onChange={e => setBrandSearch(e.target.value)}
               placeholder="브랜드 검색"
-              className="w-full px-2 py-1 text-xs rounded-md border border-border bg-background placeholder:text-ink-300 focus:outline-none focus:ring-1 focus:ring-lilac-300"
+              className="w-full text-sm pl-5 pr-2 py-1 border border-border rounded bg-card placeholder:text-ink-300 focus:outline-none focus:border-lilac-300"
             />
           </div>
         </div>
@@ -193,28 +192,24 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, brandList, selec
       <div className="flex-1 min-h-0 overflow-y-auto px-2 pb-2 flex flex-col [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
         <button
           onClick={() => onSelectBrand(null)}
-          className={`flex items-center gap-2 px-2 py-1.5 rounded-md mx-0.5 text-left transition-colors ${
-            selectedBrand === null ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-          }`}
+          className={`sidebar-btn ${selectedBrand === null ? 'sidebar-btn-active' : ''}`}
         >
-          <span className="w-1.5 h-1.5 rounded-full bg-ink-300 shrink-0" />
-          <span className="flex-1 text-sm font-medium">전체</span>
-          <span className="text-sm tabular-nums text-ink-400">{totalItems}</span>
+          <span className="w-2 h-2 rounded-full bg-ink-300 shrink-0" />
+          <span className="flex-1 truncate text-left">전체</span>
+          <span className="text-sm text-ink-400">{totalItems}</span>
         </button>
         {filteredBrands.map(b => (
           <button
             key={b.name}
             onClick={() => onSelectBrand(selectedBrand === b.name ? null : b.name)}
-            className={`flex items-center gap-2 px-2 py-1.5 rounded-md mx-0.5 text-left transition-colors ${
-              selectedBrand === b.name ? 'bg-muted text-foreground' : 'text-ink-500 hover:bg-muted/60 hover:text-foreground'
-            }`}
+            className={`sidebar-btn ${selectedBrand === b.name ? 'sidebar-btn-active' : ''}`}
           >
             <span
-              className="w-1.5 h-1.5 rounded-full shrink-0"
+              className="w-2 h-2 rounded-full shrink-0"
               style={{ backgroundColor: b.hasBlocked ? 'var(--color-status-late)' : brandColor(b.name) }}
             />
-            <span className="flex-1 text-sm font-medium truncate">{b.name}</span>
-            <span className="text-sm tabular-nums text-ink-400">{b.count}</span>
+            <span className="flex-1 truncate text-left">{b.name}</span>
+            <span className="text-sm text-ink-400">{b.count}</span>
           </button>
         ))}
       </div>

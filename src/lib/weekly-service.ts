@@ -29,7 +29,7 @@ export type UpsertWeeklyReportInput = {
 
 // 해당 주 전체 리포트 조회
 // weekStart는 월요일 기준이지만 DB의 week_start는 Outline 원문 날짜(비-월요일 가능)이므로
-// Mon~Sun 범위로 조회한다
+// Mon~Fri 범위로 조회한다
 export async function getWeeklyReports(
   weekStart: string,
   sb?: Sb,
@@ -37,7 +37,7 @@ export async function getWeeklyReports(
   const client = sb ?? createBrowserClient()
   const workspaceId = await getWorkspaceId(client)
   const d = new Date(weekStart + 'T00:00:00')
-  d.setDate(d.getDate() + 6)
+  d.setDate(d.getDate() + 4)
   const weekEnd = `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
   const { data, error } = await client
     .from('weekly_reports')

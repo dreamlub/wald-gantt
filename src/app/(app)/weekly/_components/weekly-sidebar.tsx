@@ -25,10 +25,10 @@ function countItems(report: WeeklyReport | undefined): number {
   return bullets
 }
 
-/** 'YYYY-MM-DD' → { wk: 'W22', label: '5월 4주', range: '5/25 – 5/31' } */
+/** 'YYYY-MM-DD' → { wk: 'W22', label: '5월 4주', range: '5/25 – 5/29' } */
 function weekMeta(iso: string): { wk: string; label: string; range: string } {
   const d = new Date(iso + 'T00:00:00')
-  const end = new Date(d); end.setDate(d.getDate() + 6)
+  const end = new Date(d); end.setDate(d.getDate() + 4)
   const month = d.getMonth() + 1
   // 해당 월의 몇 번째 주(월요일 기준)
   const firstDow = new Date(d.getFullYear(), d.getMonth(), 1).getDay()
@@ -85,7 +85,7 @@ export function WeeklySidebar({
                   <span className="text-sm font-bold text-foreground">{meta.wk}</span>
                   <span className="text-xs text-ink-500">{meta.label}</span>
                   {isLatest && (
-                    <span className="text-4xs font-bold tracking-[0.04em] px-1.5 py-0.5 rounded-2xs bg-lilac-100 text-lilac-600">진행 중</span>
+                    <span className="text-4xs font-bold tracking-[0.04em] px-1.5 py-0.5 rounded-2xs bg-lilac-500/10 text-lilac-500">진행 중</span>
                   )}
                   <ChevronRight size={13} className="ml-auto text-ink-300" />
                 </button>

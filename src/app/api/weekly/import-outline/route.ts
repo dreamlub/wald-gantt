@@ -143,10 +143,10 @@ function quarterKeyForDate(weekStart: string): number | null {
 const RECENT_QUARTERS = 2
 
 
-/** 'YYYY-MM-DD' 문자열에서 6일 후 날짜 반환 (주 말일 = 일요일) */
+/** 'YYYY-MM-DD' 문자열에서 4일 후 날짜 반환 (주 말일 = 금요일) */
 function weekEndOf(weekStart: string): string {
   const d = new Date(weekStart + 'T00:00:00')
-  d.setDate(d.getDate() + 6)
+  d.setDate(d.getDate() + 4)
   const y = d.getFullYear()
   const m = String(d.getMonth() + 1).padStart(2, '0')
   const day = String(d.getDate()).padStart(2, '0')

@@ -33,6 +33,7 @@ interface Props {
   onNextWeek?:     () => void
   hasPrev?:        boolean
   hasNext?:        boolean
+  selectedBrand:   string | null
 }
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
@@ -45,7 +46,7 @@ const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
 
 export function WeeklyContentTabs({
   week, teamColors, reports, insight, reportsLoading, collecting, onCollect,
-  onPrevWeek, onNextWeek, hasPrev, hasNext,
+  onPrevWeek, onNextWeek, hasPrev, hasNext, selectedBrand,
 }: Props) {
   const [activeTab, setActiveTab]     = useState<Tab>('raw')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
@@ -173,7 +174,7 @@ export function WeeklyContentTabs({
         {activeTab === 'summary' && (
           reportsLoading
             ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-            : <WeeklySummaryList reports={visibleReports} />
+            : <WeeklySummaryList reports={visibleReports} selectedBrand={selectedBrand} />
         )}
 
         {/* 인사이트 */}

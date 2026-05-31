@@ -1,13 +1,13 @@
 'use client'
 
-import { useState, useEffect, useCallback } from 'react'
+import { useState, useEffect, useCallback, useMemo } from 'react'
 import { BookOpen, RefreshCw, Settings } from 'lucide-react'
 import { toast } from 'sonner'
-import { WeeklyWeekList, type WeekData } from './weekly-week-list'
+import { WeeklyWeekList, type WeekData, type BrandItem } from './weekly-week-list'
 import { WeeklyCollectionDetail } from './weekly-collection-detail'
 import { WeeklyContentTabs } from './weekly-content-tabs'
 import { getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
-import type { WeeklyReport, WeeklyInsight } from '@/types/index'
+import type { WeeklyReport, WeeklyInsight, WeeklyReportSummary } from '@/types/index'
 
 const TEAM_PALETTE = [
   'var(--color-id-indigo)',
@@ -37,6 +37,9 @@ export function WeeklyShell() {
 
   // 수집 진행
   const [collecting, setCollecting] = useState(false)
+
+  // 브랜드 필터
+  const [selectedBrand, setSelectedBrand] = useState<string | null>(null)
 
   // ── 수집 현황 로드 ───────────────────────────────────────────────
 
@@ -125,6 +128,28 @@ export function WeeklyShell() {
 
   // ── 파생 값 ──────────────────────────────────────────────────────
 
+  // 주차 선택 시 브랜드 필터 초기화
+  const handleSelectWeek = useCallback((week: string) => {
+    setSelectedWeek(week)
+    setSelectedBrand(null)
+  }, [])
+
+  // 브랜드 목록 (요약 데이터에서 추출)
+  const brandList = useMemo((): BrandItem[] => {
+    const map = new Map<string, { count: number; hasBlocked: boolean }>()
+    for (const r of reports) {
+      const summary = r.summary as unknown as WeeklyReportSummary | null
+      for (const item of [...(summary?.items ?? []), ...(summary?.diff_summary?.dropped_items ?? [])]) {
+        const name = item.brand ?? '기타'
+        const prev = map.get(name) ?? { count: 0, hasBlocked: false }
+        map.set(name, { count: prev.count + 1, hasBlocked: prev.hasBlocked || item.change === 'blocked' })
+      }
+    }
+    return [...map.entries()]
+      .map(([name, v]) => ({ name, ...v }))
+      .sort((a, b) => a.name === '기타' ? 1 : b.name === '기타' ? -1 : b.count - a.count)
+  }, [reports])
+
   const selectedWeekData = data?.weeks.find(w => w.weekStart === selectedWeek)
   const hasData          = selectedWeekData?.teams.some(t => t.hasData) ?? false
   const collectedWeekCount = data?.weeks.filter(w => w.teams.some(t => t.hasData)).length ?? 0
@@ -175,8 +200,10 @@ export function WeeklyShell() {
           <WeeklyWeekList
             weeks={data?.weeks ?? []}
             selectedWeek={selectedWeek}
-            onSelect={setSelectedWeek}
-            teamColors={TEAM_PALETTE}
+            onSelect={handleSelectWeek}
+            brandList={brandList}
+            selectedBrand={selectedBrand}
+            onSelectBrand={setSelectedBrand}
           />
         )}
       </div>
@@ -200,8 +227,9 @@ export function WeeklyShell() {
             onCollect={handleCollectWeek}
             hasPrev={prevWeekStart !== null}
             hasNext={nextWeekStart !== null}
-            onPrevWeek={() => prevWeekStart && setSelectedWeek(prevWeekStart)}
-            onNextWeek={() => nextWeekStart && setSelectedWeek(nextWeekStart)}
+            onPrevWeek={() => prevWeekStart && handleSelectWeek(prevWeekStart)}
+            onNextWeek={() => nextWeekStart && handleSelectWeek(nextWeekStart)}
+            selectedBrand={selectedBrand}
           />
         ) : (
           /* 미수집 주차 → 수집 유도 */
