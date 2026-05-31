@@ -1,14 +1,14 @@
 'use client'
 
 import { useState } from 'react'
-import { FileText, Sparkles, LayoutList, RefreshCw, CheckSquare, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
+import { FileText, Sparkles, LayoutList, RefreshCw, RotateCcw, ChevronLeft, ChevronRight } from 'lucide-react'
 import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
 import { WeeklySummaryList } from './weekly-summary-list'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
 
-type Tab = 'status' | 'raw' | 'summary' | 'insight'
+type Tab = 'raw' | 'summary' | 'insight'
 
 // ── 날짜 유틸 ────────────────────────────────────────────────────
 
@@ -50,7 +50,6 @@ interface Props {
 }
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-  { key: 'status',  label: '수집 현황', icon: CheckSquare },
   { key: 'raw',     label: '원문',      icon: FileText    },
   { key: 'summary', label: '요약',      icon: LayoutList  },
   { key: 'insight', label: '인사이트',  icon: Sparkles    },
@@ -148,62 +147,33 @@ export function WeeklyContentTabs({
           </button>
         </div>
 
-        {/* 팀 배지 — 수집 현황 탭 제외 */}
-        {activeTab !== 'status' && (
-          <div className="flex items-center gap-1 flex-wrap pb-2 mt-2">
-            {week.teams.map((team, i) => {
-              const color  = teamColors[i] ?? 'var(--color-id-indigo)'
-              const active = focusedTeam === team.label
-              return (
-                <button
-                  key={team.id}
-                  onClick={() => setFocusedTeam(p => p === team.label ? null : team.label)}
-                  className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
-                    active
-                      ? 'bg-foreground text-background'
-                      : team.hasData
-                        ? 'border border-border text-ink-500 hover:text-foreground hover:bg-muted'
-                        : 'border border-dashed border-border text-ink-300'
-                  }`}
-                >
-                  <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'white' : color }} />
-                  {team.label}
-                </button>
-              )
-            })}
-          </div>
-        )}
+        {/* 팀 배지 */}
+        <div className="flex items-center gap-1 flex-wrap pb-2 mt-2">
+          {week.teams.map((team, i) => {
+            const color  = teamColors[i] ?? 'var(--color-id-indigo)'
+            const active = focusedTeam === team.label
+            return (
+              <button
+                key={team.id}
+                onClick={() => setFocusedTeam(p => p === team.label ? null : team.label)}
+                className={`flex items-center gap-1 px-2 py-[3px] rounded-full text-xs font-medium transition-colors whitespace-nowrap ${
+                  active
+                    ? 'bg-foreground text-background'
+                    : team.hasData
+                      ? 'border border-border text-ink-500 hover:text-foreground hover:bg-muted'
+                      : 'border border-dashed border-border text-ink-300'
+                }`}
+              >
+                <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ backgroundColor: active ? 'white' : color }} />
+                {team.label}
+              </button>
+            )
+          })}
+        </div>
       </div>
 
       {/* ── 콘텐츠 ── */}
       <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
-
-        {/* 수집 현황 */}
-        {activeTab === 'status' && (
-          <div className="px-6 py-5 space-y-2">
-            {!allDone && (
-              <p className="text-sm text-amber-600 dark:text-amber-400 mb-3">
-                {total - collected}개 팀의 보고서가 아직 수집되지 않았습니다.
-              </p>
-            )}
-            {week.teams.map((team, i) => (
-              <div key={team.id} className="flex items-center justify-between px-4 py-3 rounded-lg border border-border bg-card">
-                <div className="flex items-center gap-2.5 min-w-0">
-                  <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ backgroundColor: teamColors[i] ?? 'var(--color-id-indigo)' }} />
-                  <span className="text-sm font-medium text-foreground truncate">{team.label}</span>
-                </div>
-                {team.hasData ? (
-                  <div className="flex items-center gap-1.5 shrink-0">
-                    <FileText size={12} className="text-ink-400" />
-                    <span className="text-xs text-ink-400">제출됨</span>
-                  </div>
-                ) : (
-                  <span className="text-xs font-medium text-status-late shrink-0">미제출</span>
-                )}
-              </div>
-            ))}
-          </div>
-        )}
 
         {/* 원문 */}
         {activeTab === 'raw' && (
