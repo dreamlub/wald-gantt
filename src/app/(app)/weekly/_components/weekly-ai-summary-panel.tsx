@@ -17,7 +17,7 @@ export function AISummaryPanel({
   const content = insight?.content ?? null
 
   const body = (
-    <div className={inline ? 'space-y-4' : 'flex-1 overflow-y-auto p-4 space-y-4'}>
+    <div data-scrolltop={!inline || undefined} className={inline ? 'space-y-4' : 'flex-1 overflow-y-auto p-4 space-y-4'}>
       {content ? (
         <>
           {content.stats && (

@@ -157,6 +157,7 @@ export function TaskPanel({ tasks, onTaskClick, onUnschedule }: Props) {
 
       {/* 태스크 목록 — from-grid 드롭 시 스케줄 해제 */}
       <div
+        data-scrolltop
         className={`flex-1 overflow-y-auto py-1.5 transition-colors ${dragOver ? DRAG_OVER_BG : ''}`}
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
