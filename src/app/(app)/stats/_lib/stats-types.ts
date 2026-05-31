@@ -122,6 +122,20 @@ export const EMPTY_REVIEW_STATS: ReviewStatsResponse = {
   bySource: [], avgDwellDays: 0, pendingAging: [],
 }
 
+// ── Resources (담당자 × 브랜드 × 주차 투입) ────────────────
+export interface ResourcePair {
+  author: string
+  brand: string
+  total: number
+  weeks: Record<string, number> // weekStart(YYYY-MM-DD) → 메시지 수
+}
+export interface ResourceStatsResponse {
+  weeks: string[] // 연속 주차 시작일(월요일) 목록, 오름차순
+  pairs: ResourcePair[]
+}
+
+export const EMPTY_RESOURCE_STATS: ResourceStatsResponse = { weeks: [], pairs: [] }
+
 export const EMPTY_STATS: StatsResponse = {
   range: { from: '', to: '', days: 0 },
   totals: { messages: 0, activeDays: 0, avgPerDay: 0, brands: 0, issues: 0, todosCompleted: 0 },

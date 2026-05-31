@@ -1,14 +1,15 @@
 'use client'
 
 import { useState } from 'react'
-import { LayoutDashboard, MessageSquareText, ClipboardList, FolderKanban, CircleDot, type LucideIcon } from 'lucide-react'
+import { LayoutDashboard, MessageSquareText, ClipboardList, FolderKanban, CircleDot, Users, type LucideIcon } from 'lucide-react'
 import { OverviewStats } from './overview-stats'
 import { StatsDashboard } from './stats-dashboard'
 import { ReviewStats } from './review-stats'
 import { ProjectStats } from './project-stats'
 import { IssueStats } from './issue-stats'
+import { ResourceStats } from './resource-stats'
 
-type TabKey = 'overview' | 'signals' | 'review' | 'execution' | 'issues'
+type TabKey = 'overview' | 'signals' | 'review' | 'execution' | 'issues' | 'resources'
 
 const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: 'overview',  label: '종합',     icon: LayoutDashboard },
@@ -16,6 +17,7 @@ const TABS: { key: TabKey; label: string; icon: LucideIcon }[] = [
   { key: 'review',    label: '일감 판단', icon: ClipboardList },
   { key: 'execution', label: '실행',     icon: FolderKanban },
   { key: 'issues',    label: '이슈',     icon: CircleDot },
+  { key: 'resources', label: '리소스',   icon: Users },
 ]
 
 export function StatsTabs() {
@@ -49,7 +51,8 @@ export function StatsTabs() {
           : tab === 'signals' ? <StatsDashboard />
             : tab === 'review' ? <ReviewStats />
               : tab === 'execution' ? <ProjectStats />
-                : <IssueStats />}
+                : tab === 'issues' ? <IssueStats />
+                  : <ResourceStats />}
       </div>
     </div>
   )
