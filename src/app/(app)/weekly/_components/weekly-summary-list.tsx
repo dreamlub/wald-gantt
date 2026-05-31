@@ -4,6 +4,7 @@ import { useState } from 'react'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
+import { useBrandAliases } from '@/hooks/use-brand-aliases'
 
 // ── 타입 & 상수 ───────────────────────────────────────────────────
 
@@ -33,16 +34,23 @@ const NO_BRAND = '기타'
 
 // ── 데이터 조립 ───────────────────────────────────────────────────
 
-export function assembleItems(reports: WeeklyReport[]): EnrichedItem[] {
+export function assembleItems(
+  reports: WeeklyReport[],
+  aliasMap?: Map<string, string>,
+): EnrichedItem[] {
+  const resolve = (name: string | null | undefined): string | null =>
+    name ? (aliasMap?.get(name) ?? name) : (name ?? null)
+
   const result: EnrichedItem[] = []
   for (const r of reports) {
     const summary = r.summary as unknown as WeeklyReportSummary | null
     for (const item of summary?.items ?? []) {
-      result.push({ ...item, change: (item.change as ChangeKey) ?? 'continued', _team: r.team })
+      result.push({ ...item, brand: resolve(item.brand), change: (item.change as ChangeKey) ?? 'continued', _team: r.team })
     }
     for (const dropped of summary?.diff_summary?.dropped_items ?? []) {
       result.push({
         ...dropped,
+        brand:  resolve(dropped.brand),
         change: 'dropped',
         type:   (dropped.type ?? 'plan') as TypeKey,
         detail: dropped.detail ?? '',
@@ -149,8 +157,9 @@ interface Props {
 
 export function WeeklySummaryList({ reports, selectedBrand }: Props) {
   const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const aliasMap = useBrandAliases()
 
-  const allItems = assembleItems(reports)
+  const allItems = assembleItems(reports, aliasMap)
 
   const brandList = [...new Set(allItems.map(brandOf))].sort((a, b) => {
     if (a === NO_BRAND) return 1

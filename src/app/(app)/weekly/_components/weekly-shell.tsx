@@ -8,6 +8,7 @@ import { WeeklyCollectionDetail } from './weekly-collection-detail'
 import { WeeklyContentTabs } from './weekly-content-tabs'
 import { getWeeklyReports, getWeeklyInsight } from '@/lib/weekly-service'
 import type { WeeklyReport, WeeklyInsight, WeeklyReportSummary } from '@/types/index'
+import { useBrandAliases } from '@/hooks/use-brand-aliases'
 
 const TEAM_PALETTE = [
   'var(--color-id-indigo)',
@@ -26,6 +27,7 @@ interface CollectionData {
 }
 
 export function WeeklyShell() {
+  const aliasMap = useBrandAliases()
   const [data, setData]                 = useState<CollectionData | null>(null)
   const [loading, setLoading]           = useState(true)
   const [selectedWeek, setSelectedWeek] = useState<string>('')
@@ -140,7 +142,8 @@ export function WeeklyShell() {
     for (const r of reports) {
       const summary = r.summary as unknown as WeeklyReportSummary | null
       for (const item of [...(summary?.items ?? []), ...(summary?.diff_summary?.dropped_items ?? [])]) {
-        const name = item.brand ?? '기타'
+        const raw  = item.brand ?? '기타'
+        const name = aliasMap.get(raw) ?? raw
         const prev = map.get(name) ?? { count: 0, hasBlocked: false }
         map.set(name, { count: prev.count + 1, hasBlocked: prev.hasBlocked || item.change === 'blocked' })
       }
@@ -148,7 +151,7 @@ export function WeeklyShell() {
     return [...map.entries()]
       .map(([name, v]) => ({ name, ...v }))
       .sort((a, b) => a.name === '기타' ? 1 : b.name === '기타' ? -1 : b.count - a.count)
-  }, [reports])
+  }, [reports, aliasMap])
 
   const selectedWeekData = data?.weeks.find(w => w.weekStart === selectedWeek)
   const hasData          = selectedWeekData?.teams.some(t => t.hasData) ?? false

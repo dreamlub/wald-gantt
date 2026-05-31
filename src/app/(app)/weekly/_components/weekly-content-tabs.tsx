@@ -6,10 +6,11 @@ import type { WeeklyReport, WeeklyInsight } from '@/types/index'
 import type { WeekData } from './weekly-week-list'
 import { WeeklyRawView } from './weekly-raw-view'
 import { WeeklySummaryList, assembleItems, CHANGE_META, CHANGE_ORDER } from './weekly-summary-list'
+import { useBrandAliases } from '@/hooks/use-brand-aliases'
 import { AISummaryPanel } from './weekly-ai-summary-panel'
 import { weekRangeLabel } from '@/lib/week-format'
 
-type Tab = 'raw' | 'summary' | 'insight'
+type Tab = 'summary' | 'insight'
 
 // ── 날짜 유틸 ────────────────────────────────────────────────────
 // ISO 주차·주 범위 라벨은 공용 유틸(@/lib/week-format) 사용
@@ -37,7 +38,6 @@ interface Props {
 }
 
 const TABS: { key: Tab; label: string; icon: React.ElementType }[] = [
-  { key: 'raw',     label: '원문',      icon: FileText    },
   { key: 'summary', label: '요약',      icon: LayoutList  },
   { key: 'insight', label: '인사이트',  icon: Sparkles    },
 ]
@@ -48,8 +48,10 @@ export function WeeklyContentTabs({
   week, teamColors, reports, insight, reportsLoading, collecting, onCollect,
   onPrevWeek, onNextWeek, hasPrev, hasNext, selectedBrand,
 }: Props) {
-  const [activeTab, setActiveTab]     = useState<Tab>('raw')
+  const [activeTab, setActiveTab]     = useState<Tab>('summary')
   const [focusedTeam, setFocusedTeam] = useState<string | null>(null)
+  const [showRaw, setShowRaw]         = useState(false)
+  const aliasMap = useBrandAliases()
 
   const { month, week: weekNum } = weekOfMonth(week.weekStart)
   const collected = week.teams.filter(t => t.hasData).length
@@ -73,7 +75,7 @@ export function WeeklyContentTabs({
   // 요약 탭용 변경 집계 — 팀 필터 행 우측 표시
   const summaryTotals = activeTab === 'summary'
     ? (() => {
-        const items = assembleItems(visibleReports)
+        const items = assembleItems(visibleReports, aliasMap)
         const filtered = selectedBrand ? items.filter(i => (i.brand ?? '기타') === selectedBrand) : items
         return CHANGE_ORDER.reduce((acc, k) => {
           const n = filtered.filter(i => i.change === k).length
@@ -143,6 +145,17 @@ export function WeeklyContentTabs({
           >
             <ChevronRight size={14} />
           </button>
+          <button
+            onClick={() => setShowRaw(v => !v)}
+            className={`ml-auto flex items-center gap-1.5 px-2.5 py-1 rounded text-xs font-medium border transition-colors shrink-0 ${
+              showRaw
+                ? 'bg-foreground text-background border-transparent'
+                : 'border-border text-ink-500 hover:text-foreground hover:bg-muted'
+            }`}
+          >
+            <FileText size={11} />
+            원문 보기
+          </button>
         </div>
 
         {/* 팀 배지 + 요약 집계 */}
@@ -183,8 +196,8 @@ export function WeeklyContentTabs({
       {/* ── 콘텐츠 ── */}
       <div className="flex-1 min-h-0 overflow-y-auto [scrollbar-width:none] [&::-webkit-scrollbar]:hidden">
 
-        {/* 원문 */}
-        {activeTab === 'raw' && (
+        {/* 원문 오버레이 */}
+        {showRaw && (
           <div className="p-6">
             {reportsLoading
               ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
@@ -193,28 +206,24 @@ export function WeeklyContentTabs({
           </div>
         )}
 
-        {/* 요약 */}
-        {activeTab === 'summary' && (
-          reportsLoading
-            ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
-            : <WeeklySummaryList reports={visibleReports} selectedBrand={selectedBrand} />
+        {!showRaw && (
+          <div className="flex flex-col flex-1">
+            {activeTab === 'summary' && (
+              reportsLoading
+                ? <div className="flex justify-center py-16"><RefreshCw size={16} className="animate-spin text-ink-400" /></div>
+                : <WeeklySummaryList reports={visibleReports} selectedBrand={selectedBrand} />
+            )}
+            {activeTab === 'insight' && (
+              insight
+                ? <AISummaryPanel insight={insight} reports={reports} onClose={() => setActiveTab('summary')} />
+                : <div className="flex flex-col items-center justify-center py-20 gap-3">
+                    <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
+                    <p className="text-sm text-muted-foreground text-center">인사이트가 아직 생성되지 않았습니다.</p>
+                    <p className="text-xs text-ink-400 text-center">외부 요약 분석이 끝나면 자동으로 표시됩니다.</p>
+                  </div>
+            )}
+          </div>
         )}
-
-        {/* 인사이트 */}
-        {activeTab === 'insight' && (
-          insight
-            ? <AISummaryPanel
-                insight={insight}
-                reports={reports}
-                onClose={() => setActiveTab('summary')}
-              />
-            : <div className="flex flex-col items-center justify-center py-20 gap-3">
-                <Sparkles size={36} strokeWidth={1.5} className="text-muted-foreground opacity-20" />
-                <p className="text-sm text-muted-foreground text-center">인사이트가 아직 생성되지 않았습니다.</p>
-                <p className="text-xs text-ink-400 text-center">외부 요약 분석이 끝나면 자동으로 표시됩니다.</p>
-              </div>
-        )}
-
       </div>
     </div>
   )

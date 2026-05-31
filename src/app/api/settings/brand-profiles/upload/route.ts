@@ -28,15 +28,16 @@ function slugify(name: string): string {
 
 export async function POST(req: NextRequest) {
   try {
-    const sb = await createClient()
-    const workspaceId = await getWorkspaceId(sb)
-
+    // formData를 먼저 읽어야 Next.js App Router에서 cookies()가 정상 동작
     const formData = await req.formData()
     const file = formData.get('file') as File | null
     const name = formData.get('name') as string | null
 
     if (!file || !name) return NextResponse.json({ error: 'file and name required' }, { status: 400 })
     if (file.size > MAX_BYTES) return NextResponse.json({ error: '512KB 이하 이미지만 업로드 가능합니다' }, { status: 413 })
+
+    const sb = await createClient()
+    const workspaceId = await getWorkspaceId(sb)
 
     const ext = file.name.split('.').pop()?.toLowerCase() ?? 'png'
     const path = `${workspaceId}/${slugify(name)}.${ext}`
