@@ -4,7 +4,6 @@ import { useEffect, useState, useCallback } from 'react'
 import {
   Activity, Hash, Users, CheckSquare, CalendarClock, CalendarCheck, Tag as TagIcon, Loader2,
 } from 'lucide-react'
-import { brandColor } from '@/lib/history-service'
 import { addDaysYMD, kstToday } from '@/lib/kst'
 import type { StatsResponse } from '../_lib/stats-types'
 import { EMPTY_STATS } from '../_lib/stats-types'
@@ -116,7 +115,7 @@ export function StatsDashboard() {
             {/* 브랜드별 이슈·분류 */}
             <Section icon={<Hash size={13} className="text-ink-400" />} label="브랜드별 이슈·분류" badge={`${data.brandBreakdown.length}개`}
               hint="이슈·의사결정·일정·멘션 순">
-              <BrandStack rows={topBrands} brandColor={brandColor} />
+              <BrandStack rows={topBrands} />
             </Section>
 
             {/* 투두 처리량 */}

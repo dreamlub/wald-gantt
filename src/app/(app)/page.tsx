@@ -16,7 +16,7 @@ import {
 import { createClient } from '@/lib/supabase/server'
 import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '@/types'
 import type { HistoryItem, Priority, Tag } from './slack/_lib/types'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
 import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
 import { TAG_META, PRIORITY_META } from './slack/_lib/constants'
 import { toYMD, toShortDate } from '@/lib/date-utils'
@@ -424,11 +424,10 @@ function TaskRow({ task, today, compact = false }: { task: GanttTask; today?: st
 
 function HistoryRow({ item }: { item: HistoryItem }) {
   const p = priorityLabel(item.priority)
-  const color = item.brand_name ? brandColor(item.brand_name) : null
   return (
     <Link href={summaryHref({ priority: item.priority ?? undefined, query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
       <div className="flex items-center gap-2 min-w-0">
-        {color && <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+        {item.brand_name && <BrandIcon name={item.brand_name} size={8} />}
         <span className="text-sm font-semibold text-foreground truncate">{item.title}</span>
         {p && <span className="ml-auto shrink-0 text-sm font-medium" style={{ color: p.color }}>{p.label}</span>}
       </div>
@@ -442,14 +441,13 @@ function HistoryRow({ item }: { item: HistoryItem }) {
 
 function DecisionRow({ item }: { item: HistoryItem }) {
   const tags = (item.tags ?? []).filter((tag): tag is Tag => tag in TAG_META).slice(0, 2)
-  const color = item.brand_name ? brandColor(item.brand_name) : null
   return (
     <Link href={summaryHref({ tag: 'decision', query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
       <div className="text-sm font-semibold text-foreground truncate">{item.title}</div>
       <div className="mt-2 flex items-center gap-1.5 min-w-0">
         {item.brand_name && (
           <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-            {color && <span className="size-1.5 rounded-full shrink-0" style={{ backgroundColor: color }} />}
+            <BrandIcon name={item.brand_name} size={10} />
             <span className="truncate">{item.brand_name}</span>
           </span>
         )}

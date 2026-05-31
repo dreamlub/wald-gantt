@@ -2,7 +2,8 @@
 
 import { useState, useMemo } from 'react'
 import { ChevronLeft, ChevronRight, Search } from 'lucide-react'
-import { brandColor } from '../_lib/brand-colors'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 export interface TeamStatus {
   id: string
@@ -48,6 +49,7 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, brandList, selec
   const [calYear,  setCalYear]  = useState(initDate.getFullYear())
   const [calMonth, setCalMonth] = useState(initDate.getMonth())
   const [brandSearch, setBrandSearch] = useState('')
+  const profiles = useBrandProfiles()
 
   const weeksMap = useMemo(() => {
     const m = new Map<string, WeekData>()
@@ -204,10 +206,10 @@ export function WeeklyWeekList({ weeks, selectedWeek, onSelect, brandList, selec
             onClick={() => onSelectBrand(selectedBrand === b.name ? null : b.name)}
             className={`sidebar-btn ${selectedBrand === b.name ? 'sidebar-btn-active' : ''}`}
           >
-            <span
-              className="w-2 h-2 rounded-full shrink-0"
-              style={{ backgroundColor: b.hasBlocked ? 'var(--color-status-late)' : brandColor(b.name) }}
-            />
+            {b.hasBlocked
+              ? <span className="w-2 h-2 rounded-full shrink-0 bg-status-late" />
+              : <BrandIcon name={b.name} logoUrl={profiles.get(b.name)?.logo_url} lucideIcon={profiles.get(b.name)?.lucide_icon} size={8} />
+            }
             <span className="flex-1 truncate text-left">{b.name}</span>
             <span className="text-sm text-ink-400">{b.count}</span>
           </button>

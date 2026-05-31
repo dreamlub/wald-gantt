@@ -6,6 +6,8 @@ import { ExternalLink, ListTodo } from 'lucide-react'
 import type { HistoryItem } from '../_lib/types'
 import { TAG_META } from '../_lib/constants'
 import { PriorityBars } from './badges'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import { toKSTDate } from '@/lib/history-query-utils'
 
 interface Props {
@@ -68,6 +70,9 @@ function HistoryRow({
   onToggle: () => void
   onCreateTask?: () => void
 }) {
+  const profiles = useBrandProfiles()
+  const p = item.brand_name ? profiles.get(item.brand_name) : undefined
+
   return (
     <div
       onClick={onToggle}
@@ -77,7 +82,12 @@ function HistoryRow({
     >
       <div className="flex items-center gap-2 px-3 py-2 min-h-9">
         <span className="w-3.5 flex justify-center shrink-0">
-          {item.priority ? <PriorityBars priority={item.priority} /> : <span className="w-1 h-1 rounded-full bg-ink-300" />}
+          {item.priority
+            ? <PriorityBars priority={item.priority} />
+            : item.brand_name
+              ? <BrandIcon name={item.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={12} />
+              : <span className="w-1 h-1 rounded-full bg-ink-300" />
+          }
         </span>
         <div className="flex items-center gap-2.5 flex-1 min-w-0">
           <p className="min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>

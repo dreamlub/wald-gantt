@@ -2,7 +2,8 @@
 
 import type { Tag, Priority } from '../_lib/types'
 import { TAG_META, PRIORITY_META } from '../_lib/constants'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 const PRIORITY_LEVEL: Record<Priority, number> = { low: 1, medium: 2, high: 3 }
 
@@ -117,12 +118,11 @@ export function TagList({ tags }: { tags: Tag[] }) {
 }
 
 export function BrandBadge({ brandName }: { brandName: string }) {
-  const color = brandColor(brandName)
+  const profiles = useBrandProfiles()
+  const p = profiles.get(brandName)
   return (
-    <span
-      className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap"
-    >
-      <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+    <span className="inline-flex items-center gap-1.5 text-2xs px-2 py-0.5 rounded-full bg-ink-100 text-ink-700 font-medium whitespace-nowrap">
+      <BrandIcon name={brandName} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={12} />
       {brandName}
     </span>
   )

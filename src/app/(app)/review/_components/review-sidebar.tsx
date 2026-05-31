@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import { Search } from 'lucide-react'
-import { brandColor } from '../../weekly/_lib/brand-colors'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 interface BrandStat {
   name: string
@@ -17,6 +18,7 @@ interface Props {
 
 export function ReviewSidebar({ brands, selectedBrand, onSelectBrand }: Props) {
   const [search, setSearch] = useState('')
+  const profiles = useBrandProfiles()
 
   const filtered = search
     ? brands.filter(b => b.name.toLowerCase().includes(search.toLowerCase()))
@@ -68,9 +70,7 @@ export function ReviewSidebar({ brands, selectedBrand, onSelectBrand }: Props) {
                 onClick={() => onSelectBrand(selectedBrand === b.name ? 'all' : b.name)}
                 className={`sidebar-btn ${selectedBrand === b.name ? 'sidebar-btn-active' : ''}`}
               >
-                <span
-                  className="w-2 h-2 rounded-full shrink-0"
-                  style={{ backgroundColor: brandColor(b.name) }}
+                <BrandIcon name={b.name} logoUrl={profiles.get(b.name)?.logo_url} lucideIcon={profiles.get(b.name)?.lucide_icon} size={8}
                 />
                 <span className="flex-1 truncate text-left">{b.name}</span>
                 <span className="text-xs text-ink-400">{b.count}</span>

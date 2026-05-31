@@ -2,7 +2,8 @@
 
 import { useState } from 'react'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
-import { brandColor } from '../_lib/brand-colors'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 // ── 타입 & 상수 ───────────────────────────────────────────────────
 
@@ -121,11 +122,16 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
     if (n > 0) acc.push({ k, n })
     return acc
   }, [] as { k: ChangeKey; n: number }[])
+  const profiles = useBrandProfiles()
+  const p = brand !== NO_BRAND ? profiles.get(brand) : undefined
 
   return (
     <section className="space-y-1.5">
       <div className="flex items-center gap-2 pb-1.5 border-b border-border">
-        <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: brand === NO_BRAND ? 'var(--color-ink-300)' : brandColor(brand) }} />
+        {brand === NO_BRAND
+          ? <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+          : <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+        }
         <h3 className="text-sm font-bold text-foreground">{brand}</h3>
         <span className="text-sm text-ink-400">{items.length}건</span>
         <div className="ml-auto flex items-center gap-1.5">

@@ -1,6 +1,8 @@
 'use client'
 
 import { useState } from 'react'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 // ── Section 래퍼 (stats 대시보드 공용) ─────────────────────────
 export function Section({
@@ -188,7 +190,8 @@ const BRAND_SEGS: { key: keyof Pick<BrandRow, 'issue' | 'decision' | 'schedule' 
   { key: 'mention', label: '멘션', color: 'var(--color-tag-mention-dot)' },
 ]
 
-export function BrandStack({ rows, brandColor }: { rows: BrandRow[]; brandColor: (n: string) => string }) {
+export function BrandStack({ rows }: { rows: BrandRow[] }) {
+  const profiles = useBrandProfiles()
   const maxTotal = Math.max(1, ...rows.map(r => r.total))
   return (
     <div className="bg-card border border-border rounded-lg overflow-hidden">
@@ -196,7 +199,7 @@ export function BrandStack({ rows, brandColor }: { rows: BrandRow[]; brandColor:
         <div key={r.brand} className={`px-4 py-2.5 ${i < rows.length - 1 ? 'border-b border-border' : ''}`}>
           <div className="flex items-center justify-between mb-1.5">
             <span className="flex items-center gap-2 text-sm font-medium text-foreground min-w-0">
-              <span className="w-2.5 h-2.5 rounded-full shrink-0" style={{ background: brandColor(r.brand) }} />
+              <BrandIcon name={r.brand} logoUrl={profiles.get(r.brand)?.logo_url} lucideIcon={profiles.get(r.brand)?.lucide_icon} size={10} />
               <span className="truncate">{r.brand}</span>
             </span>
             <span className="text-sm text-ink-400 tabular-nums shrink-0">총 {r.total}건</span>

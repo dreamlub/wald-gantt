@@ -6,6 +6,8 @@ import { createClient } from '@/lib/supabase/client'
 import { Tooltip, TooltipTrigger, TooltipContent } from '@/components/ui/tooltip'
 import type { Priority } from '../_lib/types'
 import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 interface UpcomingEvent {
   title: string
@@ -107,6 +109,7 @@ interface Props {
 export function ScheduleCalendarView({ activeBrands, onBrandsLoaded }: Props) {
   const [events, setEvents] = useState<UpcomingEvent[]>([])
   const [loading, setLoading] = useState(true)
+  const brandProfiles = useBrandProfiles()
   const [currentMonth, setCurrentMonth] = useState(() => {
     const now = new Date()
     return new Date(now.getFullYear(), now.getMonth(), 1)
@@ -386,10 +389,10 @@ export function ScheduleCalendarView({ activeBrands, onBrandsLoaded }: Props) {
             </div>
             <div className="bg-card border border-border rounded-lg overflow-hidden">
               {undatedEvents.map((e, i) => {
-                const color = brandColor(e.brand)
+                const bp = brandProfiles.get(e.brand)
                 return (
                   <div key={i} className="flex items-center gap-3 px-3.5 py-2.5 border-b border-border last:border-b-0 hover:bg-ink-50">
-                    <span className="w-1.5 h-1.5 rounded-full shrink-0" style={{ background: color }} />
+                    <BrandIcon name={e.brand} logoUrl={bp?.logo_url} lucideIcon={bp?.lucide_icon} size={10} />
                     <span className="flex-1 text-sm text-foreground">{e.title}</span>
                     <span className="text-sm text-ink-400 shrink-0">{e.brand}</span>
                     <span className="text-sm px-1.5 py-0.5 rounded-full bg-ink-100 text-ink-500 shrink-0 font-medium">{e.date}</span>

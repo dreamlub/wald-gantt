@@ -6,7 +6,8 @@ import { Check, Search } from 'lucide-react'
 import type { Tag, HistoryItem, Priority } from '../_lib/types'
 import { TAG_META, TAG_KEYS, PRIORITY_META, PRIORITY_KEYS } from '../_lib/constants'
 import { PriorityBars } from './badges'
-import { brandColor } from '@/lib/history-service'
+import { BrandIcon } from '@/components/brand-icon'
+import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import { kstDate } from '@/lib/kst'
 import { GroupTitle, MonthGridSection, DateRangePanel } from './sidebar-date-panels'
 import { RawDataSidebarPanel } from './raw-data-sidebar'
@@ -27,6 +28,7 @@ function CalendarBrandSidebar({
   onClear: () => void
 }) {
   const [query, setQuery] = useState('')
+  const profiles = useBrandProfiles()
   const visible = useMemo(() => {
     const q = query.trim().toLowerCase()
     return q ? brands.filter(b => b.toLowerCase().includes(q)) : brands
@@ -65,7 +67,7 @@ function CalendarBrandSidebar({
               onClick={() => onToggle(brand)}
               className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
             >
-              <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(brand) }} />
+              <BrandIcon name={brand} logoUrl={profiles.get(brand)?.logo_url} lucideIcon={profiles.get(brand)?.lucide_icon} size={8} />
               <span className="flex-1 truncate text-left">{brand}</span>
               <span className="text-sm text-ink-400">{brandCounts.get(brand) ?? 0}</span>
             </button>
@@ -248,6 +250,7 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
   brandCounts?: Record<string, number>
 }) {
   const [query, setQuery] = useState('')
+  const profiles = useBrandProfiles()
 
   const brandList = useMemo(() => {
     if (!brandCounts) return []
@@ -302,7 +305,7 @@ function WeeklyListSidebar({ dateFrom, dateTo, onDateFromChange, onDateToChange,
                   onClick={() => onToggleBrand(name)}
                   className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
                 >
-                  <span className="w-2 h-2 rounded-full shrink-0" style={{ background: brandColor(name) }} />
+                  <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={8} />
                   <span className="flex-1 truncate text-left">{name}</span>
                   {active && <Check size={12} className="shrink-0" />}
                   <span className="text-sm text-ink-400">{count}</span>
@@ -380,16 +383,18 @@ function BrandBtn({ stat, active, onClick }: {
 }) {
   const hasIssues = stat.issue_count > 0
   const eligible  = stat.eligible
+  const profiles  = useBrandProfiles()
+  const p = profiles.get(stat.brand_name)
 
   return (
     <button
       onClick={onClick}
       className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''} ${!eligible ? 'opacity-50' : ''}`}
     >
-      <span
-        className="w-2 h-2 rounded-full shrink-0"
-        style={{ backgroundColor: hasIssues || eligible ? brandColor(stat.brand_name) : 'var(--color-ink-300)' }}
-      />
+      {hasIssues || eligible
+        ? <BrandIcon name={stat.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+        : <span className="w-2 h-2 rounded-full shrink-0 bg-ink-300" />
+      }
       <span className="flex-1 truncate text-left">{stat.brand_name}</span>
       {active && <Check size={12} className="shrink-0" />}
       {hasIssues && (
@@ -418,6 +423,7 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
     brandCounts[b] = (brandCounts[b] ?? 0) + 1
   }
   const topBrands = Object.entries(brandCounts).sort((a, b) => b[1] - a[1]).slice(0, 8)
+  const profiles = useBrandProfiles()
 
   return (
     <div className="flex flex-col gap-0.5 p-2 overflow-y-auto flex-1 min-h-0 [&::-webkit-scrollbar]:hidden [-ms-overflow-style:none] [scrollbar-width:none]">
@@ -431,14 +437,13 @@ function DailyReportSidebar({ history, dateFrom, onDateFromChange, onDateToChang
           <GroupTitle>브랜드</GroupTitle>
           {topBrands.map(([name, count]) => {
             const active = dailyBrands.has(name)
-            const color = brandColor(name)
             return (
               <button
                 key={name}
                 onClick={() => onToggleDailyBrand(name)}
                 className={`sidebar-btn ${active ? 'sidebar-btn-active' : ''}`}
               >
-                <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
+                <BrandIcon name={name} logoUrl={profiles.get(name)?.logo_url} lucideIcon={profiles.get(name)?.lucide_icon} size={8} />
                 <span className="flex-1 truncate text-left">{name}</span>
                 {active && <Check size={12} className="shrink-0" />}
                 <span className="text-sm text-ink-400">{count}</span>
