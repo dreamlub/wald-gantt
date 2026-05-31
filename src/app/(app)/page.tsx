@@ -64,7 +64,8 @@ export default async function CommandCenterPage() {
     )
   }
 
-  const [tasksRes, projectsRes, historyRes, weeklyRes, reviewRes, notesRes, issuesRes, dailyRes] = await Promise.all([
+  const [tasksRes, projectsRes, historyRes, weeklyRes, reviewRes, notesRes, issuesRes, dailyRes,
+         reviewCountRes, reviewHighCountRes, notesCountRes] = await Promise.all([
     sb.from('gantt_tasks')
       .select('id, workspace_id, title, status, type, assignee, start_date, due_date, memo, labels, parent_id, priority, sort_order, created_at, updated_at, deleted_at, archived_at, scheduled_at, duration_minutes')
       .eq('workspace_id', workspaceId).is('deleted_at', null).is('archived_at', null)
@@ -88,6 +89,12 @@ export default async function CommandCenterPage() {
       .order('last_seen', { ascending: true, nullsFirst: true }).limit(8),
     sb.from('daily_reports').select('report_date')
       .eq('workspace_id', workspaceId).order('report_date', { ascending: false }).limit(1).maybeSingle(),
+    sb.from('review_candidates').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId).eq('status', 'pending'),
+    sb.from('review_candidates').select('id', { count: 'exact', head: true })
+      .eq('workspace_id', workspaceId).eq('status', 'pending').eq('priority', 'high'),
+    sb.from('notes').select('id', { count: 'exact', head: true })
+      .eq('user_id', userId).eq('status', 'inbox').is('deleted_at', null),
   ])
 
   const tasks       = (tasksRes.data ?? []) as GanttTask[]
@@ -112,7 +119,9 @@ export default async function CommandCenterPage() {
   const decisionItems = history.filter(h => (h.tags ?? []).includes('decision')).slice(0, 4)
 
   const reviewSorted   = [...reviewPending].sort((a, b) => reviewPriorityRank(a.priority) - reviewPriorityRank(b.priority))
-  const reviewHighCount = reviewPending.filter(c => c.priority === 'high').length
+  const reviewCount     = reviewCountRes.count ?? reviewPending.length
+  const reviewHighCount = reviewHighCountRes.count ?? reviewPending.filter(c => c.priority === 'high').length
+  const notesCount      = notesCountRes.count ?? notesInbox.length
   const todayExecutionCount = new Set([...dueToday, ...scheduledToday].map(t => t.id)).size
   const plannedMinutes = scheduledToday.reduce((sum, t) => sum + (t.duration_minutes ?? 60), 0)
   const plannedHours = Math.round(plannedMinutes / 60 * 10) / 10
@@ -141,22 +150,22 @@ export default async function CommandCenterPage() {
         <div className="px-6 py-5 space-y-5 max-w-[93.75rem] mx-auto">
           {/* KPI */}
           <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            <MetricCard href="/review" label="검토 대기" value={reviewPending.length} detail={`높음 ${reviewHighCount}`} icon={<ClipboardList size={14} />} tone="lilac" />
-            <MetricCard href="/notes" label="미처리 메모" value={notesInbox.length} detail="포착 신호" icon={<Inbox size={14} />} tone="teal" />
+            <MetricCard href="/review" label="검토 대기" value={reviewCount} detail={`높음 ${reviewHighCount}`} icon={<ClipboardList size={14} />} tone="lilac" />
+            <MetricCard href="/notes" label="미처리 메모" value={notesCount} detail="포착 신호" icon={<Inbox size={14} />} tone="teal" />
             <MetricCard href={tasksQuickHref('due-today')} label="오늘 실행" value={todayExecutionCount} detail={`예정 ${scheduledToday.length} · 마감 ${dueToday.length}`} icon={<Timer size={14} />} tone="mint" />
             <MetricCard href={tasksQuickHref('overdue')} label="지연 태스크" value={overdueTasks.length} detail={`진행 ${inProgressTasks.length} · 대기 ${waitingTasks.length}`} icon={<AlertTriangle size={14} />} tone="late" />
           </section>
 
           {/* 1. Review Queue + Capture Inbox */}
           <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
-            <Panel title="검토 대기 (Review Queue)" href="/review" icon={<ClipboardList size={13} />} badge={reviewPending.length}>
+            <Panel title="검토 대기 (Review Queue)" href="/review" icon={<ClipboardList size={13} />} badge={reviewCount}>
               <div className="space-y-2">
                 {reviewSorted.slice(0, 6).map(c => <ReviewRow key={c.id} candidate={c} />)}
                 {reviewPending.length === 0 && <EmptyLine label="검토 대기 중인 일감이 없습니다." />}
               </div>
             </Panel>
 
-            <Panel title="미처리 메모 (Capture Inbox)" href="/notes" icon={<Inbox size={13} />} badge={notesInbox.length}>
+            <Panel title="미처리 메모 (Capture Inbox)" href="/notes" icon={<Inbox size={13} />} badge={notesCount}>
               <div className="space-y-2">
                 {notesInbox.slice(0, 6).map(n => <NoteRow key={n.id} note={n} />)}
                 {notesInbox.length === 0 && <EmptyLine label="미처리 메모가 없습니다." />}
@@ -214,7 +223,7 @@ export default async function CommandCenterPage() {
               <div className="grid grid-cols-3 gap-2">
                 <MiniStat label="최근 데일리" value={latestDaily ? `${fmtDay(latestDaily.report_date)}${dailyFresh ? ' ✓' : ''}` : '없음'} />
                 <MiniStat label="Weekly 분석" value={latestWeekly ? fmtDay(latestWeekly.week_start) : '없음'} />
-                <MiniStat label="검토 대기" value={reviewPending.length} />
+                <MiniStat label="검토 대기" value={reviewCount} />
               </div>
               {!dailyFresh && (
                 <p className="mt-3 text-sm text-ink-400">오늘 데일리 리포트가 아직 생성되지 않았습니다.</p>
