@@ -1,27 +1,29 @@
-﻿import Link from 'next/link'
 import {
   AlertTriangle,
-  ArrowRight,
   CalendarDays,
-  CheckCircle2,
   Clock3,
   FileText,
-  Flag,
+  Inbox,
   ListTodo,
   MessageSquare,
+  Radar,
   Sparkles,
   Target,
+  ClipboardList,
   Timer,
 } from 'lucide-react'
 import { createClient } from '@/lib/supabase/server'
-import type { GanttProject, GanttTask, TaskStatus, WeeklyInsightContent } from '@/types'
-import type { HistoryItem, Priority, Tag } from './slack/_lib/types'
-import { BrandIcon } from '@/components/brand-icon'
-import { STATUS_COLOR, STATUS_LABEL } from './tasks/_constants'
-import { TAG_META, PRIORITY_META } from './slack/_lib/constants'
-import { toYMD, toShortDate } from '@/lib/date-utils'
+import type { GanttProject, GanttTask, ReviewCandidate, WeeklyInsightContent } from '@/types'
+import type { HistoryItem } from './slack/_lib/types'
 import { ProjectsSection } from './_ProjectsSection'
 import { TodayTasksPanel } from './_TodayTasksPanel'
+import {
+  todayLocal, addDays, fmtDay, plainInsightText, tasksQuickHref, summaryHref, reviewPriorityRank,
+} from './_home/helpers'
+import {
+  QuickLink, MetricCard, Panel, MiniStat, TaskRow, HistoryRow, DecisionRow,
+  ReviewRow, NoteRow, IssueRow, EmptyLine,
+} from './_home/ui'
 
 type WeeklyInsightRow = {
   week_start: string
@@ -29,99 +31,32 @@ type WeeklyInsightRow = {
   analyzed_at: string | null
 }
 
-const DAY_MS = 86_400_000
+type NoteInbox = { id: string; title: string; content: string }
+type OpenIssue = { id: string; title: string; brand_name: string | null; last_seen: string | null }
 
-function todayLocal(): string {
-  return toYMD(new Date())
-}
-
-function addDays(date: string, days: number): string {
-  const d = new Date(date + 'T00:00:00')
-  d.setDate(d.getDate() + days)
-  return toYMD(d)
-}
-
-const fmtDay = (iso: string | null | undefined) => toShortDate(iso)
-
-function plainInsightText(text: string): string {
-  return text
-    .replace(/\*\*(.*?)\*\*/g, '$1')
-    .replace(/__(.*?)__/g, '$1')
-    .replace(/\s+/g, ' ')
-    .trim()
-}
-
-function queryValue(value: string): string {
-  return encodeURIComponent(value)
-}
-
-function tasksQuickHref(quick: string): string {
-  return `/tasks?quick=${quick}`
-}
-
-function taskHref(task: GanttTask, today: string): string {
-  if (task.scheduled_at) {
-    const date = task.scheduled_at.slice(0, 10)
-    return `/calendar?date=${date}&highlight=${task.id}`
-  }
-  const q = `&q=${queryValue(task.title)}`
-  if (task.due_date && task.due_date < today) return `${tasksQuickHref('overdue')}${q}`
-  if (task.due_date === today) return `${tasksQuickHref('due-today')}${q}`
-  if (task.due_date && task.due_date > today) return `${tasksQuickHref('due-this-week')}${q}`
-  return `/tasks?q=${queryValue(task.title)}`
-}
-
-function summaryHref(filters: { priority?: Priority; tag?: Tag; query?: string }): string {
-  const params = new URLSearchParams()
-  if (filters.priority) params.set('priority', filters.priority)
-  if (filters.tag) params.set('tags', filters.tag)
-  if (filters.query) params.set('q', filters.query)
-  const qs = params.toString()
-  return qs ? `/slack?${qs}` : '/slack'
-}
-
-function daysUntil(date: string | null | undefined, today: string): number | null {
-  if (!date) return null
-  return Math.round((new Date(date + 'T00:00:00').getTime() - new Date(today + 'T00:00:00').getTime()) / DAY_MS)
-}
-
-function statusTone(status: TaskStatus) {
-  return {
-    color: STATUS_COLOR[status],
-    backgroundColor: `color-mix(in srgb, ${STATUS_COLOR[status]} 12%, transparent)`,
-  }
-}
-
-function priorityLabel(priority: Priority | null) {
-  if (!priority) return null
-  return PRIORITY_META[priority]
-}
-
-async function getWorkspaceId() {
+async function getSession() {
   const sb = await createClient()
   const { data: { user } } = await sb.auth.getUser()
-  if (!user) return { sb, userEmail: '', workspaceId: null as string | null }
-
+  if (!user) return { sb, userId: null as string | null, workspaceId: null as string | null }
   const { data: member } = await sb
     .from('workspace_members')
     .select('workspace_id')
     .eq('user_id', user.id)
     .single()
-
-  return { sb, userEmail: user.email ?? '', workspaceId: member?.workspace_id ?? null }
+  return { sb, userId: user.id, workspaceId: member?.workspace_id ?? null }
 }
 
 export const metadata = {
-  title: 'Command Center - Wald',
+  title: '운영 관제판 - Wald',
 }
 
 export default async function CommandCenterPage() {
-  const { sb, workspaceId } = await getWorkspaceId()
-  const today   = todayLocal()
+  const { sb, userId, workspaceId } = await getSession()
+  const today    = todayLocal()
   const tomorrow = addDays(today, 1)
-  const weekEnd = addDays(today, 6)
+  const weekEnd  = addDays(today, 6)
 
-  if (!workspaceId) {
+  if (!workspaceId || !userId) {
     return (
       <div className="flex-1 flex items-center justify-center bg-background">
         <div className="text-sm text-muted-foreground">워크스페이스를 불러오지 못했습니다.</div>
@@ -129,68 +64,59 @@ export default async function CommandCenterPage() {
     )
   }
 
-  const [tasksRes, projectsRes, historyRes, weeklyRes] = await Promise.all([
-    sb
-      .from('gantt_tasks')
+  const [tasksRes, projectsRes, historyRes, weeklyRes, reviewRes, notesRes, issuesRes, dailyRes] = await Promise.all([
+    sb.from('gantt_tasks')
       .select('id, workspace_id, title, status, type, assignee, start_date, due_date, memo, labels, parent_id, priority, sort_order, created_at, updated_at, deleted_at, archived_at, scheduled_at, duration_minutes')
-      .eq('workspace_id', workspaceId)
-      .is('deleted_at', null)
-      .is('archived_at', null)
-      .order('due_date', { ascending: true, nullsFirst: false })
-      .limit(80),
-    sb
-      .from('gantt_projects')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .is('deleted_at', null)
-      .order('end_date', { ascending: true, nullsFirst: false })
-      .limit(200),
-    sb
-      .from('client_history')
-      .select('*')
-      .eq('workspace_id', workspaceId)
-      .is('deleted_at', null)
-      .order('occurred_at', { ascending: false })
-      .limit(80),
-    sb
-      .from('weekly_insights')
-      .select('week_start, content, analyzed_at')
-      .eq('workspace_id', workspaceId)
-      .order('week_start', { ascending: false })
-      .limit(1)
-      .maybeSingle(),
+      .eq('workspace_id', workspaceId).is('deleted_at', null).is('archived_at', null)
+      .order('due_date', { ascending: true, nullsFirst: false }).limit(80),
+    sb.from('gantt_projects').select('*')
+      .eq('workspace_id', workspaceId).is('deleted_at', null)
+      .order('end_date', { ascending: true, nullsFirst: false }).limit(200),
+    sb.from('client_history').select('*')
+      .eq('workspace_id', workspaceId).is('deleted_at', null)
+      .order('occurred_at', { ascending: false }).limit(80),
+    sb.from('weekly_insights').select('week_start, content, analyzed_at')
+      .eq('workspace_id', workspaceId).order('week_start', { ascending: false }).limit(1).maybeSingle(),
+    sb.from('review_candidates').select('*')
+      .eq('workspace_id', workspaceId).eq('status', 'pending')
+      .order('source_date', { ascending: false }).limit(60),
+    sb.from('notes').select('id, title, content')
+      .eq('user_id', userId).eq('status', 'inbox').is('deleted_at', null)
+      .order('updated_at', { ascending: false }).limit(60),
+    sb.from('issues').select('id, title, brand_name, last_seen')
+      .eq('workspace_id', workspaceId).eq('status', 'open')
+      .order('last_seen', { ascending: true, nullsFirst: true }).limit(8),
+    sb.from('daily_reports').select('report_date')
+      .eq('workspace_id', workspaceId).order('report_date', { ascending: false }).limit(1).maybeSingle(),
   ])
 
-  const tasks = ((tasksRes.data ?? []) as GanttTask[])
-  const projects = ((projectsRes.data ?? []) as GanttProject[])
-  const history = ((historyRes.data ?? []) as HistoryItem[])
+  const tasks       = (tasksRes.data ?? []) as GanttTask[]
+  const projects    = (projectsRes.data ?? []) as GanttProject[]
+  const history     = (historyRes.data ?? []) as HistoryItem[]
   const latestWeekly = (weeklyRes.data as WeeklyInsightRow | null) ?? null
+  const reviewPending = (reviewRes.data ?? []) as ReviewCandidate[]
+  const notesInbox  = (notesRes.data ?? []) as NoteInbox[]
+  const openIssues  = (issuesRes.data ?? []) as OpenIssue[]
+  const latestDaily = (dailyRes.data as { report_date: string } | null) ?? null
 
   const openTasks       = tasks.filter(t => t.status !== 'done')
   const scheduledToday  = tasks.filter(t => t.scheduled_at?.slice(0, 10) === today)
   const dueToday        = openTasks.filter(t => t.due_date === today)
   const dueTomorrow     = openTasks.filter(t => t.due_date === tomorrow)
-  const dueThisWeek     = openTasks.filter(t => t.due_date && t.due_date >= today && t.due_date <= weekEnd)
   const dueRestWeek     = openTasks.filter(t => t.due_date && t.due_date > tomorrow && t.due_date <= weekEnd)
   const overdueTasks    = openTasks.filter(t => t.due_date && t.due_date < today)
   const waitingTasks    = openTasks.filter(t => t.status === 'pending')
   const inProgressTasks = openTasks.filter(t => t.status === 'in-progress')
 
-  const highHistoryAll = history.filter(h => h.priority === 'high')
-  const highHistory = highHistoryAll.slice(0, 5)
+  const highHistory   = history.filter(h => h.priority === 'high').slice(0, 5)
   const decisionItems = history.filter(h => (h.tags ?? []).includes('decision')).slice(0, 4)
-  const mentionItems = history.filter(h => (h.tags ?? []).includes('mention')).slice(0, 4)
 
-
-  const focusList = [
-    ...overdueTasks.slice(0, 2).map(task => ({ kind: '지연', title: task.title, href: taskHref(task, today), tone: 'late' as const })),
-    ...highHistory.slice(0, 2).map(item => ({ kind: '이슈', title: item.title, href: summaryHref({ priority: 'high', query: item.title }), tone: 'high' as const })),
-    ...dueToday.slice(0, 2).map(task => ({ kind: '오늘', title: task.title, href: taskHref(task, today), tone: 'today' as const })),
-  ].slice(0, 5)
-
+  const reviewSorted   = [...reviewPending].sort((a, b) => reviewPriorityRank(a.priority) - reviewPriorityRank(b.priority))
+  const reviewHighCount = reviewPending.filter(c => c.priority === 'high').length
   const todayExecutionCount = new Set([...dueToday, ...scheduledToday].map(t => t.id)).size
   const plannedMinutes = scheduledToday.reduce((sum, t) => sum + (t.duration_minutes ?? 60), 0)
   const plannedHours = Math.round(plannedMinutes / 60 * 10) / 10
+  const dailyFresh = latestDaily?.report_date === today
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
@@ -201,11 +127,11 @@ export default async function CommandCenterPage() {
           </span>
           <div className="min-w-0">
             <h1 className="text-sm font-semibold text-foreground uppercase tracking-wider">홈</h1>
-            <p className="text-sm text-ink-400">{fmtDay(today)} 운영 브리핑</p>
+            <p className="text-sm text-ink-400">{fmtDay(today)} 운영 관제판</p>
           </div>
         </div>
         <div className="ml-auto flex items-center gap-1.5">
-          <QuickLink href="/slack" label="Slack" icon={<MessageSquare size={12} />} />
+          <QuickLink href="/review" label="일감 판단" icon={<ClipboardList size={12} />} />
           <QuickLink href="/tasks" label="Tasks" icon={<ListTodo size={12} />} />
           <QuickLink href="/calendar" label="Calendar" icon={<CalendarDays size={12} />} />
         </div>
@@ -213,54 +139,33 @@ export default async function CommandCenterPage() {
 
       <main data-scrolltop className="flex-1 overflow-y-auto">
         <div className="px-6 py-5 space-y-5 max-w-[93.75rem] mx-auto">
+          {/* KPI */}
           <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
-            <MetricCard href={tasksQuickHref('due-today')} label="오늘 실행" value={todayExecutionCount} detail={`예정 ${scheduledToday.length} · 마감 ${dueToday.length}`} icon={<Timer size={14} />} tone="lilac" />
-            <MetricCard href={tasksQuickHref('overdue')} label="지연 태스크" value={overdueTasks.length} detail={`대기 ${waitingTasks.length} · 진행 ${inProgressTasks.length}`} icon={<AlertTriangle size={14} />} tone="late" />
-            <MetricCard href={summaryHref({ priority: 'high' })} label="고객 이슈" value={highHistoryAll.length} detail={`최근 high priority`} icon={<MessageSquare size={14} />} tone="coral" />
-            <MetricCard href={tasksQuickHref('due-this-week')} label="이번 주 마감" value={dueThisWeek.length} detail={`계획 ${plannedHours}h time block`} icon={<CalendarDays size={14} />} tone="mint" />
+            <MetricCard href="/review" label="검토 대기" value={reviewPending.length} detail={`높음 ${reviewHighCount}`} icon={<ClipboardList size={14} />} tone="lilac" />
+            <MetricCard href="/notes" label="미처리 메모" value={notesInbox.length} detail="포착 신호" icon={<Inbox size={14} />} tone="teal" />
+            <MetricCard href={tasksQuickHref('due-today')} label="오늘 실행" value={todayExecutionCount} detail={`예정 ${scheduledToday.length} · 마감 ${dueToday.length}`} icon={<Timer size={14} />} tone="mint" />
+            <MetricCard href={tasksQuickHref('overdue')} label="지연 태스크" value={overdueTasks.length} detail={`진행 ${inProgressTasks.length} · 대기 ${waitingTasks.length}`} icon={<AlertTriangle size={14} />} tone="late" />
           </section>
 
+          {/* 1. Review Queue + Capture Inbox */}
+          <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Panel title="검토 대기 (Review Queue)" href="/review" icon={<ClipboardList size={13} />} badge={reviewPending.length}>
+              <div className="space-y-2">
+                {reviewSorted.slice(0, 6).map(c => <ReviewRow key={c.id} candidate={c} />)}
+                {reviewPending.length === 0 && <EmptyLine label="검토 대기 중인 일감이 없습니다." />}
+              </div>
+            </Panel>
+
+            <Panel title="미처리 메모 (Capture Inbox)" href="/notes" icon={<Inbox size={13} />} badge={notesInbox.length}>
+              <div className="space-y-2">
+                {notesInbox.slice(0, 6).map(n => <NoteRow key={n.id} note={n} />)}
+                {notesInbox.length === 0 && <EmptyLine label="미처리 메모가 없습니다." />}
+              </div>
+            </Panel>
+          </section>
+
+          {/* 2. Today Execution */}
           <section className="grid grid-cols-1 xl:grid-cols-[minmax(0,1.1fr)_minmax(360px,0.9fr)] gap-4">
-            <Panel title="지금 볼 것" href={tasksQuickHref('overdue')} icon={<Flag size={13} />}>
-              {focusList.length > 0 ? (
-                <div className="divide-y divide-border">
-                  {focusList.map((item, i) => (
-                    <Link key={`${item.kind}-${i}`} href={item.href} className="flex items-center gap-3 py-3 group">
-                      <span className={`w-10 shrink-0 text-center rounded px-1.5 py-1 text-xs font-semibold ${
-                        item.tone === 'late' ? 'bg-red-50 text-status-late' :
-                        item.tone === 'high' ? 'bg-coral-100 text-coral-500' :
-                        'bg-lilac-100 text-lilac-600'
-                      }`}>
-                        {item.kind}
-                      </span>
-                      <span className="min-w-0 flex-1 truncate text-sm font-medium text-foreground group-hover:text-lilac-600">
-                        {item.title}
-                      </span>
-                      <ArrowRight size={13} className="text-ink-300 group-hover:text-lilac-500" />
-                    </Link>
-                  ))}
-                </div>
-              ) : (
-                <EmptyLine label="긴급히 볼 항목이 없습니다." />
-              )}
-            </Panel>
-
-            <Panel title="오늘의 시간" href={`/calendar?date=${today}`} icon={<Clock3 size={13} />}>
-              <div className="grid grid-cols-3 gap-2">
-                <MiniStat label="타임블록" value={`${scheduledToday.length}`} />
-                <MiniStat label="계획 시간" value={`${plannedHours}h`} />
-                <MiniStat label="미배치 마감" value={`${Math.max(0, dueToday.length - scheduledToday.length)}`} />
-              </div>
-              <div className="mt-4 space-y-2">
-                {scheduledToday.slice(0, 4).map(task => (
-                  <TaskRow key={task.id} task={task} today={today} compact />
-                ))}
-                {scheduledToday.length === 0 && <EmptyLine label="오늘 캘린더에 배치된 태스크가 없습니다." />}
-              </div>
-            </Panel>
-          </section>
-
-          <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
             <TodayTasksPanel
               overdueTasks={overdueTasks}
               dueToday={dueToday}
@@ -268,29 +173,54 @@ export default async function CommandCenterPage() {
               dueRestWeek={dueRestWeek}
               today={today}
             />
+            <Panel title="오늘의 시간" href={`/calendar?date=${today}`} icon={<Clock3 size={13} />}>
+              <div className="grid grid-cols-3 gap-2">
+                <MiniStat label="타임블록" value={`${scheduledToday.length}`} />
+                <MiniStat label="계획 시간" value={`${plannedHours}h`} />
+                <MiniStat label="미배치 마감" value={`${Math.max(0, dueToday.length - scheduledToday.length)}`} />
+              </div>
+              <div className="mt-4 space-y-2">
+                {scheduledToday.slice(0, 4).map(task => <TaskRow key={task.id} task={task} today={today} compact />)}
+                {scheduledToday.length === 0 && <EmptyLine label="오늘 캘린더에 배치된 태스크가 없습니다." />}
+              </div>
+            </Panel>
+          </section>
 
+          {/* 3. Monitoring */}
+          <section className="grid grid-cols-1 xl:grid-cols-3 gap-4">
+            <Panel title="장기 이슈" href="/slack" icon={<Radar size={13} />}>
+              <div className="space-y-2">
+                {openIssues.map(i => <IssueRow key={i.id} issue={i} today={today} />)}
+                {openIssues.length === 0 && <EmptyLine label="열린 이슈가 없습니다." />}
+              </div>
+            </Panel>
             <Panel title="고객 신호" href={summaryHref({ priority: 'high' })} icon={<MessageSquare size={13} />}>
               <div className="space-y-2">
-                {highHistory.map(item => (
-                  <HistoryRow key={item.id} item={item} />
-                ))}
+                {highHistory.map(item => <HistoryRow key={item.id} item={item} />)}
                 {highHistory.length === 0 && <EmptyLine label="최근 high priority 이슈가 없습니다." />}
               </div>
             </Panel>
-
             <Panel title="결정 대기" href="/slack?tags=decision" icon={<Target size={13} />}>
               <div className="space-y-2">
-                {decisionItems.map(item => (
-                  <DecisionRow key={item.id} item={item} />
-                ))}
+                {decisionItems.map(item => <DecisionRow key={item.id} item={item} />)}
                 {decisionItems.length === 0 && <EmptyLine label="최근 결정 태그 항목이 없습니다." />}
               </div>
             </Panel>
           </section>
 
-          <ProjectsSection projects={projects} today={today} />
-
+          {/* 4. Pipeline Health */}
           <section className="grid grid-cols-1 xl:grid-cols-2 gap-4">
+            <Panel title="파이프라인 상태" href="/slack" icon={<Radar size={13} />}>
+              <div className="grid grid-cols-3 gap-2">
+                <MiniStat label="최근 데일리" value={latestDaily ? `${fmtDay(latestDaily.report_date)}${dailyFresh ? ' ✓' : ''}` : '없음'} />
+                <MiniStat label="Weekly 분석" value={latestWeekly ? fmtDay(latestWeekly.week_start) : '없음'} />
+                <MiniStat label="검토 대기" value={reviewPending.length} />
+              </div>
+              {!dailyFresh && (
+                <p className="mt-3 text-sm text-ink-400">오늘 데일리 리포트가 아직 생성되지 않았습니다.</p>
+              )}
+            </Panel>
+
             <Panel title="Weekly 인사이트" href="/weekly" icon={<FileText size={13} />}>
               {latestWeekly?.content ? (
                 <div className="space-y-3">
@@ -307,166 +237,12 @@ export default async function CommandCenterPage() {
                 <EmptyLine label="분석된 Weekly 인사이트가 없습니다." />
               )}
             </Panel>
-
-            <Panel title="나를 부른 일" href={summaryHref({ tag: 'mention' })} icon={<CheckCircle2 size={13} />}>
-              <div className="space-y-2">
-                {mentionItems.map(item => (
-                  <HistoryRow key={item.id} item={item} />
-                ))}
-                {mentionItems.length === 0 && <EmptyLine label="최근 멘션 항목이 없습니다." />}
-              </div>
-            </Panel>
           </section>
+
+          {/* 5. Projects */}
+          <ProjectsSection projects={projects} today={today} />
         </div>
       </main>
-    </div>
-  )
-}
-
-function QuickLink({ href, label, icon }: { href: string; label: string; icon: React.ReactNode }) {
-  return (
-    <Link href={href} className="inline-flex items-center gap-1.5 h-7 px-2.5 rounded-md border border-border bg-background text-sm font-medium text-muted-foreground hover:text-foreground hover:bg-muted transition-colors">
-      {icon}
-      {label}
-    </Link>
-  )
-}
-
-function MetricCard({ label, value, detail, icon, tone, href }: {
-  label: string
-  value: number | string
-  detail: string
-  icon: React.ReactNode
-  tone: 'lilac' | 'late' | 'coral' | 'mint'
-  href?: string
-}) {
-  const toneClass = {
-    lilac: 'bg-lilac-100 text-lilac-600',
-    late: 'bg-red-50 text-status-late',
-    coral: 'bg-coral-100 text-coral-500',
-    mint: 'bg-mint-100 text-mint-500',
-  }[tone]
-  const content = (
-    <>
-      <div className="flex items-center justify-between">
-        <span className="text-sm font-semibold text-ink-400 uppercase tracking-wider">{label}</span>
-        <span className={`inline-flex size-7 items-center justify-center rounded-md ${toneClass}`}>{icon}</span>
-      </div>
-      <div className="mt-3 flex items-end gap-2">
-        <span className="text-2xl font-semibold tracking-normal text-foreground">{value}</span>
-        <span className="pb-1 text-sm text-muted-foreground">{detail}</span>
-      </div>
-    </>
-  )
-  if (href) {
-    return (
-      <Link href={href} className="rounded-lg border border-border bg-card px-4 py-3 hover:border-lilac-300 hover:bg-muted/40 transition-colors">
-        {content}
-      </Link>
-    )
-  }
-  return <div className="rounded-lg border border-border bg-card px-4 py-3">{content}</div>
-}
-
-function Panel({ title, href, icon, children }: {
-  title: string
-  href: string
-  icon: React.ReactNode
-  children: React.ReactNode
-}) {
-  return (
-    <section className="rounded-lg border border-border bg-card overflow-hidden">
-      <div className="h-10 flex items-center gap-2 px-4 border-b bg-muted">
-        <span className="text-ink-400">{icon}</span>
-        <h2 className="text-sm font-semibold text-foreground">{title}</h2>
-        <Link href={href} className="ml-auto inline-flex items-center gap-1 text-sm text-ink-400 hover:text-foreground">
-          열기
-          <ArrowRight size={11} />
-        </Link>
-      </div>
-      <div className="p-4">{children}</div>
-    </section>
-  )
-}
-
-function MiniStat({ label, value }: { label: string; value: string | number }) {
-  return (
-    <div className="rounded-md border border-border bg-background px-2.5 py-2">
-      <div className="text-sm text-ink-400">{label}</div>
-      <div className="mt-1 text-sm font-semibold text-foreground">{value}</div>
-    </div>
-  )
-}
-
-function TaskRow({ task, today, compact = false }: { task: GanttTask; today?: string; compact?: boolean }) {
-  const due = today ? daysUntil(task.due_date, today) : null
-  const href = taskHref(task, today ?? todayLocal())
-  return (
-    <Link href={href} className="flex items-center gap-2 rounded-md border border-border px-3 py-2 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
-      <span className="size-2 rounded-full shrink-0" style={{ backgroundColor: STATUS_COLOR[task.status] }} />
-      <div className="min-w-0 flex-1">
-        <div className="flex items-center gap-1.5">
-          <span className={`${compact ? 'text-xs' : 'text-sm'} font-medium text-foreground truncate`}>{task.title}</span>
-        </div>
-        <div className="mt-1 flex items-center gap-1.5 text-sm text-ink-400">
-          <span className="rounded px-1.5 py-0.5" style={statusTone(task.status)}>{STATUS_LABEL[task.status]}</span>
-          {task.assignee && <span className="truncate">{task.assignee}</span>}
-        </div>
-      </div>
-      {task.due_date && (
-        <span className={`text-sm shrink-0 ${due !== null && due < 0 ? 'text-status-late font-semibold' : 'text-muted-foreground'}`}>
-          {fmtDay(task.due_date)}
-        </span>
-      )}
-    </Link>
-  )
-}
-
-function HistoryRow({ item }: { item: HistoryItem }) {
-  const p = priorityLabel(item.priority)
-  return (
-    <Link href={summaryHref({ priority: item.priority ?? undefined, query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
-      <div className="flex items-center gap-2 min-w-0">
-        {item.brand_name && <BrandIcon name={item.brand_name} size={8} />}
-        <span className="text-sm font-semibold text-foreground truncate">{item.title}</span>
-        {p && <span className="ml-auto shrink-0 text-sm font-medium" style={{ color: p.color }}>{p.label}</span>}
-      </div>
-      <div className="mt-1.5 flex items-center gap-1.5 text-sm text-ink-400">
-        <span className="truncate">{item.brand_name ?? item.channel}</span>
-        <span>{fmtDay(item.occurred_at)}</span>
-      </div>
-    </Link>
-  )
-}
-
-function DecisionRow({ item }: { item: HistoryItem }) {
-  const tags = (item.tags ?? []).filter((tag): tag is Tag => tag in TAG_META).slice(0, 2)
-  return (
-    <Link href={summaryHref({ tag: 'decision', query: item.title })} className="block rounded-md border border-border px-3 py-2.5 hover:border-lilac-300 hover:bg-muted/50 transition-colors">
-      <div className="text-sm font-semibold text-foreground truncate">{item.title}</div>
-      <div className="mt-2 flex items-center gap-1.5 min-w-0">
-        {item.brand_name && (
-          <span className="inline-flex items-center gap-1.5 text-sm text-muted-foreground min-w-0">
-            <BrandIcon name={item.brand_name} size={10} />
-            <span className="truncate">{item.brand_name}</span>
-          </span>
-        )}
-        <span className="ml-auto flex gap-1 shrink-0">
-          {tags.map(tag => (
-            <span key={tag} className="text-xs px-1.5 py-0.5 rounded" style={{ background: TAG_META[tag].bg, color: TAG_META[tag].color }}>
-              {TAG_META[tag].label}
-            </span>
-          ))}
-        </span>
-      </div>
-    </Link>
-  )
-}
-
-function EmptyLine({ label }: { label: string }) {
-  return (
-    <div className="rounded-md border border-dashed border-border bg-background px-3 py-4 text-center text-sm text-ink-400">
-      {label}
     </div>
   )
 }
