@@ -2,9 +2,9 @@
 
 import { useState, useEffect } from 'react'
 import {
-  User, Link2, Monitor, Database, Building2,
+  User, Link2, Monitor, Building2,
   LogOut, CheckCircle2, AlertCircle, Sun, Moon, Laptop,
-  Download, ChevronRight, Plus, BookOpen, Hash,
+  Plus, BookOpen, Hash,
 } from 'lucide-react'
 import { useTheme } from 'next-themes'
 import { createClient } from '@/lib/supabase/client'
@@ -25,7 +25,7 @@ import {
   SortableContext, verticalListSortingStrategy, arrayMove,
 } from '@dnd-kit/sortable'
 
-type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'brands' | 'data'
+type Section = 'account' | 'integrations' | 'display' | 'channels' | 'weekly' | 'brands'
 
 type WeeklySource = {
   id: string
@@ -42,7 +42,6 @@ const NAV: { key: Section; label: string; icon: React.ElementType }[] = [
   { key: 'channels',     label: 'Slack 채널',  icon: Hash },
   { key: 'weekly',       label: 'Weekly 연동', icon: BookOpen },
   { key: 'brands',       label: '브랜드',      icon: Building2 },
-  { key: 'data',         label: '데이터',      icon: Database },
 ]
 
 const THEME_OPTIONS = [
@@ -147,6 +146,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
   }, [])
 
   const setDefaultView = (key: string, value: string) => {
+    if (defaultViews[key] === value) return
     setDefaultViews(prev => ({ ...prev, [key]: value }))
     localStorage.setItem(key, value)
     toast.success('저장되었습니다.')
@@ -158,6 +158,7 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
     setDefaultSortMode((localStorage.getItem('wald.gantt.sortMode') as SortMode) ?? 'default')
   }, [])
   const setDefaultSort = (value: SortMode) => {
+    if (defaultSortMode === value) return
     setDefaultSortMode(value)
     localStorage.setItem('wald.gantt.sortMode', value)
     toast.success('저장되었습니다.')
@@ -239,7 +240,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
     channels:     'Slack 채널 관리',
     weekly:       'Weekly 문서 연동',
     brands:       '브랜드 관리',
-    data:         '데이터',
   }
 
   return (
@@ -469,38 +469,6 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
             <SettingCard title="브랜드별 아이콘">
               <p className="text-sm text-ink-400">로고를 업로드하거나 아이콘을 선택하세요. 없으면 이름 첫 글자가 표시됩니다.</p>
               <BrandProfilesSection clients={clients} />
-            </SettingCard>
-          )}
-
-          {/* ── 데이터 ── */}
-          {section === 'data' && (
-            <SettingCard title="내보내기">
-              <p className="text-sm text-muted-foreground">
-                태스크, 히스토리, 주간 데이터를 CSV 또는 JSON으로 내보낼 수 있습니다.
-              </p>
-              <div className="space-y-2">
-                {[
-                  { label: '태스크 목록', format: 'CSV' },
-                  { label: '클라이언트 히스토리', format: 'JSON' },
-                  { label: '주간 요약', format: 'JSON' },
-                ].map(({ label, format }) => (
-                  <button
-                    key={label}
-                    disabled
-                    className="w-full flex items-center justify-between px-3 py-2 rounded border border-border text-sm text-muted-foreground opacity-50 cursor-not-allowed"
-                  >
-                    <span className="flex items-center gap-2">
-                      <Download size={13} />
-                      {label}
-                    </span>
-                    <span className="flex items-center gap-1 text-sm">
-                      {format}
-                      <ChevronRight size={11} />
-                    </span>
-                  </button>
-                ))}
-              </div>
-              <p className="text-sm text-ink-400">* 내보내기 기능은 준비 중입니다.</p>
             </SettingCard>
           )}
 

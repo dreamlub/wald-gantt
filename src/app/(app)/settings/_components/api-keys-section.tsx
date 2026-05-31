@@ -36,11 +36,12 @@ function KeyRow({ info, onSaved, onDeleted }: {
   onSaved: () => void
   onDeleted: () => void
 }) {
-  const [editing, setEditing]   = useState(false)
-  const [value, setValue]       = useState('')
-  const [visible, setVisible]   = useState(false)
-  const [saving, setSaving]     = useState(false)
-  const [deleting, setDeleting] = useState(false)
+  const [editing, setEditing]       = useState(false)
+  const [value, setValue]           = useState('')
+  const [visible, setVisible]       = useState(false)
+  const [saving, setSaving]         = useState(false)
+  const [deleting, setDeleting]     = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState(false)
 
   const handleSave = async () => {
     if (!value.trim()) return
@@ -76,9 +77,11 @@ function KeyRow({ info, onSaved, onDeleted }: {
       const data = await res.json()
       if (!res.ok) throw new Error(data.error)
       toast.success(`${info.label} 삭제됨`)
+      setConfirmDelete(false)
       onDeleted()
     } catch (e) {
       toast.error(e instanceof Error ? e.message : '삭제 실패')
+      setConfirmDelete(false)
     } finally {
       setDeleting(false)
     }
@@ -92,7 +95,7 @@ function KeyRow({ info, onSaved, onDeleted }: {
           <p className="text-xs text-ink-400">{DESCRIPTIONS[info.name]}</p>
         </div>
         <div className="flex items-center gap-2 shrink-0">
-          {info.set && !editing && (
+          {info.set && !editing && !confirmDelete && (
             <>
               <span className={`text-xs ${info.secret ? 'font-mono' : ''} text-ink-400 bg-muted px-2 py-0.5 rounded max-w-45 truncate`}>
                 {info.masked}
@@ -104,14 +107,31 @@ function KeyRow({ info, onSaved, onDeleted }: {
                 변경
               </button>
               <button
-                onClick={handleDelete}
-                disabled={deleting}
-                className="text-ink-400 hover:text-status-late transition-colors disabled:opacity-50"
+                onClick={() => setConfirmDelete(true)}
+                className="text-ink-400 hover:text-status-late transition-colors"
                 title="삭제"
               >
-                {deleting ? <RefreshCw size={12} className="animate-spin" /> : <Trash2 size={12} />}
+                <Trash2 size={12} />
               </button>
             </>
+          )}
+          {info.set && !editing && confirmDelete && (
+            <div className="flex items-center gap-2">
+              <span className="text-xs text-status-late">삭제할까요?</span>
+              <button
+                onClick={handleDelete}
+                disabled={deleting}
+                className="text-xs px-2 py-0.5 rounded bg-status-late text-white font-medium hover:opacity-80 disabled:opacity-50 transition-opacity"
+              >
+                {deleting ? <RefreshCw size={10} className="animate-spin inline" /> : '삭제'}
+              </button>
+              <button
+                onClick={() => setConfirmDelete(false)}
+                className="text-xs text-ink-400 hover:text-foreground transition-colors"
+              >
+                취소
+              </button>
+            </div>
           )}
           {!info.set && !editing && (
             <button
@@ -221,7 +241,7 @@ export function ApiKeysSection() {
         />
       ))}
       <p className="text-xs text-ink-400 mt-3">
-        * 키는 DB에 저장됩니다. 미설정 시 서버 환경변수를 우선 사용합니다.
+        * 미등록 항목은 관리자가 설정한 기본값을 사용합니다.
       </p>
     </div>
   )
