@@ -33,9 +33,9 @@ export function pageReducer(state: PageState, action: PageAction): PageState {
 
 export const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
 
-export type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'timeline' | 'calendar' | 'rawdata'
+export type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'issue-tracker' | 'calendar' | 'rawdata'
 
-export const VALID_VIEWS: readonly ViewKey[] = ['dailylist', 'weeklylist', 'dailyreport', 'timeline', 'calendar', 'rawdata']
+export const VALID_VIEWS: readonly ViewKey[] = ['dailylist', 'weeklylist', 'dailyreport', 'issue-tracker', 'calendar', 'rawdata']
 export const VALID_PRIORITIES: readonly PriorityKey[] = ['all', 'high', 'medium', 'low']
 export const VALID_TAGS: readonly Tag[] = ['issue', 'decision', 'mention', 'schedule']
 

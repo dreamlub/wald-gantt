@@ -8,6 +8,8 @@ import { createClient } from '@/lib/supabase/client'
 import { ReviewCard } from './review-card'
 import { ReviewSidebar } from './review-sidebar'
 
+type BrandAlias = { alias_name: string; canonical_name: string }
+
 interface TaskDraft {
   title: string
   memo: string | null
@@ -39,6 +41,7 @@ export function ReviewShell() {
   const [filterSource, setFilterSource]     = useState<string>('all')
   const [filterBrand, setFilterBrand]       = useState<string>('all')
   const [filterPriority, setFilterPriority] = useState<string>('all')
+  const [aliasMap, setAliasMap] = useState<Map<string, string>>(new Map())
 
   // 프로젝트 목록 (태스크 생성 시 프로젝트 연결용)
   useEffect(() => {
@@ -72,6 +75,18 @@ export function ReviewShell() {
     } finally {
       setLoading(false)
     }
+  }, [])
+
+  // 별칭 맵 로드 (alias_name → canonical_name)
+  useEffect(() => {
+    fetch('/api/slack/brand-aliases')
+      .then(r => r.json())
+      .then((body: { aliases?: BrandAlias[] }) => {
+        if (body.aliases) {
+          setAliasMap(new Map(body.aliases.map(a => [a.alias_name, a.canonical_name])))
+        }
+      })
+      .catch(() => {/* 실패 시 정규화 없이 진행 */})
   }, [])
 
   // 초기 로딩: loading은 useState(true)로 시작하므로 effect 내 동기 setLoading 불필요
@@ -112,19 +127,26 @@ export function ReviewShell() {
     setCandidates(prev => prev.filter(c => c.id !== id))
   }
 
+  const resolveBrand = useCallback(
+    (brand: string | null | undefined) =>
+      brand ? (aliasMap.get(brand) ?? brand) : brand,
+    [aliasMap],
+  )
+
   const brandStats = useMemo(() => {
     const map = new Map<string, number>()
     for (const c of candidates) {
-      if (c.brand) map.set(c.brand, (map.get(c.brand) ?? 0) + 1)
+      const name = resolveBrand(c.brand)
+      if (name) map.set(name, (map.get(name) ?? 0) + 1)
     }
     return [...map.entries()]
       .map(([name, count]) => ({ name, count }))
       .sort((a, b) => b.count - a.count)
-  }, [candidates])
+  }, [candidates, resolveBrand])
 
   const filtered = candidates.filter(c => {
     if (filterSource !== 'all' && c.source !== filterSource) return false
-    if (filterBrand !== 'all' && c.brand !== filterBrand) return false
+    if (filterBrand !== 'all' && resolveBrand(c.brand) !== filterBrand) return false
     if (filterPriority !== 'all' && c.priority !== filterPriority) return false
     return true
   })

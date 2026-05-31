@@ -1,5 +1,6 @@
 import { NextResponse } from 'next/server'
 import { createClient } from '@/lib/supabase/server'
+import { fetchBrandAliasMap, resolveBrandAlias } from '@/lib/slack-service'
 import type { WeeklyReportItem, WeeklyReportSummary } from '@/types'
 import type { ReviewPriority, ReviewSource } from '@/types'
 
@@ -72,6 +73,7 @@ export async function POST() {
     }
 
     const workspaceId = member.workspace_id
+    const aliasMap = await fetchBrandAliasMap(sb, workspaceId)
     const since60 = new Date(Date.now() - 60 * 24 * 60 * 60 * 1000).toISOString()
 
     // ── 1. daily_report 후보 ───────────────────────────────────────────
@@ -101,7 +103,7 @@ export async function POST() {
           source_date: report.report_date,
           title,
           memo,
-          brand: item.brand ?? null,
+          brand: resolveBrandAlias(item.brand ?? null, aliasMap),
           priority: severityToPriority(item.severity),
           due_date: item.due_date ?? null,
           estimated_minutes: item.estimated_minutes ?? null,
@@ -132,7 +134,7 @@ export async function POST() {
           source_date: report.week_start,
           title: item.task_title ?? item.title,
           memo: item.task_memo ?? item.detail ?? null,
-          brand: item.brand ?? report.team ?? null,
+          brand: resolveBrandAlias(item.brand ?? report.team ?? null, aliasMap),
           priority: weeklyPriority(item),
           due_date: item.due_date ?? null,
           estimated_minutes: item.estimated_minutes ?? null,

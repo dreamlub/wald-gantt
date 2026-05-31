@@ -14,7 +14,7 @@ const VIEW_TABS: { key: ViewKey; label: string; icon: LucideIcon }[] = [
   { key: 'dailylist',   label: 'Daily List',   icon: LayoutList },
   { key: 'dailyreport', label: 'Daily Report', icon: Newspaper },
   { key: 'weeklylist',  label: 'Weekly List',  icon: Table },
-  { key: 'timeline',    label: 'Timeline',     icon: GitMerge },
+  { key: 'issue-tracker',    label: 'Issue Tracker', icon: GitMerge },
   { key: 'calendar',    label: 'Calendar',     icon: CalendarDays },
 ]
 

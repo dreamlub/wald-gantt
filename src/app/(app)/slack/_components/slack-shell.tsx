@@ -14,7 +14,7 @@ import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
 import { DailyReportView } from './daily-report-view'
 import { ScheduleCalendarView } from './schedule-calendar-view'
-import { TimelineBrandPanel } from './timeline-brand-panel'
+import { IssueTrackerBrandPanel } from './issue-tracker-brand-panel'
 import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
 import { FilterChip } from './filter-chip'
 import {
@@ -44,7 +44,7 @@ function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
   if (v === 'dailyreport') {
     return { from: today, to: today }
   }
-  if (v === 'timeline') {
+  if (v === 'issue-tracker') {
     return { from: `${now.getFullYear()}-${String(now.getMonth() + 1).padStart(2, '0')}-01`, to: today }
   }
   return { from: '', to: '' }
@@ -200,7 +200,7 @@ export function SummaryShell({ initialHistory }: Props) {
   // ref 가드로 1회만 — 이후 사용자가 'all'로 되돌리면 안내 상태를 그대로 존중.
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
-    if (view !== 'timeline' || brandId !== 'all' || timelineAutoSelectedRef.current) return
+    if (view !== 'issue-tracker' || brandId !== 'all' || timelineAutoSelectedRef.current) return
     if (timelineStats.length === 0) return
     const best = [...timelineStats]
       .filter(s => s.issue_count > 0)
@@ -304,8 +304,8 @@ export function SummaryShell({ initialHistory }: Props) {
               onToggleBrand={toggleCalendarBrand}
               onBrandsLoaded={handleCalendarBrandsLoaded}
             />
-          ) : view === 'timeline' ? (
-            <TimelineBrandPanel
+          ) : view === 'issue-tracker' ? (
+            <IssueTrackerBrandPanel
               brandId={brandId}
               stats={timelineStats.find(s => s.brand_name === brandId) ?? null}
             />

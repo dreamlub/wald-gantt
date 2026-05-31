@@ -274,7 +274,7 @@ function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
   return (
     <div className="border border-ink-400 rounded-xl overflow-hidden bg-card shadow-sm">
       <div className="flex items-center gap-2 px-4 py-3 border-b border-ink-300 bg-ink-100">
-        <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={8} />
+        <BrandIcon name={brand} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
         <span className="text-sm font-semibold text-foreground flex-1">{brand}</span>
         <span className="text-sm text-ink-400">{items.length}</span>
       </div>

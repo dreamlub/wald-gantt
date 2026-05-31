@@ -80,7 +80,7 @@ function CalendarBrandSidebar({
 
 // ── Props ────────────────────────────────────────────────────
 interface Props {
-  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'rawdata' | 'timeline' | 'calendar'
+  view: 'dailylist' | 'weeklylist' | 'dailyreport' | 'rawdata' | 'issue-tracker' | 'calendar'
   history: HistoryItem[]
   dateFrom: string
   dateTo: string
@@ -171,7 +171,7 @@ export function SummarySidebar({
     )
   }
 
-  if (view === 'timeline') {
+  if (view === 'issue-tracker') {
     return (
       <TimelineSidebar
         brandId={brandId}

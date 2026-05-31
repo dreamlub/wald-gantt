@@ -12,7 +12,7 @@ import { Switch } from '@/components/ui/switch'
 
 interface Props { brandFilter?: string }
 
-export function TimelineTracker({ brandFilter }: Props) {
+export function IssueTracker({ brandFilter }: Props) {
   const [issues, setIssues] = useState<TrackerIssueRow[]>([])
   const [relations, setRelations] = useState<Relation[]>([])
   const [evidenceCounts, setEvidenceCounts] = useState<Record<string, number>>({})
@@ -51,7 +51,6 @@ export function TimelineTracker({ brandFilter }: Props) {
   }, [brandFilter])
   /* eslint-enable react-hooks/set-state-in-effect */
 
-  // 노드 토글 선택 (재클릭 시 해제)
   const toggleSelect = useCallback((id: string) => {
     setSelectedId(prev => (prev === id ? null : id))
   }, [])
@@ -61,7 +60,6 @@ export function TimelineTracker({ brandFilter }: Props) {
     [relations],
   )
 
-  // 타입별 필터 + 트리 구성 (우측 포레스트)
   const { trees, standalones } = useMemo(() => {
     const rows = issues.filter(r =>
       (typeFilter.size === 0 || typeFilter.has(r.type as TypeFilter)) &&
@@ -83,17 +81,14 @@ export function TimelineTracker({ brandFilter }: Props) {
       .filter(r => parentIds.has(r.id))
       .sort((a, b) => rank(a) - rank(b))
       .map(root => ({ root, children: (childMap.get(root.id) ?? []).sort((a, b) => rank(a) - rank(b)) }))
-    // 부모가 없거나, 부모가 현재 필터에서 빠져 보이지 않으면(고아 승격) standalone 으로
     const standalones = rows
       .filter(r => !parentIds.has(r.id) && (!r.parent_issue_id || !byId.has(r.parent_issue_id)))
       .sort((a, b) => rank(a) - rank(b))
     return { trees, standalones }
   }, [issues, typeFilter, showClosed, showStaleOnly])
 
-  // 정리 대상(30일+ 무언급 open) 건수 — 토글 뱃지용 (타입 필터 무관 전체)
   const staleCount = useMemo(() => issues.filter(isStale).length, [issues])
 
-  // 트래킹 작성 기준일 = 가장 최근 created_at (없으면 last_seen)
   const trackedLabel = useMemo(() => {
     const dates = issues.map(r => r.created_at ?? r.last_seen).filter(Boolean).sort()
     const latest = dates.at(-1)
@@ -102,19 +97,16 @@ export function TimelineTracker({ brandFilter }: Props) {
     return `${Number(mm)}월 ${Number(dd)}일 기준 작성`
   }, [issues])
 
-  // 선택 이슈의 open 자식 수 (부모 닫기 confirm용)
   const selectedChildCount = useMemo(
     () => selectedId ? issues.filter(r => r.parent_issue_id === selectedId && r.status === 'open').length : 0,
     [issues, selectedId],
   )
 
-  // 낙관적 갱신 + API 호출
   const handleStatusChange = useCallback(async (
     id: string,
     newStatus: 'open' | 'closed',
     includeChildren: boolean,
   ) => {
-    // optimistic
     setIssues(prev => prev.map(r => {
       if (r.id === id) return { ...r, status: newStatus }
       if (includeChildren && r.parent_issue_id === id) return { ...r, status: newStatus }
@@ -131,7 +123,6 @@ export function TimelineTracker({ brandFilter }: Props) {
       const map = new Map(updated.map(u => [u.id, u]))
       setIssues(prev => prev.map(r => (map.has(r.id) ? map.get(r.id)! : r)))
     } catch {
-      // 낙관적 업데이트 되돌리기
       const revert = newStatus === 'open' ? 'closed' : 'open'
       setIssues(prev => prev.map(r => {
         if (r.id === id) return { ...r, status: revert }
@@ -141,7 +132,6 @@ export function TimelineTracker({ brandFilter }: Props) {
     }
   }, [])
 
-  // 정리 대상 일괄 닫기 — 현재 로드된 stale 이슈 전체를 closed 처리 (개별 PATCH, 실패분만 롤백)
   const handleBulkClose = useCallback(async () => {
     const ids = issues.filter(isStale).map(r => r.id)
     if (ids.length === 0) return
@@ -165,14 +155,12 @@ export function TimelineTracker({ brandFilter }: Props) {
         setIssues(prev => prev.map(r => (failed.has(r.id) ? { ...r, status: 'open' } : r)))
       }
     } catch {
-      // 예외 전체 실패 시 낙관적 갱신 되돌리기
       setIssues(prev => prev.map(r => (idSet.has(r.id) ? { ...r, status: 'open' } : r)))
     } finally {
       setBulkClosing(false)
     }
   }, [issues])
 
-  // A안: 선택 노드 기준 관계 방향칩 맵 + 무관 노드 dim 집합 (미선택이면 null)
   const { relMap, dimSet } = useMemo(() => {
     if (selectedId == null) return { relMap: undefined, dimSet: null as Set<string> | null }
     const rm = new Map<string, { type: RelationType; outgoing: boolean }>()
@@ -181,7 +169,6 @@ export function TimelineTracker({ brandFilter }: Props) {
       if (r.from_issue_id === selectedId) { rm.set(r.to_issue_id, { type: r.relation_type, outgoing: true }); connected.add(r.to_issue_id) }
       if (r.to_issue_id === selectedId)   { rm.set(r.from_issue_id, { type: r.relation_type, outgoing: false }); connected.add(r.from_issue_id) }
     }
-    // dim 대상 = 화면에 보이는 노드 중 선택·연결에 안 든 것
     const dim = new Set<string>()
     for (const t of trees) {
       if (!connected.has(t.root.id)) dim.add(t.root.id)
@@ -199,7 +186,6 @@ export function TimelineTracker({ brandFilter }: Props) {
 
   return (
     <div className="flex-1 flex flex-col min-h-0 bg-white">
-      {/* 상단: 브랜드명 + 작성 기준일 + 타입 필터 */}
       <div className="shrink-0 flex items-center gap-2.5 px-4 py-2 border-b border-ink-100">
         <span className="text-base font-bold text-foreground">{brandFilter ?? '전체'}</span>
         {trackedLabel && (
@@ -230,7 +216,6 @@ export function TimelineTracker({ brandFilter }: Props) {
             )
           })}
           <div className="w-px h-3.5 bg-ink-200 shrink-0" />
-          {/* 해결 포함 — 보기 옵션(스위치) */}
           <Switch
             checked={showClosed}
             onCheckedChange={setShowClosed}
@@ -239,7 +224,6 @@ export function TimelineTracker({ brandFilter }: Props) {
             onClassName="bg-ink-500"
             className="text-sm text-ink-500 flex-row-reverse"
           />
-          {/* 정리 대상 — 액션 진입(솔리드 버튼) */}
           <button
             onClick={() => { setShowStaleOnly(v => !v); setBulkConfirm(false) }}
             disabled={staleCount === 0 && !showStaleOnly}
@@ -263,7 +247,6 @@ export function TimelineTracker({ brandFilter }: Props) {
         </div>
       </div>
 
-      {/* 정리 대상 모드 — 일괄 닫기 액션 바 */}
       {showStaleOnly && staleCount > 0 && (
         <div className="shrink-0 flex items-center gap-2 px-4 py-1.5 bg-status-warn/8 border-b border-status-warn-border text-xs">
           <Archive size={11} className="text-status-warn shrink-0" />
@@ -301,9 +284,7 @@ export function TimelineTracker({ brandFilter }: Props) {
         </div>
       )}
 
-      {/* 좌우 2단 — 좌측은 계층, 우측은 선택 상세 */}
       <div className="flex-1 flex min-h-0">
-        {/* 좌: 이슈 하이어라키 (비율 2 : 우측 3) */}
         <div className="flex-[2] min-w-0 border-r border-ink-100 flex flex-col min-h-0">
           <div data-scrolltop className="flex-1 overflow-y-auto">
             {loading ? (
@@ -347,7 +328,6 @@ export function TimelineTracker({ brandFilter }: Props) {
           </div>
         </div>
 
-        {/* 우: 선택 상세 — 흰 배경 위에 테두리 카드로 분리 (비율 3) */}
         <div className="flex-[3] min-w-0 bg-white p-4">
           <div className="h-full rounded-lg border bg-card shadow-sm overflow-hidden">
             <IssueDetailPanel
