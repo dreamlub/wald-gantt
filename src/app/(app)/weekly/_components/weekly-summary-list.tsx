@@ -173,7 +173,7 @@ export function WeeklySummaryList({ reports, selectedBrand }: Props) {
     return (
       <div className="flex flex-col items-center justify-center py-20 gap-2 text-ink-400">
         <p className="text-sm">요약 데이터가 없습니다.</p>
-        <p className="text-xs">MCP 스킬로 주간보고 요약을 실행해 주세요.</p>
+        <p className="text-xs">원문 수집 후 외부 요약 분석이 끝나면 표시됩니다.</p>
       </div>
     )
   }

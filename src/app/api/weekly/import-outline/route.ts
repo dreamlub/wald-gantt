@@ -264,7 +264,7 @@ export async function POST(req: Request) {
                 const childText: string = childRes.data?.text ?? ''
                 if (!childText) continue
                 const { error } = await sb.from('weekly_reports').upsert(
-                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, updated_at: new Date().toISOString() },
+                  { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: weekStart, raw_content: childText, summary: null, updated_at: new Date().toISOString() },
                   { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                 )
                 if (error) errors++; else upserted++
@@ -280,7 +280,7 @@ export async function POST(req: Request) {
                   : childSections
                 for (const section of filtered) {
                   const { error } = await sb.from('weekly_reports').upsert(
-                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, updated_at: new Date().toISOString() },
+                    { workspace_id: member.workspace_id, source: 'outline', team: source.label, author: null, week_start: section.weekStart, raw_content: section.content, summary: null, updated_at: new Date().toISOString() },
                     { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
                   )
                   if (error) errors++; else upserted++
@@ -303,6 +303,7 @@ export async function POST(req: Request) {
               author: null,
               week_start: section.weekStart,
               raw_content: section.content,
+              summary: null,
               updated_at: new Date().toISOString(),
             },
             { onConflict: 'workspace_id,source,team,week_start', ignoreDuplicates: false }
