@@ -1,12 +1,13 @@
 'use client'
 
 import { useEffect, useMemo, useState } from 'react'
-import { Loader2, Users, Tag } from 'lucide-react'
+import { Loader2, Users, Tag, MessageSquare, FileText } from 'lucide-react'
 import type { ResourceStatsResponse, ResourcePair } from '../_lib/stats-types'
 import { EMPTY_RESOURCE_STATS } from '../_lib/stats-types'
 import { brandColor } from '@/lib/brand-color'
 
-type Mode = 'assignee' | 'brand'
+type Mode   = 'assignee' | 'brand'
+type Source = 'slack' | 'weekly'
 
 interface Lane { label: string; color: string; weeks: Record<string, number>; total: number }
 interface Group { label: string; color: string | null; total: number; lanes: Lane[] }
@@ -40,16 +41,17 @@ function intensity(count: number): number {
 export function ResourceStats() {
   const [data, setData] = useState<ResourceStatsResponse>(EMPTY_RESOURCE_STATS)
   const [loading, setLoading] = useState(true)
-  const [mode, setMode] = useState<Mode>('assignee')
+  const [mode, setMode]     = useState<Mode>('assignee')
+  const [source, setSource] = useState<Source>('weekly')
 
   /* eslint-disable react-hooks/set-state-in-effect */
   useEffect(() => {
     setLoading(true)
-    fetch('/api/stats/resources')
+    fetch(`/api/stats/resources?source=${source}`)
       .then(r => r.json())
       .then((res: ResourceStatsResponse) => { setData(res); setLoading(false) })
       .catch(() => setLoading(false))
-  }, [])
+  }, [source])
   /* eslint-enable react-hooks/set-state-in-effect */
 
   const groups = useMemo(() => buildGroups(data.pairs, mode), [data.pairs, mode])
@@ -75,25 +77,49 @@ export function ResourceStats() {
     <div data-scrolltop className="flex-1 overflow-auto">
       <div className="px-6 py-5">
         {/* 토글 */}
-        <div className="flex items-center gap-1.5 mb-4">
-          <button
-            onClick={() => setMode('assignee')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-              mode === 'assignee' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
-            }`}
-          >
-            <Users size={13} /> 담당자별
-          </button>
-          <button
-            onClick={() => setMode('brand')}
-            className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
-              mode === 'brand' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
-            }`}
-          >
-            <Tag size={13} /> 브랜드별
-          </button>
-          <span className="ml-2 text-sm text-ink-400">
-            {mode === 'assignee' ? '담당자별 시간에 따라 맡은 브랜드' : '브랜드별 주차에 들어간 담당자'}
+        <div className="flex items-center gap-3 mb-4 flex-wrap">
+          {/* 소스 */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setSource('weekly')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                source === 'weekly' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
+              }`}
+            >
+              <FileText size={13} /> 주간보고
+            </button>
+            <button
+              onClick={() => setSource('slack')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                source === 'slack' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
+              }`}
+            >
+              <MessageSquare size={13} /> 슬랙
+            </button>
+          </div>
+          <span className="w-px h-4 bg-border shrink-0" />
+          {/* 뷰 모드 */}
+          <div className="flex items-center gap-1">
+            <button
+              onClick={() => setMode('assignee')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                mode === 'assignee' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
+              }`}
+            >
+              <Users size={13} /> 담당자별
+            </button>
+            <button
+              onClick={() => setMode('brand')}
+              className={`inline-flex items-center gap-1.5 px-3 py-1.5 rounded-md text-sm font-medium border transition-colors ${
+                mode === 'brand' ? 'bg-foreground text-background border-foreground' : 'border-border text-ink-500 hover:bg-muted'
+              }`}
+            >
+              <Tag size={13} /> 브랜드별
+            </button>
+          </div>
+          <span className="text-sm text-ink-400">
+            {source === 'weekly' ? '주간보고 아이템 기준' : '슬랙 메시지 건수 기준'} ·{' '}
+            {mode === 'assignee' ? '담당자별 맡은 브랜드' : '브랜드별 담당자'}
           </span>
         </div>
 
