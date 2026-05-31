@@ -52,3 +52,4 @@ classify-raw.mjs
 !.claude/settings.json
 !.claude/hooks
 !.claude/hooks/**
+.env*.local
