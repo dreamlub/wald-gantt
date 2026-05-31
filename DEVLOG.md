@@ -2,6 +2,38 @@
 
 ---
 
+## 2026-05-31 — 백로그 상태 정리
+
+기존에 3곳(`## 백로그`, `## 전반 코드 리뷰 백로그`, `### 남은 백로그(미수정)`)으로 흩어져 있던 백로그를 현재 코드 기준으로 교차 검증해 단일 현황으로 정리. 해결 항목은 각 원본 섹션에 ✅ 표기, 본 섹션이 열린 항목의 단일 출처.
+
+### ✅ 해결됨 (검증 완료)
+| 항목 | 해결 경로 |
+|---|---|
+| API 키 SELECT 차단 (🔴) | `createAdminClient` + RLS, 마이그레이션 `20260531200000` |
+| upsert_daily_report_share 권한검증 (🔴) | SECURITY DEFINER 내부 멤버 확인, 마이그레이션 `20260531200001` |
+| XSS (dangerouslySetInnerHTML / note-markdown) (🔴) | `**bold**`→`<strong>`, `rehype-sanitize` 추가 |
+| Lint 3 errors → 0 / issues·collection-status 에러검사 | 커밋 `61726fe` 외 |
+| autoArchiveTasks 가드 (🟡) | `use-tasks-data.ts:25` `autoArchiveDone` useRef 마운트당 1회 |
+| #2 수집 누락 경고 / #3 raw 충돌키 / #5 재분류 원자화 / #7 AI 출력 검증 | 슬랙 안정성 보강 #1·#2 (하단 섹션) |
+
+### 🔴 열린 보안 항목 (우선)
+| 항목 | 위치 | 비고 |
+|---|---|---|
+| Prompt Injection 방어 | `slack-service.ts`, `weekly/analyze/route.ts` | 원문 XML 델리미터 래핑 + 시스템 지시 미적용 (코드 확인) |
+| `.env.local` 시크릿 5종 로테이트 | `.env.local` | 운영자 수동 재발급 권장 |
+| client_history 충돌키 `source_id→raw_message_id` (#4) | `reclassify`, `update-threads` | 긴급도 낮음 |
+
+### 🟡 정합성 / 성능 (미해결)
+비원자적 다중 쓰기 · SSE 타임아웃 무방비 · DB baseline 스키마 부재 · remap-history N+1 · review/populate JS 필터 · Slack reply rate limit 누락 · **분류 max_tokens 잘림**(`slack-service.ts:320` 512, stop_reason 로깅만) · calendar Google 동기화 실패 무시.
+
+### 🟢 품질 / 정리 (미해결)
+중복코드 통합 · 하드코딩 hex CSS변수화 · 메모이제이션 부재 · **500줄 룰 위반**(ProjectFormDialog 539 등) · `.single()`→`.maybeSingle()` · `select('*')` 컬럼 명시 · 운영용 라우트 노출 정리.
+
+### Timeline 미완/후속
+issues `client_history.issue_id` 미연결(evidence 갭, 스킬 재실행/백필 필요) · 점선 relation SVG 라인 렌더 · #6 데일리리포트 운영성.
+
+---
+
 ## 2026-05-31 — 보안/품질 게이트 5종 수정
 
 **배경**: 코드 리뷰에서 발견된 보안·품질 이슈 5종을 프로덕션 기준으로 수정.
@@ -345,7 +377,7 @@ Outline 전사 도입 → Plane CE → waldsupport.com → 브랜드인사이트
 - `api/slack/collect-raw/route.ts:267` `onConflict`를 `workspace_id,channel_id,parent_ts`로 변경.
 
 ### 남은 백로그 (미수정)
-#4 client_history 충돌키 source_id→raw_message_id(긴급도 낮음), #6 데일리리포트 운영성.
+#4 client_history 충돌키 source_id→raw_message_id(긴급도 낮음), #6 데일리리포트 운영성. → 최상단 **백로그 상태 정리(2026-05-31)** 에 통합.
 
 ---
 
@@ -559,9 +591,11 @@ Supabase PostgREST가 단일 쿼리당 기본 최대 1000행을 반환하는 제
 
 ## 백로그
 
-| 항목 | 내용 | 우선순위 |
-|---|---|---|
-| autoArchiveTasks 성능 | `load()` 호출마다 archive 쿼리 실행 → 하루 1회로 제한 필요 (페이지 진입 시에만 또는 별도 cron) | 낮음 |
+| 항목 | 내용 | 우선순위 | 상태 |
+|---|---|---|---|
+| autoArchiveTasks 성능 | `load()` 호출마다 archive 쿼리 실행 → 하루 1회로 제한 필요 | 낮음 | ✅ 해결 — `use-tasks-data.ts:25` `autoArchiveDone` useRef로 마운트당 1회 가드 |
+
+> 상시 백로그 단일 현황은 최상단 **백로그 상태 정리(2026-05-31)** 섹션 참조.
 
 ---
 
@@ -594,6 +628,8 @@ Supabase PostgREST가 단일 쿼리당 기본 최대 1000행을 반환하는 제
 
 ## 전반 코드 리뷰 백로그 (2026-05-30)
 
+> **현황(2026-05-31 기준)**: 🔴 보안 중 API 키 SELECT·share RPC 권한·XSS는 별도 수정 완료(최상단 "보안/품질 게이트 5종"). 🟡 autoArchiveTasks 가드 해결. 아래 표의 나머지 행은 미해결. 단일 현황은 최상단 **백로그 상태 정리** 참조.
+
 4개 영역(데이터/서비스·프론트엔드·아키텍처/보안·Slack 파이프라인) 병렬 리뷰 결과. 전반적으로 견고하나 아래 항목 미해결.
 
 ### 🔴 보안 / 데이터 손실 (즉시)
@@ -608,7 +644,7 @@ Supabase PostgREST가 단일 쿼리당 기본 최대 1000행을 반환하는 제
 
 | 항목 | 내용 | 위치 |
 |---|---|---|
-| autoArchiveTasks 일 1회 가드 | (위 백로그와 동일) localStorage 마지막 실행일 가드로 해결 | `use-tasks-data.ts:31` |
+| ~~autoArchiveTasks 일 1회 가드~~ ✅ | `autoArchiveDone` useRef로 마운트당 1회만 실행하도록 해결 | `use-tasks-data.ts:25` |
 | 비원자적 다중 쓰기 | updateTask의 task_projects delete→insert 중간 실패 시 연결 소실. soft delete/restore 부모-자식 별도 UPDATE. → `review/candidates/[id]/route.ts`의 보상 트랜잭션+조건부 UPDATE 패턴을 표준화 | `task-service.ts:131,154`, `gantt-service.ts:246` |
 | SSE 라우트 타임아웃 무방비 | weekly/analyze 매번 전체 주차 체인 재분석, 수백 건 시 Vercel 함수 타임아웃→부분 커밋. 529만 재시도, 429(rate limit)/500/503 즉시 throw | `collect-raw`, `reclassify`, `update-threads`, `weekly/analyze` |
 | DB baseline 스키마 부재 | migrations에 증분 18개만, gantt_tasks 등 핵심 테이블 생성 마이그레이션 없음 → db reset 재현 불가. `supabase db dump`로 baseline 추출 | `supabase/migrations/` |
