@@ -279,8 +279,8 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             onKeyDown={e => e.key === 'Enter' && handleSave()}
           />
 
-          {/* 마일스톤 토글 (서브프로젝트가 아닐 때만) */}
-          {!defaultParentId && !(editProject?.parent_id) && (
+          {/* 마일스톤 토글 (신규 생성 시 항상 표시 — 서브프로젝트 포함) */}
+          {!editProject && (
             <button
               type="button"
               onClick={() => setIsMilestone(v => !v)}
