@@ -54,7 +54,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
   const labels = task.labels ?? []
 
   return (
-    <div className={`group flex items-center px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-0' : ''} ${isSubTask ? 'bg-muted/40' : ''}`}>
+    <div className={`group flex items-center px-2 sm:px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors ${isDone ? 'opacity-55' : ''} ${isDragging ? 'opacity-0' : ''} ${isSubTask ? 'bg-muted/40' : ''}`}>
       {/* 들여쓰기 / 체크박스 / 그립 */}
       {isSubTask ? (
         selectionMode ? (
@@ -79,7 +79,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
           </button>
         </div>
       ) : (
-        <div className="shrink-0 mr-1 cursor-grab text-ink-200 hover:text-ink-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
+        <div className="hidden sm:flex shrink-0 mr-1 cursor-grab text-ink-200 hover:text-ink-400 opacity-0 group-hover:opacity-100 transition-opacity" {...(dragHandleProps ?? {})}>
           <GripVertical size={13} />
         </div>
       )}
@@ -199,12 +199,12 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
       </div>
 
       {/* 우선순위 컬럼 */}
-      <div className="w-8 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
+      <div className="hidden sm:flex w-8 shrink-0 items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
         <PriorityBars priority={task.priority} />
       </div>
 
       {/* 메모 컬럼 */}
-      <div className="w-10 shrink-0 flex items-center justify-start relative">
+      <div className="hidden sm:flex w-10 shrink-0 items-center justify-start relative">
         <button
           onClick={() => onEditMemo ? onEditMemo(task) : onEdit(task)}
           onMouseEnter={task.memo ? e => {
@@ -225,7 +225,7 @@ export function TaskRow({ task, onEdit, onEditMemo, onDelete, onStatusChange, dr
         )}
       </div>
 
-      <button onClick={() => onEdit(task)} className="w-28 shrink-0 flex items-center gap-1.5 text-left hover:text-lilac-500 transition-colors">
+      <button onClick={() => onEdit(task)} className="hidden sm:flex w-28 shrink-0 items-center gap-1.5 text-left hover:text-lilac-500 transition-colors">
         {assigneeName && (
           <>
             <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />

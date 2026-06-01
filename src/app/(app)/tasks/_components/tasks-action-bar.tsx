@@ -4,6 +4,7 @@ import React from 'react'
 import { Plus, Search, X, CheckSquare } from 'lucide-react'
 import { VIEW_TABS, type ViewType } from '../_constants'
 import { Switch } from '@/components/ui/switch'
+import { Button } from '@/components/ui/button'
 
 interface TasksActionBarProps {
   view: ViewType
@@ -79,13 +80,15 @@ export function TasksActionBar({
               )}
             </div>
           ) : (
-            <button
+            <Button
               onClick={() => onSearchOpenChange(true)}
               title="태스크 검색"
-              className="p-1.5 rounded text-ink-400 hover:text-muted-foreground hover:bg-muted transition-colors"
+              size="icon-sm"
+              variant="ghost"
+              className="text-ink-400"
             >
-              <Search size={13} />
-            </button>
+              <Search className="size-[13px]" />
+            </Button>
           )}
         </div>
 
@@ -99,26 +102,25 @@ export function TasksActionBar({
             className="hidden sm:flex text-sm text-muted-foreground flex-row-reverse"
           />
           {(view === 'basic' || view === 'listview') && (
-            <button
+            <Button
               onClick={onToggleSelection}
-              className={`hidden sm:flex items-center gap-1 text-sm px-2.5 py-1.5 rounded transition-colors ${
-                selectionMode
-                  ? 'bg-lilac-100 text-lilac-700 font-medium'
-                  : 'text-muted-foreground hover:text-foreground hover:bg-muted'
-              }`}
+              size="sm"
+              variant="ghost"
+              className={`hidden sm:inline-flex ${selectionMode ? 'bg-lilac-100 text-lilac-700 font-medium hover:bg-lilac-100 hover:text-lilac-700' : ''}`}
               title="선택 모드"
             >
-              <CheckSquare size={13} />
+              <CheckSquare className="size-[13px]" />
               {selectionMode ? '선택 중' : '선택'}
-            </button>
+            </Button>
           )}
-          <button
+          <Button
             onClick={onAdd}
-            className="flex items-center gap-1 text-sm font-medium text-background bg-foreground hover:bg-ink-800 px-2.5 py-1.5 rounded transition-colors"
+            size="sm"
+            className="bg-foreground text-background hover:bg-ink-800"
           >
-            <Plus size={13} />
+            <Plus className="size-[13px]" />
             <span className="hidden sm:inline">태스크 추가</span>
-          </button>
+          </Button>
         </div>
       </div>
 

@@ -57,9 +57,9 @@ export function StatsDashboard() {
 
   return (
     <div data-scrolltop className="flex-1 overflow-y-auto">
-      <div className="px-6 py-5">
+      <div className="px-3 py-4 sm:px-6 sm:py-5">
         {/* 헤더 + 기간 선택 */}
-        <div className="flex items-center justify-between mb-5">
+        <div className="flex items-center justify-between flex-wrap gap-3 mb-5">
           <div>
             <h2 className="text-lg font-bold text-foreground">메시지 분석</h2>
             <p className="text-sm text-ink-400 mt-0.5">
@@ -120,7 +120,7 @@ export function StatsDashboard() {
 
             {/* 투두 처리량 */}
             <Section icon={<CheckSquare size={13} className="text-ink-400" />} label="투두 처리량" badge={`완료 ${todo.completedInRange} · 신규 ${todo.createdInRange}`}>
-              <div className="grid gap-4" style={{ gridTemplateColumns: 'minmax(0, 2fr) minmax(0, 1fr)' }}>
+              <div className="grid grid-cols-1 sm:grid-cols-[2fr_1fr] gap-4">
                 <CompletedBars data={todo.daily} />
                 <div>
                   <div className="text-3xs font-medium uppercase tracking-wider text-ink-400 mb-2">현재 상태 분포</div>
@@ -131,7 +131,7 @@ export function StatsDashboard() {
 
             {/* 요일·시간대 패턴 */}
             <Section icon={<CalendarClock size={13} className="text-ink-400" />} label="요일·시간대 패턴" hint="메시지가 몰리는 시점">
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <div className="text-3xs font-medium uppercase tracking-wider text-ink-400 mb-2">요일별</div>
                   <MiniBars values={data.weekday} labels={WEEKDAY_LABELS} color="var(--color-lilac-500)" />

@@ -2,6 +2,36 @@
 
 ---
 
+## 2026-06-01 — 모바일 반응형 대응 (기존 Web 구조 유지)
+
+기존 데스크탑 레이아웃을 그대로 유지하면서 `sm`(640px) breakpoint 기준으로 모바일 최적화.
+
+### 인프라
+- `src/hooks/use-is-mobile.ts` 신규 — `window.matchMedia` 기반 훅
+- `(app)/layout.tsx` — `h-screen` → `h-[100dvh]` (모바일 주소창 대응)
+
+### AppNav
+- 모바일에서 강제 collapsed (`isMobile || collapsedPref`)
+- 토글 버튼 `hidden sm:flex`
+- 터치 타겟 `min-h-[44px]`
+
+### 사이드바 전체 `hidden sm:flex` (7곳)
+Tasks·Projects(BoardSidebar)·Notes·Calendar·Slack·Weekly·Review·Settings
+
+### 페이지별 수정
+- **홈**: 헤더 `px-3 sm:px-5`, 메인 `px-3 sm:px-6`, 퀵링크 `hidden sm:flex`
+- **Tasks ActionBar**: 탭 텍스트 `hidden sm:inline`, Switch·선택 `hidden sm:flex`, 추가버튼 아이콘만
+- **ListView**: 헤더·행에서 메모·우선·상태·담당자 컬럼 `hidden sm:flex`, 패딩 `gap-2 sm:gap-4 px-3 sm:px-4`
+- **task-row**: 그립 `hidden sm:flex`, 우선순위·메모·담당자 `hidden sm:flex`, 패딩 `px-2 sm:px-4`
+- **Settings**: `aside` → `hidden sm:flex`, 헤더에 모바일 `<select>` 섹션 선택기 추가, 패딩 축소
+- **Review shell**: 헤더·탭·필터 `px-3 sm:px-5`
+- **Slack toolbar**: 탭 텍스트 `hidden sm:inline`
+- **Stats dashboard**: 패딩 `px-3 sm:px-6`, `grid grid-cols-2` → `grid-cols-1 sm:grid-cols-2`, 헤더 `flex-wrap`
+- **Calendar**: `overflow-x-auto` + `min-w-[480px]` 래퍼로 7-day 그리드 가로 스크롤
+- **Notes**: 스크롤 영역 `px-3 sm:px-6`, 검색 `w-36 sm:w-44`
+
+---
+
 ## 2026-05-31 — 제품 흐름 완성: Notes 신호원화·Home·Stats·Weekly 보강 (P1·P2)
 
 핸드오프 P1·P2 일괄 진행. 모두 마이그레이션 최소(또는 0)·기존 데이터 활용.

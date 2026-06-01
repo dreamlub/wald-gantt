@@ -108,6 +108,8 @@ interface Props {
   initialMemo?: string
   defaultParentId?: string | null
   defaultIsMilestone?: boolean
+  defaultStartDate?: string
+  defaultEndDate?: string
   parentProjects?: GanttProject[]
   subProjects?: GanttProject[]
   onAddSubProject?: () => void
@@ -116,7 +118,7 @@ interface Props {
 }
 
 
-export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, defaultParentId, defaultIsMilestone, parentProjects, subProjects, onAddSubProject, noPortal = false }: Props) {
+export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCategoryId, editProject, initialTab = 'info', allTeams = [], allPMs = [], initialName, initialMemo, defaultParentId, defaultIsMilestone, defaultStartDate, defaultEndDate, parentProjects, subProjects, onAddSubProject, noPortal = false }: Props) {
   const [categoryId, setCategoryId] = useState('')
   const [name, setName]             = useState('')
   const [status, setStatus]         = useState<GanttStatus>('to-do')
@@ -166,14 +168,15 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
       setCategoryId(defaultCategoryId ?? categories[0]?.id ?? '')
 
       setName(initialName ?? ''); setStatus('to-do'); setPriority(2)
-      setStartDate(undefined); setEndDate(undefined)
+      setStartDate(defaultStartDate ? toDate(defaultStartDate) : undefined)
+      setEndDate(defaultEndDate ? toDate(defaultEndDate) : undefined)
 
       setTeam(''); setPm(''); setMemo(initialMemo ?? '')
       setParentId(defaultParentId ?? null)
       setIsMilestone(defaultIsMilestone ?? false)
     }
     /* eslint-enable react-hooks/set-state-in-effect */
-  }, [editProject, open, defaultCategoryId, defaultParentId, categories, initialName, initialMemo])
+  }, [editProject, open, defaultCategoryId, defaultParentId, defaultStartDate, defaultEndDate, categories, initialName, initialMemo])
 
   const dateError = startDate && endDate && startDate > endDate
     ? '종료일은 시작일 이후여야 합니다.' : null
@@ -190,7 +193,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
     try {
       await onSave({
         categoryId,
-        parentId: isMilestone ? null : parentId,
+        parentId: parentId,
         name: name.trim(),
         status: isMilestone ? 'to-do' : status,
         start_date: isMilestone ? null : toDateStr(startDate),
@@ -216,6 +219,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
             <h2 className="text-base font-semibold text-foreground flex-1">
               {editProject
                 ? (isMilestone ? '마일스톤 수정' : '프로젝트 수정')
+                : isMilestone && defaultParentId != null ? '하위 마일스톤 추가'
                 : defaultParentId != null ? '서브프로젝트 추가'
                 : isMilestone ? '마일스톤 추가' : '프로젝트 추가'}
             </h2>

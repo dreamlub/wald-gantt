@@ -213,7 +213,7 @@ export default function NotesPage() {
                   onChange={e => setSearchQuery(e.target.value)}
                   onKeyDown={e => { if (e.key === 'Escape') { setSearchQuery(''); setSearchOpen(false) } }}
                   placeholder="검색"
-                  className="text-sm pl-6 pr-6 py-1 border rounded-lg w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
+                  className="text-sm pl-6 pr-6 py-1 border rounded-lg w-36 sm:w-44 outline-none focus:ring-1 focus:ring-lilac-300 text-foreground placeholder:text-ink-300 bg-background"
                 />
                 {searchQuery && (
                   <button onClick={() => { setSearchQuery(''); setSearchOpen(false) }} className="absolute right-1.5 text-ink-300 hover:text-foreground">
@@ -235,7 +235,7 @@ export default function NotesPage() {
         </div>
 
         {/* 스크롤 영역 */}
-        <div data-scrolltop className="flex-1 overflow-y-auto px-6 py-6">
+        <div data-scrolltop className="flex-1 overflow-y-auto px-3 py-4 sm:px-6 sm:py-6">
           {!searchQuery && quickFilter !== 'pinned' && (
             <div className="mb-8">
               <NoteCreateBar onCreate={handleCreate} />

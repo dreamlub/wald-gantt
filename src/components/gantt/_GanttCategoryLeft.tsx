@@ -35,14 +35,14 @@ interface GanttCategoryLeftProps {
   onToggleCollapsed: (id: string) => void
   parentIds: Set<string>
   onAddSubProject?: (parentId: string, catId: string) => void
-  onAddMilestone?: (catId: string) => void
+  onAddMilestone?: (catId: string, parentId?: string) => void
 }
 
 function ProjectRow({
   project, readOnly, isChild, todayStr,
   collapsedParents, onToggleCollapsed, hasChildren,
   onCycleStatus, onEditProject, onDeleteProject, onOpenMemo, onSetMemoHover,
-  onAddSubProject, catId,
+  onAddSubProject, onAddMilestone, catId,
   listeners, isDragging,
 }: {
   project: GanttProject
@@ -58,6 +58,7 @@ function ProjectRow({
   onOpenMemo: (p: GanttProject) => void
   onSetMemoHover: (h: { text: string; x: number; y: number } | null) => void
   onAddSubProject?: (parentId: string, catId: string) => void
+  onAddMilestone?: (catId: string, parentId?: string) => void
   catId: string
   listeners: ReturnType<typeof import('@dnd-kit/sortable').useSortable>['listeners']
   isDragging: boolean
@@ -149,11 +150,20 @@ function ProjectRow({
               className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity pointer-events-none"
               style={{ background: 'linear-gradient(to left, var(--color-muted) 55%, transparent 100%)' }}
             />
-            {/* 서브프로젝트 추가 (부모 프로젝트에만) */}
+            {/* 서브프로젝트·하위 마일스톤 추가 (부모 프로젝트에만) */}
+            {!isChild && onAddMilestone && (
+              <button
+                onClick={e => { e.stopPropagation(); onAddMilestone(catId, project.id) }}
+                className="relative shrink-0 px-1.5 py-2.5 rounded text-ink-300 hover:text-lilac-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                title="하위 마일스톤 추가"
+              >
+                <Diamond size={10} />
+              </button>
+            )}
             {!isChild && onAddSubProject && (
               <button
                 onClick={e => { e.stopPropagation(); onAddSubProject(project.id, catId) }}
-                className="relative shrink-0 px-2 py-2.5 rounded text-ink-300 hover:text-lilac-500 opacity-0 group-hover:opacity-100 transition-opacity"
+                className="relative shrink-0 px-1.5 py-2.5 rounded text-ink-300 hover:text-lilac-500 opacity-0 group-hover:opacity-100 transition-opacity"
                 title="서브프로젝트 추가"
               >
                 <Plus size={11} />
@@ -293,6 +303,7 @@ export function GanttCategoryLeft({
                         onOpenMemo={onOpenMemo}
                         onSetMemoHover={onSetMemoHover}
                         onAddSubProject={onAddSubProject}
+                        onAddMilestone={onAddMilestone}
                         catId={cat.id}
                         listeners={projListeners}
                         isDragging={isDragging}

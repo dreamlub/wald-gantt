@@ -194,7 +194,8 @@ export default function GanttPage() {
               onDeleteCategory={handleDeleteCategory}
               onAddProject={categoryId => setDialog({ type: 'addProject', categoryId })}
               onAddSubProject={(parentId, catId) => setDialog({ type: 'addProject', categoryId: catId, parentId })}
-              onAddMilestone={catId => setDialog({ type: 'addProject', categoryId: catId, isMilestone: true })}
+              onAddMilestone={(catId, parentId) => setDialog({ type: 'addProject', categoryId: catId, isMilestone: true, parentId })}
+              onCreateSubProject={(parentId, catId, startDate, endDate) => setDialog({ type: 'addProject', categoryId: catId, parentId, startDate, endDate })}
               onEditProject={project => setDialog({ type: 'editProject', project })}
               onDeleteProject={handleDeleteProject}
               onOpenMemo={project => setDialog({ type: 'editProject', project, initialTab: 'memo' })}
@@ -222,6 +223,8 @@ export default function GanttPage() {
         defaultCategoryId={dialog?.type === 'addProject' ? dialog.categoryId : undefined}
         defaultParentId={dialog?.type === 'addProject' ? dialog.parentId : undefined}
         defaultIsMilestone={dialog?.type === 'addProject' ? dialog.isMilestone : undefined}
+        defaultStartDate={dialog?.type === 'addProject' ? dialog.startDate : undefined}
+        defaultEndDate={dialog?.type === 'addProject' ? dialog.endDate : undefined}
         editProject={dialog?.type === 'editProject' ? dialog.project : null}
         initialTab={dialog?.type === 'editProject' ? dialog.initialTab : undefined}
         onDelete={id => { handleDeleteProject(id); setDialog(null) }}

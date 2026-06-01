@@ -1,9 +1,79 @@
 'use client'
 
-import { useState } from 'react'
+import { useRef, useState } from 'react'
 import type { GanttCategory, GanttProject } from '@/types'
 import { isLightColor } from '@/lib/gantt-utils'
 import { CAT_ROW_H, PROJ_ROW_H, formatBarDate, barOpacity } from './_GanttRows'
+
+// ── DragToCreateZone ──────────────────────────────────────────
+// 부모 프로젝트 행의 빈 영역 드래그 → 하위 프로젝트 생성
+function DragToCreateZone({ catId, parentId, colW, barColor, BAR_H, curTop, onDragCreate }: {
+  catId: string
+  parentId: string
+  colW: number
+  barColor: string
+  BAR_H: number
+  curTop: number
+  onDragCreate: (parentId: string, catId: string, colStart: number, colEnd: number) => void
+}) {
+  const ref = useRef<HTMLDivElement>(null)
+  const [ghost, setGhost] = useState<{ colStart: number; colEnd: number } | null>(null)
+
+  function handleMouseDown(e: React.MouseEvent) {
+    if (!ref.current) return
+    e.stopPropagation()
+    const rect = ref.current.getBoundingClientRect()
+    const colStart = Math.max(0, Math.floor((e.clientX - rect.left) / colW))
+    let colEnd = colStart
+
+    setGhost({ colStart, colEnd })
+
+    function onMouseMove(me: MouseEvent) {
+      if (!ref.current) return
+      const newCol = Math.max(0, Math.floor((me.clientX - rect.left) / colW))
+      colEnd = newCol
+      const [s, en] = newCol >= colStart ? [colStart, newCol] : [newCol, colStart]
+      setGhost({ colStart: s, colEnd: en })
+    }
+
+    function onMouseUp() {
+      document.removeEventListener('mousemove', onMouseMove)
+      document.removeEventListener('mouseup', onMouseUp)
+      setGhost(null)
+      const [s, en] = colEnd >= colStart ? [colStart, colEnd] : [colEnd, colStart]
+      onDragCreate(parentId, catId, s, en)
+    }
+
+    document.addEventListener('mousemove', onMouseMove)
+    document.addEventListener('mouseup', onMouseUp)
+  }
+
+  const ghostLeft  = ghost ? Math.min(ghost.colStart, ghost.colEnd) * colW + 4 : 0
+  const ghostWidth = ghost ? (Math.abs(ghost.colEnd - ghost.colStart) + 1) * colW - 8 : 0
+
+  return (
+    <div
+      ref={ref}
+      className="absolute inset-0"
+      style={{ cursor: 'crosshair', zIndex: 0 }}
+      onMouseDown={handleMouseDown}
+    >
+      {ghost && (
+        <div
+          className="absolute pointer-events-none rounded"
+          style={{
+            top: curTop,
+            left: ghostLeft,
+            width: Math.max(ghostWidth, 4),
+            height: BAR_H,
+            border: `1.5px dashed ${barColor}`,
+            backgroundColor: barColor + '22',
+          }}
+        />
+      )}
+    </div>
+  )
+}
 
 // ── GanttCategoryRight ────────────────────────────────────────
 interface GanttCategoryRightProps {
@@ -15,6 +85,7 @@ interface GanttCategoryRightProps {
   makeDragHandlers: (p: GanttProject, dragType: 'move' | 'resize-left' | 'resize-right') => (e: React.MouseEvent) => void
   pmColorMap: Map<string, string>
   onBarCreate?: (projectId: string, colIndex: number) => void
+  onCreateSubProject?: (parentId: string, catId: string, colStart: number, colEnd: number) => void
 }
 
 // 날짜 없는 프로젝트 행: hover 시 ghost bar + 클릭으로 바 생성
@@ -59,7 +130,7 @@ function EmptyBarHint({ colW, barColor, curTop, BAR_H, projectId, onBarCreate }:
 }
 
 export function GanttCategoryRight({
-  cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap, onBarCreate,
+  cat, catProjs, readOnly, colW, barCols, makeDragHandlers, pmColorMap, onBarCreate, onCreateSubProject,
 }: GanttCategoryRightProps) {
   const barColor = cat.color
   const barTextColor = isLightColor(barColor) ? 'rgba(0,0,0,0.75)' : 'white'
@@ -133,6 +204,18 @@ export function GanttCategoryRight({
             className="relative border-b"
             style={{ height: PROJ_ROW_H, backgroundColor: isBacklog ? 'var(--color-ink-100)' : 'transparent' }}
           >
+            {/* 드래그로 하위 프로젝트 생성 — 부모 프로젝트 행(bar 뒤 z-0)에만 렌더링 */}
+            {!readOnly && !isChild && !isMilestone && onCreateSubProject && (
+              <DragToCreateZone
+                catId={cat.id}
+                parentId={project.id}
+                colW={colW}
+                barColor={barColor}
+                BAR_H={14}
+                curTop={(PROJ_ROW_H - 14) / 2}
+                onDragCreate={onCreateSubProject}
+              />
+            )}
             {!cols && !readOnly && onBarCreate && (
               <EmptyBarHint
                 colW={colW}
@@ -158,6 +241,7 @@ export function GanttCategoryRight({
                     paddingLeft: 5,
                     paddingRight: 4,
                     cursor: readOnly ? 'default' : 'grab',
+                    zIndex: 1,
                   }}
                   onMouseDown={readOnly ? undefined : makeDragHandlers(project, 'move')}
                 >

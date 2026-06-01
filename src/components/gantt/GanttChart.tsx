@@ -60,7 +60,8 @@ interface Props {
   onMoveCategory?: (updates: { id: string; sort_order: number }[]) => Promise<void>
   onShare?: () => void
   onAddSubProject?: (parentId: string, catId: string) => void
-  onAddMilestone?: (catId: string) => void
+  onAddMilestone?: (catId: string, parentId?: string) => void
+  onCreateSubProject?: (parentId: string, catId: string, startDate: string, endDate: string) => void
   overdueFilter?: boolean
   startDelayedFilter?: boolean
   readOnly?: boolean
@@ -74,7 +75,7 @@ export function GanttChart({
   onOpenAddCategory, onUpdateCategory, onDeleteCategory,
   onAddProject, onEditProject, onDeleteProject, onOpenMemo,
   onUpdateProjectDates, onUpdateProjectStatus,
-  onMoveProject, onMoveCategory, onShare, onAddSubProject, onAddMilestone,
+  onMoveProject, onMoveCategory, onShare, onAddSubProject, onAddMilestone, onCreateSubProject,
   overdueFilter: externalOverdueFilter, startDelayedFilter: externalStartDelayedFilter,
   readOnly = false,
   hideToolbar = false,
@@ -162,6 +163,13 @@ export function GanttChart({
     end.setDate(end.getDate() + daysToAdd)
     const endDate = `${end.getFullYear()}-${String(end.getMonth() + 1).padStart(2, '0')}-${String(end.getDate()).padStart(2, '0')}`
     onUpdateProjectDates(projectId, startDate, endDate)
+  }
+
+  function handleCreateSubProject(parentId: string, catId: string, colStart: number, colEnd: number) {
+    const startDate = colIndexToDate(viewMode, totalCols, viewStart, days, weeks, colStart)
+    const endDate   = colIndexToDate(viewMode, totalCols, viewStart, days, weeks, colEnd)
+    if (!startDate || !endDate) return
+    onCreateSubProject?.(parentId, catId, startDate, endDate)
   }
 
   // Hooks
@@ -411,6 +419,7 @@ export function GanttChart({
                   makeDragHandlers={makeDragHandlers}
                   pmColorMap={pmColorMap}
                   onBarCreate={readOnly ? undefined : handleBarCreate}
+                  onCreateSubProject={readOnly ? undefined : handleCreateSubProject}
                 />
               ))}
             </div>

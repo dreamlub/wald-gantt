@@ -1,7 +1,7 @@
 import type { GanttProject, GanttStatus, Priority } from '@/types'
 
 export type DialogState =
-  | { type: 'addProject'; categoryId: string; parentId?: string | null; isMilestone?: boolean }
+  | { type: 'addProject'; categoryId: string; parentId?: string | null; isMilestone?: boolean; startDate?: string; endDate?: string }
   | { type: 'editProject'; project: GanttProject; initialTab?: 'info' | 'memo' | 'history' }
   | { type: 'share' }
   | null
