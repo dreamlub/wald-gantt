@@ -160,7 +160,7 @@ export function ReviewShell() {
       />
       <div className="flex flex-col flex-1 min-w-0 overflow-hidden">
       {/* 헤더 */}
-      <div className="h-12 flex items-center gap-3 px-5 border-b bg-card shrink-0">
+      <div className="h-12 flex items-center gap-3 px-3 sm:px-5 border-b bg-card shrink-0">
         <h1 className="text-sm font-semibold text-foreground">일감 판단</h1>
         {!loading && activeTab === 'pending' && filtered.length > 0 && (
           <span className="inline-flex items-center justify-center min-w-5 h-5 px-1.5 rounded-full bg-foreground text-background text-xs font-medium">
@@ -178,7 +178,7 @@ export function ReviewShell() {
       </div>
 
       {/* 상태 탭 */}
-      <div className="flex items-center gap-0 px-5 border-b bg-card shrink-0">
+      <div className="flex items-center gap-0 px-2 sm:px-5 border-b bg-card shrink-0">
         {STATUS_TABS.map(tab => (
           <button
             key={tab.key}
@@ -200,7 +200,7 @@ export function ReviewShell() {
       </div>
 
       {/* 필터바 */}
-      <div className="flex items-center gap-2 px-5 py-2.5 border-b shrink-0">
+      <div className="flex items-center gap-2 px-3 sm:px-5 py-2.5 border-b shrink-0 flex-wrap">
         <select
           value={filterSource}
           onChange={e => setFilterSource(e.target.value)}

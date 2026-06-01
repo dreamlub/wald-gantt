@@ -33,6 +33,17 @@ export function pageReducer(state: PageState, action: PageAction): PageState {
 
 export const PAGE_INIT: PageState = { items: [], cursor: null, total: 0, loading: true, hasMore: false, brandCounts: {} }
 
+export function pageStateFromPage(page: HistoryPage): PageState {
+  return {
+    items: page.items,
+    cursor: page.nextCursor,
+    total: page.total,
+    loading: false,
+    hasMore: !!page.nextCursor,
+    brandCounts: page.brandCounts ?? {},
+  }
+}
+
 export type ViewKey = 'dailylist' | 'weeklylist' | 'dailyreport' | 'issue-tracker' | 'calendar' | 'rawdata'
 
 export const VALID_VIEWS: readonly ViewKey[] = ['dailylist', 'weeklylist', 'dailyreport', 'issue-tracker', 'calendar', 'rawdata']

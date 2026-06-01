@@ -202,7 +202,8 @@ export function useProjectMutations({
     const prev = projectsRef.current.find(p => p.id === id)
     if (prev) pushUndo({ type: 'project', prev })
     try {
-      const updated = await updateProject(id, { start_date: startDate, end_date: endDate })
+      const statusUpdate = prev?.status === 'backlog' ? { status: 'to-do' as GanttStatus } : {}
+      const updated = await updateProject(id, { start_date: startDate, end_date: endDate, ...statusUpdate })
       setProjects(prev => prev.map(p => p.id === updated.id ? updated : p))
     } catch (e) { toastActionError('프로젝트 일정을 저장하지 못했습니다', e) }
   }

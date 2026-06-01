@@ -150,7 +150,7 @@ export function CalendarShell() {
 
       {/* 사이드바 */}
       <div
-        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+        className="hidden sm:flex shrink-0 border-r bg-muted flex-col overflow-hidden"
         style={{ width: 'var(--sidebar-w)' }}
       >
         <TaskPanel

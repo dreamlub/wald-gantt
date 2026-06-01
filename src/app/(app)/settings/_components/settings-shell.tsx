@@ -53,7 +53,6 @@ const THEME_OPTIONS = [
 const DEFAULT_VIEW_KEYS: { key: string; label: string; options: string[] }[] = [
   { key: 'wald.tasks.view',      label: '태스크',      options: ['list', 'kanban', 'gantt'] },
   { key: 'wald.gantt.viewMode',  label: '간트 시간축', options: ['week', 'month', 'day'] },
-  { key: 'wald.summary.view',    label: '서머리',      options: ['table', 'timeline', 'insight'] },
 ]
 
 const VIEW_LABELS: Record<string, string> = {
@@ -244,8 +243,8 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
 
   return (
     <div className="flex-1 flex overflow-hidden">
-      {/* 사이드바 */}
-      <aside className="w-48 shrink-0 border-r bg-muted flex flex-col overflow-hidden">
+      {/* 사이드바 — 데스크탑만 */}
+      <aside className="hidden sm:flex w-48 shrink-0 border-r bg-muted flex-col overflow-hidden">
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
           <h2 className="text-sm font-semibold text-ink-400 uppercase tracking-wider">설정</h2>
         </div>
@@ -266,11 +265,21 @@ export function SettingsShell({ userEmail, clients, calendarConnected: initialCa
       {/* 본문 */}
       <div className="flex-1 flex flex-col overflow-hidden">
         {/* 헤더 */}
-        <div className="h-12 flex items-center px-6 border-b bg-card shrink-0">
+        <div className="h-12 flex items-center px-3 sm:px-6 border-b bg-card shrink-0 gap-3">
           <span className="text-sm font-semibold text-foreground">{SECTION_TITLE[section]}</span>
+          {/* 모바일 섹션 선택 */}
+          <select
+            value={section}
+            onChange={e => setSection(e.target.value as Section)}
+            className="sm:hidden ml-auto text-sm px-2 py-1 border border-border rounded bg-background text-foreground outline-none"
+          >
+            {NAV.map(({ key, label }) => (
+              <option key={key} value={key}>{label}</option>
+            ))}
+          </select>
         </div>
 
-        <div data-scrolltop className="flex-1 overflow-y-auto px-6 py-5 space-y-3 bg-background">
+        <div data-scrolltop className="flex-1 overflow-y-auto px-3 sm:px-6 py-4 sm:py-5 space-y-3 bg-background">
 
           {/* ── 계정 ── */}
           {section === 'account' && (

@@ -351,7 +351,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                   <div className="mt-1.5">
                     <DatePickerButton
                       value={startDate}
-                      onChange={setStartDate}
+                      onChange={d => { setStartDate(d); if (d && status === 'backlog') setStatus('to-do') }}
                       placeholder="MM/DD 또는 YYYY.MM.DD"
                       disabledDates={endDate ? d => d > endDate : undefined}
                     />
@@ -362,7 +362,7 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                   <div className="mt-1.5">
                     <DatePickerButton
                       value={endDate}
-                      onChange={setEndDate}
+                      onChange={d => { setEndDate(d); if (d && status === 'backlog') setStatus('to-do') }}
                       placeholder="MM/DD 또는 YYYY.MM.DD"
                       disabledDates={startDate ? d => d < startDate : undefined}
                     />
@@ -500,7 +500,12 @@ export function ProjectFormDialog({ open, onClose, onSave, categories, defaultCa
                 max={100}
                 step={5}
                 value={progress}
-                onChange={e => setProgress(Number(e.target.value))}
+                onChange={e => {
+                  const val = Number(e.target.value)
+                  setProgress(val)
+                  if (val > 0 && val < 100 && (status === 'backlog' || status === 'to-do')) setStatus('in-progress')
+                  else if (val === 100 && status !== 'done') setStatus('done')
+                }}
                 className="w-full accent-lilac-500 h-1.5 rounded-full cursor-pointer"
               />
             </div>

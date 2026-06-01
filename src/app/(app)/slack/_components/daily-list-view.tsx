@@ -9,6 +9,7 @@ import { PriorityBars } from './badges'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 import { toKSTDate } from '@/lib/history-query-utils'
+import { ExpandableRow } from '@/components/ui/expandable-row'
 
 interface Props {
   items: HistoryItem[]
@@ -74,66 +75,64 @@ function HistoryRow({
   const p = item.brand_name ? profiles.get(item.brand_name) : undefined
 
   return (
-    <div
-      onClick={onToggle}
-      className={`group border border-border bg-card cursor-pointer transition-colors hover:border-ink-300 hover:bg-muted/30 ${
-        expanded ? 'rounded-md shadow-sm' : 'rounded-sm'
-      }`}
-    >
-      <div className="flex items-center gap-2 px-3 py-2 min-h-9">
-        <span className="w-3.5 flex justify-center shrink-0">
-          {item.priority
-            ? <PriorityBars priority={item.priority} />
-            : item.brand_name
-              ? <BrandIcon name={item.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
-              : <span className="w-1 h-1 rounded-full bg-ink-300" />
-          }
-        </span>
-        <div className="flex items-center gap-2.5 flex-1 min-w-0">
-          <p className="min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
-          {item.source_ref && (
-            <a
-              href={item.source_ref}
-              target="_blank"
-              rel="noreferrer"
-              onClick={e => e.stopPropagation()}
-              className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
-            >
-              <ExternalLink size={10} />
-              Slack
-            </a>
-          )}
-          {onCreateTask && (
-            <button
-              onClick={e => { e.stopPropagation(); onCreateTask() }}
-              className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
-            >
-              <ListTodo size={10} />
-              태스크
-            </button>
-          )}
+    <ExpandableRow
+      expanded={expanded}
+      onToggle={onToggle}
+      header={
+        <div className="flex items-center gap-2 px-3 py-2 min-h-9">
+          <span className="w-3.5 flex justify-center shrink-0">
+            {item.priority
+              ? <PriorityBars priority={item.priority} />
+              : item.brand_name
+                ? <BrandIcon name={item.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
+                : <span className="w-1 h-1 rounded-full bg-ink-300" />
+            }
+          </span>
+          <div className="flex items-center gap-2.5 flex-1 min-w-0">
+            <p className="min-w-0 text-sm font-semibold text-foreground truncate">{item.title}</p>
+            {item.source_ref && (
+              <a
+                href={item.source_ref}
+                target="_blank"
+                rel="noreferrer"
+                onClick={e => e.stopPropagation()}
+                className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+              >
+                <ExternalLink size={10} />
+                Slack
+              </a>
+            )}
+            {onCreateTask && (
+              <button
+                onClick={e => { e.stopPropagation(); onCreateTask() }}
+                className="shrink-0 opacity-0 group-hover:opacity-100 inline-flex items-center gap-0.5 text-xs px-1.5 py-0.5 rounded border border-dashed border-ink-300 text-muted-foreground hover:text-foreground hover:border-ink-400 hover:bg-muted transition-all whitespace-nowrap"
+              >
+                <ListTodo size={10} />
+                태스크
+              </button>
+            )}
+          </div>
+          {(item.tags ?? []).slice(0, 1).map(tag => {
+            const meta = TAG_META[tag as keyof typeof TAG_META]
+            if (!meta) return null
+            return (
+              <span
+                key={tag}
+                className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded"
+                style={{
+                  background: `color-mix(in srgb, var(--color-tag-${tag}-dot) 12%, transparent)`,
+                  color: `var(--color-tag-${tag}-dot)`,
+                }}
+              >
+                {meta.label}
+              </span>
+            )
+          })}
+          {item.author && <span className="shrink-0 text-sm text-ink-400">{item.author}</span>}
         </div>
-        {(item.tags ?? []).slice(0, 1).map(tag => {
-          const meta = TAG_META[tag as keyof typeof TAG_META]
-          if (!meta) return null
-          return (
-            <span
-              key={tag}
-              className="shrink-0 text-xs font-medium px-1.5 py-0.5 rounded"
-              style={{
-                background: `color-mix(in srgb, var(--color-tag-${tag}-dot) 12%, transparent)`,
-                color: `var(--color-tag-${tag}-dot)`,
-              }}
-            >
-              {meta.label}
-            </span>
-          )
-        })}
-        {item.author && <span className="shrink-0 text-sm text-ink-400">{item.author}</span>}
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border px-5 py-3 space-y-2">
+      }
+      detail={
+        <>
           {item.body && (
             <p className="text-sm text-ink-500 leading-relaxed whitespace-pre-line">
               {item.body.split(/(\*\*[^*]+\*\*)/).map((part, i) =>
@@ -147,9 +146,10 @@ function HistoryRow({
             <span className="truncate"># {item.channel}</span>
             {item.thread_count > 0 && <span>스레드 {item.thread_count}</span>}
           </div>
-        </div>
-      )}
-    </div>
+        </>
+      }
+      detailClassName="px-5 py-3 space-y-2"
+    />
   )
 }
 

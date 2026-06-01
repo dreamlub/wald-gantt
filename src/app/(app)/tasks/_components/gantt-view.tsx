@@ -4,7 +4,7 @@ import { useState, useRef, useEffect } from 'react'
 import { CornerDownRight, StickyNote } from 'lucide-react'
 import { buildWeekRange, dayOffsetInWeeks, todayStrKST } from '@/lib/gantt-utils'
 import type { GanttTask } from '@/types'
-import { STATUS_COLOR, STATUS_ABBR, STATUS_LABEL, PriorityBars } from '../_constants'
+import { STATUS_COLOR, STATUS_ABBR, STATUS_LABEL, STATUS_GROUPS, PriorityBars } from '../_constants'
 import type { TaskStatus } from '@/types'
 import {
   isOverdue, isStartDelayed, clampTooltipPos,
@@ -234,7 +234,7 @@ export function GanttView({ tasks, onEdit, onDateChange, onStatusChange }: Props
                 {isSub && <CornerDownRight size={11} className="text-ink-300 shrink-0" />}
                 <button
                   type="button"
-                  onClick={() => onStatusChange?.(task.id, task.status)}
+                  onClick={() => { const order = STATUS_GROUPS.map(g => g.status); onStatusChange?.(task.id, order[(order.indexOf(task.status) + 1) % order.length]) }}
                   aria-label={STATUS_LABEL[task.status]}
                   title={STATUS_LABEL[task.status]}
                   className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"
@@ -338,7 +338,7 @@ export function GanttView({ tasks, onEdit, onDateChange, onStatusChange }: Props
                   <div className="shrink-0 sticky left-0 z-10 flex items-center gap-1.5 px-3 border-r bg-inherit" style={{ width: LEFT_W }}>
                     <button
                       type="button"
-                      onClick={() => onStatusChange?.(task.id, task.status)}
+                      onClick={() => { const order = STATUS_GROUPS.map(g => g.status); onStatusChange?.(task.id, order[(order.indexOf(task.status) + 1) % order.length]) }}
                       aria-label={STATUS_LABEL[task.status]}
                       title={STATUS_LABEL[task.status]}
                       className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white hover:scale-110 transition-transform"

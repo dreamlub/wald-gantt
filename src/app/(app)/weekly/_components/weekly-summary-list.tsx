@@ -1,7 +1,9 @@
 'use client'
 
-import { useMemo, useState } from 'react'
+import { useMemo } from 'react'
 import { AlertTriangle } from 'lucide-react'
+import { useAccordion } from '@/hooks/use-accordion'
+import { ExpandableRow } from '@/components/ui/expandable-row'
 import type { WeeklyReport, WeeklyReportItem, WeeklyReportSummary } from '@/types/index'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
@@ -80,26 +82,24 @@ function ItemRow({ item, expanded, onToggle }: {
   const tl = TYPE_LABEL[item.type as TypeKey] ?? item.type
 
   return (
-    <div
-      onClick={onToggle}
-      className={`group border border-border bg-card cursor-pointer transition-colors
-        hover:border-ink-300 hover:bg-muted/30
-        ${expanded ? 'rounded-md shadow-sm' : 'rounded-sm'}`}
-    >
-      <div className="flex items-center gap-2.5 px-3 py-2.5 min-h-10">
-        <p className="flex-1 min-w-0 text-sm truncate text-foreground">{item.title}</p>
-        <div className="flex items-center gap-1.5 shrink-0">
-          {item.assignee && (
-            <span className="text-xs text-ink-400 hidden sm:inline">{item.assignee}</span>
-          )}
-          <span className="text-xs text-ink-400 hidden sm:inline">{item._team}</span>
-          <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">{tl}</span>
-          <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${cm.badge}`}>{cm.label}</span>
+    <ExpandableRow
+      expanded={expanded}
+      onToggle={onToggle}
+      header={
+        <div className="flex items-center gap-2.5 px-3 py-2.5 min-h-10">
+          <p className="flex-1 min-w-0 text-sm truncate text-foreground">{item.title}</p>
+          <div className="flex items-center gap-1.5 shrink-0">
+            {item.assignee && (
+              <span className="text-xs text-ink-400 hidden sm:inline">{item.assignee}</span>
+            )}
+            <span className="text-xs text-ink-400 hidden sm:inline">{item._team}</span>
+            <span className="text-xs px-1.5 py-0.5 rounded-xs bg-ink-100 text-ink-500">{tl}</span>
+            <span className={`text-xs font-semibold px-1.5 py-0.5 rounded-xs ${cm.badge}`}>{cm.label}</span>
+          </div>
         </div>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border px-4 py-3 space-y-1.5">
+      }
+      detail={
+        <div className="space-y-1.5">
           {item.detail && item.detail.split('\n').filter(Boolean).map((line, i) => (
             <p key={i} className="flex items-start gap-1.5 text-sm text-ink-500 leading-relaxed">
               <span className="mt-[7px] w-1 h-1 rounded-full bg-ink-300 shrink-0" />
@@ -114,8 +114,9 @@ function ItemRow({ item, expanded, onToggle }: {
           {item.date && <p className="text-xs text-ink-400 mt-1">일정: {item.date}</p>}
           <p className="text-xs text-ink-300 mt-1">{item._team}</p>
         </div>
-      )}
-    </div>
+      }
+      detailClassName="px-4 py-3 space-y-1.5"
+    />
   )
 }
 
@@ -124,7 +125,7 @@ function ItemRow({ item, expanded, onToggle }: {
 function BrandSection({ brand, items, expandedKey, onToggle }: {
   brand:       string
   items:       EnrichedItem[]
-  expandedKey: string | null
+  expandedKey: (key: string) => boolean
   onToggle:    (key: string) => void
 }) {
   const profiles = useBrandProfiles()
@@ -143,7 +144,7 @@ function BrandSection({ brand, items, expandedKey, onToggle }: {
       {items.map((item, i) => {
         const key = `${brand}-${i}`
         return (
-          <ItemRow key={key} item={item} expanded={expandedKey === key} onToggle={() => onToggle(key)} />
+          <ItemRow key={key} item={item} expanded={expandedKey(key)} onToggle={() => onToggle(key)} />
         )
       })}
     </section>
@@ -157,7 +158,7 @@ const NO_ASSIGNEE = '담당자 미지정'
 function AssigneeSection({ assignee, items, expandedKey, onToggle }: {
   assignee:    string
   items:       EnrichedItem[]
-  expandedKey: string | null
+  expandedKey: (key: string) => boolean
   onToggle:    (key: string) => void
 }) {
   return (
@@ -170,7 +171,7 @@ function AssigneeSection({ assignee, items, expandedKey, onToggle }: {
       {items.map((item, i) => {
         const key = `${assignee}-${i}`
         return (
-          <ItemRow key={key} item={item} expanded={expandedKey === key} onToggle={() => onToggle(key)} />
+          <ItemRow key={key} item={item} expanded={expandedKey(key)} onToggle={() => onToggle(key)} />
         )
       })}
     </section>
@@ -188,7 +189,7 @@ interface Props {
 }
 
 export function WeeklySummaryList({ reports, selectedBrand, groupBy }: Props) {
-  const [expandedKey, setExpandedKey] = useState<string | null>(null)
+  const { toggle, isExpanded } = useAccordion()
   const aliasMap = useBrandAliases()
 
   const allItems = useMemo(() => assembleItems(reports, aliasMap), [reports, aliasMap])
@@ -269,15 +270,15 @@ export function WeeklySummaryList({ reports, selectedBrand, groupBy }: Props) {
               key={label}
               assignee={label}
               items={items}
-              expandedKey={expandedKey}
-              onToggle={key => setExpandedKey(k => k === key ? null : key)}
+              expandedKey={isExpanded}
+              onToggle={toggle}
             />
           : <BrandSection
               key={label}
               brand={label}
               items={items}
-              expandedKey={expandedKey}
-              onToggle={key => setExpandedKey(k => k === key ? null : key)}
+              expandedKey={isExpanded}
+              onToggle={toggle}
             />
       ))}
     </div>

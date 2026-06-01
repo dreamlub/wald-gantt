@@ -111,7 +111,7 @@ interface Props {
   onTimelineStatsLoaded?: (stats: BrandTimelineStat[]) => void
 }
 
-export function SummarySidebar({
+export function SlackSidebar({
   view,
   history,
   dateFrom, dateTo, onDateFromChange, onDateToChange,

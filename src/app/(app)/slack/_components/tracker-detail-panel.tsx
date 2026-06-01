@@ -1,6 +1,7 @@
 'use client'
 
 import { useEffect, useState } from 'react'
+import { useAccordion } from '@/hooks/use-accordion'
 import { CalendarDays, CheckCircle2, GitBranch, Link2, Loader2, MessageSquareText, RotateCcw } from 'lucide-react'
 import { cn } from '@/lib/utils'
 import { BrandIcon } from '@/components/brand-icon'
@@ -56,7 +57,7 @@ export function IssueDetailPanel({
 }) {
   const profiles = useBrandProfiles()
   const [messages, setMessages] = useState<HistoryItem[]>([])
-  const [expandedMsgId, setExpandedMsgId] = useState<string | null>(null)
+  const { toggle: toggleMsg, isExpanded: isMsgExpanded, setExpandedId: setExpandedMsgId } = useAccordion()
   const [updating, setUpdating] = useState(false)
   const [confirmOpen, setConfirmOpen] = useState(false)
 
@@ -251,11 +252,11 @@ export function IssueDetailPanel({
           </h3>
           <div className="space-y-1.5">
             {messages.map(msg => {
-              const expanded = expandedMsgId === msg.id
+              const expanded = isMsgExpanded(msg.id)
               return (
                 <button
                   key={msg.id}
-                  onClick={() => setExpandedMsgId(expanded ? null : msg.id)}
+                  onClick={() => toggleMsg(msg.id)}
                   className="w-full rounded-md border bg-card px-3 py-2 text-left hover:bg-muted transition-colors"
                 >
                   <div className="flex items-center gap-2 mb-1">

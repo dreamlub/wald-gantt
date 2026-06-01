@@ -3,6 +3,7 @@
 import { useState, useEffect, useRef } from 'react'
 import type { TaskStatus, Priority, RecurrenceRule } from '@/types'
 import { toDate, toDateStr } from '@/lib/gantt-utils'
+import { kstToday } from '@/lib/kst'
 import type { FormTab, ProjectOption, Props } from './_TaskFormConstants'
 
 export function useTaskForm({ open, onClose, onSave, editTask, defaultStatus = 'to-do', defaultProjects, onSearchProjects, labelSuggestions = [], initialTitle, initialMemo, initialTab = 'info' }: Props) {
@@ -68,7 +69,7 @@ export function useTaskForm({ open, onClose, onSave, editTask, defaultStatus = '
 
       setTitle(initialTitle ?? ''); setStatus(defaultStatus); setPriority(2)
 
-      setAssignee(''); setStartDate(undefined); setDueDate(undefined); setMemo(initialMemo ?? '')
+      setAssignee(''); setStartDate(toDate(kstToday())); setDueDate(undefined); setMemo(initialMemo ?? '')
       setLabels([]); setLinkedProjects(defaultProjects ?? [])
       setRecurrenceRule(null); setRecurrenceInterval(1)
     }

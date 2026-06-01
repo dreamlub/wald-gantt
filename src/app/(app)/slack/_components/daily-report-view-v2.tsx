@@ -1,6 +1,7 @@
 'use client'
 
 import { useMemo, useState } from 'react'
+import { useAccordion } from '@/hooks/use-accordion'
 import { format } from 'date-fns'
 import { ko } from 'date-fns/locale'
 import { CalendarDays, Clock, CheckSquare, ChevronRight, Link2, Check } from 'lucide-react'
@@ -264,9 +265,8 @@ function ExpandedRow({ item, isLast, accent, onCollapse }: {
 }
 
 function BrandCard({ brand, items }: { brand: string; items: UnifiedItem[] }) {
-  const [expandedKey, setExpandedKey] = useState<string | null>(() =>
-    (items.find(i => i.severity === 'urgent') ?? items.find(i => i.severity === 'watch') ?? items[0])?.key ?? null
-  )
+  const initialKey = (items.find(i => i.severity === 'urgent') ?? items.find(i => i.severity === 'watch') ?? items[0])?.key ?? null
+  const { expandedId: expandedKey, setExpandedId: setExpandedKey } = useAccordion(initialKey)
   const profiles = useBrandProfiles()
   const p = profiles.get(brand)
   const accent = brandColor(brand)

@@ -76,7 +76,7 @@ export function TasksSidebar({
 
   return (
     <div
-      className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+      className="hidden sm:flex shrink-0 border-r bg-muted flex-col overflow-hidden"
       style={{ width: 'var(--sidebar-w)' }}
     >
       <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">

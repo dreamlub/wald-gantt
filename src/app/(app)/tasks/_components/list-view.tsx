@@ -163,7 +163,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
   return (
     <div className="flex-1 flex flex-col overflow-hidden">
       {/* 헤더 */}
-      <div className="flex items-center gap-4 px-4 py-2 border-b bg-muted shrink-0">
+      <div className="flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 border-b bg-muted shrink-0">
         <div className="w-6 shrink-0 flex items-center justify-center">
           {selectionMode && (
             <button
@@ -187,11 +187,11 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           )}
         </div>
         <div className="flex-1 min-w-0"><SortBtn col="title" label="태스크" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-8 shrink-0 text-sm font-semibold text-ink-400 uppercase tracking-wider">메모</div>
-        <div className="w-12 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
-        <div className="w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="hidden sm:block w-8 shrink-0 text-sm font-semibold text-ink-400 uppercase tracking-wider">메모</div>
+        <div className="hidden sm:block w-12 shrink-0"><SortBtn col="priority" label="우선" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="hidden sm:block w-28 shrink-0"><SortBtn col="status" label="상태" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="hidden sm:block w-32 shrink-0"><SortBtn col="assignee" label="담당자" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
+        <div className="w-20 sm:w-24 shrink-0 text-right pr-2"><SortBtn col="due_date" label="일정" sortKey={sortKey} sortDir={sortDir} onToggle={toggleSort} /></div>
       </div>
 
       <div data-scrolltop className="flex-1 overflow-y-auto [scrollbar-gutter:stable] bg-card">
@@ -216,7 +216,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
           <div
             key={task.id}
             onClick={() => selectionMode ? onSelect?.(task.id) : onEdit(task)}
-            className={`group flex items-center gap-4 px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''} ${overdue && !isSub ? 'bg-status-late/5' : ''}`}
+            className={`group flex items-center gap-2 sm:gap-4 px-3 sm:px-4 py-2 border-b border-ink-150 hover:bg-muted transition-colors cursor-pointer ${isDone ? 'opacity-55' : ''} ${isSub ? 'bg-muted/40' : ''} ${selectionMode && selectedIds?.has(task.id) ? 'bg-lilac-50/40' : ''} ${overdue && !isSub ? 'bg-status-late/5' : ''}`}
           >
             <div className="w-6 shrink-0 flex items-center">
               {selectionMode ? (
@@ -284,7 +284,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 </button>
               )}
             </div>
-            <div className="w-8 shrink-0 flex items-center justify-center">
+            <div className="hidden sm:flex w-8 shrink-0 items-center justify-center">
               {task.memo && (
                 <button
                   onClick={e => { e.stopPropagation(); onEdit(task) }}
@@ -296,10 +296,10 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 </button>
               )}
             </div>
-            <div className="w-12 shrink-0 flex items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
+            <div className="hidden sm:flex w-12 shrink-0 items-center justify-center" title={task.priority ? ['없음','낮음','보통','높음'][task.priority] : ''}>
               <PriorityBars priority={task.priority} />
             </div>
-            <div className="w-28 shrink-0 flex items-center gap-1.5">
+            <div className="hidden sm:flex w-28 shrink-0 items-center gap-1.5">
               <span
                 className="shrink-0 w-3.5 h-3.5 rounded-full flex items-center justify-center text-5xs font-bold text-white"
                 style={{ backgroundColor: STATUS_COLOR[task.status] }}
@@ -308,7 +308,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
               </span>
               <span className="text-sm text-muted-foreground truncate">{STATUS_LABEL[task.status]}</span>
             </div>
-            <div className="w-32 shrink-0 flex items-center gap-1.5">
+            <div className="hidden sm:flex w-32 shrink-0 items-center gap-1.5">
               {assigneeName && (
                 <>
                   <span className="w-2 h-2 rounded-full shrink-0" style={{ backgroundColor: color }} />
@@ -316,7 +316,7 @@ export function ListView({ tasks, assigneeColorMap, getAssigneeKey, onEdit, onSt
                 </>
               )}
             </div>
-            <div className={`w-24 shrink-0 text-right pr-2 text-sm tabular-nums ${overdue ? 'text-status-late font-medium' : 'text-ink-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
+            <div className={`w-20 sm:w-24 shrink-0 text-right pr-2 text-sm tabular-nums ${overdue ? 'text-status-late font-medium' : 'text-ink-400'}`}>{fmtRange(task.start_date ?? null, task.due_date)}</div>
           </div>
           )
         }

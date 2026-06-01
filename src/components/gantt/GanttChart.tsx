@@ -1,6 +1,7 @@
 'use client'
 
 import { useState, useLayoutEffect } from 'react'
+import { useCollapsibleSet } from '@/hooks/use-collapsible-set'
 import {
   DndContext, closestCenter,
 } from '@dnd-kit/core'
@@ -93,15 +94,7 @@ export function GanttChart({
   const startDelayedFilter = externalStartDelayedFilter ?? internalStartDelayedFilter
   const [searchQuery, setSearchQuery]       = useState('')
   const [memoHover, setMemoHover]           = useState<{ text: string; x: number; y: number } | null>(null)
-  const [collapsedParents, setCollapsedParents] = useState<Set<string>>(new Set())
-  function toggleCollapsed(id: string) {
-    setCollapsedParents(prev => {
-      const next = new Set(prev)
-      if (next.has(id)) next.delete(id)
-      else next.add(id)
-      return next
-    })
-  }
+  const { collapsed: collapsedParents, toggle: toggleCollapsed } = useCollapsibleSet()
   const parentIds = new Set(projects.filter(p => p.parent_id).map(p => p.parent_id!))
 
   const sensors = useDndSensors()

@@ -42,14 +42,14 @@ export function TasksActionBar({
             <button
               key={tab.key}
               onClick={() => onViewChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-2.5 sm:px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 view === tab.key
                   ? 'border-lilac-500 text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
               }`}
             >
               {tab.icon}
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           ))}
         </nav>
@@ -96,12 +96,12 @@ export function TasksActionBar({
             label="완료 포함"
             title={hideDone ? '완료 태스크 보이기' : '완료 태스크 숨기기'}
             offClassName="bg-border"
-            className="text-sm text-muted-foreground flex-row-reverse"
+            className="hidden sm:flex text-sm text-muted-foreground flex-row-reverse"
           />
           {(view === 'basic' || view === 'listview') && (
             <button
               onClick={onToggleSelection}
-              className={`flex items-center gap-1 text-sm px-2.5 py-1.5 rounded transition-colors ${
+              className={`hidden sm:flex items-center gap-1 text-sm px-2.5 py-1.5 rounded transition-colors ${
                 selectionMode
                   ? 'bg-lilac-100 text-lilac-700 font-medium'
                   : 'text-muted-foreground hover:text-foreground hover:bg-muted'
@@ -114,9 +114,10 @@ export function TasksActionBar({
           )}
           <button
             onClick={onAdd}
-            className="flex items-center gap-1 text-sm font-medium text-background bg-foreground hover:bg-ink-800 px-3 py-1.5 rounded transition-colors"
+            className="flex items-center gap-1 text-sm font-medium text-background bg-foreground hover:bg-ink-800 px-2.5 py-1.5 rounded transition-colors"
           >
-            <Plus size={13} /> 태스크 추가
+            <Plus size={13} />
+            <span className="hidden sm:inline">태스크 추가</span>
           </button>
         </div>
       </div>

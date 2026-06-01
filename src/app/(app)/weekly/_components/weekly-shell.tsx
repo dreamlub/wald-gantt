@@ -172,7 +172,7 @@ export function WeeklyShell() {
   return (
     <div className="flex flex-1 overflow-hidden">
       {/* 좌측: 주차 목록 */}
-      <div className="shrink-0 border-r bg-muted flex flex-col overflow-hidden" style={{ width: 'var(--sidebar-w)' }}>
+      <div className="hidden sm:flex shrink-0 border-r bg-muted flex-col overflow-hidden" style={{ width: 'var(--sidebar-w)' }}>
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
           <h1 className="flex-1 text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap truncate">
             주간보고 분석

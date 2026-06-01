@@ -129,7 +129,7 @@ export default async function CommandCenterPage() {
 
   return (
     <div className="flex-1 flex flex-col overflow-hidden bg-background">
-      <header className="h-12 shrink-0 border-b bg-card flex items-center px-5 gap-3">
+      <header className="h-12 shrink-0 border-b bg-card flex items-center px-3 sm:px-5 gap-3">
         <div className="flex items-center gap-2 min-w-0">
           <span className="inline-flex size-6 items-center justify-center rounded-md bg-foreground text-background">
             <Sparkles size={13} />
@@ -139,7 +139,7 @@ export default async function CommandCenterPage() {
             <p className="text-sm text-ink-400">{fmtDay(today)} 운영 관제판</p>
           </div>
         </div>
-        <div className="ml-auto flex items-center gap-1.5">
+        <div className="ml-auto hidden sm:flex items-center gap-1.5">
           <QuickLink href="/review" label="일감 판단" icon={<ClipboardList size={12} />} />
           <QuickLink href="/tasks" label="Tasks" icon={<ListTodo size={12} />} />
           <QuickLink href="/calendar" label="Calendar" icon={<CalendarDays size={12} />} />
@@ -147,7 +147,7 @@ export default async function CommandCenterPage() {
       </header>
 
       <main data-scrolltop className="flex-1 overflow-y-auto">
-        <div className="px-6 py-5 space-y-5 max-w-[93.75rem] mx-auto">
+        <div className="px-3 py-4 sm:px-6 sm:py-5 space-y-5 max-w-[93.75rem] mx-auto">
           {/* KPI */}
           <section className="grid grid-cols-2 xl:grid-cols-4 gap-3">
             <MetricCard href="/review" label="검토 대기" value={reviewCount} detail={`높음 ${reviewHighCount}`} icon={<ClipboardList size={14} />} tone="lilac" />

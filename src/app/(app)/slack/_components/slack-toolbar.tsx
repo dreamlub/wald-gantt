@@ -29,7 +29,7 @@ interface Props {
   setSearchQuery: Dispatch<SetStateAction<string>>
 }
 
-export function SummaryToolbar({
+export function SlackToolbar({
   view,
   onViewChange,
   searchRef,
@@ -49,14 +49,14 @@ export function SummaryToolbar({
             <button
               key={tab.key}
               onClick={() => onViewChange(tab.key)}
-              className={`flex items-center gap-1.5 px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
+              className={`flex items-center gap-1.5 px-2 sm:px-3 text-sm font-medium border-b-2 transition-colors whitespace-nowrap ${
                 active
                   ? 'border-lilac-500 text-foreground'
                   : 'border-transparent text-muted-foreground hover:text-foreground hover:border-ink-200'
               }`}
             >
               <Icon size={12} />
-              {tab.label}
+              <span className="hidden sm:inline">{tab.label}</span>
             </button>
           )
         })}

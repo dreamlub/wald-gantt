@@ -6,6 +6,8 @@ import { PRIORITY_OPTIONS, PRIORITY_META, PriorityBars, STATUS_COLOR } from '@/a
 import { AutocompleteInput } from '@/components/AutocompleteInput'
 import { labelColor } from '@/app/(app)/tasks/_utils'
 import { DatePickerButton } from '@/components/ui/date-picker-button'
+import { kstToday, addDaysYMD } from '@/lib/kst'
+import { toDate } from '@/lib/gantt-utils'
 import { Drawer, DrawerHeader, DrawerBody, DrawerFooter } from '@/components/ui/drawer'
 import { TaskHistorySection } from '@/app/(app)/tasks/_components/task-history-section'
 import { RECURRENCE_OPTIONS, STATUS_OPTIONS, type Props, type ProjectOption } from './_TaskFormConstants'
@@ -157,6 +159,23 @@ export function TaskFormDialog(props: Props) {
                   />
                 </div>
               </div>
+            </div>
+            <div className="flex gap-1.5">
+              {([{ label: '오늘', days: 0 }, { label: '내일', days: 1 }, { label: '1주일 뒤', days: 7 }] as const).map(({ label, days }) => (
+                <button
+                  key={label}
+                  type="button"
+                  onClick={() => {
+                    const today = kstToday()
+                    setDueDate(toDate(addDaysYMD(today, days)))
+                    if (!startDate) setStartDate(toDate(today))
+                    if (status === 'backlog') setStatus('to-do')
+                  }}
+                  className="text-xs px-2 py-0.5 rounded border border-border text-muted-foreground hover:border-lilac-300 hover:text-lilac-600 transition-colors"
+                >
+                  {label}
+                </button>
+              ))}
             </div>
             {dateError && (
               <p className="text-xs text-status-late">{dateError}</p>

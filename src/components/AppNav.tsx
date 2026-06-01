@@ -10,6 +10,7 @@ import {
 } from 'lucide-react'
 import { SlackIcon } from '@/components/icons/SlackIcon'
 import { createClient } from '@/lib/supabase/client'
+import { useIsMobile } from '@/hooks/use-is-mobile'
 
 /* ── 타입 ── */
 interface NavChild {
@@ -61,7 +62,9 @@ export function AppNav() {
   const router   = useRouter()
 
   // SSR hydration mismatch 방지: 서버 스냅샷 false, 클라이언트에서 localStorage 반영
-  const collapsed = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false)
+  const isMobile = useIsMobile()
+  const collapsedPref = useSyncExternalStore(subscribeCollapsed, getCollapsedSnapshot, () => false)
+  const collapsed = isMobile || collapsedPref
 
   function toggleCollapsed() {
     localStorage.setItem(STORAGE_KEY, String(!getCollapsedSnapshot()))
@@ -89,7 +92,7 @@ export function AppNav() {
         <button
           onClick={toggleCollapsed}
           title={collapsed ? '메뉴 펼치기' : '메뉴 접기'}
-          className="shrink-0 p-1 rounded text-white/30 hover:text-white hover:bg-white/10 transition-colors"
+          className="shrink-0 p-1 rounded text-white/30 hover:text-white hover:bg-white/10 transition-colors sm:flex hidden"
         >
           {collapsed
             ? <PanelLeftOpen  size={14} />
@@ -108,7 +111,7 @@ export function AppNav() {
               href={href}
               className={`flex transition-colors ${
                 collapsed
-                  ? 'flex-col items-center justify-center gap-1 py-2.5 w-full'
+                  ? 'flex-col items-center justify-center gap-1 py-2.5 w-full min-h-[44px]'
                   : 'flex-row items-center gap-3 h-9 px-3.5'
               } ${
                 isActive

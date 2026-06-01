@@ -146,7 +146,7 @@ export function BoardSidebar({
 
   return (
     <div
-      className="shrink-0 flex flex-col border-r bg-muted overflow-hidden"
+      className="hidden sm:flex shrink-0 flex-col border-r bg-muted overflow-hidden"
       style={{ width: 'var(--sidebar-w)' }}
     >
       {/* 헤더 */}

@@ -4,6 +4,8 @@ import { useState, useEffect, useCallback, useMemo } from 'react'
 import { createClient } from '@/lib/supabase/client'
 import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
+import { useAccordion } from '@/hooks/use-accordion'
+import { ExpandableRow } from '@/components/ui/expandable-row'
 
 import type { Tag, Priority } from '../_lib/types'
 import { TAG_META } from '../_lib/constants'
@@ -94,44 +96,39 @@ function WeekSummaryRow({ row, expanded, onToggle }: {
   const tagMeta  = firstTag ? TAG_META[firstTag] : null
 
   return (
-    <div
-      onClick={onToggle}
-      className={`group border border-border bg-card cursor-pointer transition-colors hover:border-ink-300 hover:bg-muted/30 ${
-        expanded ? 'rounded-md shadow-sm' : 'rounded-sm'
-      }`}
-    >
-      <div className="flex items-center gap-2 px-3 py-2 min-h-9">
-        <span className="w-3.5 flex justify-center shrink-0">
-          {row.max_priority
-            ? <PriorityBars priority={row.max_priority as Priority} />
-            : <span className="w-1 h-1 rounded-full bg-ink-300" />
-          }
-        </span>
-        <span className="flex items-center gap-1.5 shrink-0">
-          <BrandIcon name={row.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
-          <span className="text-sm font-semibold text-foreground">{row.brand_name}</span>
-        </span>
-        <p className="flex-1 min-w-0 text-sm text-ink-600 truncate">{row.topic}</p>
-        {tagMeta && (
-          <span
-            className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
-            style={{
-              background: `color-mix(in srgb, ${tagMeta.bg} 12%, transparent)`,
-              color: tagMeta.bg,
-            }}
-          >
-            {tagMeta.label}
+    <ExpandableRow
+      expanded={expanded}
+      onToggle={onToggle}
+      header={
+        <div className="flex items-center gap-2 px-3 py-2 min-h-9">
+          <span className="w-3.5 flex justify-center shrink-0">
+            {row.max_priority
+              ? <PriorityBars priority={row.max_priority as Priority} />
+              : <span className="w-1 h-1 rounded-full bg-ink-300" />
+            }
           </span>
-        )}
-        <span className="shrink-0 text-sm text-ink-400">{row.item_count}건</span>
-      </div>
-
-      {expanded && (
-        <div className="border-t border-border px-5 py-3">
-          <MarkdownBody text={row.summary} className="text-sm text-ink-500 leading-relaxed" />
+          <span className="flex items-center gap-1.5 shrink-0">
+            <BrandIcon name={row.brand_name} logoUrl={p?.logo_url} lucideIcon={p?.lucide_icon} size={16} />
+            <span className="text-sm font-semibold text-foreground">{row.brand_name}</span>
+          </span>
+          <p className="flex-1 min-w-0 text-sm text-ink-600 truncate">{row.topic}</p>
+          {tagMeta && (
+            <span
+              className="shrink-0 text-xs font-semibold px-1.5 py-0.5 rounded"
+              style={{
+                background: `color-mix(in srgb, ${tagMeta.bg} 12%, transparent)`,
+                color: tagMeta.bg,
+              }}
+            >
+              {tagMeta.label}
+            </span>
+          )}
+          <span className="shrink-0 text-sm text-ink-400">{row.item_count}건</span>
         </div>
-      )}
-    </div>
+      }
+      detail={<MarkdownBody text={row.summary} className="text-sm text-ink-500 leading-relaxed" />}
+      detailClassName="px-5 py-3"
+    />
   )
 }
 
@@ -148,9 +145,9 @@ interface Props {
 }
 
 export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, onBrandsLoaded, selectedTags, priorityKey }: Props) {
-  const [rows, setRows]             = useState<WeeklyBrandSummary[]>([])
-  const [loading, setLoading]       = useState(true)
-  const [expandedId, setExpandedId] = useState<string | null>(null)
+  const [rows, setRows]   = useState<WeeklyBrandSummary[]>([])
+  const [loading, setLoading] = useState(true)
+  const { toggle, isExpanded } = useAccordion()
 
   const fetchSummaries = useCallback(async () => {
     setLoading(true)
@@ -254,8 +251,8 @@ export function WeeklyBrandView({ dateFrom, dateTo, brandFilter, onCountChange, 
               <WeekSummaryRow
                 key={row.id}
                 row={row}
-                expanded={expandedId === row.id}
-                onToggle={() => setExpandedId(expandedId === row.id ? null : row.id)}
+                expanded={isExpanded(row.id)}
+                onToggle={() => toggle(row.id)}
               />
             ))}
           </div>

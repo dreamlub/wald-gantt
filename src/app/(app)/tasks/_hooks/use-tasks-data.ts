@@ -1,6 +1,7 @@
 'use client'
 
 import { useCallback, useEffect, useRef, useState } from 'react'
+import { useCollapsibleSet } from '@/hooks/use-collapsible-set'
 import { toast } from 'sonner'
 import { getOrCreateWorkspace } from '@/lib/gantt-service'
 import {
@@ -21,7 +22,7 @@ export function useTasksData() {
   const [trashCount, setTrashCount] = useState(0)
   const [archiveCount, setArchiveCount] = useState(0)
   const [expandedParents, setExpandedParents] = useState<Set<string>>(new Set())
-  const [collapsed, setCollapsed] = useState<Set<string>>(new Set<string>())
+  const { collapsed, toggle: toggleCollapse, reset: resetCollapsed } = useCollapsibleSet()
   const autoArchiveDone = useRef(false)
 
   const load = useCallback(async () => {
@@ -38,9 +39,9 @@ export function useTasksData() {
       setTrashCount(cnt)
       setArchiveCount(arcCnt)
       const statuses: TaskStatus[] = ['backlog', 'to-do', 'in-progress', 'done', 'pending']
-      setCollapsed(new Set(
+      resetCollapsed(
         statuses.filter(s => s === 'pending' || list.filter(t => t.status === s).length === 0)
-      ))
+      )
       const parentIds = new Set(list.filter(t => t.parent_id).map(t => t.parent_id as string))
       setExpandedParents(parentIds)
     } catch (e) { toast.error(errMsg(e)) }
@@ -141,11 +142,14 @@ export function useTasksData() {
   }, [workspace, load])
 
   const handleTaskDateChange = useCallback(async (id: string, start_date: string | null, due_date: string | null) => {
-    setTasks(prev => prev.map(t => t.id === id ? { ...t, start_date, due_date } : t))
+    const task = tasks.find(t => t.id === id)
+    const isSettingDate = start_date !== null || due_date !== null
+    const statusUpdate = (isSettingDate && task?.status === 'backlog') ? { status: 'to-do' as TaskStatus } : {}
+    setTasks(prev => prev.map(t => t.id === id ? { ...t, start_date, due_date, ...statusUpdate } : t))
     try {
-      await updateTask(id, { start_date, due_date })
+      await updateTask(id, { start_date, due_date, ...statusUpdate })
     } catch (e) { toast.error(errMsg(e)); await load() }
-  }, [load])
+  }, [tasks, load])
 
   const handleDrawerSave = useCallback(async (
     task: GanttTask,
@@ -161,9 +165,10 @@ export function useTasksData() {
   const handleAddSubTask = useCallback(async (parentId: string, title: string, status: TaskStatus) => {
     if (!workspace) return
     const parent = tasks.find(t => t.id === parentId)
+    const parentStatus = parent?.status === 'done' ? 'to-do' : (parent?.status ?? status)
     await addTask(workspace.id, {
       title,
-      status: parent?.status ?? status,
+      status: parentStatus,
       type: parent?.type ?? 'mine',
       assignee: parent?.assignee ?? null,
       start_date: parent?.start_date ?? null,
@@ -209,9 +214,30 @@ export function useTasksData() {
   const handleBulkStatusChange = useCallback(async (ids: string[], status: TaskStatus) => {
     if (ids.length === 0) return
     try {
-      await bulkUpdateTaskStatus(ids, status)
       const idSet = new Set(ids)
-      setTasks(prev => prev.map(t => idSet.has(t.id) ? { ...t, status } : t))
+      let updatedTasks = tasks.map(t => idSet.has(t.id) ? { ...t, status } : t)
+
+      if (status === 'done') {
+        // 하위 태스크 cascade
+        updatedTasks = updatedTasks.map(t =>
+          t.parent_id && idSet.has(t.parent_id) ? { ...t, status: 'done' as TaskStatus } : t
+        )
+        // 상위 태스크 cascade (모든 형제가 done이 되면)
+        const affectedParentIds = new Set(
+          tasks.filter(t => idSet.has(t.id) && t.parent_id).map(t => t.parent_id as string)
+        )
+        affectedParentIds.forEach(parentId => {
+          const siblings = updatedTasks.filter(t => t.parent_id === parentId)
+          if (siblings.length > 0 && siblings.every(t => t.status === 'done')) {
+            updatedTasks = updatedTasks.map(t => t.id === parentId ? { ...t, status: 'done' as TaskStatus } : t)
+          }
+        })
+      }
+
+      setTasks(updatedTasks)
+      const prevStatusMap = new Map(tasks.map(t => [t.id, t.status]))
+      const changedIds = updatedTasks.filter(t => t.status !== prevStatusMap.get(t.id)).map(t => t.id)
+      await bulkUpdateTaskStatus(changedIds, status)
 
       if (status === 'done' && workspace) {
         const recurringTasks = tasks.filter(t => idSet.has(t.id) && t.recurrence_rule)
@@ -226,14 +252,6 @@ export function useTasksData() {
       toast(`${ids.length}개 태스크 상태를 변경했어요`)
     } catch (e) { toast.error(errMsg(e)); await load() }
   }, [tasks, workspace, load])
-
-  const toggleCollapse = useCallback((key: string) => {
-    setCollapsed(prev => {
-      const next = new Set(prev)
-      if (next.has(key)) next.delete(key); else next.add(key)
-      return next
-    })
-  }, [])
 
   const toggleExpanded = useCallback((parentId: string) => {
     setExpandedParents(prev => {

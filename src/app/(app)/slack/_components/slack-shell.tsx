@@ -3,12 +3,12 @@
 import { useMemo, useState, useEffect, useRef, useCallback, useReducer } from 'react'
 import { useRouter, useSearchParams, usePathname } from 'next/navigation'
 
-import type { Client, HistoryItem, Tag, Priority } from '../_lib/types'
+import type { HistoryItem, Tag, Priority } from '../_lib/types'
 import { TAG_KEYS, PRIORITY_KEYS } from '../_lib/constants'
 import { TagFilterBadge, PriorityFilterBadge } from './badges'
-import { SummarySidebar } from './slack-sidebar'
+import { SlackSidebar } from './slack-sidebar'
 import { type PriorityKey, getCurrentWeekStart } from './_sidebar-utils'
-import { SummaryToolbar } from './slack-toolbar'
+import { SlackToolbar } from './slack-toolbar'
 import { DailyListView } from './daily-list-view'
 import { RawDataView } from './raw-data-view'
 import { WeeklyBrandView } from './weekly-brand-view'
@@ -18,7 +18,7 @@ import { IssueTrackerBrandPanel } from './issue-tracker-brand-panel'
 import type { BrandTimelineStat } from '@/app/api/brands/timeline/route'
 import { FilterChip } from './filter-chip'
 import {
-  PAGE_INIT, pageReducer,
+  PAGE_INIT, pageReducer, pageStateFromPage,
   parsePriority, parseTags, parseView, todayStr,
   type ViewKey,
 } from './slack-shell-state'
@@ -30,8 +30,10 @@ import { BrandIcon } from '@/components/brand-icon'
 import { useBrandProfiles } from '@/hooks/use-brand-profiles'
 
 interface Props {
-  initialClients: Client[]
   initialHistory: HistoryItem[]
+  initialPage?: HistoryPage
+  initialDateFrom?: string
+  initialDateTo?: string
 }
 
 function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
@@ -50,7 +52,7 @@ function getTabDefaultDates(v: ViewKey): { from: string; to: string } {
   return { from: '', to: '' }
 }
 
-export function SummaryShell({ initialHistory }: Props) {
+export function SlackShell({ initialHistory, initialPage, initialDateFrom, initialDateTo }: Props) {
   const brandProfiles = useBrandProfiles()
   const router        = useRouter()
   const pathname      = usePathname()
@@ -61,11 +63,11 @@ export function SummaryShell({ initialHistory }: Props) {
   const [view,         setView]         = useState<ViewKey>(initialView)
   const [dateFrom,     setDateFrom]     = useState<string>(() => {
     const f = searchParams.get('from') ?? '', t = searchParams.get('to') ?? ''
-    return (!f && !t) ? getTabDefaultDates(initialView).from : f
+    return (!f && !t) ? (initialDateFrom ?? getTabDefaultDates(initialView).from) : f
   })
   const [dateTo,       setDateTo]       = useState<string>(() => {
     const f = searchParams.get('from') ?? '', t = searchParams.get('to') ?? ''
-    return (!f && !t) ? getTabDefaultDates(initialView).to : t
+    return (!f && !t) ? (initialDateTo ?? getTabDefaultDates(initialView).to) : t
   })
   const weekStart = searchParams.get('week') ?? getCurrentWeekStart()
   const [brandId,      setBrandId]      = useState<string | 'all'>(searchParams.get('brand') ?? 'all')
@@ -134,7 +136,8 @@ export function SummaryShell({ initialHistory }: Props) {
   const searchInputRef  = useRef<HTMLInputElement>(null)
 
   // ── 테이블 뷰 서버 페이지네이션 ────────────────────────────
-  const [pg, pgDispatch] = useReducer(pageReducer, PAGE_INIT)
+  const [pg, pgDispatch] = useReducer(pageReducer, initialPage ? pageStateFromPage(initialPage) : PAGE_INIT)
+  const skipInitialFetchRef = useRef(!!initialPage)
   const fetchIdRef = useRef(0)
   // brandCounts 는 브랜드 필터 제외 집계 → 날짜 범위 내 전체 건수로 활용
   const dailyTotalCount = useMemo(() => {
@@ -171,7 +174,10 @@ export function SummaryShell({ initialHistory }: Props) {
   }, [])
 
   useEffect(() => {
-    if (view === 'dailylist') fetchPage()
+    if (view === 'dailylist') {
+      if (skipInitialFetchRef.current) { skipInitialFetchRef.current = false; return }
+      fetchPage()
+    }
   }, [view, dateFrom, dateTo, fetchPage])
 
   const handleLoadMore = useCallback(() => {
@@ -242,14 +248,14 @@ export function SummaryShell({ initialHistory }: Props) {
 
       {/* ── 사이드바 ─────────────────────────────────────────── */}
       <div
-        className="shrink-0 border-r bg-muted flex flex-col overflow-hidden"
+        className="hidden sm:flex shrink-0 border-r bg-muted flex-col overflow-hidden"
         style={{ width: 'var(--sidebar-w)' }}
       >
         <div className="h-12 flex items-center px-4 border-b bg-card shrink-0">
           <h1 className="text-sm font-semibold text-ink-400 uppercase tracking-wider whitespace-nowrap">슬랙메시지 분석</h1>
         </div>
 
-        <SummarySidebar
+        <SlackSidebar
           view={view}
           history={initialHistory}
           dateFrom={dateFrom}
@@ -285,7 +291,7 @@ export function SummaryShell({ initialHistory }: Props) {
       {/* ── 메인 ─────────────────────────────────────────────── */}
       <div className="flex-1 flex flex-col overflow-hidden min-w-0">
 
-        <SummaryToolbar
+        <SlackToolbar
           view={view}
           onViewChange={handleViewChange}
           searchRef={searchRef}
