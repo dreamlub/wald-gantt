@@ -36,6 +36,8 @@ interface GanttCategoryLeftProps {
   parentIds: Set<string>
   onAddSubProject?: (parentId: string, catId: string) => void
   onAddMilestone?: (catId: string, parentId?: string) => void
+  /** false 시 프로젝트 행 DnD 비활성화 (정렬 뷰 등) */
+  isDragEnabled?: boolean
 }
 
 function ProjectRow({
@@ -80,8 +82,8 @@ function ProjectRow({
             style={{ backgroundColor: PRIORITY_META[project.priority!].color }}
           />
         )}
-        {/* 드래그 핸들 (부모만, 읽기 전용 아닐 때) */}
-        {!readOnly && !isChild && (
+        {/* 드래그 핸들 (부모만, 읽기 전용 아닐 때, DnD 활성 상태일 때) */}
+        {!readOnly && !isChild && !!listeners && (
           <button
             {...listeners}
             className="shrink-0 cursor-grab touch-none p-0 opacity-0 group-hover:opacity-100 transition-opacity"
@@ -192,6 +194,7 @@ export function GanttCategoryLeft({
   onDeleteCategory, onUpdateCategory, onAddProject, onDeleteProject, onEditProject,
   onOpenMemo, onSetMemoHover, onCycleStatus, todayStr,
   collapsedParents, onToggleCollapsed, parentIds, onAddSubProject, onAddMilestone,
+  isDragEnabled = true,
 }: GanttCategoryLeftProps) {
   const parents  = catProjs.filter(p => !p.parent_id)
   const childMap = new Map<string, GanttProject[]>()
@@ -276,7 +279,7 @@ export function GanttCategoryLeft({
               const hasChildren = parentIds.has(parent.id)
               const children    = childMap.get(parent.id) ?? []
               return (
-                <SortableProjRow key={parent.id} id={parent.id} disabled={readOnly}>
+                <SortableProjRow key={parent.id} id={parent.id} disabled={readOnly || !isDragEnabled}>
                   {({ listeners: projListeners, isDragging }) => (
                     <>
                       <ProjectRow

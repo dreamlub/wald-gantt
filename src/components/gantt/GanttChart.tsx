@@ -345,6 +345,7 @@ export function GanttChart({
                       parentIds={parentIds}
                       onAddSubProject={onAddSubProject}
                       onAddMilestone={onAddMilestone}
+                      isDragEnabled={sortMode === 'default'}
                     />
                   ))}
                 </SortableContext>
